@@ -6,11 +6,12 @@ Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je 
 - ☀️ **Vandaag**: zo rustig mogelijk: datum en weer, je dagschema dat vanzelf bijwerkt, je eerstvolgende afspraak met route en je taken. Wat er op staat, kies je bij ⚙️ Instellingen.
 - 📅 **Agenda**: alles op één plek. Bij iets nieuws kies je de soort: afspraak, sport, uitgaan, etentje, werk, familie en vrienden, gezondheid, reizen of overig. Met 📲 zet je het in Apple Agenda met een melding op je vertrektijd. Onderaan (dichtgeklapt): ideeën in de buurt, sportdoelen en tijdsbesteding.
 - 💬 **Assistent** (heeft tegoed bij Anthropic nodig): praat met 🎤 Praat en laat antwoorden voorlezen, met een stem naar keuze (Nederland of Vlaanderen, man of vrouw), ook handsfree. Antwoorden verschijnen woord voor woord. Zoekt op internet en vergelijkt opties, plant strak met je reistijd en gewoontes, en onthoudt je voorkeuren (te zien en te wissen bij ⚙️ Instellingen).
+- ✉️ **Mail** (iCloud, Gmail, Yahoo, KPN, Ziggo en meer, met een app-wachtwoord): de assistent vat je mail samen, zet afspraken in je agenda en zet antwoorden klaar, ook ingesproken. Jij verstuurt, of je zegt na het voorlezen "verstuur".
 - 🛒 **Boodschappen**: lijst om af te vinken en de goedkoopste supermarkt bij jou in de buurt (open prijsgegevens van Checkjebon).
 - 📚 **Leren en schrijven**: leerdoel met leerplan, overhoren met feedback en herhalingen op het juiste moment. Hulp bij scripties, verslagen en essays: onderzoeksvraag, opzet, planning in je agenda, echte wetenschappelijke bronnen (OpenAlex en Crossref) met APA-bronnenlijst, en feedback op je tekst (Word, pdf of getypt).
 - ⚙️ **Instellingen**: hoe de assistent praat (past zich vanzelf aan jou aan), stem, wat hij over je weet, thuisadres, voorpagina en tabbladen, contacten, koppelingen, zelftest en uitloggen.
 
-**Nog niet** (volgende stappen): koppeling met je mail, budget, markt en portfolio.
+**Nog niet** (volgende stappen): budget, markt en portfolio, en Outlook-mail.
 
 ## Online zetten, helemaal op de iPad
 

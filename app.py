@@ -19,6 +19,7 @@ import agent
 import boodschappen
 import events
 import ics
+import mail
 import media
 import opslag
 import planning
@@ -32,7 +33,7 @@ import wetenschap
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
 for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
-                agent, spraak):
+                mail, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -760,7 +761,7 @@ def events_overzicht() -> None:
 
 
 VOORPAGINA = {"weer": "Weer naast de datum", "taken": "Taken", "seintjes": "Korte seintjes (herhalen, sportresultaat)"}
-EXTRA_TABBLADEN = {"🛒 Boodschappen": "Boodschappen", "📚 Leren en schrijven": "Leren en schrijven"}
+EXTRA_TABBLADEN = {"✉️ Mail": "Mail", "🛒 Boodschappen": "Boodschappen", "📚 Leren en schrijven": "Leren en schrijven"}
 
 
 def voorpagina() -> dict:
@@ -788,6 +789,11 @@ def seintjes(nu: datetime) -> None:
         delen.append(f"📚 {len(herhalingen)} keer herhalen (Leren)")
     if sport_zonder_resultaat(nu):
         delen.append("🏃 hoe ging je training? (Agenda)")
+    if concepten := opslag.mailconcepten():
+        delen.append(f"✉️ {len(concepten)} antwoord klaar om te versturen (Mail)")
+    if opslag.sportdoelen() and not tijd.sportoverzicht((nu.date() - timedelta(days=6)).isoformat(),
+                                                         nu.date().isoformat())["aantal"]:
+        delen.append("🚶 deze week nog niet bewogen, even een rondje?")
     if not opslag.instellingen().get("thuisadres"):
         delen.append("🏠 vul je thuisadres in voor vertrektijden (Instellingen)")
     if delen:
@@ -1146,6 +1152,132 @@ def geheugen_instellingen() -> None:
                        "De assistent plant hier ruimte voor.")
 
 
+# --- Mail -------------------------------------------------------------------
+
+def mail_instellen() -> None:
+    """Mailbox koppelen met een app-specifiek wachtwoord."""
+    huidig = mail.instellingen()
+    aanbieder = st.selectbox("Aanbieder", list(mail.AANBIEDERS), key="mail_aanbieder",
+                             index=list(mail.AANBIEDERS).index(huidig.get("aanbieder", "iCloud")))
+    info = mail.AANBIEDERS[aanbieder]
+    st.caption(f"Je hebt een app-wachtwoord nodig, niet je gewone wachtwoord. {info['uitleg']}")
+    if info["hulp"]:
+        st.link_button("App-wachtwoord maken", info["hulp"])
+    with st.form("mail_instellen", border=False):
+        adres = st.text_input("Mailadres", value=huidig.get("adres", ""))
+        naam = st.text_input("Je naam (zoals ontvangers die zien)", value=huidig.get("naam", ""))
+        wachtwoord = st.text_input("App-wachtwoord", type="password",
+                                   placeholder="Al opgeslagen" if huidig.get("wachtwoord") else "")
+        imap = smtp = ""
+        poort = info["smtp_poort"]
+        if aanbieder == "Anders":
+            imap = st.text_input("IMAP-server", value=huidig.get("imap", ""))
+            smtp = st.text_input("SMTP-server", value=huidig.get("smtp", ""))
+            poort = st.number_input("SMTP-poort", value=int(huidig.get("smtp_poort") or 587), step=1)
+        if st.form_submit_button("Koppelen", type="primary"):
+            nieuw = {"aanbieder": aanbieder, "adres": adres.strip(), "naam": naam.strip(),
+                     "wachtwoord": "".join(wachtwoord.split()) or huidig.get("wachtwoord", ""),
+                     "imap": imap.strip() or info["imap"], "smtp": smtp.strip() or info["smtp"], "smtp_poort": int(poort)}
+            if not (nieuw["adres"] and nieuw["wachtwoord"] and nieuw["imap"]):
+                st.error("Vul je mailadres en app-wachtwoord in.")
+                return
+            try:
+                mail.testen(nieuw)
+            except Exception:
+                st.error("Inloggen lukt niet. Controleer je mailadres en of je een app-wachtwoord hebt gebruikt.")
+                return
+            opslag.instellingen_bijwerken(mail=nieuw)
+            st.success("Je mail is gekoppeld.")
+    st.caption("Outlook en Hotmail laten dit soort koppelingen niet meer toe. Stuur je Outlook-mail eventueel door "
+               "naar een iCloud- of Gmail-adres.")
+
+
+@st.cache_data(ttl=120, show_spinner="Mail ophalen...")
+def _mails(_wachtwoord: str, sleutel: str, aantal: int) -> list[dict]:
+    return mail.lijst(aantal)
+
+
+@st.cache_data(ttl=600, show_spinner="Mail openen...")
+def _mail(_wachtwoord: str, sleutel: str, uid: str) -> dict:
+    return mail.lezen(uid)
+
+
+def mail_concepten() -> None:
+    """Antwoorden die de assistent heeft klaargezet: aanpassen, versturen of weggooien."""
+    for c in opslag.mailconcepten():
+        with st.container(border=True):
+            st.caption(f"Klaar om te versturen · aan {c['aan']}")
+            onderwerp = st.text_input("Onderwerp", value=c["onderwerp"], key=f"co_{c['id']}")
+            tekst = st.text_area("Tekst", value=c["tekst"], key=f"ct_{c['id']}", height=200)
+            k1, k2 = st.columns(2)
+            if k1.button("📤 Versturen", key=f"cv_{c['id']}", type="primary", width="stretch"):
+                try:
+                    mail.versturen(c["aan"], onderwerp, tekst, c["in_antwoord_op"], c["references"])
+                except Exception:
+                    st.error("Versturen lukte niet. Probeer het zo opnieuw.")
+                else:
+                    opslag.mailconcept_weg(c["id"])
+                    st.toast("Verstuurd.", icon="📤")
+                    st.rerun()
+            if k2.button("🗑️ Weggooien", key=f"cw_{c['id']}", width="stretch"):
+                opslag.mailconcept_weg(c["id"])
+                st.rerun()
+
+
+def mail_tabblad() -> None:
+    """Je inbox, en antwoorden die de assistent klaarzet. Versturen doe je zelf."""
+    if not mail.gekoppeld():
+        st.caption("Koppel je mailbox één keer. Daarna vat de assistent je mail samen, zet afspraken in je agenda "
+                   "en schrijft antwoorden die jij alleen nog hoeft te versturen.")
+        mail_instellen()
+        return
+    mail_concepten()
+    wachtwoord = st.session_state.get("wachtwoord", "")
+    sleutel = mail.instellingen()["adres"]
+    kol1, kol2 = st.columns([3, 1], vertical_alignment="center")
+    if kol1.button("💬 Wat vraagt actie?", width="stretch"):
+        vraag_assistent("Welke mails vragen actie? Vat ze kort samen en stel voor wat ik ermee doe.")
+    if kol2.button("↻", width="stretch", help="Vernieuwen"):
+        _mails.clear()
+    try:
+        mails = _mails(wachtwoord, sleutel, 20)
+    except Exception:
+        st.caption("Je mailbox is nu niet bereikbaar. Probeer het zo opnieuw.")
+        return
+    if not mails:
+        st.caption("Je inbox is leeg.")
+    open_uid = st.session_state.get("mail_open")
+    for m in mails:
+        stip = "" if m["gelezen"] else "● "
+        if st.button(f"{stip}{m['van']} · {m['onderwerp']} · {m['datum'][5:]}", key=f"mail_{m['uid']}",
+                     type="tertiary"):
+            st.session_state.mail_open = None if open_uid == m["uid"] else m["uid"]
+            st.rerun()
+        if open_uid == m["uid"]:
+            mail_openen(wachtwoord, sleutel, m["uid"])
+
+
+def mail_openen(wachtwoord: str, sleutel: str, uid: str) -> None:
+    try:
+        m = _mail(wachtwoord, sleutel, uid)
+    except Exception:
+        st.caption("Deze mail kon niet worden geopend.")
+        return
+    with st.container(border=True):
+        st.caption(f"Van {m['van']} <{m['van_adres']}> · {m['datum']}"
+                   + (f" · 📎 {', '.join(m['bijlagen'])}" if m["bijlagen"] else ""))
+        st.text(m["tekst"][:4000] + (" ..." if len(m["tekst"]) > 4000 else ""))
+        wens = st.text_input("Wat wil je ongeveer antwoorden? (optioneel, of laat de assistent voorstellen)",
+                             key=f"wens_{uid}")
+        k1, k2 = st.columns(2)
+        if k1.button("✍️ Antwoord klaarzetten", key=f"antw_{uid}", type="primary", width="stretch"):
+            vraag_assistent(f"Lees mail {uid} en zet een antwoord klaar." + (f" Wat ik wil zeggen: {wens}" if wens else ""),
+                            label=f"✍️ Antwoord op de mail van {m['van']}" + (f": {wens}" if wens else ""))
+        if k2.button("📅 Naar agenda of taken", key=f"agenda_{uid}", width="stretch"):
+            vraag_assistent(f"Lees mail {uid}. Staan er afspraken, deadlines of taken in? Stel voor wat je in mijn "
+                            "agenda of takenlijst zet.", label=f"📅 Afspraken uit de mail van {m['van']}")
+
+
 STIJL = {"toon": ["Automatisch", "Informeel", "Zakelijk"], "lengte": ["Automatisch", "Kort", "Uitgebreid"],
          "aanspreken": ["je", "u"]}
 
@@ -1244,6 +1376,8 @@ def instellingen_tabblad() -> None:
         contacten_beheren()
 
     st.markdown("**Koppelingen**")
+    with st.expander("✉️ Mail" + (" ✅" if mail.gekoppeld() else "")):
+        mail_instellen()
     strava_instellingen()
     with st.expander("🎟️ Events (Ticketmaster)" + (" ✅" if events.sleutel() else "")):
         events_instellen()
@@ -1404,18 +1538,22 @@ def boodschappen_tabblad() -> None:
 
 # --- Assistent ------------------------------------------------------------
 
-TABBLADEN = ["☀️ Vandaag", "📅 Agenda", "💬 Assistent", "🛒 Boodschappen", "📚 Leren en schrijven", "⚙️ Instellingen"]
+TABBLADEN = ["☀️ Vandaag", "📅 Agenda", "💬 Assistent", "✉️ Mail", "🛒 Boodschappen", "📚 Leren en schrijven",
+             "⚙️ Instellingen"]
 BEZIG = {
     "web_search": "🔎 Zoeken op internet...", "web_fetch": "📄 Pagina lezen...", "plaats_zoeken": "📍 Plekken zoeken...",
     "dagplanning": "🗺️ Reistijden berekenen...", "reistijd_berekenen": "🗺️ Reistijd berekenen...",
     "prijzen_vergelijken": "💶 Prijzen vergelijken...", "weer_bekijken": "☀️ Weer opzoeken...",
     "afspraak_toevoegen": "📅 In je agenda zetten...", "events_zoeken": "🎉 Events zoeken...",
     "uitjes_zoeken": "🎉 Uitjes zoeken...", "boodschappen_toevoegen": "🛒 Op je lijst zetten...",
+    "mails_bekijken": "✉️ Mails bekijken...", "mail_lezen": "✉️ Mail lezen...",
+    "mail_concept_maken": "✍️ Antwoord klaarzetten...", "mail_versturen": "📤 Versturen...",
     "bronnen_zoeken": "📚 Wetenschappelijke bronnen zoeken...", "bron_controleren": "✅ Bron controleren...",
     "bron_opslaan": "📚 Bron opslaan...", "oefening_vastleggen": "📈 Score vastleggen...",
 }
-SUGGESTIES = ["Wat staat er vandaag op de planning?", "Wat is er dit weekend te doen bij mij in de buurt?",
-              "Maak een boodschappenlijst voor 3 snelle avondmaaltijden", "Help me een schema om 5 km te leren hardlopen"]
+SUGGESTIES = ["Wat staat er vandaag op de planning?", "Welke mails vragen actie?",
+              "Stel een gezond weekmenu samen en zet de boodschappen op mijn lijst",
+              "Help me een nieuwe hobby of cursus te kiezen", "Wat is er dit weekend te doen bij mij in de buurt?"]
 
 
 def vraag_assistent(vraag: str, label: str | None = None) -> None:
@@ -1514,8 +1652,8 @@ def main() -> None:
 
     strava_terugkomst()
     strava_bijwerken()
-    alle = dict(zip(TABBLADEN, [vandaag_overzicht, agenda_tabblad, assistent_tabblad, boodschappen_tabblad,
-                                 leren_tabblad, instellingen_tabblad]))
+    alle = dict(zip(TABBLADEN, [vandaag_overzicht, agenda_tabblad, assistent_tabblad, mail_tabblad,
+                                 boodschappen_tabblad, leren_tabblad, instellingen_tabblad]))
     uit = opslag.instellingen().get("tabbladen_uit", [])
     zichtbaar = {naam: toon for naam, toon in alle.items() if naam not in uit}
     if terug := st.session_state.pop("terug_naar_tab", None):

@@ -576,3 +576,34 @@ def bron_verwijderen(project_id: int, bron_id: int) -> None:
 
 def schrijfproject_archiveren(project_id: int) -> None:
     schrijfproject_bijwerken(project_id, gearchiveerd=True)
+
+
+# --- Mailconcepten: antwoorden die klaarstaan om te versturen ---------------
+
+def mailconcepten() -> list[dict]:
+    return laden().get("mailconcepten", [])
+
+
+def mailconcept_opslaan(aan: str, onderwerp: str, tekst: str, in_antwoord_op: str = "", references: str = "",
+                        concept_id: int | None = None) -> dict:
+    with _slot:
+        g = laden()
+        lijst = g.setdefault("mailconcepten", [])
+        velden = {"aan": aan, "onderwerp": onderwerp, "tekst": tekst, "in_antwoord_op": in_antwoord_op,
+                  "references": references}
+        for concept in lijst:
+            if concept["id"] == concept_id:
+                concept.update(velden)
+                opslaan(g)
+                return concept
+        concept = {"id": _nieuw_id(g), **velden, "gemaakt": datetime.now().isoformat(timespec="minutes")}
+        lijst.append(concept)
+        opslaan(g)
+    return concept
+
+
+def mailconcept_weg(concept_id: int) -> None:
+    with _slot:
+        g = laden()
+        g["mailconcepten"] = [c for c in g.get("mailconcepten", []) if c["id"] != concept_id]
+        opslaan(g)

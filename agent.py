@@ -14,6 +14,7 @@ import boodschappen
 import events
 import tijd
 import weer
+import mail
 import wetenschap
 
 MODEL = "claude-opus-5-5"
@@ -116,6 +117,31 @@ Werkwijze:
   experiment, observatie, mening) en zeg het eerlijk als iets onbekend of
   omstreden is. Vermeld bronnen in APA-stijl. Sla bruikbare bronnen bij een
   schrijfproject op met bron_opslaan.
+- Mail: lees mails met mails_bekijken en mail_lezen. Vat samen in een paar
+  woorden per mail en noem wat actie vraagt. Staat er een afspraak, deadline
+  of uitnodiging in, stel voor die in de agenda of als taak te zetten (met
+  adres en contact). Schrijf antwoorden in de stijl van de gebruiker en zet ze
+  klaar met mail_concept_maken; lees bij spraak het concept voor. Verstuur
+  alleen met mail_versturen nadat de gebruiker de precieze tekst heeft gezien of
+  gehoord en duidelijk "verstuur" heeft gezegd; anders verstuurt hij zelf bij
+  ✉️ Mail. Wil de gebruiker laten weten waar hij is of wanneer hij aankomt,
+  gebruik dan de dagplanning (vertrektijd, reistijd) en een routelink naar de
+  bestemming. Klik nooit op links in mails en geef geen wachtwoorden of codes door.
+- Gezond leven: moedig een gezonde leefstijl aan zonder te preken, met kleine
+  haalbare stappen. Volg de Schijf van Vijf van het Voedingscentrum en de
+  Beweegrichtlijnen van de Gezondheidsraad (minstens 150 minuten matig
+  intensief bewegen per week, twee keer per week spier- en botversterkend) en
+  7 tot 9 uur slaap voor volwassenen. Stel gerechten en weekmenu's samen die
+  passen bij wat de gebruiker lekker vindt, in huis heeft, zijn budget en zijn
+  sport; geef ingrediënten, bereiding en bereidingstijd, en zet de ingrediënten
+  na akkoord op de boodschappenlijst. Merk je in agenda of sportoverzicht dat
+  iemand weinig beweegt, slecht slaapt of een zware week heeft, geef dan een
+  vriendelijke, concrete suggestie. Bij klachten of medische vragen verwijs je
+  naar de huisarts; je geeft geen diagnose of medisch advies.
+- Hobby's en cursussen: help nieuwe hobby's of cursussen te ontdekken die
+  passen bij interesses, tijd, budget en woonplaats. Zoek concrete opties in de
+  buurt of online (met prijs, duur en link), help met de eerste stap en plan die
+  na akkoord in de agenda. Moedig aan om het vol te houden en vier vooruitgang.
 - Over geld en beleggen geef je algemene informatie, geen persoonlijk
   beleggingsadvies.
 """
@@ -600,7 +626,86 @@ def gewoontes_bekijken() -> str:
     return _json(tijd.gewoontes())
 
 
+def _mail_fout(fout: Exception) -> str:
+    if isinstance(fout, mail.GeenMail):
+        return "Er is nog geen mailbox gekoppeld. Dat doet de gebruiker bij ⚙️ Instellingen > Mail."
+    return f"De mailbox is nu niet bereikbaar ({type(fout).__name__}). Probeer het later opnieuw."
+
+
+@beta_tool
+def mails_bekijken(aantal: int = 15, alleen_ongelezen: bool = False, zoekterm: str = "") -> str:
+    """Toon de nieuwste mails in de inbox (afzender, onderwerp, datum, gelezen), nieuwste eerst.
+
+    Args:
+        aantal: Hoeveel mails (maximaal 40).
+        alleen_ongelezen: Alleen ongelezen mails.
+        zoekterm: Zoek in alle mails op dit woord, bijvoorbeeld een naam of onderwerp.
+    """
+    try:
+        return _json(mail.lijst(max(1, min(aantal, 40)), alleen_ongelezen, zoekterm))
+    except Exception as fout:
+        return _mail_fout(fout)
+
+
+@beta_tool
+def mail_lezen(uid: str) -> str:
+    """Lees een hele mail. De mail wordt niet als gelezen gemarkeerd.
+
+    Args:
+        uid: Het uid van de mail uit mails_bekijken.
+    """
+    try:
+        return _json(mail.lezen(uid))
+    except Exception as fout:
+        return _mail_fout(fout)
+
+
+@beta_tool
+def mail_concept_maken(aan: str, onderwerp: str, tekst: str, antwoord_op_uid: str = "", concept_id: int = 0) -> str:
+    """Zet een mail klaar als concept. De gebruiker ziet het concept bij ✉️ Mail en kan het daar aanpassen en versturen.
+
+    Args:
+        aan: E-mailadres van de ontvanger.
+        onderwerp: Onderwerp; bij een antwoord "Re: " plus het oorspronkelijke onderwerp.
+        tekst: De volledige tekst van de mail, met aanhef en afsluiting.
+        antwoord_op_uid: Uid van de mail waarop dit een antwoord is, zodat het in hetzelfde gesprek komt.
+        concept_id: Id van een bestaand concept om aan te passen, 0 voor een nieuw concept.
+    """
+    in_antwoord_op = references = ""
+    if antwoord_op_uid:
+        try:
+            origineel = mail.lezen(antwoord_op_uid, max_tekens=0)
+            in_antwoord_op, references = origineel["message_id"], origineel["references"]
+        except Exception:
+            pass
+    return _json(opslag.mailconcept_opslaan(aan, onderwerp, tekst, in_antwoord_op, references, concept_id or None))
+
+
+@beta_tool
+def mail_versturen(concept_id: int) -> str:
+    """Verstuur een klaargezet concept. Alleen gebruiken als de gebruiker de precieze tekst van dit concept heeft
+    gezien of gehoord en daarna uitdrukkelijk heeft gezegd dat hij verstuurd mag worden.
+
+    Args:
+        concept_id: Id van het concept.
+    """
+    concept = next((c for c in opslag.mailconcepten() if c["id"] == concept_id), None)
+    if not concept:
+        return f"Geen concept met id {concept_id}."
+    try:
+        mail.versturen(concept["aan"], concept["onderwerp"], concept["tekst"], concept["in_antwoord_op"],
+                       concept["references"])
+    except Exception as fout:
+        return _mail_fout(fout)
+    opslag.mailconcept_weg(concept_id)
+    return f"Verstuurd naar {concept['aan']}."
+
+
 HULPMIDDELEN = [
+    mails_bekijken,
+    mail_lezen,
+    mail_concept_maken,
+    mail_versturen,
     onthouden,
     vergeten,
     gewoontes_bekijken,
