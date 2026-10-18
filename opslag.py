@@ -442,3 +442,36 @@ def instellingen_bijwerken(**waarden: str) -> None:
         g = laden()
         g.setdefault("instellingen", {}).update(waarden)
         opslaan(g)
+
+
+# --- Geheugen: wat de assistent over de gebruiker weet --------------------
+
+def geheugen() -> list[dict]:
+    return laden().get("geheugen", [])
+
+
+def onthouden(feit: str, onderwerp: str = "algemeen") -> dict:
+    """Bewaart een feit. Een feit dat er al (bijna letterlijk) staat, wordt niet dubbel bewaard."""
+    with _slot:
+        g = laden()
+        lijst = g.setdefault("geheugen", [])
+        for item in lijst:
+            if item["feit"].strip().lower() == feit.strip().lower():
+                return item
+        item = {"id": _nieuw_id(g), "feit": feit.strip(), "onderwerp": onderwerp.strip().lower() or "algemeen",
+                "datum": datetime.now().date().isoformat()}
+        lijst.append(item)
+        opslaan(g)
+    return item
+
+
+def vergeten(feit_id: int) -> bool:
+    with _slot:
+        g = laden()
+        lijst = g.get("geheugen", [])
+        over = [f for f in lijst if f["id"] != feit_id]
+        if len(over) == len(lijst):
+            return False
+        g["geheugen"] = over
+        opslaan(g)
+    return True

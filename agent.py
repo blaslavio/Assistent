@@ -17,6 +17,7 @@ import weer
 
 MODEL = "claude-opus-5-5"
 MAX_HERVATTINGEN = 5
+DAGEN = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
 
 SYSTEEM = """Je bent een persoonlijke assistent die in het Nederlands antwoordt.
 Je helpt met dagelijkse taken, de agenda, vakanties plannen en leren.
@@ -36,6 +37,20 @@ Werkwijze:
   scheelt. Prijzen zijn een indicatie van de webwinkels.
 - Gebruik de hulpmiddelen om taken, afspraken en leervoortgang echt op te slaan,
   in plaats van alleen te zeggen dat je het onthoudt.
+- Geheugen en bijleren: je krijgt hieronder wat je al over de gebruiker weet.
+  Gebruik dat zonder ernaar te vragen. Hoor je iets dat later nuttig is
+  (voorkeuren, vaste gewoontes, namen en relaties, favoriete winkels en plekken,
+  dieet, werktijden, vervoer, wat hij niet leuk vindt), bewaar het meteen met
+  onthouden, kort en als één feit, en zeg dat in een paar woorden. Verandert
+  iets, vergeet dan het oude feit en bewaar het nieuwe. Corrigeert de gebruiker
+  je, onthoud de correctie.
+- Strak plannen: kijk eerst in de agenda (dagplanning) voordat je iets inplant,
+  voorkom overlap en krappe overstappen, en reken met de reistijd plus de
+  gewoontes hieronder (gemiddelde uitloop en te laat komen per soort) als buffer.
+  Stel een concreet tijdstip voor in plaats van open vragen.
+- Beste opties: zoek bij een keuze (restaurant, uitje, product, route, vakantie)
+  minstens drie opties, vergelijk ze kort op prijs, afstand, beoordeling en wat
+  bij de voorkeuren past, en geef één duidelijke aanrader.
 - Vraag eerst om bevestiging voordat je iets verwijdert.
 - Agenda: vraag bij een afspraak buiten de deur naar het adres en met wie de
   afspraak is. Koppel de afspraak aan een contactpersoon (zoek eerst, maak
@@ -417,7 +432,37 @@ def herhalingen_vandaag() -> str:
     return _json(opslag.herhalingen_vandaag())
 
 
+@beta_tool
+def onthouden(feit: str, onderwerp: str = "algemeen") -> str:
+    """Bewaar iets over de gebruiker voor alle volgende gesprekken, zoals een voorkeur, gewoonte of naam.
+
+    Args:
+        feit: Eén kort feit, bijvoorbeeld "Doet boodschappen het liefst bij de Jumbo".
+        onderwerp: Bijvoorbeeld eten, sport, werk, familie, vervoer, uitgaan, planning of algemeen.
+    """
+    return _json(opslag.onthouden(feit, onderwerp))
+
+
+@beta_tool
+def vergeten(feit_id: int) -> str:
+    """Vergeet een bewaard feit dat niet meer klopt.
+
+    Args:
+        feit_id: Het id van het feit uit het geheugen.
+    """
+    return "Vergeten." if opslag.vergeten(feit_id) else f"Geen feit met id {feit_id}."
+
+
+@beta_tool
+def gewoontes_bekijken() -> str:
+    """Toon wat de tijdregistratie leert: per soort afspraak de gemiddelde uitloop, te laat en tijd op locatie."""
+    return _json(tijd.gewoontes())
+
+
 HULPMIDDELEN = [
+    onthouden,
+    vergeten,
+    gewoontes_bekijken,
     taak_toevoegen,
     taken_bekijken,
     taak_afronden,
@@ -451,7 +496,27 @@ HULPMIDDELEN = [
 ]
 
 
-def antwoord(client: anthropic.Anthropic, berichten: list, bij_tekst=None, bij_hulpmiddel=None) -> str:
+def context() -> str:
+    """Wat de assistent bij elk gesprek over de gebruiker weet: geheugen en geleerde gewoontes."""
+    nu = datetime.now()
+    delen = [f"Nu is het {DAGEN[nu.weekday()]} {nu.strftime('%Y-%m-%d %H:%M')}."]
+    if feiten := opslag.geheugen():
+        delen.append("Wat je over de gebruiker weet (id: feit):\n" +
+                     "\n".join(f"- {f['id']}: {f['feit']}" for f in feiten[-150:]))
+    if gewoontes := tijd.gewoontes():
+        delen.append("Geleerde gewoontes uit de tijdregistratie (afgelopen 90 dagen), per soort afspraak:\n" +
+                     "\n".join(f"- {s}: {g['aantal']} keer, gemiddeld {g['gem_uitloop_min']} min uitloop, "
+                                f"{g['gem_te_laat_min']} min te laat, {g['gem_op_locatie_min']} min op locatie"
+                                for s, g in gewoontes.items()))
+    return "\n\n".join(delen)
+
+
+SPRAAK = ("De gebruiker praat nu via spraak en je antwoord wordt voorgelezen. Antwoord in gewone spreektaal "
+          "in hooguit drie korte zinnen, zonder opsommingen, opmaak, emoji of links.")
+
+
+def antwoord(client: anthropic.Anthropic, berichten: list, bij_tekst=None, bij_hulpmiddel=None,
+             spraak: bool = False) -> str:
     """Laat Claude reageren op het gesprek, met de tekst woord voor woord.
 
     `berichten` wordt aangevuld met de beurten van Claude en de resultaten van
@@ -459,7 +524,15 @@ def antwoord(client: anthropic.Anthropic, berichten: list, bij_tekst=None, bij_h
     `bij_tekst(stukje)` krijgt de tekst terwijl die binnenkomt en
     `bij_hulpmiddel(naam)` hoort welk hulpmiddel Claude gebruikt.
     """
-    systeem = SYSTEEM + f"\nNu is het {datetime.now().strftime('%A %Y-%m-%d %H:%M')}."
+    try:
+        extra = context()
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        extra = f"Nu is het {datetime.now().strftime('%A %Y-%m-%d %H:%M')}."
+    # De vaste instructies (en de hulpmiddelen ervoor) worden bewaard tussen verzoeken; dat scheelt kosten.
+    systeem = [{"type": "text", "text": SYSTEEM, "cache_control": {"type": "ephemeral"}},
+               {"type": "text", "text": extra + ("\n\n" + SPRAAK if spraak else "")}]
     laatste = None
     for _ in range(MAX_HERVATTINGEN + 1):
         runner = client.beta.messages.tool_runner(

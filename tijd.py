@@ -152,3 +152,21 @@ def sportoverzicht(van: str, tot: str) -> dict:
         "afstand_km": round(sum(_km(a) for a in gedaan_lijst), 1),
         "per_sport": per_sport,
     }
+
+
+def gewoontes(dagen: int = 90) -> dict:
+    """Wat de tijdregistratie leert, per soort afspraak: hoe vaak, gemiddelde uitloop en hoe laat je aankomt."""
+    tot = datetime.now().date()
+    per_soort: dict[str, dict] = {}
+    for afspraak in opslag.afspraken_tussen((tot - timedelta(days=dagen)).isoformat(), tot.isoformat()):
+        if not (uitkomst := berekening(afspraak)):
+            continue
+        s = per_soort.setdefault(soort_van(afspraak), {"aantal": 0, "uitloop": 0, "te_laat": 0, "op_locatie": 0})
+        s["aantal"] += 1
+        s["uitloop"] += uitkomst["uitloop"]
+        s["te_laat"] += uitkomst.get("te_laat") or 0
+        s["op_locatie"] += uitkomst["op_locatie"]
+    return {soort: {"aantal": s["aantal"], "gem_uitloop_min": round(s["uitloop"] / s["aantal"]),
+                    "gem_te_laat_min": round(s["te_laat"] / s["aantal"]),
+                    "gem_op_locatie_min": round(s["op_locatie"] / s["aantal"])}
+            for soort, s in per_soort.items()}

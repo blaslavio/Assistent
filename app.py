@@ -23,13 +23,15 @@ import media
 import opslag
 import planning
 import reizen
+import spraak
 import strava
 import tijd
 import weer
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
-for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, agent):
+for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, agent,
+                spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -912,6 +914,55 @@ def leren_tabblad() -> None:
                     vraag_assistent(f"Maak een leerplan voor: {onderwerp.strip()}")
 
 
+def stem() -> dict:
+    return spraak.instellingen(opslag.instellingen().get("stem"))
+
+
+def stem_instellingen() -> None:
+    """Regio, man of vrouw, tempo, en of antwoorden vanzelf worden voorgelezen."""
+    huidig = stem()
+    regio = st.segmented_control("Accent", list(spraak.REGIO), default=huidig["regio"], key="stem_regio") or huidig["regio"]
+    geslacht = st.segmented_control("Stem", spraak.GESLACHT, default=huidig["geslacht"], key="stem_geslacht") or huidig["geslacht"]
+    snelheid = st.select_slider("Tempo", [0.8, 0.9, 1.0, 1.1, 1.2, 1.3], value=huidig["snelheid"], key="stem_snelheid",
+                                format_func=lambda s: {0.8: "rustig", 1.0: "normaal", 1.3: "snel"}.get(s, ""))
+    voorlezen = st.toggle("Antwoorden altijd voorlezen", value=huidig["voorlezen"], key="stem_voorlezen",
+                          help="Uit: alleen voorlezen als je zelf hebt ingesproken.")
+    doorpraten = st.toggle("Doorpraten zonder te tikken (handsfree, bijvoorbeeld in de auto)", value=huidig["doorpraten"],
+                           key="stem_doorpraten", help="Na het voorlezen luistert de assistent meteen weer.")
+    nieuw = {"regio": regio, "geslacht": geslacht, "snelheid": snelheid, "voorlezen": voorlezen, "doorpraten": doorpraten}
+    if nieuw != huidig:
+        opslag.instellingen_bijwerken(stem=nieuw)
+    spraak.knop(nieuw, "Hallo! Zo klink ik. Waar kan ik je mee helpen?", key="stem_test", alleen_voorlezen=True)
+    st.caption("Tik op 🔊 om te luisteren. Natuurlijker klinken? Download op je iPad bij Instellingen > "
+               "Toegankelijkheid > Gesproken materiaal > Stemmen > Nederlands een verbeterde stem, bijvoorbeeld "
+               "Claire of Xander (Nederland) of Ellen (Vlaanderen). Welke stemmen er zijn, hangt af van je apparaat.")
+
+
+def geheugen_instellingen() -> None:
+    """Wat de assistent heeft onthouden; je kunt feiten toevoegen of laten vergeten."""
+    feiten = opslag.geheugen()
+    if not feiten:
+        st.caption("Nog niets. De assistent onthoudt vanzelf je voorkeuren en gewoontes als je ermee praat.")
+    for f in sorted(feiten, key=lambda f: (f["onderwerp"], f["id"])):
+        kol1, kol2 = st.columns([6, 1], vertical_alignment="center")
+        kol1.markdown(f"{f['feit']}  \n:gray[{f['onderwerp']}]")
+        if kol2.button("✕", key=f"vergeet_{f['id']}", help="Vergeten"):
+            opslag.vergeten(f["id"])
+            st.rerun()
+    with st.form("nieuw_feit", clear_on_submit=True, border=False):
+        kol1, kol2 = st.columns([5, 1], vertical_alignment="bottom")
+        feit = kol1.text_input("Iets dat de assistent moet weten", placeholder="Bijvoorbeeld: ik eet geen vlees")
+        if kol2.form_submit_button("➕") and feit.strip():
+            opslag.onthouden(feit.strip())
+            st.rerun()
+    if gewoontes := tijd.gewoontes():
+        st.markdown("**Geleerd uit je tijdregistratie**")
+        for soort, g in gewoontes.items():
+            st.caption(f"{tijd.SOORTEN.get(soort, '')} {soort.capitalize()}: {g['aantal']} keer, gemiddeld "
+                       f"{g['gem_uitloop_min']} min uitloop en {g['gem_te_laat_min']} min te laat. "
+                       "De assistent plant hier ruimte voor.")
+
+
 def instellingen_tabblad() -> None:
     """Alles wat je één keer instelt: thuisadres, contacten, koppelingen en sleutels."""
     inst = opslag.instellingen()
@@ -954,6 +1005,10 @@ def instellingen_tabblad() -> None:
                 opslag.contact_opslaan(naam.strip(), telefoon.strip(), email.strip(), adres_c.strip())
                 st.rerun()
 
+    with st.expander("🗣️ Stem van de assistent"):
+        stem_instellingen()
+    with st.expander(f"🧠 Wat de assistent over je weet ({len(opslag.geheugen())})"):
+        geheugen_instellingen()
     strava_instellingen()
     with st.expander("🎟️ Events (Ticketmaster)" + (" ✅" if events.sleutel() else "")):
         events_instellen()
@@ -1138,8 +1193,15 @@ def assistent_tabblad() -> None:
     st.session_state.setdefault("chat", [])
     # Twee lijsten: wat de gebruiker ziet, en de volledige geschiedenis voor Claude.
     st.session_state.setdefault("berichten", [])
+    stemkeuze = stem()
+    laatste = next((t for r, t in reversed(st.session_state.chat) if r == "assistant"), "")
+    voorlezen = st.session_state.get("voorlezen_id", "")
+    gezegd = spraak.knop(stemkeuze, laatste, voorlezen, automatisch=bool(voorlezen))
+    if gezegd and not st.session_state.get("vooraf_vraag"):
+        st.session_state.vooraf_vraag = gezegd
+        st.session_state.ingesproken = True
     if not st.session_state.chat:
-        st.caption("Typ of spreek je vraag in (🎤 op je toetsenbord). Of kies:")
+        st.caption("Tik op 🎤 Praat, of typ je vraag onderaan. Of kies:")
         for i, suggestie in enumerate(SUGGESTIES):
             if st.button(suggestie, key=f"suggestie_{i}"):
                 st.session_state.vooraf_vraag = suggestie
@@ -1153,6 +1215,7 @@ def assistent_tabblad() -> None:
             st.session_state.berichten = []
             st.rerun()
         return
+    ingesproken = st.session_state.pop("ingesproken", False)
     st.chat_message("user").markdown(vraag)
     st.session_state.chat.append(("user", vraag))
     sleutel = anthropic_sleutel()
@@ -1177,7 +1240,7 @@ def assistent_tabblad() -> None:
             st.session_state.berichten.append({"role": "user", "content": vraag})
             try:
                 tekst = agent.antwoord(anthropic.Anthropic(api_key=sleutel), st.session_state.berichten,
-                                       bij_tekst, bij_hulpmiddel)
+                                       bij_tekst, bij_hulpmiddel, spraak=ingesproken)
             except anthropic.APIError as fout:
                 # Gesprek terugzetten zodat een half afgemaakte beurt niet blijft hangen.
                 del st.session_state.berichten[lengte_voor:]
@@ -1186,6 +1249,9 @@ def assistent_tabblad() -> None:
             vak.empty()
         st.markdown(tekst)
     st.session_state.chat.append(("assistant", tekst))
+    # Voorlezen gebeurt na de rerun door de spraakknop, één keer per antwoord.
+    if ingesproken or stemkeuze["voorlezen"]:
+        st.session_state.voorlezen_id = f"antwoord-{len(st.session_state.chat)}"
     st.rerun()
 
 
