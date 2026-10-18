@@ -81,19 +81,57 @@ def sportminuten(afspraak: dict) -> int:
     return 60
 
 
+def gedaan(van: str, tot: str, sport: str = "") -> list[dict]:
+    """Sportafspraken die echt gedaan zijn (resultaat, tijdregistratie, of de tijd is voorbij)."""
+    nu = datetime.now().isoformat(timespec="minutes")
+    return [a for a in opslag.afspraken_tussen(van, tot)
+            if a.get("sport") and (not sport or a["sport"] == sport)
+            and (a.get("sport_resultaat") or a.get("tijden") or a["start"] <= nu)]
+
+
+def _km(afspraak: dict) -> float:
+    return afspraak.get("sport_resultaat", {}).get("afstand_km", 0)
+
+
+EENHEID = {"keer_per_week": "keer deze week", "minuten_per_week": "minuten deze week", "km_per_week": "km deze week",
+           "langste_km": "km in één keer", "totaal_km": "km totaal"}
+
+
+def doel_voortgang(doel: dict) -> dict:
+    """Hoe ver de gebruiker is met een sportdoel."""
+    vandaag = datetime.now().date()
+    maandag = (vandaag - timedelta(days=vandaag.weekday())).isoformat()
+    maatstaf = doel["maatstaf"]
+    if maatstaf.endswith("_per_week"):
+        lijst = gedaan(maandag, vandaag.isoformat(), doel.get("sport", ""))
+    else:
+        lijst = gedaan(doel["gestart"], vandaag.isoformat(), doel.get("sport", ""))
+    huidig = {
+        "keer_per_week": len(lijst),
+        "minuten_per_week": sum(sportminuten(a) for a in lijst),
+        "km_per_week": sum(_km(a) for a in lijst),
+        "langste_km": max((_km(a) for a in lijst), default=0),
+        "totaal_km": sum(_km(a) for a in lijst),
+    }[maatstaf]
+    procent = min(100, round(100 * huidig / doel["doelwaarde"])) if doel["doelwaarde"] else 0
+    uitkomst = {**doel, "huidig": round(huidig, 1), "procent": procent,
+                "tekst": f"{round(huidig, 1):g} van {doel['doelwaarde']:g} {EENHEID[maatstaf]}"}
+    if doel.get("deadline"):
+        uitkomst["dagen_te_gaan"] = (datetime.fromisoformat(doel["deadline"]).date() - vandaag).days
+    return uitkomst
+
+
 def sportoverzicht(van: str, tot: str) -> dict:
     """Gedane sportafspraken tussen twee datums: aantal, minuten, kilometers, per sport."""
-    nu = datetime.now().isoformat(timespec="minutes")
-    gedaan = [a for a in opslag.afspraken_tussen(van, tot)
-              if a.get("sport") and (a.get("sport_resultaat") or a.get("tijden") or a["start"] <= nu)]
+    gedaan_lijst = gedaan(van, tot)
     per_sport: dict[str, int] = {}
-    for a in gedaan:
+    for a in gedaan_lijst:
         per_sport[a["sport"]] = per_sport.get(a["sport"], 0) + 1
     return {
         "van": van,
         "tot": tot,
-        "aantal": len(gedaan),
-        "minuten": sum(sportminuten(a) for a in gedaan),
-        "afstand_km": round(sum(a.get("sport_resultaat", {}).get("afstand_km", 0) for a in gedaan), 1),
+        "aantal": len(gedaan_lijst),
+        "minuten": sum(sportminuten(a) for a in gedaan_lijst),
+        "afstand_km": round(sum(_km(a) for a in gedaan_lijst), 1),
         "per_sport": per_sport,
     }

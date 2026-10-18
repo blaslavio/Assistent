@@ -27,7 +27,7 @@ _slot = threading.Lock()
 SUPABASE_URL = "https://lnjsekmlpjyiwdlzcowa.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Bq-K3J6yt0-B-mHWYj-tnQ_DWD0c9KX"
 
-LEEG = {"taken": [], "afspraken": [], "contacten": [], "leerdoelen": [], "volgend_id": 1}
+LEEG = {"taken": [], "afspraken": [], "contacten": [], "leerdoelen": [], "sportdoelen": [], "volgend_id": 1}
 
 # Het wachtwoord van de ingelogde gebruiker, per sessie (Streamlit draait elke sessie in een eigen thread).
 _wachtwoord: contextvars.ContextVar[str] = contextvars.ContextVar("wachtwoord", default="")
@@ -250,6 +250,17 @@ def training_koppelen(training_id: int, naam: str, start: str, sport: str, resul
     return True
 
 
+def afspraak_bijwerken(afspraak_id: int, **velden) -> dict | None:
+    with _slot:
+        g = laden()
+        for afspraak in g["afspraken"]:
+            if afspraak["id"] == afspraak_id:
+                afspraak.update(velden)
+                opslaan(g)
+                return afspraak
+    return None
+
+
 # --- Contacten -----------------------------------------------------------
 
 def contact_opslaan(
@@ -278,6 +289,38 @@ def contacten_zoeken(zoekterm: str = "") -> list[dict]:
 
 def contact(contact_id: int | None) -> dict | None:
     return next((c for c in laden().get("contacten", []) if c["id"] == contact_id), None)
+
+
+# --- Sportdoelen ----------------------------------------------------------
+# maatstaf: keer_per_week, minuten_per_week, km_per_week, langste_km (één keer zo
+# ver, bijvoorbeeld 10 km hardlopen) of totaal_km (bij elkaar vanaf de start).
+
+MAATSTAVEN = ["keer_per_week", "minuten_per_week", "km_per_week", "langste_km", "totaal_km"]
+
+
+def sportdoel_stellen(omschrijving: str, maatstaf: str, doelwaarde: float, sport: str = "", deadline: str = "") -> dict:
+    with _slot:
+        g = laden()
+        doel = {"id": _nieuw_id(g), "omschrijving": omschrijving, "sport": sport.lower(), "maatstaf": maatstaf,
+                "doelwaarde": doelwaarde, "deadline": deadline, "gestart": date.today().isoformat(), "actief": True}
+        g.setdefault("sportdoelen", []).append(doel)
+        opslaan(g)
+    return doel
+
+
+def sportdoel_stoppen(doel_id: int) -> bool:
+    with _slot:
+        g = laden()
+        for doel in g.get("sportdoelen", []):
+            if doel["id"] == doel_id:
+                doel["actief"] = False
+                opslaan(g)
+                return True
+    return False
+
+
+def sportdoelen() -> list[dict]:
+    return [d for d in laden().get("sportdoelen", []) if d.get("actief", True)]
 
 
 # --- Leren ---------------------------------------------------------------

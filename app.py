@@ -12,11 +12,13 @@ import pydeck as pdk
 import streamlit as st
 
 import agent
+import media
 import opslag
 import planning
 import reizen
 import strava
 import tijd
+import weer
 
 # De server draait op UTC; datums en tijden horen in Nederlandse tijd.
 os.environ["TZ"] = "Europe/Amsterdam"
@@ -219,14 +221,14 @@ def tijdsbesteding_overzicht(vandaag: date) -> None:
     st.markdown(tijdbalk([(t["reistijd"], BLAUW), (t["op_locatie"], GROEN), (t["uitloop"], ROOD)]), unsafe_allow_html=True)
 
 
-def sport_overzicht(nu: datetime) -> None:
+def sport_overzicht(nu: datetime, toon_week: bool = True) -> None:
     """Resultaat invullen na een sportafspraak, en wat je deze week gesport hebt."""
     vandaag = nu.date().isoformat()
     week = tijd.sportoverzicht((nu.date() - timedelta(days=6)).isoformat(), vandaag)
     klaar = [a for a in opslag.afspraken_tussen(vandaag, vandaag)
              if a.get("sport") and not a.get("sport_resultaat")
              and ("weg" in a.get("tijden", {}) or (a.get("einde") or a["start"]) <= nu.isoformat(timespec="minutes"))]
-    if not klaar and not week["aantal"]:
+    if not klaar and not (toon_week and week["aantal"]):
         return
     st.markdown("**Sport**")
     for a in klaar:
@@ -239,7 +241,7 @@ def sport_overzicht(nu: datetime) -> None:
                 if st.form_submit_button("Opslaan"):
                     opslag.sport_vastleggen(a["id"], int(minuten), float(km), gevoel)
                     st.rerun()
-    if week["aantal"]:
+    if toon_week and week["aantal"]:
         soorten = ", ".join(f"{tijd.sport_icoon(s)} {n}" for s, n in week["per_sport"].items())
         tekst = f"Afgelopen 7 dagen: {week['aantal']} keer gesport, {_uren(week['minuten'])}"
         if week["afstand_km"]:
@@ -316,10 +318,162 @@ def strava_instellingen() -> None:
             st.link_button("Verbind met Strava", strava.koppel_link(inst["strava_client_id"], app_url()), type="primary")
 
 
+def weer_regel() -> None:
+    """Het weer van nu en vandaag op het thuisadres."""
+    thuis = opslag.instellingen().get("thuisadres", "")
+    try:
+        data = weer.voorspelling(thuis)
+    except Exception:
+        st.caption("Het weer kon niet worden geladen.")
+        return
+    nu = data["current"]
+    icoon, tekst = weer.omschrijving(nu["weather_code"])
+    dag = data["daily"]
+    st.markdown(f"### {icoon} {round(nu['temperature_2m'])}° &nbsp;<small>{tekst} in {data['plaats']}</small>",
+                unsafe_allow_html=True)
+    st.caption(f"Vandaag {round(dag['temperature_2m_min'][0])}° tot {round(dag['temperature_2m_max'][0])}°, "
+               f"{dag['precipitation_probability_max'][0]}% kans op regen, wind {round(nu['wind_speed_10m'])} km/u"
+               + ("" if thuis else ". Vertel de assistent je thuisadres voor het weer bij jou."))
+
+
+def weer_bij_afspraak(regel: dict) -> None:
+    """Verwachting op de plek en het tijdstip van een afspraak, met een tip bij regen."""
+    if not regel.get("locatie") or "T" not in regel["start"]:
+        return
+    try:
+        verwachting = weer.op_moment(regel["locatie"], regel["start"])
+    except Exception:
+        return
+    if verwachting:
+        tekst = (f"{verwachting['icoon']} {verwachting['temperatuur']}° daar, "
+                 f"{verwachting['kans_op_regen']}% kans op regen")
+        if verwachting["kans_op_regen"] >= 50:
+            tekst += ". Neem een paraplu of regenjas mee."
+        st.caption(tekst)
+
+
+@st.cache_data(max_entries=200, show_spinner=False)
+def _media_inhoud(media_id: int, _wachtwoord: str) -> bytes:
+    # Een bestand verandert nooit, dus het mag bewaard blijven zolang de app draait.
+    return media.ophalen(media_id)
+
+
+def herinneringen(afspraak: dict) -> None:
+    """Notitie, foto's en geluidsfragmenten bij een afspraak."""
+    nummer = st.session_state.setdefault(f"upload_{afspraak['id']}", 0)
+    bestaande = media.lijst(afspraak["id"])
+    with st.expander(f"📎 Herinneringen ({len(bestaande)})" if bestaande else "📎 Foto's, geluid of notitie toevoegen"):
+        notitie = st.text_area("Notitie", value=afspraak.get("herinnering", ""), key=f"notitie_{afspraak['id']}",
+                               placeholder="Wat wil je onthouden?")
+        if notitie != afspraak.get("herinnering", "") and st.button("Notitie opslaan", key=f"nopslaan_{afspraak['id']}"):
+            opslag.afspraak_bijwerken(afspraak["id"], herinnering=notitie)
+            st.rerun()
+
+        for m in bestaande:
+            inhoud = _media_inhoud(m["id"], st.session_state.get("wachtwoord", ""))
+            if m["soort"] == "foto":
+                st.image(inhoud, width="stretch")
+            else:
+                st.audio(inhoud, format=m.get("mime") or "audio/wav")
+            if st.button("🗑️ Weghalen", key=f"weg_{m['id']}"):
+                media.weghalen(m["id"])
+                st.rerun()
+
+        fotos = st.file_uploader("Foto's of geluid toevoegen", type=["jpg", "jpeg", "png", "heic", "webp", "m4a", "mp3", "wav"],
+                                 accept_multiple_files=True, key=f"bestanden_{afspraak['id']}_{nummer}")
+        opname = st.audio_input("Of spreek iets in", key=f"opname_{afspraak['id']}_{nummer}")
+        nieuw = [(b.name, b.type or "", b.getvalue()) for b in fotos or []]
+        if opname:
+            nieuw.append((f"opname {datetime.now():%H:%M}", "audio/wav", opname.getvalue()))
+        if nieuw:
+            fouten = []
+            with st.spinner("Opslaan..."):
+                for naam, mime, inhoud in nieuw:
+                    soort = "geluid" if mime.startswith("audio") or naam.lower().endswith((".m4a", ".mp3", ".wav")) else "foto"
+                    try:
+                        media.toevoegen(afspraak["id"], soort, naam, mime, inhoud)
+                    except media.TeGroot:
+                        fouten.append(f"{naam} is te groot (maximaal 10 MB).")
+                    except opslag.GeenToegang:
+                        raise
+                    except Exception:
+                        fouten.append(f"{naam} kon niet worden gelezen.")
+            st.session_state[f"upload_{afspraak['id']}"] = nummer + 1
+            if fouten:
+                st.session_state["media_fouten"] = fouten
+            st.rerun()
+    for fout in st.session_state.pop("media_fouten", []):
+        st.error(fout)
+
+
+def agenda_overzicht() -> None:
+    """Afspraken van een gekozen dag, met herinneringen."""
+    dag = st.date_input("Dag", value=date.today(), format="DD-MM-YYYY")
+    afspraken = opslag.afspraken_tussen(dag.isoformat(), dag.isoformat())
+    if not afspraken:
+        st.caption("Geen afspraken op deze dag.")
+        return
+    contacten = {c["id"]: c for c in opslag.contacten_zoeken()}
+    for a in afspraken:
+        regel = {**a}
+        if contact := contacten.get(a.get("contact_id")):
+            regel["contact"] = contact
+        with st.container(border=True):
+            st.markdown(afspraak_tekst(regel))
+            if a.get("herinnering"):
+                st.caption(a["herinnering"])
+            herinneringen(a)
+
+
+MAATSTAF_TEKST = {"keer_per_week": "Aantal keer per week", "minuten_per_week": "Minuten per week",
+                  "km_per_week": "Kilometers per week", "langste_km": "Afstand in één keer (km)",
+                  "totaal_km": "Kilometers bij elkaar"}
+SPORTEN = ["", "hardlopen", "fitness", "fietsen", "zwemmen", "wandelen", "voetbal", "tennis", "padel", "yoga"]
+
+
+def sport_tabblad(nu: datetime) -> None:
+    """Sportdoelen met voortgang, en wat je de afgelopen week deed."""
+    st.markdown("**Mijn doelen**")
+    doelen = opslag.sportdoelen()
+    if not doelen:
+        st.caption("Nog geen doelen. Stel er hieronder een, of vraag de assistent om een opbouwschema.")
+    for doel in doelen:
+        v = tijd.doel_voortgang(doel)
+        with st.container(border=True):
+            icoon = tijd.sport_icoon(doel["sport"]) if doel["sport"] else "🎯"
+            st.markdown(f"{icoon} **{doel['omschrijving']}**")
+            st.progress(v["procent"] / 100, text=v["tekst"] + (" ✅" if v["procent"] >= 100 else ""))
+            if "dagen_te_gaan" in v:
+                st.caption(f"Nog {v['dagen_te_gaan']} dagen tot {doel['deadline']}." if v["dagen_te_gaan"] >= 0
+                           else f"De deadline ({doel['deadline']}) is voorbij.")
+            if st.button("Doel stoppen", key=f"stop_{doel['id']}"):
+                opslag.sportdoel_stoppen(doel["id"])
+                st.rerun()
+
+    with st.expander("➕ Nieuw doel"):
+        with st.form("nieuw_doel", border=False):
+            omschrijving = st.text_input("Wat wil je bereiken?", placeholder="Bijvoorbeeld: 10 km hardlopen voor de zomer")
+            sport = st.selectbox("Sport", SPORTEN, format_func=lambda s: s.capitalize() if s else "Alle sporten")
+            maatstaf = st.selectbox("Hoe meten we het?", list(MAATSTAF_TEKST), format_func=MAATSTAF_TEKST.get)
+            waarde = st.number_input("Doel (getal)", min_value=0.5, value=3.0, step=0.5)
+            met_deadline = st.checkbox("Met een einddatum")
+            deadline = st.date_input("Einddatum", value=nu.date() + timedelta(days=60), format="DD-MM-YYYY")
+            if st.form_submit_button("Doel opslaan"):
+                if not omschrijving.strip():
+                    st.error("Omschrijf je doel.")
+                else:
+                    opslag.sportdoel_stellen(omschrijving.strip(), maatstaf, float(waarde), sport,
+                                             deadline.isoformat() if met_deadline else "")
+                    st.rerun()
+    st.divider()
+    sport_overzicht(nu)
+
+
 def vandaag_overzicht() -> None:
     """Het overzicht van vandaag bovenaan de voorpagina. Werkt ook zonder Claude."""
     nu = datetime.now()
     st.subheader(f"Vandaag, {DAGEN[nu.weekday()]} {nu.day} {MAANDEN[nu.month - 1]}")
+    weer_regel()
 
     try:
         plan = dagplanning_vandaag(nu.date().isoformat())
@@ -337,6 +491,7 @@ def vandaag_overzicht() -> None:
         with st.container(border=True):
             st.caption("Eerstvolgende afspraak")
             st.markdown(afspraak_tekst(eerste))
+            weer_bij_afspraak(eerste)
             if eerste.get("waarschuwing"):
                 st.warning(eerste["waarschuwing"])
             tijd_knop(eerste)
@@ -364,7 +519,7 @@ def vandaag_overzicht() -> None:
             st.caption(f"En nog {len(taken) - 5} andere taken.")
 
     tijdsbesteding_overzicht(nu.date())
-    sport_overzicht(nu)
+    sport_overzicht(nu, toon_week=False)
 
     if herhalingen := opslag.herhalingen_vandaag():
         onderwerpen = sorted({h["onderwerp"] for h in herhalingen})
@@ -467,7 +622,16 @@ def main() -> None:
 
     strava_terugkomst()
     strava_bijwerken()
-    vandaag_overzicht()
+    vandaag, agenda, sport = st.tabs(["☀️ Vandaag", "📅 Agenda", "🏃 Sport"], key="tabblad", on_change="rerun")
+    if vandaag.open:
+        with vandaag:
+            vandaag_overzicht()
+    if agenda.open:
+        with agenda:
+            agenda_overzicht()
+    if sport.open:
+        with sport:
+            sport_tabblad(datetime.now())
     zijbalk()
 
     sleutel = anthropic_sleutel()

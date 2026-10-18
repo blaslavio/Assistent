@@ -10,6 +10,7 @@ import opslag
 import planning
 import reizen
 import tijd
+import weer
 
 MODEL = "claude-opus-5-5"
 MAX_HERVATTINGEN = 5
@@ -34,6 +35,8 @@ Werkwijze:
   de sport ingevuld en koppel het sportmaatje als contact. Vraag na afloop hoe
   het ging (duur, afstand, gevoel) en leg dat vast. Help met een haalbaar
   weekritme en moedig aan zonder te overdrijven; geen medisch advies.
+  Help doelen meetbaar te maken (sportdoel_stellen), stel een opbouwschema voor
+  met sportafspraken in de agenda en bespreek de voortgang.
 - Vakantie plannen: vraag naar periode, budget, reisgezelschap en wensen, zoek
   actuele informatie op internet en maak een dagschema met een kostenraming.
   Boeken doet de gebruiker zelf. Zet de reisdagen pas in de agenda na akkoord.
@@ -231,6 +234,40 @@ def sportoverzicht_bekijken(van: str, tot: str) -> str:
 
 
 @beta_tool
+def weer_bekijken(plaats: str = "", datum: str = "") -> str:
+    """Weersverwachting voor één dag (tot 7 dagen vooruit).
+
+    Args:
+        plaats: Adres of plaats, leeg voor het thuisadres.
+        datum: JJJJ-MM-DD, leeg voor vandaag.
+    """
+    return _json(weer.samenvatting(plaats or opslag.instellingen().get("thuisadres", ""), datum))
+
+
+@beta_tool
+def sportdoel_stellen(omschrijving: str, maatstaf: str, doelwaarde: float, sport: str = "", deadline: str = "") -> str:
+    """Stel een sportdoel waar de gebruiker naartoe werkt.
+
+    Args:
+        omschrijving: Het doel in de woorden van de gebruiker, bijvoorbeeld "10 km hardlopen voor de zomer".
+        maatstaf: Hoe het gemeten wordt: keer_per_week, minuten_per_week, km_per_week,
+            langste_km (één keer zo ver) of totaal_km (bij elkaar vanaf nu).
+        doelwaarde: Het getal dat gehaald moet worden.
+        sport: Alleen deze sport meetellen (bijvoorbeeld hardlopen), leeg voor alle sporten.
+        deadline: Optionele datum als JJJJ-MM-DD.
+    """
+    if maatstaf not in opslag.MAATSTAVEN:
+        return "Kies een maatstaf uit: " + ", ".join(opslag.MAATSTAVEN)
+    return _json(tijd.doel_voortgang(opslag.sportdoel_stellen(omschrijving, maatstaf, doelwaarde, sport, deadline)))
+
+
+@beta_tool
+def sportdoelen_bekijken() -> str:
+    """Toon de sportdoelen met de voortgang."""
+    return _json([tijd.doel_voortgang(d) for d in opslag.sportdoelen()])
+
+
+@beta_tool
 def tijdsbesteding_bekijken(van: str, tot: str) -> str:
     """Toon de tijdregistratie tussen twee datums: reistijd, tijd op locatie en uitloop in minuten.
 
@@ -291,8 +328,11 @@ HULPMIDDELEN = [
     afspraak_verwijderen,
     tijd_vastleggen,
     tijdsbesteding_bekijken,
+    weer_bekijken,
     sport_vastleggen,
     sportoverzicht_bekijken,
+    sportdoel_stellen,
+    sportdoelen_bekijken,
     leerdoel_starten,
     oefening_vastleggen,
     leervoortgang_bekijken,
