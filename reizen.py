@@ -82,3 +82,18 @@ def reistijd(van: str, naar: str, vervoer: str = "auto") -> dict:
         "afstand_km": round(km, 1),
         "reistijd_minuten": max(1, round(minuten)),
     }
+
+
+@lru_cache(maxsize=64)
+def routelijn(van: str, naar: str) -> tuple[tuple[float, float], ...]:
+    """De route als lijst van (lengtegraad, breedtegraad)-punten, om op een kaart te tekenen."""
+    lat1, lon1, _ = coordinaten(van)
+    lat2, lon2, _ = coordinaten(naar)
+    r = httpx.get(
+        f"{OSRM_URL}/route/v1/driving/{lon1},{lat1};{lon2},{lat2}",
+        params={"overview": "simplified", "geometries": "geojson"},
+        headers={"User-Agent": USER_AGENT},
+        timeout=15,
+    )
+    r.raise_for_status()
+    return tuple(tuple(punt) for punt in r.json()["routes"][0]["geometry"]["coordinates"])

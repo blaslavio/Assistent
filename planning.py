@@ -47,6 +47,7 @@ def dagplanning(datum: str, vervoer: str = "auto") -> dict:
                 regel["waarschuwing"] = "Reistijd kon niet worden berekend (routedienst niet bereikbaar)."
             else:
                 regel["reis"] = reis
+                regel["van_adres"] = vorige_plek
                 if start:
                     vertrek = start - timedelta(minutes=reis["reistijd_minuten"] + BUFFER_MINUTEN)
                     regel["vertrek_om"] = vertrek.strftime("%H:%M")

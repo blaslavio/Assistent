@@ -1,11 +1,14 @@
 """Webinterface van de assistent. Starten met: streamlit run app.py"""
 
 import json
+import math
 import os
 import time
 from datetime import date, datetime, timedelta
+from urllib.parse import quote, urlencode
 
 import anthropic
+import pydeck as pdk
 import streamlit as st
 
 import agent
@@ -116,6 +119,54 @@ def afspraak_tekst(regel: dict) -> str:
     return tekst
 
 
+def kaart(regel: dict) -> None:
+    """Kaart met de route naar de afspraak."""
+    try:
+        lijn = reizen.routelijn(regel["van_adres"], regel["locatie"])
+    except Exception:
+        st.caption("De kaart kon niet worden geladen.")
+        return
+    lons = [p[0] for p in lijn]
+    lats = [p[1] for p in lijn]
+    breedte = max(max(lons) - min(lons), max(lats) - min(lats), 0.005)
+    beeld = pdk.ViewState(
+        longitude=(min(lons) + max(lons)) / 2,
+        latitude=(min(lats) + max(lats)) / 2,
+        zoom=max(4, min(15, math.log2(360 / breedte) - 1.5)),
+    )
+    lagen = [
+        pdk.Layer("PathLayer", data=[{"pad": [list(p) for p in lijn]}], get_path="pad",
+                  get_color=[30, 120, 255], width_min_pixels=4),
+        pdk.Layer("ScatterplotLayer", data=[{"plek": list(lijn[0]), "kleur": [40, 170, 80]},
+                                            {"plek": list(lijn[-1]), "kleur": [220, 50, 50]}],
+                  get_position="plek", get_fill_color="kleur", radius_min_pixels=7),
+    ]
+    st.pydeck_chart(pdk.Deck(layers=lagen, initial_view_state=beeld, map_provider="carto", map_style="road"),
+                    height=260)
+
+
+def route_knoppen(regel: dict) -> None:
+    """Knoppen om te navigeren en je reis te delen."""
+    van, naar = regel["van_adres"], regel["locatie"]
+    google = "https://www.google.com/maps/dir/?" + urlencode(
+        {"api": 1, "origin": van, "destination": naar, "travelmode": "driving"})
+    apple = "https://maps.apple.com/?" + urlencode({"saddr": van, "daddr": naar, "dirflg": "d"})
+    bericht = f"Ik ben op weg naar {regel['titel']} ({naar})."
+    if regel.get("vertrek_om"):
+        aankomst = datetime.strptime(regel["vertrek_om"], "%H:%M") + timedelta(minutes=regel["reis"]["reistijd_minuten"])
+        bericht = (f"Ik ga naar {regel['titel']} ({naar}). Ik vertrek om {regel['vertrek_om']} "
+                   f"en ben er rond {aankomst.strftime('%H:%M')}.")
+    bericht += f" Route: {google}"
+
+    links, rechts = st.columns(2)
+    links.link_button("🧭 Navigeer (Apple Kaarten)", apple, width="stretch")
+    rechts.link_button("🗺️ Navigeer (Google Maps)", google, width="stretch")
+    links.link_button("💬 Deel via WhatsApp", "https://wa.me/?text=" + quote(bericht), width="stretch")
+    rechts.link_button("✉️ Deel via sms", "sms:&body=" + quote(bericht), width="stretch")
+    st.caption("Wil je dat iemand je live kan volgen? Start de route in Apple Kaarten en tik op "
+               "\"Deel aankomsttijd\". Dan ziet de ander waar je bent en wanneer je aankomt.")
+
+
 def vandaag_overzicht() -> None:
     """Het overzicht van vandaag bovenaan de voorpagina. Werkt ook zonder Claude."""
     nu = datetime.now()
@@ -136,6 +187,9 @@ def vandaag_overzicht() -> None:
             st.markdown(afspraak_tekst(eerste))
             if eerste.get("waarschuwing"):
                 st.warning(eerste["waarschuwing"])
+            if eerste.get("reis"):
+                kaart(eerste)
+                route_knoppen(eerste)
         for regel in rest:
             st.markdown(afspraak_tekst(regel))
             if regel.get("waarschuwing"):
