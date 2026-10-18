@@ -12,6 +12,7 @@ import pydeck as pdk
 import streamlit as st
 
 import agent
+import events
 import media
 import opslag
 import planning
@@ -469,10 +470,81 @@ def sport_tabblad(nu: datetime) -> None:
     sport_overzicht(nu)
 
 
+def events_instellen() -> None:
+    st.caption("Om events te tonen is een gratis sleutel van Ticketmaster nodig. Dat doe je één keer.")
+    st.markdown("1. Maak een gratis account aan bij Ticketmaster for Developers.  \n"
+                "2. Open daarna *My Apps*. Daar staat je **Consumer Key**.  \n"
+                "3. Vul die hieronder in.")
+    st.link_button("Gratis sleutel aanvragen", "https://developer-acct.ticketmaster.com/user/register")
+    invoer = "".join(st.text_input("Consumer Key", type="password", key="tm_sleutel").split())
+    if st.button("Opslaan", key="tm_opslaan"):
+        if not invoer:
+            st.error("Vul eerst de sleutel in.")
+            return
+        opslag.instellingen_bijwerken(ticketmaster_sleutel=invoer)
+        try:
+            events.zoeken(aantal=1)
+        except opslag.httpx.HTTPStatusError:
+            opslag.instellingen_bijwerken(ticketmaster_sleutel="")
+            st.error("Ticketmaster accepteert deze sleutel niet. Controleer of je de Consumer Key hebt gebruikt.")
+            return
+        except opslag.httpx.HTTPError:
+            st.warning("Opgeslagen, maar Ticketmaster is even niet bereikbaar.")
+        st.rerun()
+
+
+def event_kaart(e: dict, in_agenda: set) -> None:
+    with st.container(border=True):
+        if e["afbeelding"]:
+            st.image(e["afbeelding"], width="stretch")
+        dag = datetime.fromisoformat(e["datum"]) if e["datum"] else None
+        wanneer = f"{DAGEN[dag.weekday()]} {dag.day} {MAANDEN[dag.month - 1]}" if dag else ""
+        regels = [f"**{e['naam']}**", f"📅 {wanneer}" + (f", {e['tijd']}" if e["tijd"] else "")]
+        if e["locatie"]:
+            regels.append(f"📍 {e['locatie']}")
+        if e["prijs"]:
+            regels.append(f"💶 {e['prijs']}")
+        st.markdown("  \n".join(regels))
+        links, rechts = st.columns(2)
+        if e["tickets"]:
+            links.link_button("🎟️ Tickets kopen", e["tickets"], type="primary", width="stretch")
+        start = f"{e['datum']}T{e['tijd']}" if e["tijd"] else e["datum"]
+        if (e["naam"], start) in in_agenda:
+            rechts.button("✅ In je agenda", key=f"ev_{e['tickets']}", disabled=True, width="stretch")
+        elif rechts.button("📅 In agenda zetten", key=f"ev_{e['tickets']}", width="stretch"):
+            opslag.afspraak_toevoegen(e["naam"], start, locatie=e["locatie"], notitie=f"Tickets: {e['tickets']}")
+            st.rerun()
+
+
+def events_overzicht() -> None:
+    """Events in de buurt van het thuisadres, met een link om tickets te kopen."""
+    st.markdown("### 🎉 Events in de buurt")
+    if not events.sleutel():
+        events_instellen()
+        return
+    try:
+        lijst = events.zoeken()
+    except opslag.httpx.HTTPError:
+        st.caption("De events konden niet worden geladen. Probeer het later opnieuw.")
+        return
+    if not lijst:
+        st.caption("Geen events gevonden in de komende twee weken.")
+        return
+    in_agenda = {(a["titel"], a["start"]) for a in opslag.afspraken_tussen(lijst[0]["datum"], lijst[-1]["datum"])}
+    for e in lijst[:3]:
+        event_kaart(e, in_agenda)
+    if len(lijst) > 3:
+        with st.expander(f"Nog {len(lijst) - 3} events"):
+            for e in lijst[3:]:
+                event_kaart(e, in_agenda)
+    st.caption("Je koopt tickets op de site van Ticketmaster. Ben je daar ingelogd, dan staan je gegevens al klaar "
+               "en betaal je direct, bijvoorbeeld met Apple Pay of iDEAL.")
+
+
 def vandaag_overzicht() -> None:
     """Het overzicht van vandaag bovenaan de voorpagina. Werkt ook zonder Claude."""
     nu = datetime.now()
-    st.subheader(f"Vandaag, {DAGEN[nu.weekday()]} {nu.day} {MAANDEN[nu.month - 1]}")
+    st.subheader(f"{DAGEN[nu.weekday()].capitalize()} {nu.day} {MAANDEN[nu.month - 1]}")
     weer_regel()
 
     try:
@@ -524,6 +596,7 @@ def vandaag_overzicht() -> None:
     if herhalingen := opslag.herhalingen_vandaag():
         onderwerpen = sorted({h["onderwerp"] for h in herhalingen})
         st.info(f"📚 {len(herhalingen)} stap(pen) om vandaag te herhalen: {', '.join(onderwerpen)}.")
+    events_overzicht()
     st.divider()
 
 

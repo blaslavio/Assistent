@@ -9,6 +9,7 @@ from anthropic import beta_tool
 import opslag
 import planning
 import reizen
+import events
 import tijd
 import weer
 
@@ -37,6 +38,8 @@ Werkwijze:
   weekritme en moedig aan zonder te overdrijven; geen medisch advies.
   Help doelen meetbaar te maken (sportdoel_stellen), stel een opbouwschema voor
   met sportafspraken in de agenda en bespreek de voortgang.
+- Events: tickets koopt de gebruiker zelf via de ticketlink; jij koopt of betaalt nooit.
+  Zet een event pas in de agenda na akkoord, met de ticketlink in de notitie.
 - Vakantie plannen: vraag naar periode, budget, reisgezelschap en wensen, zoek
   actuele informatie op internet en maak een dagschema met een kostenraming.
   Boeken doet de gebruiker zelf. Zet de reisdagen pas in de agenda na akkoord.
@@ -268,6 +271,20 @@ def sportdoelen_bekijken() -> str:
 
 
 @beta_tool
+def events_zoeken(trefwoord: str = "", plaats: str = "", dagen: int = 14) -> str:
+    """Zoek concerten, voorstellingen, sport- en andere events in de buurt, met ticketlink.
+
+    Args:
+        trefwoord: Optioneel, bijvoorbeeld een artiest, genre of "comedy".
+        plaats: Adres of plaats, leeg voor rond het thuisadres.
+        dagen: Hoeveel dagen vooruit (maximaal 90).
+    """
+    if not events.sleutel():
+        return "Events zijn nog niet ingesteld. Op de voorpagina staat onder Events hoe dat gaat; zoek anders op internet."
+    return _json(events.zoeken(plaats, min(dagen, 90), trefwoord=trefwoord))
+
+
+@beta_tool
 def tijdsbesteding_bekijken(van: str, tot: str) -> str:
     """Toon de tijdregistratie tussen twee datums: reistijd, tijd op locatie en uitloop in minuten.
 
@@ -329,6 +346,7 @@ HULPMIDDELEN = [
     tijd_vastleggen,
     tijdsbesteding_bekijken,
     weer_bekijken,
+    events_zoeken,
     sport_vastleggen,
     sportoverzicht_bekijken,
     sportdoel_stellen,
