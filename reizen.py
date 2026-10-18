@@ -53,6 +53,7 @@ def coordinaten(adres: str) -> tuple[float, float, str]:
     return float(eerste["lat"]), float(eerste["lon"]), eerste["display_name"]
 
 
+@lru_cache(maxsize=256)
 def reistijd(van: str, naar: str, vervoer: str = "auto") -> dict:
     """Reistijd en afstand tussen twee adressen.
 

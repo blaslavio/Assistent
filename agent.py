@@ -1,7 +1,7 @@
 """De agent: Claude met hulpmiddelen voor taken, agenda, leren en zoeken op internet."""
 
 import json
-from datetime import date
+from datetime import datetime
 
 import anthropic
 from anthropic import beta_tool
@@ -242,7 +242,7 @@ def antwoord(client: anthropic.Anthropic, berichten: list) -> str:
     `berichten` wordt aangevuld met de beurten van Claude en de resultaten van
     hulpmiddelen, zodat het volgende verzoek de hele geschiedenis meestuurt.
     """
-    systeem = SYSTEEM + f"\nDatum van vandaag: {date.today().isoformat()}."
+    systeem = SYSTEEM + f"\nNu is het {datetime.now().strftime('%A %Y-%m-%d %H:%M')}."
     laatste = None
     for _ in range(MAX_HERVATTINGEN + 1):
         runner = client.beta.messages.tool_runner(

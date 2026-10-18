@@ -52,7 +52,7 @@ def dagplanning(datum: str, vervoer: str = "auto") -> dict:
                     regel["vertrek_om"] = vertrek.strftime("%H:%M")
                     if vorige_einde and vertrek < vorige_einde:
                         tekort = round((vorige_einde - vertrek).total_seconds() / 60)
-                        regel["waarschuwing"] = f"Te krap: je komt ongeveer {tekort} minuten te laat."
+                        regel["waarschuwing"] = f"Te krap: je komt ongeveer {tekort} {'minuut' if tekort == 1 else 'minuten'} te laat."
         planning.append(regel)
 
         if locatie:

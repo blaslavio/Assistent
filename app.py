@@ -1,13 +1,21 @@
 """Webinterface van de assistent. Starten met: streamlit run app.py"""
 
-from datetime import date, timedelta
+import json
+import os
+import time
+from datetime import date, datetime, timedelta
 
 import anthropic
 import streamlit as st
 
 import agent
 import opslag
+import planning
 import reizen
+
+# De server draait op UTC; datums en tijden horen in Nederlandse tijd.
+os.environ["TZ"] = "Europe/Amsterdam"
+time.tzset()
 
 st.set_page_config(page_title="Mijn assistent", page_icon="✨", layout="centered")
 
@@ -88,9 +96,86 @@ def wachtwoord_ok() -> bool:
     return False
 
 
+DAGEN = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
+MAANDEN = ["januari", "februari", "maart", "april", "mei", "juni", "juli",
+           "augustus", "september", "oktober", "november", "december"]
+
+
+def afspraak_tekst(regel: dict) -> str:
+    """Eén afspraak uit de dagplanning als korte tekst met tijd, plek, contact en vertrektijd."""
+    tijd = regel["start"][11:16] if "T" in regel["start"] else "hele dag"
+    tekst = f"**{tijd}** {regel['titel']}"
+    if regel.get("locatie"):
+        tekst += f"  \n📍 {regel['locatie']}"
+    if contact := regel.get("contact"):
+        tekst += f"  \n👤 {contact['naam']}" + (f", {contact['telefoon']}" if contact.get("telefoon") else "")
+    if reis := regel.get("reis"):
+        tekst += f"  \n🚗 {reis['reistijd_minuten']} min reizen ({reis['afstand_km']} km)"
+        if regel.get("vertrek_om"):
+            tekst += f", vertrek om **{regel['vertrek_om']}**"
+    return tekst
+
+
+def vandaag_overzicht() -> None:
+    """Het overzicht van vandaag bovenaan de voorpagina. Werkt ook zonder Claude."""
+    nu = datetime.now()
+    st.subheader(f"Vandaag, {DAGEN[nu.weekday()]} {nu.day} {MAANDEN[nu.month - 1]}")
+
+    try:
+        plan = dagplanning_vandaag(nu.date().isoformat())
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        plan = {"afspraken": [{**a, "waarschuwing": "Reistijd kon niet worden berekend."}
+                                  for a in opslag.afspraken_tussen(nu.date().isoformat(), nu.date().isoformat())]}
+    nog_te_gaan = [r for r in plan["afspraken"] if "T" not in r["start"] or r["start"][11:16] >= nu.strftime("%H:%M")]
+    if nog_te_gaan:
+        eerste, rest = nog_te_gaan[0], nog_te_gaan[1:]
+        with st.container(border=True):
+            st.caption("Eerstvolgende afspraak")
+            st.markdown(afspraak_tekst(eerste))
+            if eerste.get("waarschuwing"):
+                st.warning(eerste["waarschuwing"])
+        for regel in rest:
+            st.markdown(afspraak_tekst(regel))
+            if regel.get("waarschuwing"):
+                st.warning(regel["waarschuwing"])
+        if plan.get("tip"):
+            st.caption("Tip: vertel de assistent je thuisadres, dan zie je ook hoe laat je van huis moet vertrekken.")
+    else:
+        st.caption("Geen afspraken meer vandaag.")
+
+    taken = opslag.open_taken()
+    if taken:
+        st.markdown("**Taken**")
+        for t in taken[:5]:
+            label = t["titel"] + (f" (vóór {t['deadline']})" if t["deadline"] else "")
+            if st.checkbox(label, key=f"taak_{t['id']}"):
+                opslag.taak_afronden(t["id"])
+                st.rerun()
+        if len(taken) > 5:
+            st.caption(f"En nog {len(taken) - 5} andere taken.")
+
+    if herhalingen := opslag.herhalingen_vandaag():
+        onderwerpen = sorted({h["onderwerp"] for h in herhalingen})
+        st.info(f"📚 {len(herhalingen)} stap(pen) om vandaag te herhalen: {', '.join(onderwerpen)}.")
+    st.divider()
+
+
+def dagplanning_vandaag(datum: str) -> dict:
+    # De cache vernieuwt zodra de afspraken of het thuisadres veranderen.
+    sleutel = json.dumps([opslag.afspraken_tussen(datum, datum), opslag.instellingen().get("thuisadres", ""),
+                          opslag.contacten_zoeken()], sort_keys=True)
+    return _dagplanning_met_sleutel(datum, sleutel)
+
+
+@st.cache_data(ttl=600, show_spinner="Reistijden berekenen...")
+def _dagplanning_met_sleutel(datum: str, sleutel: str) -> dict:
+    return planning.dagplanning(datum)
+
+
 def zijbalk() -> None:
     with st.sidebar:
-        st.header("Vandaag")
         vandaag = date.today()
         afspraken = opslag.afspraken_tussen(vandaag.isoformat(), (vandaag + timedelta(days=7)).isoformat())
         st.subheader("Agenda, komende 7 dagen")
@@ -105,14 +190,6 @@ def zijbalk() -> None:
                 st.markdown(regel)
         else:
             st.caption("Geen afspraken.")
-
-        st.subheader("Open taken")
-        taken = opslag.open_taken()
-        if taken:
-            for t in taken:
-                st.write(f"- {t['titel']}" + (f" _(vóór {t['deadline']})_" if t["deadline"] else ""))
-        else:
-            st.caption("Geen open taken.")
 
         st.subheader("Leren")
         doelen = opslag.leerdoelen()
@@ -176,6 +253,9 @@ def main() -> None:
     if not wachtwoord_ok():
         return
 
+    vandaag_overzicht()
+    zijbalk()
+
     sleutel = anthropic_sleutel()
     if not sleutel:
         st.warning("Er is nog geen Anthropic-sleutel ingesteld.")
@@ -185,7 +265,6 @@ def main() -> None:
         return
     client = anthropic.Anthropic(api_key=sleutel)
 
-    zijbalk()
     with st.sidebar.expander("Zelftest"):
         if st.button("Start zelftest"):
             zelftest(client)
