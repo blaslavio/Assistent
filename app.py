@@ -519,6 +519,13 @@ def event_kaart(e: dict, in_agenda: set) -> None:
 def events_overzicht() -> None:
     """Events in de buurt van het thuisadres, met een link om tickets te kopen."""
     st.markdown("### 🎉 Events in de buurt")
+    if st.button("🔎 Zoek ook buiten Ticketmaster", help="De assistent zoekt op internet bij lokale zalen, "
+                 "Eventbrite, Paylogic en sites van organisatoren."):
+        st.session_state.vooraf_vraag = (
+            "Zoek events in de buurt van mijn thuisadres in de komende twee weken die niet via Ticketmaster "
+            "verkocht worden: lokale zalen, theaters, clubs, festivals, markten en events op Eventbrite, Paylogic "
+            "of de eigen site van de organisator. Geef per event de datum, plek, prijs en de directe link naar de "
+            "ticketpagina, en vraag of ik er een in mijn agenda wil.")
     if not events.sleutel():
         events_instellen()
         return
@@ -727,7 +734,7 @@ def main() -> None:
     for rol, tekst in st.session_state.chat:
         st.chat_message(rol).markdown(tekst)
 
-    if vraag := st.chat_input("Waarmee kan ik helpen?"):
+    if vraag := st.chat_input("Waarmee kan ik helpen?") or st.session_state.pop("vooraf_vraag", None):
         st.chat_message("user").markdown(vraag)
         st.session_state.chat.append(("user", vraag))
         lengte_voor = len(st.session_state.berichten)
