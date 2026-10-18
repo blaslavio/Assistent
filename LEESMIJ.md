@@ -2,15 +2,16 @@
 
 Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je praat er gewoon Nederlands mee.
 
-**Wat hij nu kan**
-- Taken bijhouden ("Herinner me eraan mijn paspoort te verlengen vóór 1 november").
-- Een eigen agenda bijhouden ("Zet tandarts op dinsdag om 10 uur in mijn agenda"), met adres en contactpersoon per afspraak.
-- Je dag plannen: reistijd tussen afspraken, hoe laat je moet vertrekken en een waarschuwing als het te krap is (auto, fiets of lopen).
-- Contactpersonen bewaren met telefoon, e-mail en adres.
-- Vakanties plannen: hij zoekt actuele informatie op internet en maakt een dagschema met kostenraming. Boeken doe je zelf.
-- Leren: je noemt een onderwerp, hij maakt een leerplan, legt uit, overhoort je en houdt je voortgang bij. Herhalingen plant hij automatisch op het juiste moment.
+**Wat de app kan** (tabbladen bovenaan; de chat met de assistent staat onderaan)
+- ☀️ **Vandaag**: weer, je eerstvolgende afspraak met reistijd en vertrektijd, route en reis delen, tijdregistratie (vertrek, aankomst, weg, terug), taken afvinken en toevoegen, sportresultaat invullen en herhalingen.
+- 📅 **Agenda**: dag- of weekoverzicht, afspraken toevoegen, wijzigen en verwijderen, foto's, geluid en notities als herinnering, en met 📲 een afspraak in Apple Agenda zetten met een melding op je vertrektijd.
+- 🏃 **Sport**: sportdoelen met voortgang, resultaten en weekoverzicht; trainingen uit Apple Gezondheid via Strava.
+- 🎉 **Uitgaan**: uitjes (OpenStreetMap) en events (Ticketmaster) in de buurt, gesorteerd op je voorkeuren en op een kaart, met ticketlink.
+- 📚 **Leren**: leerdoelen, herhalingen op het juiste moment en voortgang.
+- ⚙️ **Instellingen**: thuisadres, contacten, Strava, Ticketmaster, Anthropic-sleutel, zelftest en uitloggen.
+- 💬 **Assistent** (heeft tegoed bij Anthropic nodig): plant je dag, zoekt op internet, maakt leerplannen en sportschema's en regelt alles hierboven via de chat. Alle tabbladen werken ook zonder tegoed.
 
-**Nog niet** (volgende stappen): koppeling met je echte mail en agenda, budget, markt en portfolio.
+**Nog niet** (volgende stappen): koppeling met je mail, budget, markt en portfolio.
 
 ## Online zetten, helemaal op de iPad
 
