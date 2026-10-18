@@ -33,6 +33,11 @@ def _supabase() -> tuple[str, dict, str] | None:
     return f"{url}/rest/v1/rpc", headers, token
 
 
+def online() -> bool:
+    """True als de gegevens in Supabase bewaard worden."""
+    return _supabase() is not None
+
+
 def laden() -> dict:
     if online := _supabase():
         url, headers, token = online

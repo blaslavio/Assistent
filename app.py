@@ -165,6 +165,11 @@ def foutmelding(fout: anthropic.APIError) -> str:
 
 def main() -> None:
     st.title("Mijn assistent")
+    if not opslag.online():
+        st.warning(
+            "Let op: de database is niet ingesteld, dus je gegevens gaan verloren als de app herstart. "
+            "Zet SUPABASE_URL, SUPABASE_KEY en SUPABASE_TOKEN bij Secrets in Streamlit."
+        )
     if not wachtwoord_ok():
         return
 
