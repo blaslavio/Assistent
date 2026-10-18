@@ -162,6 +162,7 @@ def afspraak_toevoegen(
     locatie: str = "",
     contact_id: int | None = None,
     sport: str = "",
+    soort: str = "",
 ) -> dict:
     with _slot:
         g = laden()
@@ -176,6 +177,8 @@ def afspraak_toevoegen(
         }
         if sport:
             afspraak["sport"] = sport.lower()
+        if soort:
+            afspraak["soort"] = soort.lower()
         g["afspraken"].append(afspraak)
         opslaan(g)
     return afspraak
@@ -289,6 +292,45 @@ def contacten_zoeken(zoekterm: str = "") -> list[dict]:
 
 def contact(contact_id: int | None) -> dict | None:
     return next((c for c in laden().get("contacten", []) if c["id"] == contact_id), None)
+
+
+# --- Boodschappen ---------------------------------------------------------
+
+def boodschappen() -> list[dict]:
+    return laden().get("boodschappen", [])
+
+
+def boodschap_toevoegen(teksten: list[str]) -> list[dict]:
+    with _slot:
+        g = laden()
+        lijst = g.setdefault("boodschappen", [])
+        bestaand = {b["tekst"].lower() for b in lijst if not b["gekocht"]}
+        nieuw = []
+        for tekst in teksten:
+            tekst = tekst.strip()
+            if tekst and tekst.lower() not in bestaand:
+                item = {"id": _nieuw_id(g), "tekst": tekst, "gekocht": False}
+                lijst.append(item)
+                nieuw.append(item)
+                bestaand.add(tekst.lower())
+        opslaan(g)
+    return nieuw
+
+
+def boodschap_bijwerken(boodschap_id: int, **velden) -> None:
+    with _slot:
+        g = laden()
+        for b in g.get("boodschappen", []):
+            if b["id"] == boodschap_id:
+                b.update(velden)
+        opslaan(g)
+
+
+def boodschappen_opruimen(alleen_gekocht: bool = True) -> None:
+    with _slot:
+        g = laden()
+        g["boodschappen"] = [b for b in g.get("boodschappen", []) if alleen_gekocht and not b["gekocht"]]
+        opslaan(g)
 
 
 # --- Sportdoelen ----------------------------------------------------------

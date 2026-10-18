@@ -10,6 +10,7 @@ import opslag
 import planning
 import reizen
 import activiteiten
+import boodschappen
 import events
 import tijd
 import weer
@@ -21,7 +22,18 @@ SYSTEEM = """Je bent een persoonlijke assistent die in het Nederlands antwoordt.
 Je helpt met dagelijkse taken, de agenda, vakanties plannen en leren.
 
 Werkwijze:
-- Houd antwoorden kort en praktisch; gebruik lijstjes als dat helpt.
+- Houd antwoorden kort en praktisch; gebruik lijstjes als dat helpt. De gebruiker
+  leest vaak op een iPad of spreekt in via dicteren: begin met het antwoord, geen
+  inleiding, en vraag maximaal één ding tegelijk.
+- Doe het direct als het duidelijk genoeg is; vul redelijke aannames zelf in en
+  noem ze kort, in plaats van eerst vragen te stellen.
+- Actuele informatie (openingstijden, prijzen, nieuws, wat ergens te doen is):
+  zoek op internet of met plaats_zoeken, en lees een pagina met web_fetch als
+  het antwoord daar staat. Noem je bron kort.
+- Boodschappen: zet producten zo specifiek mogelijk op de lijst. Bij een recept
+  of weekmenu zet je alle ingrediënten erop. Vergelijk prijzen met
+  prijzen_vergelijken en noem de goedkoopste supermarkt in de buurt, en wat het
+  scheelt. Prijzen zijn een indicatie van de webwinkels.
 - Gebruik de hulpmiddelen om taken, afspraken en leervoortgang echt op te slaan,
   in plaats van alleen te zeggen dat je het onthoudt.
 - Vraag eerst om bevestiging voordat je iets verwijdert.
@@ -33,6 +45,9 @@ Werkwijze:
 - Tijdregistratie: meldt de gebruiker vertrek, aankomst, weggaan of terugkomst,
   leg dat vast bij de juiste afspraak. Bij vragen over tijdsbesteding noem je
   reistijd, tijd op locatie en uitloop, en geef je een korte tip.
+- Soort: alles gaat in de agenda (sport, uitgaan, etentje, werk, familie en
+  vrienden, gezondheid, reizen). Geef bij afspraak_toevoegen altijd de passende
+  soort mee.
 - Sport: zet sportafspraken (zoals samen hardlopen of fitness) in de agenda met
   de sport ingevuld en koppel het sportmaatje als contact. Vraag na afloop hoe
   het ging (duur, afstand, gevoel) en leg dat vast. Help met een haalbaar
@@ -87,9 +102,10 @@ def taak_afronden(taak_id: int) -> str:
 
 @beta_tool
 def afspraak_toevoegen(
-    titel: str, start: str, einde: str = "", locatie: str = "", contact_id: int = 0, notitie: str = "", sport: str = ""
+    titel: str, start: str, einde: str = "", locatie: str = "", contact_id: int = 0, notitie: str = "", sport: str = "",
+    soort: str = "afspraak",
 ) -> str:
-    """Zet een afspraak in de agenda.
+    """Zet een afspraak in de agenda. Sport, uitjes, etentjes en alle andere activiteiten gaan ook in de agenda.
 
     Args:
         titel: Naam van de afspraak.
@@ -99,8 +115,12 @@ def afspraak_toevoegen(
         contact_id: Id van de contactpersoon uit contacten_zoeken of contact_opslaan, 0 als er geen is.
         notitie: Optionele extra informatie.
         sport: Bij een sportafspraak de sport in kleine letters, zoals hardlopen, fitness, fietsen of zwemmen.
+        soort: Een van: afspraak, sport, uitgaan, etentje, werk, familie en vrienden, gezondheid, reizen, overig.
     """
-    return _json(opslag.afspraak_toevoegen(titel, start, einde or None, notitie, locatie, contact_id or None, sport))
+    if sport and soort == "afspraak":
+        soort = "sport"
+    return _json(opslag.afspraak_toevoegen(titel, start, einde or None, notitie, locatie, contact_id or None, sport,
+                                           soort if soort in tijd.SOORTEN else "overig"))
 
 
 @beta_tool
@@ -289,6 +309,54 @@ def uitjes_zoeken(plaats: str = "", binnen: bool = False, alleen_buiten: bool = 
 
 
 @beta_tool
+def plaats_zoeken(zoekterm: str, in_de_buurt_van: str = "") -> str:
+    """Zoek winkels, restaurants, artsen, apotheken en andere plekken op de kaart, met adres en openingstijden.
+
+    Args:
+        zoekterm: Bijvoorbeeld "apotheek", "Albert Heijn" of "pizzeria".
+        in_de_buurt_van: Adres of plaats, leeg voor rond het thuisadres.
+    """
+    return _json(reizen.plekken_zoeken(zoekterm, in_de_buurt_van or opslag.instellingen().get("thuisadres", "")))
+
+
+@beta_tool
+def boodschappen_toevoegen(producten: list[str]) -> str:
+    """Zet producten op de boodschappenlijst. Hoe specifieker, hoe beter de prijsvergelijking
+    (bijvoorbeeld "1 liter halfvolle melk", "ongezouten roomboter").
+
+    Args:
+        producten: De producten, één per item.
+    """
+    return _json(opslag.boodschap_toevoegen(producten))
+
+
+@beta_tool
+def boodschappenlijst_bekijken() -> str:
+    """Toon de boodschappenlijst."""
+    return _json(opslag.boodschappen())
+
+
+@beta_tool
+def prijzen_vergelijken() -> str:
+    """Vergelijk wat de boodschappenlijst kost bij de supermarkten, met de dichtstbijzijnde vestiging per keten."""
+    lijst = [b["tekst"] for b in opslag.boodschappen() if not b["gekocht"]]
+    if not lijst:
+        return "De boodschappenlijst is leeg."
+    winkels = boodschappen.vergelijken(lijst)
+    try:
+        buurt = boodschappen.winkels_in_de_buurt()
+    except Exception:
+        buurt = {}
+    return _json([{
+        "supermarkt": w["naam"], "totaal_euro": w["totaal"], "gevonden": f"{w['gevonden']} van {len(lijst)}",
+        "dichtstbij": buurt.get(w["code"]),
+        "producten": [{"gezocht": r["zoekterm"], "product": r["product"]["naam"] if r["product"] else None,
+                       "prijs": r["product"]["prijs"] if r["product"] else r["schatting"],
+                       "geschat": not r["product"]} for r in w["regels"]],
+    } for w in winkels[:5]])
+
+
+@beta_tool
 def events_zoeken(trefwoord: str = "", plaats: str = "", dagen: int = 14) -> str:
     """Zoek concerten, voorstellingen, sport- en andere events in de buurt, met ticketlink.
 
@@ -374,32 +442,54 @@ HULPMIDDELEN = [
     oefening_vastleggen,
     leervoortgang_bekijken,
     herhalingen_vandaag,
+    plaats_zoeken,
+    boodschappen_toevoegen,
+    boodschappenlijst_bekijken,
+    prijzen_vergelijken,
     {"type": "web_search_20260209", "name": "web_search", "max_uses": 5},
+    {"type": "web_fetch_20260209", "name": "web_fetch", "max_uses": 5},
 ]
 
 
-def antwoord(client: anthropic.Anthropic, berichten: list) -> str:
-    """Laat Claude reageren op het gesprek.
+def antwoord(client: anthropic.Anthropic, berichten: list, bij_tekst=None, bij_hulpmiddel=None) -> str:
+    """Laat Claude reageren op het gesprek, met de tekst woord voor woord.
 
     `berichten` wordt aangevuld met de beurten van Claude en de resultaten van
     hulpmiddelen, zodat het volgende verzoek de hele geschiedenis meestuurt.
+    `bij_tekst(stukje)` krijgt de tekst terwijl die binnenkomt en
+    `bij_hulpmiddel(naam)` hoort welk hulpmiddel Claude gebruikt.
     """
     systeem = SYSTEEM + f"\nNu is het {datetime.now().strftime('%A %Y-%m-%d %H:%M')}."
     laatste = None
     for _ in range(MAX_HERVATTINGEN + 1):
         runner = client.beta.messages.tool_runner(
             model=MODEL,
-            max_tokens=16000,
+            max_tokens=64000,
             system=systeem,
             tools=HULPMIDDELEN,
             messages=berichten,
             output_config={"effort": "medium"},
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
+            stream=True,
         )
-        for bericht in runner:
-            laatste = bericht
-            berichten.append({"role": "assistant", "content": bericht.content})
+        for stream in runner:
+            for gebeurtenis in stream:
+                if gebeurtenis.type == "content_block_start" and bij_hulpmiddel:
+                    blok = gebeurtenis.content_block
+                    if blok.type in ("tool_use", "server_tool_use"):
+                        bij_hulpmiddel(blok.name)
+                elif gebeurtenis.type == "content_block_delta" and bij_tekst:
+                    if gebeurtenis.delta.type == "text_delta":
+                        bij_tekst(gebeurtenis.delta.text)
+            laatste = stream.get_final_message()
+            berichten.append({"role": "assistant", "content": laatste.content})
+            # Afgebroken of geweigerd: geen hulpmiddelen meer uitvoeren. Een half
+            # hulpmiddel-verzoek zonder resultaat zou het volgende verzoek ongeldig maken.
+            if laatste.stop_reason in ("refusal", "max_tokens"):
+                if any(b.type == "tool_use" for b in laatste.content):
+                    berichten.pop()
+                break
             resultaat = runner.generate_tool_call_response()
             if resultaat is not None:
                 berichten.append(resultaat)

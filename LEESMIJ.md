@@ -2,14 +2,13 @@
 
 Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je praat er gewoon Nederlands mee.
 
-**Wat de app kan** (tabbladen bovenaan; de chat met de assistent staat onderaan)
-- ☀️ **Vandaag**: weer, je eerstvolgende afspraak met reistijd en vertrektijd, route en reis delen, tijdregistratie (vertrek, aankomst, weg, terug), taken afvinken en toevoegen, sportresultaat invullen en herhalingen.
-- 📅 **Agenda**: dag- of weekoverzicht, afspraken toevoegen, wijzigen en verwijderen, foto's, geluid en notities als herinnering, en met 📲 een afspraak in Apple Agenda zetten met een melding op je vertrektijd.
-- 🏃 **Sport**: sportdoelen met voortgang, resultaten en weekoverzicht; trainingen uit Apple Gezondheid via Strava.
-- 🎉 **Uitgaan**: uitjes (OpenStreetMap) en events (Ticketmaster) in de buurt, gesorteerd op je voorkeuren en op een kaart, met ticketlink.
+**Wat de app kan** (zes tabbladen; onderaan kun je altijd iets vragen aan de assistent)
+- ☀️ **Vandaag**: datum en weer, een rustig dagschema met vertrektijden dat elke minuut vanzelf bijwerkt, de eerstvolgende afspraak met route, delen en tijdregistratie, en je taken.
+- 📅 **Agenda**: alles op één plek. Bij iets nieuws kies je de soort: afspraak, sport, uitgaan, etentje, werk, familie en vrienden, gezondheid, reizen of overig. Met 📲 zet je het in Apple Agenda met een melding op je vertrektijd. Onderaan (dichtgeklapt): ideeën in de buurt, sportdoelen en tijdsbesteding.
+- 💬 **Assistent** (heeft tegoed bij Anthropic nodig): antwoorden verschijnen woord voor woord. Zoekt op internet, vindt plekken met openingstijden en regelt alles in de app voor je.
+- 🛒 **Boodschappen**: lijst om af te vinken en de goedkoopste supermarkt bij jou in de buurt (open prijsgegevens van Checkjebon).
 - 📚 **Leren**: leerdoelen, herhalingen op het juiste moment en voortgang.
 - ⚙️ **Instellingen**: thuisadres, contacten, Strava, Ticketmaster, Anthropic-sleutel, zelftest en uitloggen.
-- 💬 **Assistent** (heeft tegoed bij Anthropic nodig): plant je dag, zoekt op internet, maakt leerplannen en sportschema's en regelt alles hierboven via de chat. Alle tabbladen werken ook zonder tegoed.
 
 **Nog niet** (volgende stappen): koppeling met je mail, budget, markt en portfolio.
 

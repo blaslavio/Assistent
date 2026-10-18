@@ -1,7 +1,9 @@
 """Webinterface van de assistent. Starten met: streamlit run app.py"""
 
+import html
 import json
 import math
+import re
 import os
 import time
 from datetime import date, datetime, timedelta
@@ -13,6 +15,7 @@ import streamlit as st
 
 import activiteiten
 import agent
+import boodschappen
 import events
 import ics
 import media
@@ -114,9 +117,7 @@ MAANDEN = ["januari", "februari", "maart", "april", "mei", "juni", "juli",
 def afspraak_tekst(regel: dict) -> str:
     """Eén afspraak uit de dagplanning als korte tekst met tijd, plek, contact en vertrektijd."""
     begin = regel["start"][11:16] if "T" in regel["start"] else "hele dag"
-    tekst = f"**{begin}** {regel['titel']}"
-    if regel.get("sport"):
-        tekst = f"{tijd.sport_icoon(regel['sport'])} " + tekst
+    tekst = f"{tijd.icoon(regel)} **{begin}** {regel['titel']}"
     if regel.get("locatie"):
         tekst += f"  \n📍 {regel['locatie']}"
     if contact := regel.get("contact"):
@@ -199,13 +200,12 @@ def tijdbalk(stukken: list[tuple[int, str]]) -> str:
     return f'<div style="display:flex;height:14px;border-radius:7px;overflow:hidden;margin:2px 0 10px">{delen}</div>'
 
 
-def tijdsbesteding_overzicht(vandaag: date) -> None:
+def tijdsbesteding_overzicht(vandaag: date) -> bool:
     """Per afspraak van vandaag: blauw reistijd (heen en terug), groen op locatie, rood uitloop."""
     dag = tijd.tijdsbesteding(vandaag.isoformat(), vandaag.isoformat())
     week = tijd.tijdsbesteding((vandaag - timedelta(days=6)).isoformat(), vandaag.isoformat())
     if not week["afspraken"]:
-        return
-    st.markdown("**Tijdsbesteding**")
+        return False
     st.markdown(f'<span style="color:{BLAUW}">■</span> reistijd &nbsp; <span style="color:{GROEN}">■</span> op locatie'
                 f' &nbsp; <span style="color:{ROOD}">■</span> uitloop', unsafe_allow_html=True)
     for r in dag["afspraken"]:
@@ -222,6 +222,7 @@ def tijdsbesteding_overzicht(vandaag: date) -> None:
     st.caption(f"Afgelopen 7 dagen: reizen {_uren(t['reistijd'])}, op locatie {_uren(t['op_locatie'])},"
                f" uitloop {_uren(t['uitloop'])}")
     st.markdown(tijdbalk([(t["reistijd"], BLAUW), (t["op_locatie"], GROEN), (t["uitloop"], ROOD)]), unsafe_allow_html=True)
+    return True
 
 
 def sport_overzicht(nu: datetime, toon_week: bool = True) -> None:
@@ -420,26 +421,33 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
     einde = datetime.fromisoformat(a["einde"]) if a.get("einde") and "T" in a["einde"] else None
     contacten = contact_opties()
     with st.form(sleutel, clear_on_submit=not afspraak, border=False):
-        titel = st.text_input("Wat", value=a.get("titel", ""), placeholder="Bijvoorbeeld: tandarts")
+        titel = st.text_input("Wat", value=a.get("titel", ""), placeholder="Bijvoorbeeld: samen hardlopen met Sam")
+        soort = st.pills("Soort", list(tijd.SOORTEN), default=tijd.soort_van(a), key=f"{sleutel}_soort",
+                         format_func=lambda s: f"{tijd.SOORTEN[s]} {s.capitalize()}") or "afspraak"
         kol1, kol2, kol3 = st.columns(3)
         dag = kol1.date_input("Datum", value=start.date() if start else date.today(), format="DD-MM-YYYY")
         begin = kol2.time_input("Begin", value=start.time() if start else datetime.now().replace(minute=0).time(), step=900)
         eind = kol3.time_input("Einde", value=einde.time() if einde else None, step=900)
         locatie = st.text_input("Adres (straat, huisnummer, plaats)", value=a.get("locatie", ""),
                                 help="Met een adres berekent de app je reistijd en vertrektijd.")
+        meer = st.expander("Meer: met wie, welke sport, notitie", expanded=bool(afspraak))
         opties = [0, *contacten, -1]
         namen = {0: "Geen", -1: "➕ Nieuw contact", **contacten}
-        contact_id = st.selectbox("Met wie", opties, index=opties.index(a.get("contact_id") or 0)
+        contact_id = meer.selectbox("Met wie", opties, index=opties.index(a.get("contact_id") or 0)
                                   if (a.get("contact_id") or 0) in opties else 0, format_func=namen.get)
-        nieuw_naam = st.text_input("Naam nieuw contact", placeholder="Alleen bij ➕ Nieuw contact")
-        nieuw_tel = st.text_input("Telefoon nieuw contact", placeholder="Optioneel")
-        sport = st.selectbox("Sport", SPORTEN, index=SPORTEN.index(a.get("sport", "")) if a.get("sport", "") in SPORTEN else 0,
+        nieuw_naam = meer.text_input("Naam nieuw contact", placeholder="Alleen bij ➕ Nieuw contact")
+        nieuw_tel = meer.text_input("Telefoon nieuw contact", placeholder="Optioneel")
+        sport = meer.selectbox("Welke sport (bij soort Sport)", SPORTEN, index=SPORTEN.index(a.get("sport", "")) if a.get("sport", "") in SPORTEN else 0,
                              format_func=lambda s: s.capitalize() if s else "Geen sport")
-        notitie = st.text_area("Notitie", value=a.get("notitie", ""), height=68)
+        notitie = meer.text_area("Notitie", value=a.get("notitie", ""), height=68)
         if st.form_submit_button("Opslaan", type="primary"):
             if not titel.strip():
                 st.error("Vul in wat de afspraak is.")
                 return
+            if sport:
+                soort = "sport"
+            elif soort == "sport":
+                sport = "sport"
             if contact_id == -1:
                 contact_id = opslag.contact_opslaan(nieuw_naam.strip(), telefoon=nieuw_tel.strip())["id"] if nieuw_naam.strip() else 0
             velden = {
@@ -449,10 +457,10 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
                 "locatie": locatie.strip(), "contact_id": contact_id or None, "notitie": notitie.strip(),
             }
             if afspraak:
-                opslag.afspraak_bijwerken(afspraak["id"], **velden, sport=sport)
+                opslag.afspraak_bijwerken(afspraak["id"], **velden, sport=sport if soort == "sport" else "", soort=soort)
             else:
                 opslag.afspraak_toevoegen(velden["titel"], velden["start"], velden["einde"], velden["notitie"],
-                                          velden["locatie"], velden["contact_id"], sport)
+                                          velden["locatie"], velden["contact_id"], sport if soort == "sport" else "", soort)
             st.toast("Afspraak opgeslagen.", icon="✅")
             st.rerun()
 
@@ -492,7 +500,7 @@ def afspraak_kaart(regel: dict, afspraak: dict) -> None:
 
 def agenda_tabblad() -> None:
     """Dag- of weekoverzicht, nieuwe afspraken en exporteren naar Apple Agenda."""
-    with st.expander("➕ Nieuwe afspraak", expanded=False):
+    with st.expander("➕ Nieuw in de agenda", expanded=False):
         afspraak_formulier("nieuwe_afspraak")
 
     kol1, kol2 = st.columns([1, 1])
@@ -502,7 +510,22 @@ def agenda_tabblad() -> None:
     dagen = [vanaf + timedelta(days=i) for i in range(7 if weergave == "Week" else 1)]
     alle = {a["id"]: a for a in opslag.afspraken_tussen(dagen[0].isoformat(), dagen[-1].isoformat())}
     if not alle:
-        st.caption("Geen afspraken in deze periode. Voeg er een toe met ➕ hierboven, of vraag het de assistent.")
+        st.caption("Niets gepland in deze periode. Voeg iets toe met ➕ hierboven, of vraag het de assistent.")
+    agenda_lijst(dagen, alle)
+
+    # Extra's staan dicht, zodat de agenda rustig blijft.
+    st.divider()
+    with st.expander("💡 Ideeën: activiteiten en events in de buurt"):
+        events_overzicht()
+    with st.expander("🎯 Sportdoelen en sportweek"):
+        sport_tabblad(datetime.now())
+    with st.expander("⏱️ Tijdsbesteding"):
+        if not tijdsbesteding_overzicht(date.today()):
+            st.caption("Nog niets vastgelegd. Gebruik op ☀️ Vandaag de knoppen \"Ik vertrek nu\" en \"Ik ben er\".")
+
+
+def agenda_lijst(dagen: list[date], alle: dict) -> None:
+    if not alle:
         return
 
     export = []
@@ -528,7 +551,6 @@ SPORTEN = ["", "hardlopen", "fitness", "fietsen", "zwemmen", "wandelen", "voetba
 
 def sport_tabblad(nu: datetime) -> None:
     """Sportdoelen met voortgang, en wat je de afgelopen week deed."""
-    st.markdown("**Mijn doelen**")
     doelen = opslag.sportdoelen()
     if not doelen:
         st.caption("Nog geen doelen. Stel er hieronder een, of vraag de assistent om een opbouwschema.")
@@ -606,7 +628,8 @@ def event_kaart(e: dict, in_agenda: set) -> None:
         if (e["naam"], start) in in_agenda:
             rechts.button("✅ In je agenda", key=f"ev_{e['tickets']}", disabled=True, width="stretch")
         elif rechts.button("📅 In agenda zetten", key=f"ev_{e['tickets']}", width="stretch"):
-            opslag.afspraak_toevoegen(e["naam"], start, locatie=e["locatie"], notitie=f"Tickets: {e['tickets']}")
+            opslag.afspraak_toevoegen(e["naam"], start, locatie=e["locatie"], notitie=f"Tickets: {e['tickets']}",
+                                      soort="uitgaan")
             st.rerun()
 
 
@@ -661,7 +684,6 @@ def voorkeuren_kiezen() -> list[str]:
 
 def events_overzicht() -> None:
     """Uitjes en events in de buurt, gesorteerd op voorkeur, op een kaart en in een lijst."""
-    st.subheader("Activiteiten en events in de buurt")
     voorkeuren = voorkeuren_kiezen()
     thuis = opslag.instellingen().get("thuisadres", "")
     try:
@@ -696,7 +718,7 @@ def events_overzicht() -> None:
     if st.button("🔎 Laat de assistent meer zoeken", help="De assistent zoekt op internet bij lokale zalen, "
                  "Eventbrite, Paylogic, gemeenten en sites van organisatoren."):
         wens = f" Mijn voorkeuren: {', '.join(voorkeuren)}." if voorkeuren else ""
-        st.session_state.vooraf_vraag = (
+        vraag_assistent(
             "Zoek activiteiten en events in de buurt van mijn thuisadres in de komende twee weken in alle openbare "
             "bronnen: uitagenda's van de gemeente en regio, lokale zalen, theaters, clubs, festivals, markten, "
             "Eventbrite, Paylogic en sites van organisatoren." + wens + " Geef per event de datum, plek, prijs en de "
@@ -723,20 +745,76 @@ def events_overzicht() -> None:
 
 
 def vandaag_overzicht() -> None:
-    """Het overzicht van vandaag: weer, wat er nu komt, taken en wat aandacht vraagt. Werkt ook zonder Claude."""
+    """Rustige voorpagina: datum en weer, het dagschema, taken en wat aandacht vraagt. Werkt ook zonder Claude."""
     nu = datetime.now()
     st.subheader(f"{DAGEN[nu.weekday()].capitalize()} {nu.day} {MAANDEN[nu.month - 1]}")
     weer_regel()
+    dagschema()
+    taken_blok()
+    sport_overzicht(nu, toon_week=False)
+    if herhalingen := opslag.herhalingen_vandaag():
+        onderwerpen = sorted({h["onderwerp"] for h in herhalingen})
+        st.caption(f"📚 Vandaag herhalen: {', '.join(onderwerpen)} (bij 📚 Leren).")
+    if not opslag.instellingen().get("thuisadres"):
+        st.caption("Tip: vul je thuisadres in bij ⚙️ Instellingen, dan zie je hoe laat je moet vertrekken.")
 
+
+def schema_html(regels: list[dict], nu: datetime) -> str:
+    """Tijdschema van de dag: voorbij is grijs, wat nu bezig is staat vet, met een rode lijn op het huidige moment."""
+    klok = nu.strftime("%H:%M")
+    rijen, lijn_gezet = [], False
+
+    def rij(tijdstip: str, tekst: str, stijl: str = "") -> str:
+        return (f'<div style="display:flex;gap:12px;padding:5px 0;{stijl}">'
+                f'<div style="width:46px;flex-shrink:0;font-variant-numeric:tabular-nums">{tijdstip}</div>'
+                f'<div>{tekst}</div></div>')
+
+    for r in regels:
+        if "T" not in r["start"]:
+            rijen.append(rij("hele dag", f"{tijd.icoon(r)} {html.escape(r['titel'])}"))
+            continue
+        begin = r["start"][11:16]
+        eind = (r.get("einde") or "")[11:16]
+        momenten = [(r["vertrek_om"], "vertrek")] if r.get("vertrek_om") else []
+        momenten.append((begin, "begin"))
+        for moment, wat in momenten:
+            if not lijn_gezet and moment > klok:
+                rijen.append(f'<div style="border-top:2px solid {ROOD};margin:4px 0;font-size:12px;color:{ROOD}">nu {klok}</div>')
+                lijn_gezet = True
+            voorbij = (eind or begin) < klok if wat == "begin" else moment < klok
+            grijs = "opacity:.45;" if voorbij else ""
+            if wat == "vertrek":
+                rijen.append(rij(moment, f'<span style="color:{BLAUW}">🚗 vertrekken naar {html.escape(r["titel"])}</span>', grijs))
+            else:
+                bezig = begin <= klok < eind if eind else False
+                tekst = f"{tijd.icoon(r)} {html.escape(r['titel'])}"
+                if eind:
+                    tekst += f' <span style="opacity:.6">tot {eind}</span>'
+                if bezig:
+                    tekst = f"<b>{tekst}</b> · nu bezig"
+                rijen.append(rij(moment, tekst, grijs))
+    if not lijn_gezet:
+        rijen.append(f'<div style="border-top:2px solid {ROOD};margin:4px 0;font-size:12px;color:{ROOD}">nu {klok}</div>')
+    return "".join(rijen)
+
+
+@st.fragment(run_every=60)
+def dagschema() -> None:
+    """Het schema van vandaag. Werkt elke minuut vanzelf bij zolang de app open staat."""
+    nu = datetime.now()
     regels = dagplanning_veilig(nu.date().isoformat())
-    # Afspraken die nog komen, plus een afspraak waarvan de tijdregistratie nog loopt.
-    nog_te_gaan = [r for r in regels
-                   if "T" not in r["start"] or r["start"][11:16] >= nu.strftime("%H:%M")
-                   or (r.get("tijden") and tijd.volgend_moment(r))]
+    if not regels:
+        st.caption("Niets gepland vandaag. Zet iets in 📅 Agenda of vraag het de assistent.")
+        return
+    st.markdown(schema_html(regels, nu), unsafe_allow_html=True)
+
+    # De eerstvolgende afspraak (of een afspraak waarvan de tijdregistratie nog loopt) krijgt de knoppen.
+    klok = nu.strftime("%H:%M")
+    nog_te_gaan = [r for r in regels if "T" in r["start"] and (
+        r["start"][11:16] >= klok or (r.get("einde") or "")[11:16] > klok or (r.get("tijden") and tijd.volgend_moment(r)))]
     if nog_te_gaan:
-        eerste, rest = nog_te_gaan[0], nog_te_gaan[1:]
+        eerste = nog_te_gaan[0]
         with st.container(border=True):
-            st.caption("Eerstvolgende afspraak")
             st.markdown(afspraak_tekst(eerste))
             weer_bij_afspraak(eerste)
             if eerste.get("waarschuwing"):
@@ -746,23 +824,12 @@ def vandaag_overzicht() -> None:
                 with st.expander("🗺️ Route, navigeren en delen"):
                     kaart(eerste)
                     route_knoppen(eerste)
-        if rest:
-            st.markdown("**Straks**")
-            for regel in rest:
-                st.markdown(afspraak_tekst(regel))
-                if regel.get("waarschuwing"):
-                    st.warning(regel["waarschuwing"])
-        if not opslag.instellingen().get("thuisadres"):
-            st.caption("Tip: vul je thuisadres in bij ⚙️ Instellingen, dan zie je hoe laat je moet vertrekken.")
-    else:
-        st.caption("Geen afspraken meer vandaag. Nieuwe afspraak? Kijk bij 📅 Agenda.")
-
-    taken_blok()
-    sport_overzicht(nu, toon_week=False)
-    if herhalingen := opslag.herhalingen_vandaag():
-        onderwerpen = sorted({h["onderwerp"] for h in herhalingen})
-        st.info(f"📚 {len(herhalingen)} stap(pen) om vandaag te herhalen: {', '.join(onderwerpen)}. Kijk bij 📚 Leren.")
-    tijdsbesteding_overzicht(nu.date())
+    for regel in nog_te_gaan[1:]:
+        if regel.get("waarschuwing"):
+            st.warning(regel["waarschuwing"])
+    st.download_button("🔔 Meldingen voor vandaag in je iPhone-agenda", ics.bestand(regels),
+                       file_name=f"vandaag-{nu.date().isoformat()}.ics", mime="text/calendar", type="tertiary",
+                       help="Dan krijg je ook een melding op je vertrektijd als deze app dicht is.")
 
 
 def taken_blok() -> None:
@@ -807,7 +874,7 @@ def leren_tabblad() -> None:
                     opslag.oefening_vastleggen(h["leerdoel_id"], h["nummer"], score)
                     st.rerun()
         if st.button("💬 Oefen met de assistent", help="De assistent legt uit en stelt controlevragen."):
-            st.session_state.vooraf_vraag = "Laten we oefenen met mijn herhalingen van vandaag."
+            vraag_assistent("Laten we oefenen met mijn herhalingen van vandaag.")
 
     st.markdown("**Mijn leerdoelen**")
     doelen = opslag.leerdoelen()
@@ -833,8 +900,7 @@ def leren_tabblad() -> None:
                     opslag.leerdoel_starten(onderwerp.strip(), lijst)
                     st.rerun()
                 else:
-                    st.session_state.vooraf_vraag = f"Maak een leerplan voor: {onderwerp.strip()}"
-                    st.info("De assistent maakt een leerplan. Kijk onderaan in de chat.")
+                    vraag_assistent(f"Maak een leerplan voor: {onderwerp.strip()}")
 
 
 def instellingen_tabblad() -> None:
@@ -948,24 +1014,132 @@ def foutmelding(fout: anthropic.APIError) -> str:
     return "Er ging iets mis bij Claude."
 
 
-TABBLADEN = ["☀️ Vandaag", "📅 Agenda", "🏃 Sport", "🎉 Uitgaan", "📚 Leren", "⚙️ Instellingen"]
+# --- Boodschappen ---------------------------------------------------------
+
+@st.cache_data(ttl=6 * 60 * 60, show_spinner="Prijzen vergelijken...")
+def _vergelijken(lijst: tuple[str, ...]) -> list[dict]:
+    return boodschappen.vergelijken(list(lijst))
 
 
-def chat() -> None:
-    """De assistent: staat onder elk tabblad."""
+def euro(bedrag: float) -> str:
+    return f"€ {bedrag:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def boodschappen_tabblad() -> None:
+    """Boodschappenlijst om af te vinken, met de goedkoopste supermarkt in de buurt."""
+    with st.form("nieuwe_boodschap", clear_on_submit=True, border=False):
+        kol1, kol2 = st.columns([5, 1], vertical_alignment="bottom")
+        invoer = kol1.text_input("Toevoegen", placeholder="Bijv. 1 liter halfvolle melk, 6 eieren (komma's mag)",
+                                 label_visibility="collapsed")
+        if kol2.form_submit_button("➕") and invoer.strip():
+            opslag.boodschap_toevoegen([d for d in re.split(r",|\n", invoer) if d.strip()])
+            st.rerun()
+
+    lijst = opslag.boodschappen()
+    if not lijst:
+        st.caption("Je lijst is leeg. Typ hierboven wat je nodig hebt, of vraag de assistent: "
+                   "\"Zet de ingrediënten voor lasagne voor 4 personen op mijn lijst\".")
+        if st.button("💬 Laat de assistent een weekmenu met boodschappenlijst maken"):
+            vraag_assistent("Maak een eenvoudig weekmenu voor 5 avonden en zet alle ingrediënten op mijn boodschappenlijst.")
+        return
+
+    for b in sorted(lijst, key=lambda b: b["gekocht"]):
+        kol1, kol2 = st.columns([8, 1], vertical_alignment="center")
+        gekocht = kol1.checkbox(f"~~{b['tekst']}~~" if b["gekocht"] else b["tekst"], value=b["gekocht"], key=f"bs_{b['id']}")
+        if gekocht != b["gekocht"]:
+            opslag.boodschap_bijwerken(b["id"], gekocht=gekocht)
+            st.rerun()
+        if kol2.button("✕", key=f"bs_weg_{b['id']}", help="Van de lijst halen"):
+            opslag.boodschap_bijwerken(b["id"], gekocht=True)
+            opslag.boodschappen_opruimen()
+            st.rerun()
+    if any(b["gekocht"] for b in lijst) and st.button("🧹 Afgevinkte weghalen"):
+        opslag.boodschappen_opruimen()
+        st.rerun()
+
+    nog_nodig = tuple(b["tekst"] for b in lijst if not b["gekocht"])
+    if not nog_nodig:
+        return
     st.divider()
+    st.markdown("**💶 Waar is het het goedkoopst?**")
+    try:
+        winkels = _vergelijken(nog_nodig)
+    except Exception:
+        st.caption("De prijzen konden niet worden geladen. Probeer het later opnieuw.")
+        return
+    try:
+        buurt = boodschappen.winkels_in_de_buurt()
+    except Exception:
+        buurt = {}
+    max_km = st.select_slider("Hoe ver wil je gaan?", options=[1, 2, 3, 5], value=3, format_func=lambda k: f"{k} km",
+                              key="max_km") if buurt else None
+    dichtbij = [w for w in winkels if w["code"] in buurt and buurt[w["code"]]["afstand_km"] <= max_km] if buurt else []
+    if dichtbij:
+        beste = dichtbij[0]
+        duurste = max(w["totaal"] for w in dichtbij)
+        vestiging = buurt[beste["code"]]
+        st.success(f"**{beste['naam']}** is het goedkoopst in de buurt: **{euro(beste['totaal'])}**"
+                   + (f", {euro(duurste - beste['totaal'])} minder dan de duurste" if duurste > beste["totaal"] else "") + ".  \n"
+                   f"📍 {vestiging['naam']}, {vestiging['adres'] or 'adres onbekend'} ({vestiging['afstand_km']} km)"
+                   + (f"  \n🕒 {vestiging['openingstijden']}" if vestiging["openingstijden"] else ""))
+        route = urlencode({"daddr": f"{vestiging['lat']},{vestiging['lon']}", "q": vestiging["naam"]})
+        st.link_button("🧭 Route", f"https://maps.apple.com/?{route}")
+    elif buurt:
+        st.caption(f"Geen bekende supermarkt binnen {max_km} km.")
+    else:
+        st.caption("Vul je thuisadres in bij ⚙️ Instellingen om de dichtstbijzijnde winkels te zien.")
+
+    for w in winkels:
+        afstand = f" · {buurt[w['code']]['afstand_km']} km" if w["code"] in buurt else ""
+        compleet = "" if w["gevonden"] == len(nog_nodig) else f" · {w['gevonden']} van {len(nog_nodig)} gevonden"
+        with st.expander(f"{w['naam']} · {euro(w['totaal'])}{afstand}{compleet}"):
+            for r in w["regels"]:
+                if r["product"]:
+                    naam = f"[{r['product']['naam']}]({r['product']['link']})" if r["product"]["link"] else r["product"]["naam"]
+                    st.markdown(f"{r['zoekterm']}: {naam} {r['product']['hoeveelheid']} · **{euro(r['product']['prijs'])}**")
+                else:
+                    st.markdown(f"{r['zoekterm']}: _niet gevonden, geschat {euro(r['schatting'])}_")
+    st.caption("Prijzen van de webwinkels via Checkjebon.nl; aanbiedingen in de winkel kunnen afwijken. "
+               "Klopt een product niet? Maak het specifieker, bijvoorbeeld \"ongezouten roomboter\" in plaats van \"boter\".")
+
+
+# --- Assistent ------------------------------------------------------------
+
+TABBLADEN = ["☀️ Vandaag", "📅 Agenda", "💬 Assistent", "🛒 Boodschappen", "📚 Leren", "⚙️ Instellingen"]
+BEZIG = {
+    "web_search": "🔎 Zoeken op internet...", "web_fetch": "📄 Pagina lezen...", "plaats_zoeken": "📍 Plekken zoeken...",
+    "dagplanning": "🗺️ Reistijden berekenen...", "reistijd_berekenen": "🗺️ Reistijd berekenen...",
+    "prijzen_vergelijken": "💶 Prijzen vergelijken...", "weer_bekijken": "☀️ Weer opzoeken...",
+    "afspraak_toevoegen": "📅 In je agenda zetten...", "events_zoeken": "🎉 Events zoeken...",
+    "uitjes_zoeken": "🎉 Uitjes zoeken...", "boodschappen_toevoegen": "🛒 Op je lijst zetten...",
+}
+SUGGESTIES = ["Wat staat er vandaag op de planning?", "Wat is er dit weekend te doen bij mij in de buurt?",
+              "Maak een boodschappenlijst voor 3 snelle avondmaaltijden", "Help me een schema om 5 km te leren hardlopen"]
+
+
+def vraag_assistent(vraag: str) -> None:
+    """Stelt een vraag namens een knop en gaat naar het tabblad van de assistent."""
+    st.session_state.vooraf_vraag = vraag
+    st.session_state.naar_assistent = True
+    st.rerun()
+
+
+def assistent_tabblad() -> None:
+    """Het gesprek met de assistent; antwoorden verschijnen woord voor woord."""
     st.session_state.setdefault("chat", [])
     # Twee lijsten: wat de gebruiker ziet, en de volledige geschiedenis voor Claude.
     st.session_state.setdefault("berichten", [])
     if not st.session_state.chat:
-        st.caption("💬 Vraag de assistent iets, bijvoorbeeld: \"Zet morgen 10 uur tandarts in mijn agenda\" "
-                   "of \"Maak een schema om 5 km te leren hardlopen\".")
+        st.caption("Typ of spreek je vraag in (🎤 op je toetsenbord). Of kies:")
+        for i, suggestie in enumerate(SUGGESTIES):
+            if st.button(suggestie, key=f"suggestie_{i}"):
+                st.session_state.vooraf_vraag = suggestie
     for rol, tekst in st.session_state.chat:
         st.chat_message(rol).markdown(tekst)
 
-    vraag = st.chat_input("Vraag de assistent...") or st.session_state.pop("vooraf_vraag", None)
+    vraag = st.session_state.pop("vooraf_vraag", None)
     if not vraag:
-        if st.session_state.chat and st.button("Nieuw gesprek"):
+        if st.session_state.chat and st.button("🧹 Nieuw gesprek"):
             st.session_state.chat = []
             st.session_state.berichten = []
             st.rerun()
@@ -973,18 +1147,35 @@ def chat() -> None:
     st.chat_message("user").markdown(vraag)
     st.session_state.chat.append(("user", vraag))
     sleutel = anthropic_sleutel()
-    if not sleutel:
-        tekst = "Er is nog geen Anthropic-sleutel ingesteld. Dat doe je bij ⚙️ Instellingen."
-    else:
-        lengte_voor = len(st.session_state.berichten)
-        st.session_state.berichten.append({"role": "user", "content": vraag})
-        with st.chat_message("assistant"), st.spinner("Even denken..."):
+    with st.chat_message("assistant"):
+        if not sleutel:
+            tekst = "Er is nog geen Anthropic-sleutel ingesteld. Dat doe je bij ⚙️ Instellingen."
+        else:
+            status, vak, delen = st.empty(), st.empty(), []
+            status.caption("Even denken...")
+
+            def bij_tekst(stukje: str) -> None:
+                status.empty()
+                delen.append(stukje)
+                vak.markdown("".join(delen) + " ▌")
+
+            def bij_hulpmiddel(naam: str) -> None:
+                if delen:
+                    delen.append("\n\n")
+                status.caption(BEZIG.get(naam, "⚙️ Even bezig..."))
+
+            lengte_voor = len(st.session_state.berichten)
+            st.session_state.berichten.append({"role": "user", "content": vraag})
             try:
-                tekst = agent.antwoord(anthropic.Anthropic(api_key=sleutel), st.session_state.berichten)
+                tekst = agent.antwoord(anthropic.Anthropic(api_key=sleutel), st.session_state.berichten,
+                                       bij_tekst, bij_hulpmiddel)
             except anthropic.APIError as fout:
                 # Gesprek terugzetten zodat een half afgemaakte beurt niet blijft hangen.
                 del st.session_state.berichten[lengte_voor:]
                 tekst = foutmelding(fout)
+            status.empty()
+            vak.empty()
+        st.markdown(tekst)
     st.session_state.chat.append(("assistant", tekst))
     st.rerun()
 
@@ -997,16 +1188,22 @@ def main() -> None:
     if not wachtwoord_ok():
         return
 
+    # Een vraag uit het invoerveld onderaan gaat altijd naar het tabblad van de assistent.
+    if vraag := st.chat_input("Vraag de assistent..."):
+        st.session_state.vooraf_vraag = vraag
+        st.session_state.naar_assistent = True
+    if st.session_state.pop("naar_assistent", False):
+        st.session_state.tabblad = "💬 Assistent"
+
     strava_terugkomst()
     strava_bijwerken()
     tabs = st.tabs(TABBLADEN, key="tabblad", on_change="rerun")
-    inhoud = [vandaag_overzicht, agenda_tabblad, lambda: sport_tabblad(datetime.now()), events_overzicht,
-              leren_tabblad, instellingen_tabblad]
+    inhoud = [vandaag_overzicht, agenda_tabblad, assistent_tabblad, boodschappen_tabblad, leren_tabblad,
+              instellingen_tabblad]
     for tab, toon in zip(tabs, inhoud):
         if tab.open:
             with tab:
                 toon()
-    chat()
 
 
 try:

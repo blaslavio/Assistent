@@ -97,3 +97,38 @@ def routelijn(van: str, naar: str) -> tuple[tuple[float, float], ...]:
     )
     r.raise_for_status()
     return tuple(tuple(punt) for punt in r.json()["routes"][0]["geometry"]["coordinates"])
+
+
+def plekken_zoeken(zoekterm: str, in_de_buurt_van: str = "", aantal: int = 8) -> list[dict]:
+    """Plekken (winkels, apotheken, restaurants...) rond een adres, met openingstijden als die bekend zijn."""
+    global _laatste_verzoek
+    lat, lon, _ = coordinaten(in_de_buurt_van or "Amsterdam")
+    marge = 0.08  # ongeveer 6 tot 9 km
+    with _nominatim_slot:
+        wacht = 1.0 - (time.monotonic() - _laatste_verzoek)
+        if wacht > 0:
+            time.sleep(wacht)
+        r = httpx.get(
+            f"{NOMINATIM_URL}/search",
+            params={"q": zoekterm, "format": "jsonv2", "limit": aantal, "extratags": 1, "addressdetails": 1,
+                    "viewbox": f"{lon - marge},{lat + marge},{lon + marge},{lat - marge}", "bounded": 1},
+            headers={"User-Agent": USER_AGENT, "Accept-Language": "nl"},
+            timeout=15,
+        )
+        _laatste_verzoek = time.monotonic()
+    r.raise_for_status()
+    resultaat = []
+    for p in r.json():
+        extra = p.get("extratags") or {}
+        adres = p.get("address", {})
+        straat = " ".join(filter(None, [adres.get("road"), adres.get("house_number")]))
+        dlat, dlon = float(p["lat"]) - lat, (float(p["lon"]) - lon) * 0.62
+        resultaat.append({
+            "naam": p.get("name") or p.get("display_name", "").split(",")[0],
+            "adres": ", ".join(filter(None, [straat, adres.get("city") or adres.get("town") or adres.get("village")])),
+            "afstand_km": round(111 * (dlat ** 2 + dlon ** 2) ** 0.5, 1),
+            "openingstijden": extra.get("opening_hours", ""),
+            "telefoon": extra.get("phone") or extra.get("contact:phone", ""),
+            "website": extra.get("website") or extra.get("contact:website", ""),
+        })
+    return sorted(resultaat, key=lambda p: p["afstand_km"])

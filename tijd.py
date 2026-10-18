@@ -70,6 +70,23 @@ def sport_icoon(sport: str) -> str:
     return SPORT_ICOON.get(sport, "🏅")
 
 
+# Soorten afspraken in de agenda, met hun icoon.
+SOORTEN = {"afspraak": "📌", "sport": "🏃", "uitgaan": "🎉", "etentje": "🍽️", "werk": "💼",
+           "familie en vrienden": "👨‍👩‍👧", "gezondheid": "🩺", "reizen": "✈️", "overig": "🗓️"}
+
+
+def soort_van(afspraak: dict) -> str:
+    """De soort van een afspraak; oudere afspraken met een sport tellen als sport."""
+    soort = afspraak.get("soort") or ("sport" if afspraak.get("sport") else "afspraak")
+    return soort if soort in SOORTEN else "overig"
+
+
+def icoon(afspraak: dict) -> str:
+    if afspraak.get("sport"):
+        return sport_icoon(afspraak["sport"])
+    return SOORTEN[soort_van(afspraak)]
+
+
 def sportminuten(afspraak: dict) -> int:
     """Hoe lang er gesport is: ingevuld resultaat, anders tijdregistratie, anders de geplande duur."""
     if minuten := afspraak.get("sport_resultaat", {}).get("minuten"):
