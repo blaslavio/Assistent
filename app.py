@@ -48,12 +48,30 @@ def anthropic_sleutel() -> str:
     return instelling("ANTHROPIC_API_KEY") or opslag.instellingen().get("anthropic_sleutel", "")
 
 
+def sleutel_werkt(sleutel: str) -> str | None:
+    """Test de sleutel bij Anthropic. Geeft een foutmelding terug, of None als hij werkt."""
+    try:
+        anthropic.Anthropic(api_key=sleutel).models.list(limit=1)
+    except anthropic.AuthenticationError:
+        return "Deze sleutel werkt niet bij Anthropic. Maak een nieuwe aan via Create Key."
+    except anthropic.PermissionDeniedError:
+        return "Deze sleutel heeft geen toegang. Controleer je tegoed bij Anthropic."
+    except anthropic.APIError:
+        return "Anthropic is even niet bereikbaar. Probeer het zo opnieuw."
+    return None
+
+
 def sleutel_formulier(knoptekst: str) -> str | None:
-    """Veld om de Anthropic-sleutel in te vullen. Geeft de sleutel terug bij een geldige invoer."""
-    sleutel = st.text_input("Anthropic-sleutel (begint met sk-ant-api)", type="password").strip()
+    """Veld om de Anthropic-sleutel in te vullen. Geeft de sleutel terug als hij werkt."""
+    sleutel = "".join(st.text_input("Anthropic-sleutel", type="password").split())
     if st.button(knoptekst):
-        if not sleutel.startswith("sk-ant-api"):
-            st.error("Dit lijkt geen API-sleutel. Die begint met sk-ant-api.")
+        if not sleutel:
+            st.error("Plak eerst je Anthropic-sleutel.")
+            return None
+        with st.spinner("Sleutel controleren..."):
+            fout = sleutel_werkt(sleutel)
+        if fout:
+            st.error(fout)
             return None
         return sleutel
     return None
