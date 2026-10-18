@@ -159,7 +159,10 @@ def foutmelding(fout: anthropic.APIError) -> str:
     if isinstance(fout, anthropic.APIConnectionError):
         return "Geen verbinding met Claude. Controleer je internet."
     if isinstance(fout, anthropic.APIStatusError):
-        return f"Er ging iets mis bij Claude (code {fout.status_code})."
+        melding = str(fout.body.get("error", {}).get("message", "")) if isinstance(fout.body, dict) else ""
+        if "credit balance" in melding.lower():
+            return "Je tegoed bij Anthropic is op of nog niet actief. Voeg tegoed toe onder Billing op console.anthropic.com."
+        return f"Er ging iets mis bij Claude (code {fout.status_code}): {melding or fout.message}"
     return "Er ging iets mis bij Claude."
 
 
