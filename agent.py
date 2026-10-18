@@ -9,6 +9,7 @@ from anthropic import beta_tool
 import opslag
 import planning
 import reizen
+import tijd
 
 MODEL = "claude-opus-5-5"
 MAX_HERVATTINGEN = 5
@@ -26,6 +27,9 @@ Werkwijze:
   anders een nieuw contact). Is het thuisadres onbekend, vraag het één keer.
   Geef bij een vraag over een dag de dagplanning met vertrektijden en wijs op
   krappe overstappen. Vraag welk vervoer de gebruiker neemt als dat niet bekend is.
+- Tijdregistratie: meldt de gebruiker vertrek, aankomst, weggaan of terugkomst,
+  leg dat vast bij de juiste afspraak. Bij vragen over tijdsbesteding noem je
+  reistijd, tijd op locatie en uitloop, en geef je een korte tip.
 - Vakantie plannen: vraag naar periode, budget, reisgezelschap en wensen, zoek
   actuele informatie op internet en maak een dagschema met een kostenraming.
   Boeken doet de gebruiker zelf. Zet de reisdagen pas in de agenda na akkoord.
@@ -181,6 +185,32 @@ def afspraak_verwijderen(afspraak_id: int) -> str:
 
 
 @beta_tool
+def tijd_vastleggen(afspraak_id: int, moment: str, tijdstip: str = "") -> str:
+    """Leg voor de tijdregistratie vast wanneer de gebruiker vertrok, aankwam, wegging of terug was.
+
+    Args:
+        afspraak_id: Het id van de afspraak.
+        moment: "vertrokken", "aangekomen", "weg" of "terug".
+        tijdstip: Optioneel als JJJJ-MM-DDTHH:MM, leeg laten voor nu.
+    """
+    if moment not in tijd.MOMENTEN:
+        return "Kies uit: vertrokken, aangekomen, weg of terug."
+    afspraak = opslag.tijd_vastleggen(afspraak_id, moment, tijdstip or None)
+    return _json({"tijden": afspraak["tijden"], "berekening": tijd.berekening(afspraak)}) if afspraak else "Afspraak niet gevonden."
+
+
+@beta_tool
+def tijdsbesteding_bekijken(van: str, tot: str) -> str:
+    """Toon de tijdregistratie tussen twee datums: reistijd, tijd op locatie en uitloop in minuten.
+
+    Args:
+        van: Begindatum als JJJJ-MM-DD.
+        tot: Einddatum als JJJJ-MM-DD (inclusief).
+    """
+    return _json(tijd.tijdsbesteding(van, tot))
+
+
+@beta_tool
 def leerdoel_starten(onderwerp: str, stappen: list[str]) -> str:
     """Sla een nieuw leerplan op met een reeks kleine stappen.
 
@@ -228,6 +258,8 @@ HULPMIDDELEN = [
     contact_opslaan,
     contacten_zoeken,
     afspraak_verwijderen,
+    tijd_vastleggen,
+    tijdsbesteding_bekijken,
     leerdoel_starten,
     oefening_vastleggen,
     leervoortgang_bekijken,

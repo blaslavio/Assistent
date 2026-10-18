@@ -16,7 +16,7 @@ import json
 import os
 import secrets
 import threading
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -191,6 +191,19 @@ def afspraken_tussen(van: str, tot: str) -> list[dict]:
     """Afspraken waarvan de start tussen twee datums (JJJJ-MM-DD, inclusief) valt."""
     resultaat = [a for a in laden()["afspraken"] if van <= a["start"][:10] <= tot]
     return sorted(resultaat, key=lambda a: a["start"])
+
+
+def tijd_vastleggen(afspraak_id: int, moment: str, tijdstip: str | None = None) -> dict | None:
+    """Legt een moment vast (vertrokken, aangekomen, weg of terug), standaard nu."""
+    tijdstip = tijdstip or datetime.now().isoformat(timespec="minutes")
+    with _slot:
+        g = laden()
+        for afspraak in g["afspraken"]:
+            if afspraak["id"] == afspraak_id:
+                afspraak.setdefault("tijden", {})[moment] = tijdstip
+                opslaan(g)
+                return afspraak
+    return None
 
 
 # --- Contacten -----------------------------------------------------------

@@ -15,6 +15,7 @@ import agent
 import opslag
 import planning
 import reizen
+import tijd
 
 # De server draait op UTC; datums en tijden horen in Nederlandse tijd.
 os.environ["TZ"] = "Europe/Amsterdam"
@@ -167,6 +168,54 @@ def route_knoppen(regel: dict) -> None:
                "\"Deel aankomsttijd\". Dan ziet de ander waar je bent en wanneer je aankomt.")
 
 
+KNOP = {"vertrokken": "🚗 Ik vertrek nu", "aangekomen": "📍 Ik ben er", "weg": "👋 Ik ga weg", "terug": "🏠 Ik ben terug"}
+BLAUW, GROEN, ROOD = "#2f7de1", "#2fae5a", "#e0443e"
+
+
+def tijd_knop(regel: dict) -> None:
+    """Eén knop voor het volgende moment van de tijdregistratie."""
+    moment = tijd.volgend_moment(regel)
+    if moment and st.button(KNOP[moment], key=f"tijd_{regel['id']}_{moment}", type="primary", width="stretch"):
+        opslag.tijd_vastleggen(regel["id"], moment)
+        st.rerun()
+
+
+def _uren(minuten: int) -> str:
+    return f"{minuten // 60} u {minuten % 60:02d}" if minuten >= 60 else f"{minuten} min"
+
+
+def tijdbalk(stukken: list[tuple[int, str]]) -> str:
+    """Gekleurde balk; elk stuk is (minuten, kleur)."""
+    totaal = sum(m for m, _ in stukken) or 1
+    delen = "".join(f'<div style="flex:{m / totaal};background:{kleur}"></div>' for m, kleur in stukken if m)
+    return f'<div style="display:flex;height:14px;border-radius:7px;overflow:hidden;margin:2px 0 10px">{delen}</div>'
+
+
+def tijdsbesteding_overzicht(vandaag: date) -> None:
+    """Per afspraak van vandaag: blauw reistijd (heen en terug), groen op locatie, rood uitloop."""
+    dag = tijd.tijdsbesteding(vandaag.isoformat(), vandaag.isoformat())
+    week = tijd.tijdsbesteding((vandaag - timedelta(days=6)).isoformat(), vandaag.isoformat())
+    if not week["afspraken"]:
+        return
+    st.markdown("**Tijdsbesteding**")
+    st.markdown(f'<span style="color:{BLAUW}">■</span> reistijd &nbsp; <span style="color:{GROEN}">■</span> op locatie'
+                f' &nbsp; <span style="color:{ROOD}">■</span> uitloop', unsafe_allow_html=True)
+    for r in dag["afspraken"]:
+        tekst = (f"{r['titel']}: reizen {_uren(r['reistijd'])} (heen {_uren(r['heen'])}, terug {_uren(r['terug'])}),"
+                 f" op locatie {_uren(r['op_locatie'])}")
+        if r["uitloop"]:
+            tekst += f", uitloop {_uren(r['uitloop'])}"
+        if r.get("te_laat"):
+            tekst += f", {r['te_laat']} min te laat aangekomen"
+        st.caption(tekst)
+        st.markdown(tijdbalk([(r["heen"], BLAUW), (r["op_locatie"], GROEN), (r["uitloop"], ROOD), (r["terug"], BLAUW)]),
+                    unsafe_allow_html=True)
+    t = week["totaal_minuten"]
+    st.caption(f"Afgelopen 7 dagen: reizen {_uren(t['reistijd'])}, op locatie {_uren(t['op_locatie'])},"
+               f" uitloop {_uren(t['uitloop'])}")
+    st.markdown(tijdbalk([(t["reistijd"], BLAUW), (t["op_locatie"], GROEN), (t["uitloop"], ROOD)]), unsafe_allow_html=True)
+
+
 def vandaag_overzicht() -> None:
     """Het overzicht van vandaag bovenaan de voorpagina. Werkt ook zonder Claude."""
     nu = datetime.now()
@@ -179,7 +228,10 @@ def vandaag_overzicht() -> None:
     except Exception:
         plan = {"afspraken": [{**a, "waarschuwing": "Reistijd kon niet worden berekend."}
                                   for a in opslag.afspraken_tussen(nu.date().isoformat(), nu.date().isoformat())]}
-    nog_te_gaan = [r for r in plan["afspraken"] if "T" not in r["start"] or r["start"][11:16] >= nu.strftime("%H:%M")]
+    # Afspraken die nog komen, plus een afspraak waarvan de tijdregistratie nog loopt.
+    nog_te_gaan = [r for r in plan["afspraken"]
+                   if "T" not in r["start"] or r["start"][11:16] >= nu.strftime("%H:%M")
+                   or (r.get("tijden") and tijd.volgend_moment(r))]
     if nog_te_gaan:
         eerste, rest = nog_te_gaan[0], nog_te_gaan[1:]
         with st.container(border=True):
@@ -187,6 +239,7 @@ def vandaag_overzicht() -> None:
             st.markdown(afspraak_tekst(eerste))
             if eerste.get("waarschuwing"):
                 st.warning(eerste["waarschuwing"])
+            tijd_knop(eerste)
             if eerste.get("reis"):
                 kaart(eerste)
                 route_knoppen(eerste)
@@ -209,6 +262,8 @@ def vandaag_overzicht() -> None:
                 st.rerun()
         if len(taken) > 5:
             st.caption(f"En nog {len(taken) - 5} andere taken.")
+
+    tijdsbesteding_overzicht(nu.date())
 
     if herhalingen := opslag.herhalingen_vandaag():
         onderwerpen = sorted({h["onderwerp"] for h in herhalingen})
