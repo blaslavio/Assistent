@@ -9,6 +9,7 @@ from anthropic import beta_tool
 import opslag
 import planning
 import reizen
+import activiteiten
 import events
 import tijd
 import weer
@@ -271,6 +272,23 @@ def sportdoelen_bekijken() -> str:
 
 
 @beta_tool
+def uitjes_zoeken(plaats: str = "", binnen: bool = False, alleen_buiten: bool = False) -> str:
+    """Zoek uitjes in de buurt, zoals musea, bioscopen, dierentuinen en natuurgebieden (dichtstbij eerst).
+
+    Args:
+        plaats: Adres of plaats, leeg voor rond het thuisadres.
+        binnen: Alleen uitjes binnen, bijvoorbeeld bij regen.
+        alleen_buiten: Alleen uitjes buiten.
+    """
+    lijst = activiteiten.in_de_buurt(plaats)
+    if binnen:
+        lijst = [a for a in lijst if a["binnen"]]
+    elif alleen_buiten:
+        lijst = [a for a in lijst if not a["binnen"]]
+    return _json([{k: v for k, v in a.items() if k not in ("lat", "lon")} for a in lijst[:15]])
+
+
+@beta_tool
 def events_zoeken(trefwoord: str = "", plaats: str = "", dagen: int = 14) -> str:
     """Zoek concerten, voorstellingen, sport- en andere events in de buurt, met ticketlink.
 
@@ -347,6 +365,7 @@ HULPMIDDELEN = [
     tijdsbesteding_bekijken,
     weer_bekijken,
     events_zoeken,
+    uitjes_zoeken,
     sport_vastleggen,
     sportoverzicht_bekijken,
     sportdoel_stellen,

@@ -18,6 +18,14 @@ TICKETMASTER_URL = os.environ.get("TICKETMASTER_URL", "https://app.ticketmaster.
 
 _cache: dict[tuple, tuple[float, list]] = {}
 
+# Ticketmaster-categorie naar voorkeur in de app.
+VOORKEUR = {"Music": "Muziek", "Sports": "Sport", "Arts & Theatre": "Cultuur", "Film": "Film", "Family": "Familie"}
+
+
+def sorteren(lijst: list[dict], voorkeuren: list[str]) -> list[dict]:
+    """Eerst wat bij de voorkeuren past, daarna op datum."""
+    return sorted(lijst, key=lambda e: (e["voorkeur"] not in voorkeuren, e["datum"], e["tijd"]))
+
 
 def sleutel() -> str:
     return opslag.instellingen().get("ticketmaster_sleutel", "")
@@ -52,12 +60,16 @@ def _omzetten(e: dict) -> dict:
     prijs = (e.get("priceRanges") or [{}])[0]
     afbeeldingen = sorted((a for a in e.get("images", []) if a.get("ratio") == "16_9"), key=lambda a: a.get("width", 0))
     soort = ((e.get("classifications") or [{}])[0].get("segment") or {}).get("name", "")
+    plek = zaal.get("location", {})
     return {
         "naam": e.get("name", ""),
         "datum": start.get("localDate", ""),
         "tijd": (start.get("localTime") or "")[:5],
         "locatie": adres,
         "soort": soort,
+        "voorkeur": VOORKEUR.get(soort, ""),
+        "lat": float(plek["latitude"]) if plek.get("latitude") else None,
+        "lon": float(plek["longitude"]) if plek.get("longitude") else None,
         "prijs": f"€ {prijs['min']:.0f}" + (f" tot € {prijs['max']:.0f}" if prijs.get("max", 0) > prijs["min"] else "")
                  if prijs.get("min") else "",
         "tickets": e.get("url", ""),

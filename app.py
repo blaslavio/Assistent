@@ -11,6 +11,7 @@ import anthropic
 import pydeck as pdk
 import streamlit as st
 
+import activiteiten
 import agent
 import events
 import media
@@ -516,33 +517,113 @@ def event_kaart(e: dict, in_agenda: set) -> None:
             st.rerun()
 
 
+def uitje_regel(a: dict, voorkeuren: list[str]) -> str:
+    links = []
+    if a["website"]:
+        links.append(f"[website]({a['website']})")
+    route = urlencode({"daddr": f"{a['lat']},{a['lon']}", "q": a["naam"]})
+    links.append(f"[route](https://maps.apple.com/?{route})")
+    ster = " ⭐" if a["voorkeur"] in voorkeuren else ""
+    return f"{a['icoon']} **{a['naam']}**{ster} · {a['soort']} · {a['afstand_km']} km · " + " · ".join(links)
+
+
+def buurt_kaart(uitjes: list[dict], evenementen: list[dict], voorkeuren: list[str]) -> None:
+    """Alle uitjes en events op één kaart. Namen worden leesbaar als je inzoomt."""
+    punten = [{"plek": [a["lon"], a["lat"]], "naam": f"{a['icoon']} {a['naam']}", "label": a["naam"], "info": f"{a['soort']}, {a['afstand_km']} km",
+               "kleur": [47, 125, 225, 220] if a["voorkeur"] in voorkeuren else [120, 140, 170, 160]} for a in uitjes]
+    punten += [{"plek": [e["lon"], e["lat"]], "naam": f"🎟️ {e['naam']}", "label": e["naam"], "info": f"{e['datum']} {e['tijd']}, {e['locatie']}",
+                "kleur": [235, 120, 30, 230] if e["voorkeur"] in voorkeuren else [235, 170, 110, 170]}
+               for e in evenementen if e.get("lat") is not None]
+    if not punten:
+        return
+    try:
+        lat, lon, _ = reizen.coordinaten(opslag.instellingen().get("thuisadres", "") or "Amsterdam")
+    except Exception:
+        lat, lon = punten[0]["plek"][1], punten[0]["plek"][0]
+    lagen = [
+        pdk.Layer("ScatterplotLayer", data=punten, get_position="plek", get_fill_color="kleur",
+                  get_radius=60, radius_min_pixels=4, radius_max_pixels=14, pickable=True),
+        # Tekst in meters: onleesbaar klein als je uitzoomt, leesbaar als je inzoomt.
+        pdk.Layer("TextLayer", data=punten, get_position="plek", get_text="label", get_size=45, size_units="meters",
+                  size_max_pixels=15, get_pixel_offset=[0, -14], get_color=[30, 30, 30], character_set="auto",
+                  outline_width=2, outline_color=[255, 255, 255], font_settings={"sdf": True}),
+        pdk.Layer("ScatterplotLayer", data=[{"plek": [lon, lat]}], get_position="plek", get_fill_color=[40, 170, 80],
+                  radius_min_pixels=7),
+    ]
+    st.pydeck_chart(pdk.Deck(layers=lagen, initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=11.5),
+                             map_provider="carto", map_style="road",
+                             tooltip={"html": "<b>{naam}</b><br/>{info}"}), height=360)
+    st.caption("🔵 uitjes · 🟠 events · 🟢 thuis. Felle kleur past bij je voorkeur. Zoom in om de namen te lezen, "
+               "tik op een punt voor meer.")
+
+
+def voorkeuren_kiezen() -> list[str]:
+    opgeslagen = opslag.instellingen().get("voorkeuren", [])
+    gekozen = st.pills("Waar heb je zin in?", activiteiten.VOORKEUREN, selection_mode="multi", default=opgeslagen,
+                       key="voorkeuren_keuze")
+    if sorted(gekozen) != sorted(opgeslagen):
+        opslag.instellingen_bijwerken(voorkeuren=gekozen)
+    return gekozen
+
+
 def events_overzicht() -> None:
-    """Events in de buurt van het thuisadres, met een link om tickets te kopen."""
-    st.markdown("### 🎉 Events in de buurt")
-    if st.button("🔎 Zoek ook buiten Ticketmaster", help="De assistent zoekt op internet bij lokale zalen, "
-                 "Eventbrite, Paylogic en sites van organisatoren."):
+    """Uitjes en events in de buurt, gesorteerd op voorkeur, op een kaart en in een lijst."""
+    st.markdown("### 🎉 Activiteiten en events in de buurt")
+    voorkeuren = voorkeuren_kiezen()
+    thuis = opslag.instellingen().get("thuisadres", "")
+    try:
+        regen = weer.voorspelling(thuis)["daily"]["precipitation_probability_max"][0] >= 50
+    except Exception:
+        regen = False
+
+    try:
+        uitjes = activiteiten.sorteren(activiteiten.in_de_buurt(thuis), voorkeuren, regen)
+    except Exception:
+        uitjes = []
+        st.caption("De uitjes konden niet worden geladen. Probeer het later opnieuw.")
+    evenementen, events_fout = [], False
+    if events.sleutel():
+        try:
+            evenementen = events.sorteren(events.zoeken(aantal=50), voorkeuren)
+        except opslag.httpx.HTTPError:
+            events_fout = True
+
+    buurt_kaart(uitjes, evenementen, voorkeuren)
+
+    if uitjes:
+        st.markdown("**Uitjes**")
+        if regen:
+            st.caption("Er is vandaag regen voorspeld, dus uitjes binnen staan eerst.")
+        st.markdown("  \n".join(uitje_regel(a, voorkeuren) for a in uitjes[:5]))
+        if len(uitjes) > 5:
+            with st.expander(f"Alle uitjes ({len(uitjes)})"):
+                st.markdown("  \n".join(uitje_regel(a, voorkeuren) for a in uitjes[5:]))
+
+    st.markdown("**Events**")
+    if st.button("🔎 Laat de assistent meer zoeken", help="De assistent zoekt op internet bij lokale zalen, "
+                 "Eventbrite, Paylogic, gemeenten en sites van organisatoren."):
+        wens = f" Mijn voorkeuren: {', '.join(voorkeuren)}." if voorkeuren else ""
         st.session_state.vooraf_vraag = (
-            "Zoek events in de buurt van mijn thuisadres in de komende twee weken die niet via Ticketmaster "
-            "verkocht worden: lokale zalen, theaters, clubs, festivals, markten en events op Eventbrite, Paylogic "
-            "of de eigen site van de organisator. Geef per event de datum, plek, prijs en de directe link naar de "
-            "ticketpagina, en vraag of ik er een in mijn agenda wil.")
+            "Zoek activiteiten en events in de buurt van mijn thuisadres in de komende twee weken in alle openbare "
+            "bronnen: uitagenda's van de gemeente en regio, lokale zalen, theaters, clubs, festivals, markten, "
+            "Eventbrite, Paylogic en sites van organisatoren." + wens + " Geef per event de datum, plek, prijs en de "
+            "directe link naar de ticketpagina, en vraag of ik er een in mijn agenda wil.")
     if not events.sleutel():
         events_instellen()
         return
-    try:
-        lijst = events.zoeken()
-    except opslag.httpx.HTTPError:
+    if events_fout:
         st.caption("De events konden niet worden geladen. Probeer het later opnieuw.")
         return
-    if not lijst:
+    if not evenementen:
         st.caption("Geen events gevonden in de komende twee weken.")
         return
-    in_agenda = {(a["titel"], a["start"]) for a in opslag.afspraken_tussen(lijst[0]["datum"], lijst[-1]["datum"])}
-    for e in lijst[:3]:
+    datums = sorted(e["datum"] for e in evenementen)
+    in_agenda = {(a["titel"], a["start"]) for a in opslag.afspraken_tussen(datums[0], datums[-1])}
+    for e in evenementen[:3]:
         event_kaart(e, in_agenda)
-    if len(lijst) > 3:
-        with st.expander(f"Nog {len(lijst) - 3} events"):
-            for e in lijst[3:]:
+    if len(evenementen) > 3:
+        with st.expander(f"Alle events ({len(evenementen)})"):
+            for e in evenementen[3:]:
                 event_kaart(e, in_agenda)
     st.caption("Je koopt tickets op de site van Ticketmaster. Ben je daar ingelogd, dan staan je gegevens al klaar "
                "en betaal je direct, bijvoorbeeld met Apple Pay of iDEAL.")
