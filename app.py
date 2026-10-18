@@ -5,7 +5,7 @@ import math
 import os
 import time
 from datetime import date, datetime, timedelta
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlparse
 
 import anthropic
 import pydeck as pdk
@@ -15,6 +15,7 @@ import agent
 import opslag
 import planning
 import reizen
+import strava
 import tijd
 
 # De server draait op UTC; datums en tijden horen in Nederlandse tijd.
@@ -246,6 +247,75 @@ def sport_overzicht(nu: datetime) -> None:
         st.caption(f"{tekst} ({soorten})")
 
 
+def app_url() -> str:
+    return (st.context.url or "").split("?")[0]
+
+
+def strava_terugkomst() -> None:
+    """Strava stuurt na toestemming terug naar de app met een code in de link."""
+    code = st.query_params.get("code")
+    if not code or "scope" not in st.query_params:
+        return
+    scope = st.query_params.get("scope", "")
+    st.query_params.clear()
+    if "activity:read" not in scope:
+        st.error("Geef bij Strava toestemming om je trainingen te bekijken, anders werkt de koppeling niet.")
+        return
+    try:
+        naam = strava.code_inwisselen(code)
+        st.session_state.pop("strava_bijgewerkt", None)
+        st.success(f"Strava is gekoppeld{' met ' + naam if naam else ''}. Je trainingen komen nu vanzelf binnen.")
+    except opslag.httpx.HTTPError:
+        st.error("Koppelen met Strava is niet gelukt. Controleer je Client ID en Client Secret en probeer het opnieuw.")
+
+
+def strava_bijwerken(forceer: bool = False) -> None:
+    """Haalt hooguit elk kwartier nieuwe trainingen op bij Strava."""
+    if not strava.gekoppeld():
+        return
+    laatst = st.session_state.get("strava_bijgewerkt", 0)
+    if not forceer and time.time() - laatst < 15 * 60:
+        return
+    st.session_state.strava_bijgewerkt = time.time()
+    try:
+        if nieuw := strava.bijwerken():
+            st.toast(f"{nieuw} training(en) uit Strava overgenomen.", icon="🏅")
+    except opslag.httpx.HTTPError:
+        st.toast("Strava is even niet bereikbaar.", icon="⚠️")
+
+
+def strava_instellingen() -> None:
+    with st.expander("🏅 Strava (sport en gezondheid)"):
+        inst = opslag.instellingen()
+        if strava.gekoppeld():
+            st.write(f"Gekoppeld{' met ' + inst['strava_naam'] if inst.get('strava_naam') else ''}.")
+            if st.button("Trainingen nu ophalen"):
+                strava_bijwerken(forceer=True)
+            if st.button("Ontkoppelen"):
+                strava.ontkoppelen()
+                st.rerun()
+            return
+        st.write("Strava neemt je trainingen over van Apple Gezondheid, je Apple Watch of Garmin. "
+                 "De assistent haalt ze daarna bij Strava op.")
+        st.markdown("1. Open de Strava-instellingen voor ontwikkelaars en maak een app aan. "
+                    "Vul in: naam **Mijn assistent**, categorie **Training**, website **"
+                    f"{app_url() or 'de link van deze app'}** en bij *Authorization Callback Domain*:")
+        st.code(urlparse(app_url()).netloc or "de naam van deze app", language=None)
+        st.link_button("Open Strava-instellingen", "https://www.strava.com/settings/api")
+        st.markdown("2. Vul hieronder de Client ID en het Client Secret in die Strava je geeft.")
+        client_id = st.text_input("Client ID", value=inst.get("strava_client_id", "")).strip()
+        geheim = "".join(st.text_input("Client Secret", type="password").split())
+        if st.button("Opslaan", key="strava_opslaan"):
+            if client_id and geheim:
+                opslag.instellingen_bijwerken(strava_client_id=client_id, strava_client_secret=geheim)
+                st.rerun()
+            else:
+                st.error("Vul allebei in.")
+        if inst.get("strava_client_id") and inst.get("strava_client_secret"):
+            st.markdown("3. Geef toestemming bij Strava. Daarna kom je vanzelf terug in de app.")
+            st.link_button("Verbind met Strava", strava.koppel_link(inst["strava_client_id"], app_url()), type="primary")
+
+
 def vandaag_overzicht() -> None:
     """Het overzicht van vandaag bovenaan de voorpagina. Werkt ook zonder Claude."""
     nu = datetime.now()
@@ -343,6 +413,8 @@ def zijbalk() -> None:
         else:
             st.caption("Nog geen leerdoelen.")
 
+        strava_instellingen()
+
         with st.expander("Anthropic-sleutel vervangen"):
             if sleutel := sleutel_formulier("Nieuwe sleutel opslaan"):
                 opslag.instellingen_bijwerken(anthropic_sleutel=sleutel)
@@ -393,6 +465,8 @@ def main() -> None:
     if not wachtwoord_ok():
         return
 
+    strava_terugkomst()
+    strava_bijwerken()
     vandaag_overzicht()
     zijbalk()
 

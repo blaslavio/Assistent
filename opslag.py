@@ -224,6 +224,32 @@ def sport_vastleggen(
     return None
 
 
+def training_koppelen(training_id: int, naam: str, start: str, sport: str, resultaat: dict) -> bool:
+    """Koppelt een training uit Strava aan een sportafspraak die rond die tijd begon,
+    of zet hem als nieuwe sportafspraak in de agenda. False als hij er al was."""
+    resultaat = {k: v for k, v in resultaat.items() if v}
+    with _slot:
+        g = laden()
+        if any(a.get("strava_id") == training_id for a in g["afspraken"]):
+            return False
+        moment = datetime.fromisoformat(start)
+        for afspraak in g["afspraken"]:
+            if (afspraak.get("sport") and "T" in afspraak["start"] and not afspraak.get("strava_id")
+                    and abs(datetime.fromisoformat(afspraak["start"]) - moment) <= timedelta(hours=2)):
+                afspraak["strava_id"] = training_id
+                afspraak["sport_resultaat"] = {**afspraak.get("sport_resultaat", {}), **resultaat}
+                break
+        else:
+            einde = moment + timedelta(minutes=resultaat.get("minuten", 0))
+            g["afspraken"].append({
+                "id": _nieuw_id(g), "titel": naam, "start": start, "einde": einde.isoformat(timespec="minutes"),
+                "notitie": "", "locatie": "", "contact_id": None, "sport": sport,
+                "sport_resultaat": resultaat, "strava_id": training_id,
+            })
+        opslaan(g)
+    return True
+
+
 # --- Contacten -----------------------------------------------------------
 
 def contact_opslaan(
