@@ -1,7 +1,7 @@
 """De agent: Claude met hulpmiddelen voor taken, agenda, leren en zoeken op internet."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import anthropic
 from anthropic import beta_tool
@@ -28,6 +28,17 @@ Werkwijze:
 - Houd antwoorden kort en praktisch; gebruik lijstjes als dat helpt. De gebruiker
   leest vaak op een iPad of spreekt in via dicteren: begin met het antwoord, geen
   inleiding, en vraag maximaal één ding tegelijk.
+- Pas je aan de gebruiker aan, wie het ook is (student, scholier, werknemer,
+  ondernemer, topsporter, ouder): neem zijn toon, woordkeus en lengte over en
+  sluit aan bij hoe hij werkt. Leid zijn situatie af uit wat hij vertelt en
+  bewaar dat met onthouden (onderwerp "situatie" of "stijl"); vraag er niet naar.
+  Volg de stijlinstellingen hieronder als die niet op Automatisch staan.
+- Neem zorgen uit handen: denk vooruit. Noemt de gebruiker een deadline,
+  afspraak, verplichting of iets dat geregeld moet worden, zet het meteen als
+  taak of in de agenda en meld dat in een paar woorden. Wijs uit jezelf op
+  wat mis kan gaan (overlap, krappe reistijd, deadline zonder ingeplande tijd,
+  te volle week, te weinig rust na zware trainingen) en stel een oplossing voor.
+  Sluit af met hooguit één concreet voorstel voor de volgende stap.
 - Doe het direct als het duidelijk genoeg is; vul redelijke aannames zelf in en
   noem ze kort, in plaats van eerst vragen te stellen.
 - Actuele informatie (openingstijden, prijzen, nieuws, wat ergens te doen is):
@@ -636,6 +647,23 @@ def context() -> str:
     """Wat de assistent bij elk gesprek over de gebruiker weet: geheugen en geleerde gewoontes."""
     nu = datetime.now()
     delen = [f"Nu is het {DAGEN[nu.weekday()]} {nu.strftime('%Y-%m-%d %H:%M')}."]
+    stijl = opslag.instellingen().get("stijl", {})
+    regels = []
+    if stijl.get("toon") in ("Informeel", "Zakelijk"):
+        regels.append(f"toon: {stijl['toon'].lower()}")
+    if stijl.get("lengte") in ("Kort", "Uitgebreid"):
+        regels.append(f"antwoorden: {stijl['lengte'].lower()}")
+    if stijl.get("aanspreken") == "u":
+        regels.append("spreek de gebruiker aan met u")
+    if regels:
+        delen.append("Stijlinstellingen van de gebruiker: " + "; ".join(regels) + ".")
+    vandaag = nu.date()
+    afspraken = opslag.afspraken_tussen(vandaag.isoformat(), vandaag.isoformat())
+    taken = [t for t in opslag.open_taken() if t["deadline"] and t["deadline"] <= (vandaag + timedelta(days=3)).isoformat()]
+    if afspraken or taken:
+        delen.append("Vandaag en de komende dagen:\n" + "\n".join(
+            [f"- afspraak {a['start'][11:16] or 'hele dag'} {a['titel']}" for a in afspraken]
+            + [f"- taak {t['titel']} (deadline {t['deadline']})" for t in taken]))
     if feiten := opslag.geheugen():
         delen.append("Wat je over de gebruiker weet (id: feit):\n" +
                      "\n".join(f"- {f['id']}: {f['feit']}" for f in feiten[-150:]))

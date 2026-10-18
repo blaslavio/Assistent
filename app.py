@@ -237,13 +237,19 @@ def tijdsbesteding_overzicht(vandaag: date) -> bool:
     return True
 
 
+def sport_zonder_resultaat(nu: datetime) -> list[dict]:
+    """Sportafspraken van vandaag die voorbij zijn en nog geen resultaat hebben."""
+    vandaag = nu.date().isoformat()
+    return [a for a in opslag.afspraken_tussen(vandaag, vandaag)
+            if a.get("sport") and not a.get("sport_resultaat")
+            and ("weg" in a.get("tijden", {}) or (a.get("einde") or a["start"]) <= nu.isoformat(timespec="minutes"))]
+
+
 def sport_overzicht(nu: datetime, toon_week: bool = True) -> None:
     """Resultaat invullen na een sportafspraak, en wat je deze week gesport hebt."""
     vandaag = nu.date().isoformat()
     week = tijd.sportoverzicht((nu.date() - timedelta(days=6)).isoformat(), vandaag)
-    klaar = [a for a in opslag.afspraken_tussen(vandaag, vandaag)
-             if a.get("sport") and not a.get("sport_resultaat")
-             and ("weg" in a.get("tijden", {}) or (a.get("einde") or a["start"]) <= nu.isoformat(timespec="minutes"))]
+    klaar = sport_zonder_resultaat(nu)
     if not klaar and not (toon_week and week["aantal"]):
         return
     st.markdown("**Sport**")
@@ -334,22 +340,18 @@ def strava_instellingen() -> None:
             st.link_button("Verbind met Strava", strava.koppel_link(inst["strava_client_id"], app_url()), type="primary")
 
 
-def weer_regel() -> None:
-    """Het weer van nu en vandaag op het thuisadres."""
-    thuis = opslag.instellingen().get("thuisadres", "")
+def weer_kort() -> str:
+    """Het weer in een paar woorden, voor naast de datum."""
     try:
-        data = weer.voorspelling(thuis)
+        data = weer.voorspelling(opslag.instellingen().get("thuisadres", ""))
     except Exception:
-        st.caption("Het weer kon niet worden geladen.")
-        return
-    nu = data["current"]
-    icoon, tekst = weer.omschrijving(nu["weather_code"])
+        return ""
+    icoon, tekst = weer.omschrijving(data["current"]["weather_code"])
     dag = data["daily"]
-    st.markdown(f"### {icoon} {round(nu['temperature_2m'])}° &nbsp;<small>{tekst} in {data['plaats']}</small>",
-                unsafe_allow_html=True)
-    st.caption(f"Vandaag {round(dag['temperature_2m_min'][0])}° tot {round(dag['temperature_2m_max'][0])}°, "
-               f"{dag['precipitation_probability_max'][0]}% kans op regen, wind {round(nu['wind_speed_10m'])} km/u"
-               + ("" if thuis else ". Vertel de assistent je thuisadres voor het weer bij jou."))
+    regen = dag["precipitation_probability_max"][0]
+    return (f"{icoon} {round(data['current']['temperature_2m'])}° {tekst}, "
+            f"{round(dag['temperature_2m_min'][0])}° tot {round(dag['temperature_2m_max'][0])}°"
+            + (f", {regen}% kans op regen" if regen >= 30 else ""))
 
 
 def weer_bij_afspraak(regel: dict) -> None:
@@ -512,6 +514,7 @@ def afspraak_kaart(regel: dict, afspraak: dict) -> None:
 
 def agenda_tabblad() -> None:
     """Dag- of weekoverzicht, nieuwe afspraken en exporteren naar Apple Agenda."""
+    sport_overzicht(datetime.now(), toon_week=False)
     with st.expander("➕ Nieuw in de agenda", expanded=False):
         afspraak_formulier("nieuwe_afspraak")
 
@@ -756,19 +759,39 @@ def events_overzicht() -> None:
                "en betaal je direct, bijvoorbeeld met Apple Pay of iDEAL.")
 
 
+VOORPAGINA = {"weer": "Weer naast de datum", "taken": "Taken", "seintjes": "Korte seintjes (herhalen, sportresultaat)"}
+EXTRA_TABBLADEN = {"🛒 Boodschappen": "Boodschappen", "📚 Leren en schrijven": "Leren en schrijven"}
+
+
+def voorpagina() -> dict:
+    return {k: True for k in VOORPAGINA} | opslag.instellingen().get("voorpagina", {})
+
+
 def vandaag_overzicht() -> None:
-    """Rustige voorpagina: datum en weer, het dagschema, taken en wat aandacht vraagt. Werkt ook zonder Claude."""
+    """De voorpagina: zo rustig mogelijk. Datum en weer, het dagschema en je taken. Werkt ook zonder Claude."""
     nu = datetime.now()
-    st.subheader(f"{DAGEN[nu.weekday()].capitalize()} {nu.day} {MAANDEN[nu.month - 1]}")
-    weer_regel()
+    keuze = voorpagina()
+    st.markdown(f"#### {DAGEN[nu.weekday()].capitalize()} {nu.day} {MAANDEN[nu.month - 1]}")
+    if keuze["weer"] and (w := weer_kort()):
+        st.caption(w)
     dagschema()
-    taken_blok()
-    sport_overzicht(nu, toon_week=False)
+    if keuze["taken"]:
+        taken_blok()
+    if keuze["seintjes"]:
+        seintjes(nu)
+
+
+def seintjes(nu: datetime) -> None:
+    """Hooguit één regel met wat aandacht vraagt; de rest staat op de plek zelf."""
+    delen = []
     if herhalingen := opslag.herhalingen_vandaag():
-        onderwerpen = sorted({h["onderwerp"] for h in herhalingen})
-        st.caption(f"📚 Vandaag herhalen: {', '.join(onderwerpen)} (bij 📚 Leren en schrijven).")
+        delen.append(f"📚 {len(herhalingen)} keer herhalen (Leren)")
+    if sport_zonder_resultaat(nu):
+        delen.append("🏃 hoe ging je training? (Agenda)")
     if not opslag.instellingen().get("thuisadres"):
-        st.caption("Tip: vul je thuisadres in bij ⚙️ Instellingen, dan zie je hoe laat je moet vertrekken.")
+        delen.append("🏠 vul je thuisadres in voor vertrektijden (Instellingen)")
+    if delen:
+        st.caption(" · ".join(delen))
 
 
 def schema_html(regels: list[dict], nu: datetime) -> str:
@@ -839,37 +862,44 @@ def dagschema() -> None:
     for regel in nog_te_gaan[1:]:
         if regel.get("waarschuwing"):
             st.warning(regel["waarschuwing"])
-    st.download_button("🔔 Meldingen voor vandaag in je iPhone-agenda", ics.bestand(regels),
-                       file_name=f"vandaag-{nu.date().isoformat()}.ics", mime="text/calendar", type="tertiary",
-                       help="Dan krijg je ook een melding op je vertrektijd als deze app dicht is.")
+
+
+def taak_label(t: dict, vandaag: str) -> str:
+    if not t["deadline"]:
+        return t["titel"]
+    if t["deadline"] < vandaag:
+        return f"{t['titel']} 🔴 te laat"
+    if t["deadline"] == vandaag:
+        return f"{t['titel']} 🟠 vandaag"
+    return f"{t['titel']} · vóór {t['deadline']}"
 
 
 def taken_blok() -> None:
-    """Open taken om af te vinken, met een veld om snel een taak toe te voegen."""
-    st.markdown("**Taken**")
+    """De belangrijkste open taken om af te vinken; nieuwe taak via ➕."""
     taken = opslag.open_taken()
     vandaag = date.today().isoformat()
-    for t in taken[:7]:
-        label = t["titel"]
-        if t["deadline"]:
-            label += " 🔴 (te laat)" if t["deadline"] < vandaag else " 🟠 (vandaag)" if t["deadline"] == vandaag else f" (vóór {t['deadline']})"
-        if st.checkbox(label, key=f"taak_{t['id']}"):
+    kol1, kol2 = st.columns([5, 1], vertical_alignment="center")
+    kol1.markdown("**Taken**" if taken else ":gray[Geen open taken]")
+    with kol2.popover("➕", help="Nieuwe taak"):
+        with st.form("nieuwe_taak", clear_on_submit=True, border=False):
+            titel = st.text_input("Nieuwe taak", placeholder="Wat moet er gebeuren?")
+            deadline = st.date_input("Deadline (optioneel)", value=None, format="DD-MM-YYYY")
+            if st.form_submit_button("Toevoegen", type="primary") and titel.strip():
+                opslag.taak_toevoegen(titel.strip(), deadline.isoformat() if deadline else None)
+                st.rerun()
+
+    def afvinken(t: dict) -> None:
+        if st.checkbox(taak_label(t, vandaag), key=f"taak_{t['id']}"):
             opslag.taak_afronden(t["id"])
             st.toast(f"Goed gedaan: {t['titel']}", icon="🎉")
             st.rerun()
-    if len(taken) > 7:
-        with st.expander(f"Nog {len(taken) - 7} taken"):
-            for t in taken[7:]:
-                if st.checkbox(t["titel"] + (f" (vóór {t['deadline']})" if t["deadline"] else ""), key=f"taak_{t['id']}"):
-                    opslag.taak_afronden(t["id"])
-                    st.rerun()
-    with st.form("nieuwe_taak", clear_on_submit=True, border=False):
-        kol1, kol2, kol3 = st.columns([3, 2, 1], vertical_alignment="bottom")
-        titel = kol1.text_input("Nieuwe taak", placeholder="Nieuwe taak", label_visibility="collapsed")
-        deadline = kol2.date_input("Deadline", value=None, format="DD-MM-YYYY", label_visibility="collapsed")
-        if kol3.form_submit_button("➕") and titel.strip():
-            opslag.taak_toevoegen(titel.strip(), deadline.isoformat() if deadline else None)
-            st.rerun()
+
+    for t in taken[:5]:
+        afvinken(t)
+    if len(taken) > 5:
+        with st.expander(f"Nog {len(taken) - 5} taken"):
+            for t in taken[5:]:
+                afvinken(t)
 
 
 def leren_tabblad() -> None:
@@ -1116,10 +1146,43 @@ def geheugen_instellingen() -> None:
                        "De assistent plant hier ruimte voor.")
 
 
-def instellingen_tabblad() -> None:
-    """Alles wat je één keer instelt: thuisadres, contacten, koppelingen en sleutels."""
+STIJL = {"toon": ["Automatisch", "Informeel", "Zakelijk"], "lengte": ["Automatisch", "Kort", "Uitgebreid"],
+         "aanspreken": ["je", "u"]}
+
+
+def stijl_instellingen() -> None:
+    """Hoe de assistent praat. Automatisch: hij neemt jouw toon en lengte over."""
+    huidig = {"toon": "Automatisch", "lengte": "Automatisch", "aanspreken": "je"} | opslag.instellingen().get("stijl", {})
+    toon = st.segmented_control("Toon", STIJL["toon"], default=huidig["toon"], key="stijl_toon") or huidig["toon"]
+    lengte = st.segmented_control("Antwoorden", STIJL["lengte"], default=huidig["lengte"], key="stijl_lengte") or huidig["lengte"]
+    aanspreken = st.segmented_control("Aanspreken met", STIJL["aanspreken"], default=huidig["aanspreken"],
+                                      key="stijl_aanspreken") or huidig["aanspreken"]
+    nieuw = {"toon": toon, "lengte": lengte, "aanspreken": aanspreken}
+    if nieuw != huidig:
+        opslag.instellingen_bijwerken(stijl=nieuw)
+    st.caption("Bij Automatisch past de assistent zich aan jou aan: aan je toon, hoe lang jouw berichten zijn en hoe "
+               "je werkt. Wat hij leert, zie je bij 🧠.")
+
+
+def voorpagina_instellingen() -> None:
+    """Wat er op de voorpagina staat en welke extra tabbladen je ziet."""
+    huidig = voorpagina()
+    nieuw = {k: st.toggle(label, value=huidig[k], key=f"vp_{k}") for k, label in VOORPAGINA.items()}
+    if nieuw != huidig:
+        opslag.instellingen_bijwerken(voorpagina=nieuw)
+    st.caption("Het dagschema staat er altijd.")
+    uit = opslag.instellingen().get("tabbladen_uit", [])
+    st.markdown("**Tabbladen**")
+    nieuw_uit = [t for t, label in EXTRA_TABBLADEN.items() if not st.toggle(label, value=t not in uit, key=f"tab_{label}")]
+    if sorted(nieuw_uit) != sorted(uit):
+        opslag.instellingen_bijwerken(tabbladen_uit=nieuw_uit)
+        # Andere tabbladen maken een nieuwe tabbalk; blijf op Instellingen.
+        st.session_state.terug_naar_tab = "⚙️ Instellingen"
+        st.rerun()
+
+
+def thuisadres_instellen() -> None:
     inst = opslag.instellingen()
-    st.markdown("**🏠 Thuisadres**")
     with st.form("thuisadres", border=False):
         kol1, kol2 = st.columns([4, 1], vertical_alignment="bottom")
         adres = kol1.text_input("Thuisadres", value=inst.get("thuisadres", ""), label_visibility="collapsed",
@@ -1137,35 +1200,54 @@ def instellingen_tabblad() -> None:
                 st.rerun()
     st.caption("Gebruikt voor reistijden, het weer en uitjes in de buurt.")
 
-    with st.expander(f"👤 Contacten ({len(opslag.contacten_zoeken())})"):
-        for c in sorted(opslag.contacten_zoeken(), key=lambda c: c["naam"].lower()):
-            regel = f"**{c['naam']}**"
-            if c.get("telefoon"):
-                regel += f" · [{c['telefoon']}](tel:{c['telefoon'].replace(' ', '')})"
-            if c.get("email"):
-                regel += f" · {c['email']}"
-            if c.get("adres"):
-                regel += f"  \n📍 {c['adres']}"
-            st.markdown(regel)
-        with st.form("nieuw_contact", clear_on_submit=True):
-            st.caption("Nieuw contact")
-            naam = st.text_input("Naam")
-            kol1, kol2 = st.columns(2)
-            telefoon = kol1.text_input("Telefoon")
-            email = kol2.text_input("E-mail")
-            adres_c = st.text_input("Adres")
-            if st.form_submit_button("Opslaan") and naam.strip():
-                opslag.contact_opslaan(naam.strip(), telefoon.strip(), email.strip(), adres_c.strip())
-                st.rerun()
 
-    with st.expander("🗣️ Stem van de assistent"):
+def contacten_beheren() -> None:
+    for c in sorted(opslag.contacten_zoeken(), key=lambda c: c["naam"].lower()):
+        regel = f"**{c['naam']}**"
+        if c.get("telefoon"):
+            regel += f" · [{c['telefoon']}](tel:{c['telefoon'].replace(' ', '')})"
+        if c.get("email"):
+            regel += f" · {c['email']}"
+        if c.get("adres"):
+            regel += f"  \n📍 {c['adres']}"
+        st.markdown(regel)
+    with st.form("nieuw_contact", clear_on_submit=True):
+        st.caption("Nieuw contact")
+        naam = st.text_input("Naam")
+        kol1, kol2 = st.columns(2)
+        telefoon = kol1.text_input("Telefoon")
+        email = kol2.text_input("E-mail")
+        adres_c = st.text_input("Adres")
+        if st.form_submit_button("Opslaan") and naam.strip():
+            opslag.contact_opslaan(naam.strip(), telefoon.strip(), email.strip(), adres_c.strip())
+            st.rerun()
+
+
+def instellingen_tabblad() -> None:
+    """Alles wat je één keer instelt, netjes ingeklapt."""
+    inst = opslag.instellingen()
+    st.markdown("**De assistent**")
+    with st.expander("💬 Hoe de assistent praat"):
+        stijl_instellingen()
+    with st.expander("🗣️ Stem"):
         stem_instellingen()
     with st.expander(f"🧠 Wat de assistent over je weet ({len(opslag.geheugen())})"):
         geheugen_instellingen()
+
+    st.markdown("**De app**")
+    with st.expander("🏠 Thuisadres" + ("" if inst.get("thuisadres") else " (nog invullen)"),
+                     expanded=not inst.get("thuisadres")):
+        thuisadres_instellen()
+    with st.expander("🧩 Voorpagina en tabbladen"):
+        voorpagina_instellingen()
+    with st.expander(f"👤 Contacten ({len(opslag.contacten_zoeken())})"):
+        contacten_beheren()
+
+    st.markdown("**Koppelingen**")
     strava_instellingen()
     with st.expander("🎟️ Events (Ticketmaster)" + (" ✅" if events.sleutel() else "")):
         events_instellen()
-    with st.expander("🔑 Anthropic-sleutel (voor de chat)"):
+    with st.expander("🔑 Anthropic-sleutel (voor de assistent)"):
         if sleutel := sleutel_formulier("Nieuwe sleutel opslaan"):
             opslag.instellingen_bijwerken(anthropic_sleutel=sleutel)
             st.success("Opgeslagen.")
@@ -1432,10 +1514,16 @@ def main() -> None:
 
     strava_terugkomst()
     strava_bijwerken()
-    tabs = st.tabs(TABBLADEN, key="tabblad", on_change="rerun")
-    inhoud = [vandaag_overzicht, agenda_tabblad, assistent_tabblad, boodschappen_tabblad, leren_tabblad,
-              instellingen_tabblad]
-    for tab, toon in zip(tabs, inhoud):
+    alle = dict(zip(TABBLADEN, [vandaag_overzicht, agenda_tabblad, assistent_tabblad, boodschappen_tabblad,
+                                 leren_tabblad, instellingen_tabblad]))
+    uit = opslag.instellingen().get("tabbladen_uit", [])
+    zichtbaar = {naam: toon for naam, toon in alle.items() if naam not in uit}
+    if terug := st.session_state.pop("terug_naar_tab", None):
+        st.session_state.tabblad = terug
+    if st.session_state.get("tabblad") not in zichtbaar:
+        st.session_state.tabblad = TABBLADEN[0]
+    tabs = st.tabs(list(zichtbaar), key="tabblad", on_change="rerun")
+    for tab, toon in zip(tabs, zichtbaar.values()):
         if tab.open:
             with tab:
                 toon()
