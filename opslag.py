@@ -1,14 +1,20 @@
 """Opslag van taken, agenda en leervoortgang.
 
-Online (met SUPABASE_URL, SUPABASE_KEY en SUPABASE_TOKEN ingesteld) staat alles
-in een Supabase-database, zodat het bewaard blijft. De app gebruikt daarvoor de
-publishable sleutel en twee databasefuncties die alleen werken met de juiste
-toegangscode (SUPABASE_TOKEN). Zonder die instellingen gebruikt de app het
-bestand data/gegevens.json, handig om lokaal te testen.
+Online staat alles in een Supabase-database. De app gebruikt daarvoor alleen de
+publishable sleutel (die openbaar mag zijn) en databasefuncties die pas iets
+teruggeven met het wachtwoord dat de gebruiker in de app kiest. Er staat dus
+niets geheims in de code of in Streamlit.
+
+Met ASSISTENT_LOKAAL=1 gebruikt de app het bestand data/gegevens.json, handig om
+lokaal te testen.
 """
 
+import contextvars
+import hashlib
+import hmac
 import json
 import os
+import secrets
 import threading
 from datetime import date, timedelta
 from pathlib import Path
@@ -18,54 +24,99 @@ import httpx
 DATA_BESTAND = Path(__file__).parent / "data" / "gegevens.json"
 _slot = threading.Lock()
 
+SUPABASE_URL = "https://lnjsekmlpjyiwdlzcowa.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Bq-K3J6yt0-B-mHWYj-tnQ_DWD0c9KX"
+
 LEEG = {"taken": [], "afspraken": [], "leerdoelen": [], "volgend_id": 1}
 
+# Het wachtwoord van de ingelogde gebruiker, per sessie (Streamlit draait elke sessie in een eigen thread).
+_wachtwoord: contextvars.ContextVar[str] = contextvars.ContextVar("wachtwoord", default="")
 
-def _supabase() -> tuple[str, dict, str] | None:
-    url = os.environ.get("SUPABASE_URL", "").rstrip("/")
-    sleutel = os.environ.get("SUPABASE_KEY", "")
-    token = os.environ.get("SUPABASE_TOKEN", "")
-    if not (url and sleutel and token):
-        return None
-    headers = {"apikey": sleutel}
-    if sleutel.startswith("eyJ"):  # oude sleutelvorm (JWT) moet ook als Bearer mee
-        headers["Authorization"] = f"Bearer {sleutel}"
-    return f"{url}/rest/v1/rpc", headers, token
+
+class GeenToegang(Exception):
+    """Het wachtwoord klopt niet (of er waren te veel foute pogingen)."""
+
+
+def gebruik_wachtwoord(wachtwoord: str) -> None:
+    _wachtwoord.set(wachtwoord)
 
 
 def online() -> bool:
     """True als de gegevens in Supabase bewaard worden."""
-    return _supabase() is not None
+    return os.environ.get("ASSISTENT_LOKAAL") != "1"
 
 
-def laden() -> dict:
-    if online := _supabase():
-        url, headers, token = online
-        r = httpx.post(f"{url}/lees_gegevens", json={"p_token": token}, headers=headers, timeout=15)
-        r.raise_for_status()
-        return r.json() or json.loads(json.dumps(LEEG))
+def _rpc(functie: str, **parameters):
+    url = os.environ.get("SUPABASE_URL", SUPABASE_URL).rstrip("/")
+    sleutel = os.environ.get("SUPABASE_KEY", SUPABASE_PUBLISHABLE_KEY)
+    r = httpx.post(f"{url}/rest/v1/rpc/{functie}", json=parameters, headers={"apikey": sleutel}, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+def _lokaal_laden() -> dict:
     if not DATA_BESTAND.exists():
         return json.loads(json.dumps(LEEG))
     with DATA_BESTAND.open(encoding="utf-8") as f:
         return json.load(f)
 
 
-def opslaan(gegevens: dict) -> None:
-    if online := _supabase():
-        url, headers, token = online
-        r = httpx.post(
-            f"{url}/bewaar_gegevens",
-            json={"p_token": token, "p_data": gegevens},
-            headers=headers,
-            timeout=15,
-        )
-        r.raise_for_status()
-        return
+def _lokaal_opslaan(gegevens: dict) -> None:
     DATA_BESTAND.parent.mkdir(parents=True, exist_ok=True)
     tijdelijk = DATA_BESTAND.with_suffix(".tmp")
     with tijdelijk.open("w", encoding="utf-8") as f:
         json.dump(gegevens, f, ensure_ascii=False, indent=2)
     tijdelijk.replace(DATA_BESTAND)
+
+
+def _lokale_hash(wachtwoord: str, zout: str) -> str:
+    return hashlib.pbkdf2_hmac("sha256", wachtwoord.encode(), bytes.fromhex(zout), 200_000).hex()
+
+
+def laden() -> dict:
+    if not online():
+        return _lokaal_laden()
+    antwoord = _rpc("lees", p_wachtwoord=_wachtwoord.get())
+    if antwoord.get("geen_toegang"):
+        raise GeenToegang
+    return antwoord.get("data") or json.loads(json.dumps(LEEG))
+
+
+def opslaan(gegevens: dict) -> None:
+    if not online():
+        _lokaal_opslaan(gegevens)
+    elif not _rpc("bewaar", p_wachtwoord=_wachtwoord.get(), p_data=gegevens):
+        raise GeenToegang
+
+
+# --- Wachtwoord ------------------------------------------------------------
+
+def is_geregistreerd() -> bool:
+    if not online():
+        return "wachtwoord_hash" in _lokaal_laden().get("instellingen", {})
+    return bool(_rpc("is_geregistreerd"))
+
+
+def registreer(wachtwoord: str) -> bool:
+    """Stelt het wachtwoord in. Lukt alleen als er nog geen wachtwoord is."""
+    if is_geregistreerd():
+        return False
+    if not online():
+        g = _lokaal_laden()
+        zout = secrets.token_hex(16)
+        g.setdefault("instellingen", {}).update(wachtwoord_zout=zout, wachtwoord_hash=_lokale_hash(wachtwoord, zout))
+        _lokaal_opslaan(g)
+        return True
+    return bool(_rpc("registreer", p_wachtwoord=wachtwoord))
+
+
+def wachtwoord_klopt(wachtwoord: str) -> bool:
+    if not online():
+        inst = _lokaal_laden().get("instellingen", {})
+        return "wachtwoord_hash" in inst and hmac.compare_digest(
+            _lokale_hash(wachtwoord, inst["wachtwoord_zout"]), inst["wachtwoord_hash"]
+        )
+    return not _rpc("lees", p_wachtwoord=wachtwoord).get("geen_toegang")
 
 
 def _nieuw_id(gegevens: dict) -> int:
@@ -193,7 +244,7 @@ def herhalingen_vandaag() -> list[dict]:
 
 
 # --- Instellingen ----------------------------------------------------------
-# Het wachtwoord (als hash) en de Anthropic-sleutel, ingevuld in de app zelf.
+# De Anthropic-sleutel, ingevuld in de app zelf.
 
 def instellingen() -> dict:
     return laden().get("instellingen", {})

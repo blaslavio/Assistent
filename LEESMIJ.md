@@ -26,18 +26,18 @@ Je maakt vier gratis accounts aan. Alles gaat in Safari.
 3. Maak onder **API Keys** een sleutel aan en bewaar hem in je Notities. Deel hem met niemand.
 
 ### Stap 3. Supabase: hier worden je gegevens bewaard
-1. Maak een account op [supabase.com](https://supabase.com) en maak een nieuw project (regio: Europa).
-2. De tabel en de beveiligde databasefuncties zijn al door Claude aangemaakt. De app gebruikt de **publishable** sleutel plus een eigen toegangscode, zodat de secret key nergens nodig is.
+Claude heeft de database ingericht. De app gebruikt alleen de openbare (publishable) sleutel; je gegevens zijn alleen te openen met het wachtwoord dat je in de app kiest. Na 10 foute pogingen blokkeert de database een kwartier.
 
 ### Stap 4. Streamlit: hier draait de app
 1. Ga naar [share.streamlit.io](https://share.streamlit.io) en log in met je GitHub-account.
-2. Tik op **Create app**, kies je repository `assistent` en als bestand `app.py`.
-3. Open **Advanced settings**, kies Python **3.12** en plak bij **Secrets** het blok dat je van Claude kreeg (Supabase-adres, publishable sleutel en toegangscode). Daar hoef je niets aan te veranderen.
-4. Tik op **Deploy**. Na een paar minuten krijg je een adres. Open het in Safari, tik op het deel-icoon en kies **Zet op beginscherm**.
-5. De eerste keer vraagt de app je om een wachtwoord te kiezen en je Anthropic-sleutel te plakken. Doe dit meteen na het online zetten.
+2. Tik op **Create app** en plak bij **Paste GitHub URL**: `https://github.com/blaslavio/assistent/blob/main/app.py`
+3. Kies onder **Advanced settings** Python **3.12**. Secrets zijn niet nodig.
+4. Tik op **Deploy**. Open het adres in Safari, tik op het deel-icoon en kies **Zet op beginscherm**.
+5. De eerste keer kies je een wachtwoord en plak je je Anthropic-sleutel. Doe dit meteen na het online zetten.
 
 ## Goed om te weten
-- Het adres is openbaar, maar zonder je wachtwoord kan niemand iets zien of doen. Kies dus een sterk wachtwoord.
+- Het adres en de code zijn openbaar, maar zonder je wachtwoord kan niemand je gegevens zien of je sleutel gebruiken. Kies dus een sterk wachtwoord.
+- Wachtwoord vergeten? Claude kan het via Supabase opnieuw instellen.
 - Kosten: Streamlit, Supabase en GitHub zijn gratis. Anthropic rekent per gebruik, meestal enkele centen per gesprek; zoeken op internet kost wat meer.
 - Als de app een tijd niet gebruikt is, "slaapt" hij. Tik dan op de knop om hem te wekken; dat duurt even.
 - Begin bij een nieuw onderwerp liefst een nieuw gesprek (knop onderaan); dat houdt het snel en goedkoop.

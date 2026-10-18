@@ -1,9 +1,5 @@
 """Webinterface van de assistent. Starten met: streamlit run app.py"""
 
-import hashlib
-import hmac
-import os
-import secrets
 from datetime import date, timedelta
 
 import anthropic
@@ -14,38 +10,12 @@ import opslag
 
 st.set_page_config(page_title="Mijn assistent", page_icon="✨", layout="centered")
 
-
-def instelling(naam: str) -> str:
-    """Lees een instelling uit .streamlit/secrets.toml of uit de omgeving."""
-    try:
-        if naam in st.secrets:
-            return st.secrets[naam]
-    except FileNotFoundError:
-        pass
-    return os.environ.get(naam, "")
-
-
-# De opslag leest de Supabase-instellingen uit de omgeving.
-for _naam in ("SUPABASE_URL", "SUPABASE_KEY", "SUPABASE_TOKEN"):
-    if not os.environ.get(_naam) and instelling(_naam):
-        os.environ[_naam] = instelling(_naam)
-
-
-def _hash(wachtwoord: str, zout: str) -> str:
-    return hashlib.pbkdf2_hmac("sha256", wachtwoord.encode(), bytes.fromhex(zout), 200_000).hex()
-
-
-def wachtwoord_klopt(invoer: str) -> bool:
-    if vast := instelling("APP_WACHTWOORD"):
-        return hmac.compare_digest(invoer, vast)
-    opgeslagen = opslag.instellingen()
-    if "wachtwoord_hash" not in opgeslagen:
-        return False
-    return hmac.compare_digest(_hash(invoer, opgeslagen["wachtwoord_zout"]), opgeslagen["wachtwoord_hash"])
+# Elke run van het script gebruikt het wachtwoord van deze sessie voor de database.
+opslag.gebruik_wachtwoord(st.session_state.get("wachtwoord", ""))
 
 
 def anthropic_sleutel() -> str:
-    return instelling("ANTHROPIC_API_KEY") or opslag.instellingen().get("anthropic_sleutel", "")
+    return opslag.instellingen().get("anthropic_sleutel", "")
 
 
 def sleutel_werkt(sleutel: str) -> str | None:
@@ -77,39 +47,43 @@ def sleutel_formulier(knoptekst: str) -> str | None:
     return None
 
 
+def inloggen(wachtwoord: str) -> None:
+    st.session_state.wachtwoord = wachtwoord
+    opslag.gebruik_wachtwoord(wachtwoord)
+
+
 def eerste_keer() -> None:
     """Eenmalig instellen: wachtwoord kiezen en Anthropic-sleutel invullen."""
     st.subheader("Welkom! Eerst even instellen")
     st.write("Kies een wachtwoord en plak je Anthropic-sleutel. Dit hoef je maar één keer te doen.")
-    wachtwoord = st.text_input("Kies een wachtwoord", type="password")
+    wachtwoord = st.text_input("Kies een wachtwoord (minstens 10 tekens)", type="password")
     herhaling = st.text_input("Herhaal het wachtwoord", type="password")
     if sleutel := sleutel_formulier("Opslaan"):
-        if len(wachtwoord) < 8:
-            st.error("Kies een wachtwoord van minstens 8 tekens.")
+        if len(wachtwoord) < 10:
+            st.error("Kies een wachtwoord van minstens 10 tekens.")
         elif wachtwoord != herhaling:
             st.error("De wachtwoorden zijn niet gelijk.")
+        elif not opslag.registreer(wachtwoord):
+            st.error("Er is al een wachtwoord ingesteld. Ververs de pagina en log in.")
         else:
-            zout = secrets.token_hex(16)
-            opslag.instellingen_bijwerken(
-                wachtwoord_zout=zout, wachtwoord_hash=_hash(wachtwoord, zout), anthropic_sleutel=sleutel
-            )
-            st.session_state.ingelogd = True
+            inloggen(wachtwoord)
+            opslag.instellingen_bijwerken(anthropic_sleutel=sleutel)
             st.rerun()
 
 
 def wachtwoord_ok() -> bool:
-    """Eenvoudige toegangscontrole zodat alleen jij de app kunt gebruiken."""
-    if st.session_state.get("ingelogd"):
+    """Toegangscontrole: zonder het juiste wachtwoord kan niemand bij de gegevens."""
+    if st.session_state.get("wachtwoord"):
         return True
-    if not instelling("APP_WACHTWOORD") and "wachtwoord_hash" not in opslag.instellingen():
+    if not opslag.is_geregistreerd():
         eerste_keer()
         return False
     invoer = st.text_input("Wachtwoord", type="password")
-    if invoer and wachtwoord_klopt(invoer):
-        st.session_state.ingelogd = True
+    if invoer and opslag.wachtwoord_klopt(invoer):
+        inloggen(invoer)
         st.rerun()
     elif invoer:
-        st.error("Onjuist wachtwoord.")
+        st.error("Onjuist wachtwoord. Na 10 foute pogingen moet je een kwartier wachten.")
     return False
 
 
@@ -169,10 +143,7 @@ def foutmelding(fout: anthropic.APIError) -> str:
 def main() -> None:
     st.title("Mijn assistent")
     if not opslag.online():
-        st.warning(
-            "Let op: de database is niet ingesteld, dus je gegevens gaan verloren als de app herstart. "
-            "Zet SUPABASE_URL, SUPABASE_KEY en SUPABASE_TOKEN bij Secrets in Streamlit."
-        )
+        st.caption("Lokale testmodus: gegevens staan in data/gegevens.json.")
     if not wachtwoord_ok():
         return
 
@@ -216,4 +187,10 @@ def main() -> None:
         st.rerun()
 
 
-main()
+try:
+    main()
+except opslag.GeenToegang:
+    st.session_state.pop("wachtwoord", None)
+    st.error("Geen toegang tot je gegevens. Ververs de pagina en log opnieuw in.")
+except opslag.httpx.HTTPError:
+    st.error("De database is even niet bereikbaar. Ververs de pagina over een minuut.")
