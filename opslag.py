@@ -1,8 +1,10 @@
 """Opslag van taken, agenda en leervoortgang.
 
-Online (met SUPABASE_URL en SUPABASE_KEY ingesteld) staat alles in een
-Supabase-database, zodat het bewaard blijft. Zonder die instellingen gebruikt
-de app het bestand data/gegevens.json, handig om lokaal te testen.
+Online (met SUPABASE_URL, SUPABASE_KEY en SUPABASE_TOKEN ingesteld) staat alles
+in een Supabase-database, zodat het bewaard blijft. De app gebruikt daarvoor de
+publishable sleutel en twee databasefuncties die alleen werken met de juiste
+toegangscode (SUPABASE_TOKEN). Zonder die instellingen gebruikt de app het
+bestand data/gegevens.json, handig om lokaal te testen.
 """
 
 import json
@@ -19,24 +21,24 @@ _slot = threading.Lock()
 LEEG = {"taken": [], "afspraken": [], "leerdoelen": [], "volgend_id": 1}
 
 
-def _supabase() -> tuple[str, dict] | None:
+def _supabase() -> tuple[str, dict, str] | None:
     url = os.environ.get("SUPABASE_URL", "").rstrip("/")
     sleutel = os.environ.get("SUPABASE_KEY", "")
-    if not (url and sleutel):
+    token = os.environ.get("SUPABASE_TOKEN", "")
+    if not (url and sleutel and token):
         return None
     headers = {"apikey": sleutel}
     if sleutel.startswith("eyJ"):  # oude sleutelvorm (JWT) moet ook als Bearer mee
         headers["Authorization"] = f"Bearer {sleutel}"
-    return f"{url}/rest/v1/gegevens", headers
+    return f"{url}/rest/v1/rpc", headers, token
 
 
 def laden() -> dict:
     if online := _supabase():
-        url, headers = online
-        r = httpx.get(url, params={"id": "eq.1", "select": "data"}, headers=headers, timeout=15)
+        url, headers, token = online
+        r = httpx.post(f"{url}/lees_gegevens", json={"p_token": token}, headers=headers, timeout=15)
         r.raise_for_status()
-        rijen = r.json()
-        return rijen[0]["data"] if rijen else json.loads(json.dumps(LEEG))
+        return r.json() or json.loads(json.dumps(LEEG))
     if not DATA_BESTAND.exists():
         return json.loads(json.dumps(LEEG))
     with DATA_BESTAND.open(encoding="utf-8") as f:
@@ -45,11 +47,11 @@ def laden() -> dict:
 
 def opslaan(gegevens: dict) -> None:
     if online := _supabase():
-        url, headers = online
+        url, headers, token = online
         r = httpx.post(
-            url,
-            json={"id": 1, "data": gegevens},
-            headers={**headers, "Prefer": "resolution=merge-duplicates"},
+            f"{url}/bewaar_gegevens",
+            json={"p_token": token, "p_data": gegevens},
+            headers=headers,
             timeout=15,
         )
         r.raise_for_status()

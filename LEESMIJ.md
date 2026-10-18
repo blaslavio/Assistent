@@ -27,12 +27,7 @@ Je maakt vier gratis accounts aan. Alles gaat in Safari.
 
 ### Stap 3. Supabase: hier worden je gegevens bewaard
 1. Maak een account op [supabase.com](https://supabase.com) en maak een nieuw project (regio: Europa).
-2. Open in het menu **SQL Editor**, plak dit en tik op **Run**:
-   ```sql
-   create table gegevens (id int primary key, data jsonb not null);
-   alter table gegevens enable row level security;
-   ```
-3. Ga naar **Project Settings**, dan **API Keys**. Bewaar de **Project URL** en de **secret key** in je Notities.
+2. De tabel en de beveiligde databasefuncties zijn al door Claude aangemaakt. De app gebruikt de **publishable** sleutel plus een eigen toegangscode, zodat de secret key nergens nodig is.
 
 ### Stap 4. Streamlit: hier draait de app
 1. Ga naar [share.streamlit.io](https://share.streamlit.io) en log in met je GitHub-account.
@@ -42,7 +37,8 @@ Je maakt vier gratis accounts aan. Alles gaat in Safari.
    ANTHROPIC_API_KEY = "jouw-anthropic-sleutel"
    APP_WACHTWOORD = "kies-een-goed-wachtwoord"
    SUPABASE_URL = "jouw-project-url"
-   SUPABASE_KEY = "jouw-supabase-secret-key"
+   SUPABASE_KEY = "jouw-publishable-sleutel"
+   SUPABASE_TOKEN = "toegangscode-van-claude"
    ```
 4. Tik op **Deploy**. Na een paar minuten krijg je een adres. Open het in Safari, tik op het deel-icoon en kies **Zet op beginscherm**. Dan staat hij als app op je iPad.
 

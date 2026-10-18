@@ -23,8 +23,8 @@ def instelling(naam: str) -> str:
     return os.environ.get(naam, "")
 
 
-# De opslag leest SUPABASE_URL en SUPABASE_KEY uit de omgeving.
-for _naam in ("SUPABASE_URL", "SUPABASE_KEY"):
+# De opslag leest de Supabase-instellingen uit de omgeving.
+for _naam in ("SUPABASE_URL", "SUPABASE_KEY", "SUPABASE_TOKEN"):
     if not os.environ.get(_naam) and instelling(_naam):
         os.environ[_naam] = instelling(_naam)
 
