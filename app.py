@@ -1,6 +1,7 @@
 """Webinterface van de assistent. Starten met: streamlit run app.py"""
 
 import html
+import importlib
 import json
 import math
 import re
@@ -25,6 +26,14 @@ import reizen
 import strava
 import tijd
 import weer
+
+# Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
+# laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
+for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, agent):
+    _gewijzigd = os.path.getmtime(_module.__file__)
+    if _gewijzigd > getattr(_module, "_geladen_om", 0):
+        importlib.reload(_module)
+        _module._geladen_om = _gewijzigd
 
 # De server draait op UTC; datums en tijden horen in Nederlandse tijd.
 os.environ["TZ"] = "Europe/Amsterdam"
