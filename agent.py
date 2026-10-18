@@ -7,6 +7,8 @@ import anthropic
 from anthropic import beta_tool
 
 import opslag
+import planning
+import reizen
 
 MODEL = "claude-opus-5-5"
 MAX_HERVATTINGEN = 5
@@ -19,6 +21,11 @@ Werkwijze:
 - Gebruik de hulpmiddelen om taken, afspraken en leervoortgang echt op te slaan,
   in plaats van alleen te zeggen dat je het onthoudt.
 - Vraag eerst om bevestiging voordat je iets verwijdert.
+- Agenda: vraag bij een afspraak buiten de deur naar het adres en met wie de
+  afspraak is. Koppel de afspraak aan een contactpersoon (zoek eerst, maak
+  anders een nieuw contact). Is het thuisadres onbekend, vraag het één keer.
+  Geef bij een vraag over een dag de dagplanning met vertrektijden en wijs op
+  krappe overstappen. Vraag welk vervoer de gebruiker neemt als dat niet bekend is.
 - Vakantie plannen: vraag naar periode, budget, reisgezelschap en wensen, zoek
   actuele informatie op internet en maak een dagschema met een kostenraming.
   Boeken doet de gebruiker zelf. Zet de reisdagen pas in de agenda na akkoord.
@@ -64,16 +71,92 @@ def taak_afronden(taak_id: int) -> str:
 
 
 @beta_tool
-def afspraak_toevoegen(titel: str, start: str, einde: str = "", notitie: str = "") -> str:
+def afspraak_toevoegen(
+    titel: str, start: str, einde: str = "", locatie: str = "", contact_id: int = 0, notitie: str = ""
+) -> str:
     """Zet een afspraak in de agenda.
 
     Args:
         titel: Naam van de afspraak.
-        start: Begin als JJJJ-MM-DD of JJJJ-MM-DDTHH:MM.
+        start: Begin als JJJJ-MM-DDTHH:MM (of JJJJ-MM-DD voor een hele dag).
         einde: Optioneel einde in hetzelfde formaat.
-        notitie: Optionele extra informatie, zoals locatie.
+        locatie: Volledig adres (straat, huisnummer, plaats), zodat de reistijd berekend kan worden.
+        contact_id: Id van de contactpersoon uit contacten_zoeken of contact_opslaan, 0 als er geen is.
+        notitie: Optionele extra informatie.
     """
-    return _json(opslag.afspraak_toevoegen(titel, start, einde or None, notitie))
+    return _json(opslag.afspraak_toevoegen(titel, start, einde or None, notitie, locatie, contact_id or None))
+
+
+@beta_tool
+def contact_opslaan(
+    naam: str, telefoon: str = "", email: str = "", adres: str = "", notitie: str = "", contact_id: int = 0
+) -> str:
+    """Sla een contactpersoon op, of werk een bestaande bij (met contact_id). Zoek eerst met contacten_zoeken
+    om dubbele contacten te voorkomen.
+
+    Args:
+        naam: Naam van de persoon of organisatie.
+        telefoon: Telefoonnummer.
+        email: E-mailadres.
+        adres: Adres.
+        notitie: Extra informatie, zoals functie of waar je elkaar van kent.
+        contact_id: Id van een bestaand contact om bij te werken, 0 voor een nieuw contact.
+    """
+    return _json(opslag.contact_opslaan(naam, telefoon, email, adres, notitie, contact_id or None))
+
+
+@beta_tool
+def contacten_zoeken(zoekterm: str = "") -> str:
+    """Zoek contactpersonen op naam, telefoon, e-mail of notitie. Leeg laten voor alle contacten.
+
+    Args:
+        zoekterm: Tekst om op te zoeken.
+    """
+    return _json(opslag.contacten_zoeken(zoekterm))
+
+
+@beta_tool
+def thuisadres_instellen(adres: str) -> str:
+    """Sla het thuisadres van de gebruiker op; de dagplanning begint en eindigt daar.
+
+    Args:
+        adres: Volledig adres (straat, huisnummer, plaats).
+    """
+    opslag.instellingen_bijwerken(thuisadres=adres)
+    return "Thuisadres opgeslagen."
+
+
+@beta_tool
+def reistijd_berekenen(van: str, naar: str, vervoer: str = "auto") -> str:
+    """Bereken afstand en reistijd tussen twee adressen. Gebruik "thuis" voor het thuisadres.
+
+    Args:
+        van: Vertrekadres of "thuis".
+        naar: Bestemming of "thuis".
+        vervoer: "auto", "fiets" of "lopen". Openbaar vervoer wordt niet berekend.
+    """
+    thuis = opslag.instellingen().get("thuisadres", "")
+    van, naar = (thuis if a.strip().lower() == "thuis" else a for a in (van, naar))
+    if not (van and naar):
+        return "Geen thuisadres bekend. Vraag het adres en sla het op met thuisadres_instellen."
+    try:
+        return _json(reizen.reistijd(van, naar, vervoer))
+    except reizen.AdresNietGevonden as fout:
+        return f"Adres niet gevonden: {fout}. Vraag een vollediger adres."
+    except Exception:
+        return "De routedienst is even niet bereikbaar."
+
+
+@beta_tool
+def dagplanning(datum: str, vervoer: str = "auto") -> str:
+    """Geef de planning van een dag: afspraken met contactpersoon, reistijd vanaf de vorige plek,
+    vertrektijd (met 10 minuten marge) en waarschuwingen als het te krap is.
+
+    Args:
+        datum: Datum als JJJJ-MM-DD.
+        vervoer: "auto", "fiets" of "lopen".
+    """
+    return _json(planning.dagplanning(datum, vervoer))
 
 
 @beta_tool
@@ -139,6 +222,11 @@ HULPMIDDELEN = [
     taak_afronden,
     afspraak_toevoegen,
     agenda_bekijken,
+    dagplanning,
+    reistijd_berekenen,
+    thuisadres_instellen,
+    contact_opslaan,
+    contacten_zoeken,
     afspraak_verwijderen,
     leerdoel_starten,
     oefening_vastleggen,

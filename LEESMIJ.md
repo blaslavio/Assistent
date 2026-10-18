@@ -4,7 +4,9 @@ Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je 
 
 **Wat hij nu kan**
 - Taken bijhouden ("Herinner me eraan mijn paspoort te verlengen vóór 1 november").
-- Een eigen agenda bijhouden ("Zet tandarts op dinsdag om 10 uur in mijn agenda").
+- Een eigen agenda bijhouden ("Zet tandarts op dinsdag om 10 uur in mijn agenda"), met adres en contactpersoon per afspraak.
+- Je dag plannen: reistijd tussen afspraken, hoe laat je moet vertrekken en een waarschuwing als het te krap is (auto, fiets of lopen).
+- Contactpersonen bewaren met telefoon, e-mail en adres.
 - Vakanties plannen: hij zoekt actuele informatie op internet en maakt een dagschema met kostenraming. Boeken doe je zelf.
 - Leren: je noemt een onderwerp, hij maakt een leerplan, legt uit, overhoort je en houdt je voortgang bij. Herhalingen plant hij automatisch op het juiste moment.
 

@@ -7,6 +7,7 @@ import streamlit as st
 
 import agent
 import opslag
+import reizen
 
 st.set_page_config(page_title="Mijn assistent", page_icon="✨", layout="centered")
 
@@ -94,8 +95,14 @@ def zijbalk() -> None:
         afspraken = opslag.afspraken_tussen(vandaag.isoformat(), (vandaag + timedelta(days=7)).isoformat())
         st.subheader("Agenda, komende 7 dagen")
         if afspraken:
+            contacten = {c["id"]: c for c in opslag.contacten_zoeken()}
             for a in afspraken:
-                st.write(f"**{a['start'].replace('T', ' ')}** {a['titel']}")
+                regel = f"**{a['start'].replace('T', ' ')}** {a['titel']}"
+                if a.get("locatie"):
+                    regel += f"  \n📍 {a['locatie']}"
+                if contact := contacten.get(a.get("contact_id")):
+                    regel += f"  \n👤 {contact['naam']}" + (f", {contact['telefoon']}" if contact.get("telefoon") else "")
+                st.markdown(regel)
         else:
             st.caption("Geen afspraken.")
 
@@ -123,6 +130,28 @@ def zijbalk() -> None:
             if sleutel := sleutel_formulier("Nieuwe sleutel opslaan"):
                 opslag.instellingen_bijwerken(anthropic_sleutel=sleutel)
                 st.success("Opgeslagen.")
+
+
+def zelftest(client: anthropic.Anthropic) -> None:
+    """Controleert of Claude, de database en de routedienst bereikbaar zijn."""
+    with st.spinner("Database controleren..."):
+        try:
+            opslag.laden()
+            st.write("✅ Database werkt")
+        except Exception as fout:
+            st.write(f"❌ Database: {type(fout).__name__}: {fout}")
+    with st.spinner("Routedienst controleren..."):
+        try:
+            reis = reizen.reistijd("Dam 1, Amsterdam", "Coolsingel 40, Rotterdam")
+            st.write(f"✅ Reistijd Amsterdam naar Rotterdam: {reis['reistijd_minuten']} min, {reis['afstand_km']} km")
+        except Exception as fout:
+            st.write(f"❌ Routedienst: {type(fout).__name__}: {fout}")
+    with st.spinner("Claude controleren..."):
+        try:
+            tekst = agent.antwoord(client, [{"role": "user", "content": "Zelftest: gebruik geen hulpmiddelen en antwoord alleen met OK."}])
+            st.write(f"✅ Claude antwoordt: {tekst[:100]}")
+        except anthropic.APIError as fout:
+            st.write(f"❌ Claude: {foutmelding(fout)}")
 
 
 def foutmelding(fout: anthropic.APIError) -> str:
@@ -157,6 +186,9 @@ def main() -> None:
     client = anthropic.Anthropic(api_key=sleutel)
 
     zijbalk()
+    with st.sidebar.expander("Zelftest"):
+        if st.button("Start zelftest"):
+            zelftest(client)
 
     # Twee lijsten: wat de gebruiker ziet, en de volledige geschiedenis voor Claude.
     st.session_state.setdefault("chat", [])

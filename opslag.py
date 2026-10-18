@@ -27,7 +27,7 @@ _slot = threading.Lock()
 SUPABASE_URL = "https://lnjsekmlpjyiwdlzcowa.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Bq-K3J6yt0-B-mHWYj-tnQ_DWD0c9KX"
 
-LEEG = {"taken": [], "afspraken": [], "leerdoelen": [], "volgend_id": 1}
+LEEG = {"taken": [], "afspraken": [], "contacten": [], "leerdoelen": [], "volgend_id": 1}
 
 # Het wachtwoord van de ingelogde gebruiker, per sessie (Streamlit draait elke sessie in een eigen thread).
 _wachtwoord: contextvars.ContextVar[str] = contextvars.ContextVar("wachtwoord", default="")
@@ -154,10 +154,25 @@ def open_taken() -> list[dict]:
 
 # --- Agenda --------------------------------------------------------------
 
-def afspraak_toevoegen(titel: str, start: str, einde: str | None = None, notitie: str = "") -> dict:
+def afspraak_toevoegen(
+    titel: str,
+    start: str,
+    einde: str | None = None,
+    notitie: str = "",
+    locatie: str = "",
+    contact_id: int | None = None,
+) -> dict:
     with _slot:
         g = laden()
-        afspraak = {"id": _nieuw_id(g), "titel": titel, "start": start, "einde": einde, "notitie": notitie}
+        afspraak = {
+            "id": _nieuw_id(g),
+            "titel": titel,
+            "start": start,
+            "einde": einde,
+            "notitie": notitie,
+            "locatie": locatie,
+            "contact_id": contact_id,
+        }
         g["afspraken"].append(afspraak)
         opslaan(g)
     return afspraak
@@ -176,6 +191,36 @@ def afspraken_tussen(van: str, tot: str) -> list[dict]:
     """Afspraken waarvan de start tussen twee datums (JJJJ-MM-DD, inclusief) valt."""
     resultaat = [a for a in laden()["afspraken"] if van <= a["start"][:10] <= tot]
     return sorted(resultaat, key=lambda a: a["start"])
+
+
+# --- Contacten -----------------------------------------------------------
+
+def contact_opslaan(
+    naam: str, telefoon: str = "", email: str = "", adres: str = "", notitie: str = "", contact_id: int | None = None
+) -> dict:
+    """Nieuw contact, of een bestaand contact bijwerken als contact_id is opgegeven."""
+    velden = {"naam": naam, "telefoon": telefoon, "email": email, "adres": adres, "notitie": notitie}
+    with _slot:
+        g = laden()
+        contacten = g.setdefault("contacten", [])
+        for contact in contacten:
+            if contact["id"] == contact_id:
+                contact.update({k: v for k, v in velden.items() if v})
+                opslaan(g)
+                return contact
+        contact = {"id": _nieuw_id(g), **velden}
+        contacten.append(contact)
+        opslaan(g)
+    return contact
+
+
+def contacten_zoeken(zoekterm: str = "") -> list[dict]:
+    zoekterm = zoekterm.lower()
+    return [c for c in laden().get("contacten", []) if zoekterm in json.dumps(c, ensure_ascii=False).lower()]
+
+
+def contact(contact_id: int | None) -> dict | None:
+    return next((c for c in laden().get("contacten", []) if c["id"] == contact_id), None)
 
 
 # --- Leren ---------------------------------------------------------------
