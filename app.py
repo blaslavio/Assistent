@@ -107,8 +107,10 @@ MAANDEN = ["januari", "februari", "maart", "april", "mei", "juni", "juli",
 
 def afspraak_tekst(regel: dict) -> str:
     """Eén afspraak uit de dagplanning als korte tekst met tijd, plek, contact en vertrektijd."""
-    tijd = regel["start"][11:16] if "T" in regel["start"] else "hele dag"
-    tekst = f"**{tijd}** {regel['titel']}"
+    begin = regel["start"][11:16] if "T" in regel["start"] else "hele dag"
+    tekst = f"**{begin}** {regel['titel']}"
+    if regel.get("sport"):
+        tekst = f"{tijd.sport_icoon(regel['sport'])} " + tekst
     if regel.get("locatie"):
         tekst += f"  \n📍 {regel['locatie']}"
     if contact := regel.get("contact"):
@@ -216,6 +218,34 @@ def tijdsbesteding_overzicht(vandaag: date) -> None:
     st.markdown(tijdbalk([(t["reistijd"], BLAUW), (t["op_locatie"], GROEN), (t["uitloop"], ROOD)]), unsafe_allow_html=True)
 
 
+def sport_overzicht(nu: datetime) -> None:
+    """Resultaat invullen na een sportafspraak, en wat je deze week gesport hebt."""
+    vandaag = nu.date().isoformat()
+    week = tijd.sportoverzicht((nu.date() - timedelta(days=6)).isoformat(), vandaag)
+    klaar = [a for a in opslag.afspraken_tussen(vandaag, vandaag)
+             if a.get("sport") and not a.get("sport_resultaat")
+             and ("weg" in a.get("tijden", {}) or (a.get("einde") or a["start"]) <= nu.isoformat(timespec="minutes"))]
+    if not klaar and not week["aantal"]:
+        return
+    st.markdown("**Sport**")
+    for a in klaar:
+        with st.expander(f"{tijd.sport_icoon(a['sport'])} Hoe ging {a['titel']}?", expanded=True):
+            with st.form(f"sport_{a['id']}", border=False):
+                minuten = st.number_input("Minuten gesport", 0, 600, tijd.sportminuten(a), step=5)
+                km = st.number_input("Afstand in km (0 als het niet telt)", 0.0, 500.0, 0.0, step=0.5)
+                gevoel = st.select_slider("Hoe voelde het?", options=[1, 2, 3, 4, 5], value=3,
+                                          format_func=lambda g: ["😫", "😕", "🙂", "😀", "🤩"][g - 1])
+                if st.form_submit_button("Opslaan"):
+                    opslag.sport_vastleggen(a["id"], int(minuten), float(km), gevoel)
+                    st.rerun()
+    if week["aantal"]:
+        soorten = ", ".join(f"{tijd.sport_icoon(s)} {n}" for s, n in week["per_sport"].items())
+        tekst = f"Afgelopen 7 dagen: {week['aantal']} keer gesport, {_uren(week['minuten'])}"
+        if week["afstand_km"]:
+            tekst += f", {week['afstand_km']} km"
+        st.caption(f"{tekst} ({soorten})")
+
+
 def vandaag_overzicht() -> None:
     """Het overzicht van vandaag bovenaan de voorpagina. Werkt ook zonder Claude."""
     nu = datetime.now()
@@ -264,6 +294,7 @@ def vandaag_overzicht() -> None:
             st.caption(f"En nog {len(taken) - 5} andere taken.")
 
     tijdsbesteding_overzicht(nu.date())
+    sport_overzicht(nu)
 
     if herhalingen := opslag.herhalingen_vandaag():
         onderwerpen = sorted({h["onderwerp"] for h in herhalingen})

@@ -161,6 +161,7 @@ def afspraak_toevoegen(
     notitie: str = "",
     locatie: str = "",
     contact_id: int | None = None,
+    sport: str = "",
 ) -> dict:
     with _slot:
         g = laden()
@@ -173,6 +174,8 @@ def afspraak_toevoegen(
             "locatie": locatie,
             "contact_id": contact_id,
         }
+        if sport:
+            afspraak["sport"] = sport.lower()
         g["afspraken"].append(afspraak)
         opslaan(g)
     return afspraak
@@ -201,6 +204,21 @@ def tijd_vastleggen(afspraak_id: int, moment: str, tijdstip: str | None = None) 
         for afspraak in g["afspraken"]:
             if afspraak["id"] == afspraak_id:
                 afspraak.setdefault("tijden", {})[moment] = tijdstip
+                opslaan(g)
+                return afspraak
+    return None
+
+
+def sport_vastleggen(
+    afspraak_id: int, minuten: int = 0, afstand_km: float = 0, gevoel: int = 0, notitie: str = ""
+) -> dict | None:
+    """Resultaat van een sportafspraak. Gevoel van 1 (zwaar) tot 5 (top), 0 als onbekend."""
+    resultaat = {"minuten": minuten, "afstand_km": afstand_km, "gevoel": gevoel, "notitie": notitie}
+    with _slot:
+        g = laden()
+        for afspraak in g["afspraken"]:
+            if afspraak["id"] == afspraak_id:
+                afspraak["sport_resultaat"] = {k: v for k, v in resultaat.items() if v}
                 opslaan(g)
                 return afspraak
     return None

@@ -60,3 +60,40 @@ def tijdsbesteding(van: str, tot: str) -> dict:
             for sleutel in totaal:
                 totaal[sleutel] += uitkomst[sleutel]
     return {"van": van, "tot": tot, "afspraken": regels, "totaal_minuten": totaal}
+
+
+SPORT_ICOON = {"hardlopen": "🏃", "rennen": "🏃", "fitness": "🏋️", "fietsen": "🚴", "wielrennen": "🚴",
+               "zwemmen": "🏊", "wandelen": "🚶", "voetbal": "⚽", "tennis": "🎾", "padel": "🎾", "yoga": "🧘"}
+
+
+def sport_icoon(sport: str) -> str:
+    return SPORT_ICOON.get(sport, "🏅")
+
+
+def sportminuten(afspraak: dict) -> int:
+    """Hoe lang er gesport is: ingevuld resultaat, anders tijdregistratie, anders de geplande duur."""
+    if minuten := afspraak.get("sport_resultaat", {}).get("minuten"):
+        return minuten
+    if (uitkomst := berekening(afspraak)) and (uitkomst["op_locatie"] or uitkomst["uitloop"]):
+        return uitkomst["op_locatie"] + uitkomst["uitloop"]
+    if afspraak.get("einde") and "T" in afspraak["einde"] and "T" in afspraak["start"]:
+        return _minuten(datetime.fromisoformat(afspraak["start"]), datetime.fromisoformat(afspraak["einde"]))
+    return 60
+
+
+def sportoverzicht(van: str, tot: str) -> dict:
+    """Gedane sportafspraken tussen twee datums: aantal, minuten, kilometers, per sport."""
+    nu = datetime.now().isoformat(timespec="minutes")
+    gedaan = [a for a in opslag.afspraken_tussen(van, tot)
+              if a.get("sport") and (a.get("sport_resultaat") or a.get("tijden") or a["start"] <= nu)]
+    per_sport: dict[str, int] = {}
+    for a in gedaan:
+        per_sport[a["sport"]] = per_sport.get(a["sport"], 0) + 1
+    return {
+        "van": van,
+        "tot": tot,
+        "aantal": len(gedaan),
+        "minuten": sum(sportminuten(a) for a in gedaan),
+        "afstand_km": round(sum(a.get("sport_resultaat", {}).get("afstand_km", 0) for a in gedaan), 1),
+        "per_sport": per_sport,
+    }

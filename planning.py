@@ -34,8 +34,9 @@ def dagplanning(datum: str, vervoer: str = "auto") -> dict:
             "einde": afspraak.get("einde"),
             "locatie": afspraak.get("locatie", ""),
         }
-        if afspraak.get("tijden"):
-            regel["tijden"] = afspraak["tijden"]
+        for veld in ("tijden", "sport", "sport_resultaat"):
+            if afspraak.get(veld):
+                regel[veld] = afspraak[veld]
         if contact := opslag.contact(afspraak.get("contact_id")):
             regel["contact"] = {k: v for k, v in contact.items() if v and k != "id"}
 

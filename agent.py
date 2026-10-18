@@ -30,6 +30,10 @@ Werkwijze:
 - Tijdregistratie: meldt de gebruiker vertrek, aankomst, weggaan of terugkomst,
   leg dat vast bij de juiste afspraak. Bij vragen over tijdsbesteding noem je
   reistijd, tijd op locatie en uitloop, en geef je een korte tip.
+- Sport: zet sportafspraken (zoals samen hardlopen of fitness) in de agenda met
+  de sport ingevuld en koppel het sportmaatje als contact. Vraag na afloop hoe
+  het ging (duur, afstand, gevoel) en leg dat vast. Help met een haalbaar
+  weekritme en moedig aan zonder te overdrijven; geen medisch advies.
 - Vakantie plannen: vraag naar periode, budget, reisgezelschap en wensen, zoek
   actuele informatie op internet en maak een dagschema met een kostenraming.
   Boeken doet de gebruiker zelf. Zet de reisdagen pas in de agenda na akkoord.
@@ -76,7 +80,7 @@ def taak_afronden(taak_id: int) -> str:
 
 @beta_tool
 def afspraak_toevoegen(
-    titel: str, start: str, einde: str = "", locatie: str = "", contact_id: int = 0, notitie: str = ""
+    titel: str, start: str, einde: str = "", locatie: str = "", contact_id: int = 0, notitie: str = "", sport: str = ""
 ) -> str:
     """Zet een afspraak in de agenda.
 
@@ -87,8 +91,9 @@ def afspraak_toevoegen(
         locatie: Volledig adres (straat, huisnummer, plaats), zodat de reistijd berekend kan worden.
         contact_id: Id van de contactpersoon uit contacten_zoeken of contact_opslaan, 0 als er geen is.
         notitie: Optionele extra informatie.
+        sport: Bij een sportafspraak de sport in kleine letters, zoals hardlopen, fitness, fietsen of zwemmen.
     """
-    return _json(opslag.afspraak_toevoegen(titel, start, einde or None, notitie, locatie, contact_id or None))
+    return _json(opslag.afspraak_toevoegen(titel, start, einde or None, notitie, locatie, contact_id or None, sport))
 
 
 @beta_tool
@@ -200,6 +205,32 @@ def tijd_vastleggen(afspraak_id: int, moment: str, tijdstip: str = "") -> str:
 
 
 @beta_tool
+def sport_vastleggen(afspraak_id: int, minuten: int = 0, afstand_km: float = 0, gevoel: int = 0, notitie: str = "") -> str:
+    """Leg het resultaat van een sportafspraak vast.
+
+    Args:
+        afspraak_id: Het id van de sportafspraak.
+        minuten: Hoe lang er gesport is, 0 als onbekend.
+        afstand_km: Afgelegde afstand in km, 0 als niet van toepassing.
+        gevoel: Hoe het ging, van 1 (zwaar) tot 5 (top), 0 als onbekend.
+        notitie: Optioneel, bijvoorbeeld oefeningen of gewichten.
+    """
+    afspraak = opslag.sport_vastleggen(afspraak_id, minuten, afstand_km, max(0, min(5, gevoel)), notitie)
+    return _json(afspraak) if afspraak else "Afspraak niet gevonden."
+
+
+@beta_tool
+def sportoverzicht_bekijken(van: str, tot: str) -> str:
+    """Toon hoe vaak, hoe lang en hoeveel km er gesport is tussen twee datums.
+
+    Args:
+        van: Begindatum als JJJJ-MM-DD.
+        tot: Einddatum als JJJJ-MM-DD (inclusief).
+    """
+    return _json(tijd.sportoverzicht(van, tot))
+
+
+@beta_tool
 def tijdsbesteding_bekijken(van: str, tot: str) -> str:
     """Toon de tijdregistratie tussen twee datums: reistijd, tijd op locatie en uitloop in minuten.
 
@@ -260,6 +291,8 @@ HULPMIDDELEN = [
     afspraak_verwijderen,
     tijd_vastleggen,
     tijdsbesteding_bekijken,
+    sport_vastleggen,
+    sportoverzicht_bekijken,
     leerdoel_starten,
     oefening_vastleggen,
     leervoortgang_bekijken,
