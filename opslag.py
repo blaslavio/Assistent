@@ -185,3 +185,17 @@ def herhalingen_vandaag() -> list[dict]:
             if stap["herhalen_op"] and stap["herhalen_op"] <= vandaag:
                 resultaat.append({"leerdoel_id": doel["id"], "onderwerp": doel["onderwerp"], **stap})
     return resultaat
+
+
+# --- Instellingen ----------------------------------------------------------
+# Het wachtwoord (als hash) en de Anthropic-sleutel, ingevuld in de app zelf.
+
+def instellingen() -> dict:
+    return laden().get("instellingen", {})
+
+
+def instellingen_bijwerken(**waarden: str) -> None:
+    with _slot:
+        g = laden()
+        g.setdefault("instellingen", {}).update(waarden)
+        opslaan(g)

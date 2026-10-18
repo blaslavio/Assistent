@@ -1,7 +1,9 @@
 """Webinterface van de assistent. Starten met: streamlit run app.py"""
 
+import hashlib
 import hmac
 import os
+import secrets
 from datetime import date, timedelta
 
 import anthropic
@@ -29,16 +31,63 @@ for _naam in ("SUPABASE_URL", "SUPABASE_KEY", "SUPABASE_TOKEN"):
         os.environ[_naam] = instelling(_naam)
 
 
+def _hash(wachtwoord: str, zout: str) -> str:
+    return hashlib.pbkdf2_hmac("sha256", wachtwoord.encode(), bytes.fromhex(zout), 200_000).hex()
+
+
+def wachtwoord_klopt(invoer: str) -> bool:
+    if vast := instelling("APP_WACHTWOORD"):
+        return hmac.compare_digest(invoer, vast)
+    opgeslagen = opslag.instellingen()
+    if "wachtwoord_hash" not in opgeslagen:
+        return False
+    return hmac.compare_digest(_hash(invoer, opgeslagen["wachtwoord_zout"]), opgeslagen["wachtwoord_hash"])
+
+
+def anthropic_sleutel() -> str:
+    return instelling("ANTHROPIC_API_KEY") or opslag.instellingen().get("anthropic_sleutel", "")
+
+
+def sleutel_formulier(knoptekst: str) -> str | None:
+    """Veld om de Anthropic-sleutel in te vullen. Geeft de sleutel terug bij een geldige invoer."""
+    sleutel = st.text_input("Anthropic-sleutel (begint met sk-ant-api)", type="password").strip()
+    if st.button(knoptekst):
+        if not sleutel.startswith("sk-ant-api"):
+            st.error("Dit lijkt geen API-sleutel. Die begint met sk-ant-api.")
+            return None
+        return sleutel
+    return None
+
+
+def eerste_keer() -> None:
+    """Eenmalig instellen: wachtwoord kiezen en Anthropic-sleutel invullen."""
+    st.subheader("Welkom! Eerst even instellen")
+    st.write("Kies een wachtwoord en plak je Anthropic-sleutel. Dit hoef je maar één keer te doen.")
+    wachtwoord = st.text_input("Kies een wachtwoord", type="password")
+    herhaling = st.text_input("Herhaal het wachtwoord", type="password")
+    if sleutel := sleutel_formulier("Opslaan"):
+        if len(wachtwoord) < 8:
+            st.error("Kies een wachtwoord van minstens 8 tekens.")
+        elif wachtwoord != herhaling:
+            st.error("De wachtwoorden zijn niet gelijk.")
+        else:
+            zout = secrets.token_hex(16)
+            opslag.instellingen_bijwerken(
+                wachtwoord_zout=zout, wachtwoord_hash=_hash(wachtwoord, zout), anthropic_sleutel=sleutel
+            )
+            st.session_state.ingelogd = True
+            st.rerun()
+
+
 def wachtwoord_ok() -> bool:
     """Eenvoudige toegangscontrole zodat alleen jij de app kunt gebruiken."""
-    wachtwoord = instelling("APP_WACHTWOORD")
-    if not wachtwoord:
-        st.error("Stel eerst APP_WACHTWOORD in (zie LEESMIJ.md).")
-        return False
     if st.session_state.get("ingelogd"):
         return True
+    if not instelling("APP_WACHTWOORD") and "wachtwoord_hash" not in opslag.instellingen():
+        eerste_keer()
+        return False
     invoer = st.text_input("Wachtwoord", type="password")
-    if invoer and hmac.compare_digest(invoer, wachtwoord):
+    if invoer and wachtwoord_klopt(invoer):
         st.session_state.ingelogd = True
         st.rerun()
     elif invoer:
@@ -78,10 +127,15 @@ def zijbalk() -> None:
         else:
             st.caption("Nog geen leerdoelen.")
 
+        with st.expander("Anthropic-sleutel vervangen"):
+            if sleutel := sleutel_formulier("Nieuwe sleutel opslaan"):
+                opslag.instellingen_bijwerken(anthropic_sleutel=sleutel)
+                st.success("Opgeslagen.")
+
 
 def foutmelding(fout: anthropic.APIError) -> str:
     if isinstance(fout, anthropic.AuthenticationError):
-        return "De API-sleutel klopt niet. Controleer ANTHROPIC_API_KEY."
+        return "De Anthropic-sleutel klopt niet. Vervang hem via het menu links."
     if isinstance(fout, anthropic.RateLimitError):
         return "Het is even te druk. Probeer het over een minuut opnieuw."
     if isinstance(fout, anthropic.APIConnectionError):
@@ -96,9 +150,12 @@ def main() -> None:
     if not wachtwoord_ok():
         return
 
-    sleutel = instelling("ANTHROPIC_API_KEY")
+    sleutel = anthropic_sleutel()
     if not sleutel:
-        st.error("Stel eerst ANTHROPIC_API_KEY in (zie LEESMIJ.md).")
+        st.warning("Er is nog geen Anthropic-sleutel ingesteld.")
+        if nieuw := sleutel_formulier("Opslaan"):
+            opslag.instellingen_bijwerken(anthropic_sleutel=nieuw)
+            st.rerun()
         return
     client = anthropic.Anthropic(api_key=sleutel)
 

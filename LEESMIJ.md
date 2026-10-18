@@ -32,15 +32,9 @@ Je maakt vier gratis accounts aan. Alles gaat in Safari.
 ### Stap 4. Streamlit: hier draait de app
 1. Ga naar [share.streamlit.io](https://share.streamlit.io) en log in met je GitHub-account.
 2. Tik op **Create app**, kies je repository `assistent` en als bestand `app.py`.
-3. Open **Advanced settings** en plak bij **Secrets** (vul je eigen waarden in):
-   ```toml
-   ANTHROPIC_API_KEY = "jouw-anthropic-sleutel"
-   APP_WACHTWOORD = "kies-een-goed-wachtwoord"
-   SUPABASE_URL = "jouw-project-url"
-   SUPABASE_KEY = "jouw-publishable-sleutel"
-   SUPABASE_TOKEN = "toegangscode-van-claude"
-   ```
-4. Tik op **Deploy**. Na een paar minuten krijg je een adres. Open het in Safari, tik op het deel-icoon en kies **Zet op beginscherm**. Dan staat hij als app op je iPad.
+3. Open **Advanced settings**, kies Python **3.12** en plak bij **Secrets** het blok dat je van Claude kreeg (Supabase-adres, publishable sleutel en toegangscode). Daar hoef je niets aan te veranderen.
+4. Tik op **Deploy**. Na een paar minuten krijg je een adres. Open het in Safari, tik op het deel-icoon en kies **Zet op beginscherm**.
+5. De eerste keer vraagt de app je om een wachtwoord te kiezen en je Anthropic-sleutel te plakken. Doe dit meteen na het online zetten.
 
 ## Goed om te weten
 - Het adres is openbaar, maar zonder je wachtwoord kan niemand iets zien of doen. Kies dus een sterk wachtwoord.
