@@ -7,7 +7,7 @@ Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je 
 - 📅 **Agenda**: alles op één plek. Bij iets nieuws kies je de soort: afspraak, sport, uitgaan, etentje, werk, familie en vrienden, gezondheid, reizen of overig. Met 📲 zet je het in Apple Agenda met een melding op je vertrektijd. Onderaan (dichtgeklapt): ideeën in de buurt, sportdoelen en tijdsbesteding.
 - 💬 **Assistent** (heeft tegoed bij Anthropic nodig): praat met 🎤 Praat en laat antwoorden voorlezen, met een stem naar keuze (Nederland of Vlaanderen, man of vrouw), ook handsfree. Antwoorden verschijnen woord voor woord. Zoekt op internet en vergelijkt opties, plant strak met je reistijd en gewoontes, en onthoudt je voorkeuren (te zien en te wissen bij ⚙️ Instellingen).
 - 🛒 **Boodschappen**: lijst om af te vinken en de goedkoopste supermarkt bij jou in de buurt (open prijsgegevens van Checkjebon).
-- 📚 **Leren**: leerdoelen, herhalingen op het juiste moment en voortgang.
+- 📚 **Leren en schrijven**: leerdoel met leerplan, overhoren met feedback en herhalingen op het juiste moment. Hulp bij scripties, verslagen en essays: onderzoeksvraag, opzet, planning in je agenda, echte wetenschappelijke bronnen (OpenAlex en Crossref) met APA-bronnenlijst, en feedback op je tekst (Word, pdf of getypt).
 - ⚙️ **Instellingen**: thuisadres, contacten, Strava, Ticketmaster, Anthropic-sleutel, zelftest en uitloggen.
 
 **Nog niet** (volgende stappen): koppeling met je mail, budget, markt en portfolio.

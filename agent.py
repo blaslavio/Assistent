@@ -14,13 +14,15 @@ import boodschappen
 import events
 import tijd
 import weer
+import wetenschap
 
 MODEL = "claude-opus-5-5"
 MAX_HERVATTINGEN = 5
 DAGEN = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
 
 SYSTEEM = """Je bent een persoonlijke assistent die in het Nederlands antwoordt.
-Je helpt met dagelijkse taken, de agenda, vakanties plannen en leren.
+Je helpt met dagelijkse taken, de agenda, vakanties plannen, leren en schrijven
+(scripties en verslagen). Je antwoorden zijn feitelijk en waar nodig wetenschappelijk onderbouwd.
 
 Werkwijze:
 - Houd antwoorden kort en praktisch; gebruik lijstjes als dat helpt. De gebruiker
@@ -74,10 +76,35 @@ Werkwijze:
 - Vakantie plannen: vraag naar periode, budget, reisgezelschap en wensen, zoek
   actuele informatie op internet en maak een dagschema met een kostenraming.
   Boeken doet de gebruiker zelf. Zet de reisdagen pas in de agenda na akkoord.
-- Leren: maak bij een nieuw onderwerp een leerplan van 4 tot 10 kleine stappen
-  en sla het op. Leg per stap kort uit en stel daarna 1 tot 3 controlevragen.
-  Geef een score van 0 tot 5 op basis van de antwoorden en leg die vast.
-  Begin een gesprek over leren met de herhalingen die vandaag gepland staan.
+- Leren: stel samen met de gebruiker een concreet leerdoel op (wat hij straks
+  kan, en wanneer) en maak een leerplan van 4 tot 10 kleine stappen die op
+  elkaar voortbouwen; sla het op met leerdoel_starten. Plan na akkoord vaste
+  leermomenten in de agenda vóór de deadline. Leg per stap kort uit met een
+  voorbeeld. Werk volgens wat onderzoek laat zien dat werkt: jezelf overhoren
+  (retrieval practice), gespreid herhalen en uitleggen in eigen woorden.
+- Overhoren: stel één vraag tegelijk en wacht op het antwoord. Wissel open
+  vragen, meerkeuze en toepassingsvragen af en begin bij wat vandaag herhaald
+  moet worden. Geef na elk antwoord kort feedback: wat goed was, wat beter kan
+  en het juiste antwoord met uitleg. Leg na 3 tot 5 vragen per stap de score
+  (0 tot 5) vast met oefening_vastleggen, zodat de herhaling goed wordt ingepland.
+- Schrijven (scriptie, verslag, essay, paper): help met de onderzoeksvraag,
+  opzet, planning, bronnen, uitleg van methodes en statistiek, feedback op
+  structuur, argumentatie, taal en bronvermelding. Leg het project vast met
+  schrijfproject_maken en houd de voortgang bij met hoofdstuk_bijwerken. Plan na
+  akkoord schrijfblokken in de agenda vóór de deadline. Je mag voorbeeldzinnen en
+  een opzet per alinea geven, maar de gebruiker schrijft de tekst zelf: schrijf
+  geen complete hoofdstukken om in te leveren en verzin nooit data of
+  resultaten. Wijs bij een nieuw project één keer op de AI-regels van de
+  opleiding.
+- Wetenschappelijk en feitelijk: onderbouw inhoudelijke beweringen met
+  betrouwbare bronnen. Zoek wetenschappelijke literatuur met bronnen_zoeken
+  (bij voorkeur overzichtsstudies en veel geciteerde, recente publicaties) en
+  controleer een DOI met bron_controleren. Noem alleen bronnen die je met een
+  hulpmiddel hebt gevonden of gecontroleerd; verzin nooit bronnen, DOI's,
+  paginanummers of citaten. Geef aan hoe sterk het bewijs is (meta-analyse,
+  experiment, observatie, mening) en zeg het eerlijk als iets onbekend of
+  omstreden is. Vermeld bronnen in APA-stijl. Sla bruikbare bronnen bij een
+  schrijfproject op met bron_opslaan.
 - Over geld en beleggen geef je algemene informatie, geen persoonlijk
   beleggingsadvies.
 """
@@ -397,14 +424,117 @@ def tijdsbesteding_bekijken(van: str, tot: str) -> str:
 
 
 @beta_tool
-def leerdoel_starten(onderwerp: str, stappen: list[str]) -> str:
-    """Sla een nieuw leerplan op met een reeks kleine stappen.
+def leerdoel_starten(onderwerp: str, stappen: list[str], doel: str = "", deadline: str = "") -> str:
+    """Sla een nieuw leerdoel met leerplan op, als een reeks kleine stappen.
 
     Args:
         onderwerp: Wat de gebruiker wil leren.
         stappen: De stappen in volgorde, elk een korte titel.
+        doel: Wat de gebruiker aan het eind kan, concreet en meetbaar.
+        deadline: Optionele einddatum als JJJJ-MM-DD.
     """
-    return _json(opslag.leerdoel_starten(onderwerp, stappen))
+    return _json(opslag.leerdoel_starten(onderwerp, stappen, doel, deadline))
+
+
+@beta_tool
+def bronnen_zoeken(zoekterm: str, vanaf_jaar: int = 0, aantal: int = 8, alleen_overzichtsstudies: bool = False) -> str:
+    """Zoek wetenschappelijke publicaties (OpenAlex) met auteurs, jaar, tijdschrift, DOI, citaties en samenvatting.
+
+    Args:
+        zoekterm: Zoekwoorden, bij voorkeur in het Engels voor meer resultaten.
+        vanaf_jaar: Alleen publicaties vanaf dit jaar, 0 voor alles.
+        aantal: Hoeveel resultaten (maximaal 15).
+        alleen_overzichtsstudies: Alleen reviews en meta-analyses.
+    """
+    try:
+        return _json(wetenschap.zoeken(zoekterm, vanaf_jaar, aantal, alleen_overzichtsstudies))
+    except wetenschap.httpx.HTTPError:
+        return "De zoekdienst voor wetenschappelijke bronnen is nu niet bereikbaar. Gebruik web_search, bijvoorbeeld op Google Scholar of PubMed."
+
+
+@beta_tool
+def bron_controleren(doi: str) -> str:
+    """Controleer bij Crossref of een publicatie met deze DOI bestaat, en geef de gegevens en de APA-vermelding.
+
+    Args:
+        doi: De DOI, zoals 10.1038/nature12373.
+    """
+    try:
+        bron = wetenschap.controleren(doi)
+    except wetenschap.httpx.HTTPError:
+        return "Crossref is nu niet bereikbaar; controleer de DOI later of via web_fetch op https://doi.org/<doi>."
+    return _json({**bron, "apa": wetenschap.apa(bron)}) if bron else f"Geen publicatie gevonden met DOI {doi}."
+
+
+@beta_tool
+def schrijfproject_maken(titel: str, soort: str = "verslag", onderzoeksvraag: str = "", deadline: str = "",
+                         niveau: str = "", hoofdstukken: list[str] | None = None, eisen: str = "") -> str:
+    """Leg een nieuw schrijfproject vast, zoals een scriptie of verslag, met een indeling in hoofdstukken.
+
+    Args:
+        titel: Werktitel.
+        soort: scriptie, verslag, essay of paper.
+        onderzoeksvraag: De hoofdvraag of stelling.
+        deadline: Inleverdatum als JJJJ-MM-DD.
+        niveau: Bijvoorbeeld mbo, hbo, wo-bachelor of wo-master.
+        hoofdstukken: Eigen indeling; leeg voor de standaardindeling bij de soort.
+        eisen: Eisen van de opleiding, zoals aantal woorden of verplichte onderdelen.
+    """
+    return _json(opslag.schrijfproject_maken(titel, soort, onderzoeksvraag, deadline, niveau, hoofdstukken or None, eisen))
+
+
+@beta_tool
+def schrijfprojecten_bekijken() -> str:
+    """Toon de schrijfprojecten met hoofdstukken, status en opgeslagen bronnen."""
+    return _json([p for p in opslag.schrijfprojecten() if not p.get("gearchiveerd")])
+
+
+@beta_tool
+def hoofdstuk_bijwerken(project_id: int, nummer: int, status: str = "", notitie: str = "", titel: str = "") -> str:
+    """Werk een hoofdstuk van een schrijfproject bij.
+
+    Args:
+        project_id: Id van het schrijfproject.
+        nummer: Nummer van het hoofdstuk.
+        status: te doen, bezig of klaar; leeg om niet te wijzigen.
+        notitie: Korte notitie, bijvoorbeeld de opzet of feedback; leeg om niet te wijzigen.
+        titel: Nieuwe titel; leeg om niet te wijzigen.
+    """
+    h = opslag.hoofdstuk_bijwerken(project_id, nummer, status, notitie or None, titel)
+    return _json(h) if h else "Project of hoofdstuk niet gevonden."
+
+
+@beta_tool
+def bron_opslaan(project_id: int, doi: str = "", titel: str = "", auteurs: list[str] | None = None, jaar: int = 0,
+                 tijdschrift: str = "", url: str = "", waarom: str = "") -> str:
+    """Sla een bron op bij een schrijfproject. Met een DOI worden de gegevens bij Crossref gecontroleerd.
+
+    Args:
+        project_id: Id van het schrijfproject.
+        doi: DOI van de publicatie (heeft de voorkeur).
+        titel: Titel, als er geen DOI is.
+        auteurs: Auteurs als "Achternaam, Voornaam", als er geen DOI is.
+        jaar: Jaar van publicatie, als er geen DOI is.
+        tijdschrift: Tijdschrift, uitgever of website, als er geen DOI is.
+        url: Link, als er geen DOI is.
+        waarom: Kort waarvoor de bron bruikbaar is in de tekst.
+    """
+    if doi:
+        try:
+            bron = wetenschap.controleren(doi)
+        except wetenschap.httpx.HTTPError:
+            bron = None if not titel else {"titel": titel, "auteurs": auteurs or [], "jaar": jaar or None,
+                                           "tijdschrift": tijdschrift, "doi": wetenschap._doi(doi)}
+        if not bron:
+            return f"Geen publicatie gevonden met DOI {doi}. Niet opgeslagen."
+    elif titel and (url or tijdschrift):
+        bron = {"titel": titel, "auteurs": auteurs or [], "jaar": jaar or None, "tijdschrift": tijdschrift, "url": url}
+    else:
+        return "Geef een DOI, of een titel met een link of tijdschrift."
+    bron["apa"] = wetenschap.apa(bron)
+    bron["waarom"] = waarom
+    opgeslagen = opslag.bron_toevoegen(project_id, bron)
+    return _json(opgeslagen) if opgeslagen else "Schrijfproject niet gevonden."
 
 
 @beta_tool
@@ -484,6 +614,12 @@ HULPMIDDELEN = [
     sportdoel_stellen,
     sportdoelen_bekijken,
     leerdoel_starten,
+    bronnen_zoeken,
+    bron_controleren,
+    schrijfproject_maken,
+    schrijfprojecten_bekijken,
+    hoofdstuk_bijwerken,
+    bron_opslaan,
     oefening_vastleggen,
     leervoortgang_bekijken,
     herhalingen_vandaag,

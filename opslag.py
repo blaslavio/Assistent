@@ -372,12 +372,14 @@ def sportdoelen() -> list[dict]:
 HERHAAL_NA_DAGEN = {0: 1, 1: 1, 2: 2, 3: 4, 4: 7, 5: 14}
 
 
-def leerdoel_starten(onderwerp: str, stappen: list[str]) -> dict:
+def leerdoel_starten(onderwerp: str, stappen: list[str], doel_omschrijving: str = "", deadline: str = "") -> dict:
     with _slot:
         g = laden()
         doel = {
             "id": _nieuw_id(g),
             "onderwerp": onderwerp,
+            "doel": doel_omschrijving,
+            "deadline": deadline,
             "gestart": date.today().isoformat(),
             "stappen": [
                 {"nummer": i + 1, "titel": titel, "score": None, "herhalen_op": None, "keer_geoefend": 0}
@@ -475,3 +477,102 @@ def vergeten(feit_id: int) -> bool:
         g["geheugen"] = over
         opslaan(g)
     return True
+
+
+# --- Schrijven: scripties, verslagen en essays ------------------------------
+
+HOOFDSTUKKEN = {
+    "scriptie": ["Inleiding en onderzoeksvraag", "Theoretisch kader", "Methode", "Resultaten",
+                 "Conclusie", "Discussie en aanbevelingen", "Literatuurlijst"],
+    "verslag": ["Inleiding", "Achtergrond", "Uitwerking", "Conclusie", "Bronnenlijst"],
+    "essay": ["Inleiding en stelling", "Argumenten", "Tegenargumenten en weerlegging", "Conclusie", "Bronnenlijst"],
+    "paper": ["Abstract", "Inleiding", "Methode", "Resultaten", "Discussie", "Referenties"],
+}
+STATUS = ["te doen", "bezig", "klaar"]
+
+
+def schrijfprojecten() -> list[dict]:
+    return laden().get("schrijfprojecten", [])
+
+
+def schrijfproject(project_id: int) -> dict | None:
+    return next((p for p in schrijfprojecten() if p["id"] == project_id), None)
+
+
+def schrijfproject_maken(titel: str, soort: str = "verslag", onderzoeksvraag: str = "", deadline: str = "",
+                         niveau: str = "", hoofdstukken: list[str] | None = None, eisen: str = "") -> dict:
+    soort = soort.lower() if soort.lower() in HOOFDSTUKKEN else "verslag"
+    with _slot:
+        g = laden()
+        project = {
+            "id": _nieuw_id(g), "titel": titel, "soort": soort, "onderzoeksvraag": onderzoeksvraag,
+            "deadline": deadline, "niveau": niveau, "eisen": eisen, "stijl": "APA 7",
+            "gestart": date.today().isoformat(),
+            "hoofdstukken": [{"nummer": i + 1, "titel": h, "status": "te doen", "notitie": ""}
+                             for i, h in enumerate(hoofdstukken or HOOFDSTUKKEN[soort])],
+            "bronnen": [],
+        }
+        g.setdefault("schrijfprojecten", []).append(project)
+        opslaan(g)
+    return project
+
+
+def schrijfproject_bijwerken(project_id: int, **velden) -> dict | None:
+    with _slot:
+        g = laden()
+        for project in g.get("schrijfprojecten", []):
+            if project["id"] == project_id:
+                project.update(velden)
+                opslaan(g)
+                return project
+    return None
+
+
+def hoofdstuk_bijwerken(project_id: int, nummer: int, status: str = "", notitie: str | None = None,
+                        titel: str = "") -> dict | None:
+    with _slot:
+        g = laden()
+        for project in g.get("schrijfprojecten", []):
+            if project["id"] != project_id:
+                continue
+            for h in project["hoofdstukken"]:
+                if h["nummer"] == nummer:
+                    if status in STATUS:
+                        h["status"] = status
+                    if notitie is not None:
+                        h["notitie"] = notitie
+                    if titel:
+                        h["titel"] = titel
+                    opslaan(g)
+                    return h
+    return None
+
+
+def bron_toevoegen(project_id: int, bron: dict) -> dict | None:
+    """Voegt een bron toe aan een project; dezelfde DOI of titel komt er maar één keer in."""
+    with _slot:
+        g = laden()
+        for project in g.get("schrijfprojecten", []):
+            if project["id"] != project_id:
+                continue
+            for b in project["bronnen"]:
+                if (bron.get("doi") and b.get("doi") == bron["doi"]) or b["titel"].lower() == bron["titel"].lower():
+                    return b
+            bron = {"id": _nieuw_id(g), **bron}
+            project["bronnen"].append(bron)
+            opslaan(g)
+            return bron
+    return None
+
+
+def bron_verwijderen(project_id: int, bron_id: int) -> None:
+    with _slot:
+        g = laden()
+        for project in g.get("schrijfprojecten", []):
+            if project["id"] == project_id:
+                project["bronnen"] = [b for b in project["bronnen"] if b["id"] != bron_id]
+                opslaan(g)
+
+
+def schrijfproject_archiveren(project_id: int) -> None:
+    schrijfproject_bijwerken(project_id, gearchiveerd=True)

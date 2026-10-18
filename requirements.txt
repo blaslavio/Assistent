@@ -2,3 +2,5 @@ anthropic>=1.11.0
 streamlit>=1.65
 httpx
 pillow
+pypdf
+python-docx

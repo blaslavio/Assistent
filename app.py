@@ -27,11 +27,12 @@ import spraak
 import strava
 import tijd
 import weer
+import wetenschap
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
-for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, agent,
-                spraak):
+for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
+                agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -765,7 +766,7 @@ def vandaag_overzicht() -> None:
     sport_overzicht(nu, toon_week=False)
     if herhalingen := opslag.herhalingen_vandaag():
         onderwerpen = sorted({h["onderwerp"] for h in herhalingen})
-        st.caption(f"📚 Vandaag herhalen: {', '.join(onderwerpen)} (bij 📚 Leren).")
+        st.caption(f"📚 Vandaag herhalen: {', '.join(onderwerpen)} (bij 📚 Leren en schrijven).")
     if not opslag.instellingen().get("thuisadres"):
         st.caption("Tip: vul je thuisadres in bij ⚙️ Instellingen, dan zie je hoe laat je moet vertrekken.")
 
@@ -872,30 +873,49 @@ def taken_blok() -> None:
 
 
 def leren_tabblad() -> None:
-    """Leerdoelen met voortgang, herhalingen van vandaag en een nieuw leerdoel starten."""
+    """Leren (leerdoelen, leerplan en overhoren) en schrijven (scripties en verslagen)."""
+    keuze = st.segmented_control("Onderdeel", ["📘 Leren", "✍️ Scriptie en verslagen"], default="📘 Leren",
+                                 key="leren_keuze", label_visibility="collapsed") or "📘 Leren"
+    if keuze == "📘 Leren":
+        leerdoelen_onderdeel()
+    else:
+        schrijven_onderdeel()
+
+
+def leerdoelen_onderdeel() -> None:
     herhalingen = opslag.herhalingen_vandaag()
     if herhalingen:
         st.markdown(f"**Vandaag herhalen ({len(herhalingen)})**")
-        for h in herhalingen:
-            with st.container(border=True):
+        if st.button("🎯 Overhoor me over de herhalingen van vandaag", type="primary", width="stretch"):
+            vraag_assistent("Overhoor me over mijn herhalingen van vandaag.")
+        with st.expander("Zelf een score geven"):
+            for h in herhalingen:
                 st.markdown(f"**{h['onderwerp']}**: stap {h['nummer']}, {h['titel']}")
-                score = st.select_slider("Hoe goed ken je dit?", options=list(range(6)), value=3, key=f"score_{h['leerdoel_id']}_{h['nummer']}",
+                score = st.select_slider("Hoe goed ken je dit?", options=list(range(6)), value=3,
+                                         key=f"score_{h['leerdoel_id']}_{h['nummer']}",
                                          format_func=lambda x: ["😶 0", "😣 1", "😕 2", "🙂 3", "😀 4", "🤩 5"][x])
                 if st.button("Opslaan", key=f"oefen_{h['leerdoel_id']}_{h['nummer']}"):
                     opslag.oefening_vastleggen(h["leerdoel_id"], h["nummer"], score)
                     st.rerun()
-        if st.button("💬 Oefen met de assistent", help="De assistent legt uit en stelt controlevragen."):
-            vraag_assistent("Laten we oefenen met mijn herhalingen van vandaag.")
 
-    st.markdown("**Mijn leerdoelen**")
     doelen = opslag.leerdoelen()
     if not doelen:
-        st.caption("Nog geen leerdoelen. Start er hieronder een.")
+        st.caption("Nog geen leerdoelen. Start er hieronder een; de assistent maakt het leerplan en overhoort je.")
     for d in doelen:
         with st.container(border=True):
-            st.markdown(f"📘 **{d['onderwerp']}**")
-            st.progress(opslag.voortgang(d) / 100, text=f"{opslag.voortgang(d)}% beheerst")
-            with st.expander("Stappen"):
+            st.markdown(f"📘 **{d['onderwerp']}**" + (f"  \n🎯 {d['doel']}" if d.get("doel") else ""))
+            tekst = f"{opslag.voortgang(d)}% beheerst"
+            if d.get("deadline"):
+                tekst += f" · klaar op {d['deadline']}"
+            st.progress(opslag.voortgang(d) / 100, text=tekst)
+            kol1, kol2 = st.columns(2)
+            if kol1.button("🎯 Overhoor mij", key=f"overhoor_{d['id']}", width="stretch"):
+                vraag_assistent(f"Overhoor me over {d['onderwerp']} (leerdoel {d['id']}). Begin bij wat ik het "
+                                "minst goed beheers.")
+            if kol2.button("📖 Volgende stap uitleggen", key=f"uitleg_{d['id']}", width="stretch"):
+                vraag_assistent(f"Leg de volgende stap van mijn leerdoel {d['onderwerp']} (leerdoel {d['id']}) uit "
+                                "en stel daarna controlevragen.")
+            with st.expander("Leerplan"):
                 for stap in d["stappen"]:
                     score = "" if stap["score"] is None else f" · score {stap['score']}/5"
                     volgende = f" · herhalen op {stap['herhalen_op']}" if stap["herhalen_op"] else " · nog niet geoefend"
@@ -904,14 +924,147 @@ def leren_tabblad() -> None:
     with st.expander("➕ Nieuw leerdoel"):
         with st.form("nieuw_leerdoel", border=False):
             onderwerp = st.text_input("Wat wil je leren?", placeholder="Bijvoorbeeld: Spaans voor op vakantie")
-            stappen = st.text_area("Stappen (één per regel)", placeholder="Laat leeg, dan maakt de assistent een leerplan")
+            doel = st.text_input("Wat wil je straks kunnen?", placeholder="Bijvoorbeeld: eten bestellen en de weg vragen")
+            met_deadline = st.checkbox("Met een einddatum")
+            deadline = st.date_input("Einddatum", value=date.today() + timedelta(days=30), format="DD-MM-YYYY")
+            stappen = st.text_area("Stappen (één per regel)", placeholder="Laat leeg, dan maakt de assistent het leerplan")
             if st.form_submit_button("Starten") and onderwerp.strip():
                 lijst = [r.strip() for r in stappen.splitlines() if r.strip()]
+                einde = deadline.isoformat() if met_deadline else ""
                 if lijst:
-                    opslag.leerdoel_starten(onderwerp.strip(), lijst)
+                    opslag.leerdoel_starten(onderwerp.strip(), lijst, doel.strip(), einde)
                     st.rerun()
                 else:
-                    vraag_assistent(f"Maak een leerplan voor: {onderwerp.strip()}")
+                    vraag_assistent(f"Maak een leerplan voor: {onderwerp.strip()}."
+                                    + (f" Doel: {doel.strip()}." if doel.strip() else "")
+                                    + (f" Klaar op {einde}." if einde else "")
+                                    + " Stel het plan voor en sla het op als ik akkoord ben.")
+    st.caption("Zo leer je het best, volgens onderzoek: jezelf overhoren, gespreid herhalen en het in eigen woorden "
+               "uitleggen. De app plant je herhalingen vanzelf.")
+
+
+SOORT_SCHRIJVEN = {"scriptie": "Scriptie", "verslag": "Verslag", "essay": "Essay", "paper": "Paper"}
+NIVEAUS = ["", "mbo", "hbo", "wo-bachelor", "wo-master", "anders"]
+
+
+def tekst_uit_bestand(bestand) -> str:
+    """Leest de tekst uit een geüpload Word-, pdf- of tekstbestand."""
+    naam = bestand.name.lower()
+    if naam.endswith(".pdf"):
+        import pypdf
+        return "\n".join(pagina.extract_text() or "" for pagina in pypdf.PdfReader(bestand).pages)
+    if naam.endswith(".docx"):
+        import docx
+        return "\n".join(alinea.text for alinea in docx.Document(bestand).paragraphs)
+    return bestand.getvalue().decode("utf-8", errors="replace")
+
+
+def feedback_vragen(project: dict) -> None:
+    """Een tekst (bestand of getypt) laten nakijken door de assistent."""
+    bestand = st.file_uploader("Je tekst (Word, pdf of tekst)", type=["docx", "pdf", "txt"], key=f"tekst_{project['id']}")
+    getypt = st.text_area("Of typ of plak een stuk tekst", key=f"getypt_{project['id']}", height=120)
+    waarop = st.pills("Let vooral op", ["Structuur", "Argumentatie", "Onderbouwing en bronnen", "Taal en stijl",
+                                        "APA-bronvermelding"], selection_mode="multi", key=f"waarop_{project['id']}")
+    if st.button("Nakijken", key=f"nakijken_{project['id']}", type="primary"):
+        try:
+            tekst = tekst_uit_bestand(bestand) if bestand else getypt
+        except Exception:
+            st.error("Dit bestand kon niet worden gelezen. Probeer het als Word- of pdf-bestand.")
+            return
+        if not tekst.strip():
+            st.error("Kies een bestand of vul tekst in.")
+            return
+        punten = ", ".join(waarop) if waarop else "structuur, argumentatie, onderbouwing, taal en bronvermelding"
+        vraag_assistent(
+            f"Geef feedback op deze tekst voor mijn {project['soort']} \"{project['titel']}\" (project {project['id']}). "
+            f"Let vooral op: {punten}. Geef de 3 tot 5 belangrijkste verbeterpunten met een voorbeeld, wat al goed is, "
+            f"en waar een bewering een (wetenschappelijke) bron nodig heeft.\n\nTekst:\n{tekst[:60000]}",
+            label=f"📝 Feedback op mijn tekst ({bestand.name if bestand else f'{len(tekst.split())} woorden'})")
+
+
+def schrijfproject_kaart(project: dict) -> None:
+    pid = project["id"]
+    with st.container(border=True):
+        regel = f"📄 **{project['titel']}** · {SOORT_SCHRIJVEN.get(project['soort'], project['soort'])}"
+        if project.get("deadline"):
+            dagen = (date.fromisoformat(project["deadline"]) - date.today()).days
+            regel += f" · inleveren {project['deadline']} ({'nog ' + str(dagen) + ' dagen' if dagen >= 0 else 'verlopen'})"
+        st.markdown(regel)
+        if project.get("onderzoeksvraag"):
+            st.caption(f"❓ {project['onderzoeksvraag']}")
+        klaar = sum(h["status"] == "klaar" for h in project["hoofdstukken"])
+        st.progress(klaar / max(1, len(project["hoofdstukken"])), text=f"{klaar} van {len(project['hoofdstukken'])} onderdelen klaar")
+
+        k1, k2, k3 = st.columns(3)
+        if k1.button("🧭 Opzet en planning", key=f"opzet_{pid}", width="stretch",
+                     help="Een opzet per hoofdstuk en schrijfblokken in je agenda tot de deadline."):
+            vraag_assistent(f"Help me met de opzet en planning van mijn {project['soort']} \"{project['titel']}\" "
+                            f"(project {pid}). Scherp de onderzoeksvraag aan als dat nodig is, geef per hoofdstuk "
+                            "een korte opzet en stel schrijfblokken in mijn agenda voor tot de deadline.")
+        if k2.button("🔎 Bronnen zoeken", key=f"bronnen_{pid}", width="stretch",
+                     help="Wetenschappelijke bronnen die echt bestaan, met APA-vermelding."):
+            vraag_assistent(f"Zoek de belangrijkste wetenschappelijke bronnen voor mijn {project['soort']} "
+                            f"\"{project['titel']}\" (project {pid}). Geef per bron in één zin wat ik eraan heb, "
+                            "en sla de beste op bij het project.")
+        with k3.popover("📝 Feedback", width="stretch"):
+            feedback_vragen(project)
+
+        with st.expander("Onderdelen"):
+            for h in project["hoofdstukken"]:
+                kol1, kol2 = st.columns([3, 2], vertical_alignment="center")
+                kol1.markdown(f"{h['nummer']}. {h['titel']}" + (f"  \n:gray[{h['notitie']}]" if h.get("notitie") else ""))
+                status = kol2.segmented_control("Status", opslag.STATUS, default=h["status"], key=f"hst_{pid}_{h['nummer']}",
+                                                label_visibility="collapsed")
+                if status and status != h["status"]:
+                    opslag.hoofdstuk_bijwerken(pid, h["nummer"], status)
+                    st.rerun()
+        with st.expander(f"📚 Bronnen ({len(project['bronnen'])})"):
+            if not project["bronnen"]:
+                st.caption("Nog geen bronnen. Tik op 🔎 Bronnen zoeken.")
+            bronnen = sorted(project["bronnen"], key=lambda b: b.get("apa", b["titel"]).lower())
+            for b in bronnen:
+                kol1, kol2 = st.columns([8, 1], vertical_alignment="center")
+                kol1.markdown((b.get("apa") or b["titel"]) + (f"  \n:gray[{b['waarom']}]" if b.get("waarom") else ""))
+                if kol2.button("✕", key=f"bron_weg_{pid}_{b['id']}", help="Verwijderen"):
+                    opslag.bron_verwijderen(pid, b["id"])
+                    st.rerun()
+            if bronnen:
+                lijst = "\n\n".join(b.get("apa", b["titel"]).replace("*", "") for b in bronnen)
+                st.download_button("⬇️ Bronnenlijst downloaden", lijst, file_name="bronnenlijst.txt", key=f"bronlijst_{pid}")
+        with st.popover("⋯ Meer"):
+            if st.button("Project afsluiten", key=f"archiveer_{pid}"):
+                opslag.schrijfproject_archiveren(pid)
+                st.rerun()
+
+
+def schrijven_onderdeel() -> None:
+    projecten = [p for p in opslag.schrijfprojecten() if not p.get("gearchiveerd")]
+    if not projecten:
+        st.caption("De assistent helpt met je onderzoeksvraag, opzet, planning, echte wetenschappelijke bronnen en "
+                   "feedback op je tekst. Jij schrijft de tekst zelf.")
+    for project in projecten:
+        schrijfproject_kaart(project)
+
+    with st.expander("➕ Nieuwe scriptie of nieuw verslag", expanded=not projecten):
+        with st.form("nieuw_schrijfproject", border=False):
+            titel = st.text_input("Werktitel of onderwerp", placeholder="Bijvoorbeeld: Effect van thuiswerken op werkgeluk")
+            kol1, kol2 = st.columns(2)
+            soort = kol1.selectbox("Soort", list(SOORT_SCHRIJVEN), format_func=SOORT_SCHRIJVEN.get)
+            niveau = kol2.selectbox("Niveau", NIVEAUS, format_func=lambda n: n or "Kies (optioneel)")
+            vraag = st.text_input("Onderzoeksvraag of stelling", placeholder="Mag nog ruw zijn; de assistent helpt")
+            met_deadline = st.checkbox("Met een inleverdatum")
+            deadline = st.date_input("Inleverdatum", value=date.today() + timedelta(days=60), format="DD-MM-YYYY")
+            eisen = st.text_area("Eisen van je opleiding (optioneel)", placeholder="Bijvoorbeeld: 8000 woorden, APA, verplicht een interview",
+                                 height=68)
+            if st.form_submit_button("Starten", type="primary"):
+                if not titel.strip():
+                    st.error("Vul een werktitel of onderwerp in.")
+                else:
+                    opslag.schrijfproject_maken(titel.strip(), soort, vraag.strip(),
+                                                deadline.isoformat() if met_deadline else "", niveau, eisen=eisen.strip())
+                    st.rerun()
+    st.caption("Let op: houd je aan de regels van je opleiding over het gebruik van AI. De assistent helpt je op weg, "
+               "maar de tekst en de keuzes zijn van jou.")
 
 
 def stem() -> dict:
@@ -1169,21 +1322,27 @@ def boodschappen_tabblad() -> None:
 
 # --- Assistent ------------------------------------------------------------
 
-TABBLADEN = ["☀️ Vandaag", "📅 Agenda", "💬 Assistent", "🛒 Boodschappen", "📚 Leren", "⚙️ Instellingen"]
+TABBLADEN = ["☀️ Vandaag", "📅 Agenda", "💬 Assistent", "🛒 Boodschappen", "📚 Leren en schrijven", "⚙️ Instellingen"]
 BEZIG = {
     "web_search": "🔎 Zoeken op internet...", "web_fetch": "📄 Pagina lezen...", "plaats_zoeken": "📍 Plekken zoeken...",
     "dagplanning": "🗺️ Reistijden berekenen...", "reistijd_berekenen": "🗺️ Reistijd berekenen...",
     "prijzen_vergelijken": "💶 Prijzen vergelijken...", "weer_bekijken": "☀️ Weer opzoeken...",
     "afspraak_toevoegen": "📅 In je agenda zetten...", "events_zoeken": "🎉 Events zoeken...",
     "uitjes_zoeken": "🎉 Uitjes zoeken...", "boodschappen_toevoegen": "🛒 Op je lijst zetten...",
+    "bronnen_zoeken": "📚 Wetenschappelijke bronnen zoeken...", "bron_controleren": "✅ Bron controleren...",
+    "bron_opslaan": "📚 Bron opslaan...", "oefening_vastleggen": "📈 Score vastleggen...",
 }
 SUGGESTIES = ["Wat staat er vandaag op de planning?", "Wat is er dit weekend te doen bij mij in de buurt?",
               "Maak een boodschappenlijst voor 3 snelle avondmaaltijden", "Help me een schema om 5 km te leren hardlopen"]
 
 
-def vraag_assistent(vraag: str) -> None:
-    """Stelt een vraag namens een knop en gaat naar het tabblad van de assistent."""
+def vraag_assistent(vraag: str, label: str | None = None) -> None:
+    """Stelt een vraag namens een knop en gaat naar het tabblad van de assistent.
+
+    Met `label` ziet de gebruiker een korte tekst in de chat in plaats van de hele vraag.
+    """
     st.session_state.vooraf_vraag = vraag
+    st.session_state.vooraf_label = label
     st.session_state.naar_assistent = True
     st.rerun()
 
@@ -1216,8 +1375,9 @@ def assistent_tabblad() -> None:
             st.rerun()
         return
     ingesproken = st.session_state.pop("ingesproken", False)
-    st.chat_message("user").markdown(vraag)
-    st.session_state.chat.append(("user", vraag))
+    zichtbaar = st.session_state.pop("vooraf_label", None) or vraag
+    st.chat_message("user").markdown(zichtbaar)
+    st.session_state.chat.append(("user", zichtbaar))
     sleutel = anthropic_sleutel()
     with st.chat_message("assistant"):
         if not sleutel:
