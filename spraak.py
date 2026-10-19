@@ -119,7 +119,7 @@ def natuurlijk_voorlezen(tekst: str, gevoel: str, stem: dict, sleutel: str) -> b
 
 HTML = """
 <div class="spraak">
-  <button class="praat" type="button">🎤 Praat</button>
+  <button class="praat" type="button">Praat</button>
   <button class="lees" type="button" title="Voorlezen">🔊</button>
   <button class="stop" type="button" title="Stoppen">⏹️</button>
   <div class="status"></div>
@@ -265,7 +265,7 @@ export default function (component) {
     herkenner.onend = () => {
       luistert = false;
       praat.classList.remove("aan");
-      praat.textContent = "🎤 Praat";
+      praat.textContent = "Praat";
       if (tekst.trim()) {
         status.textContent = "✓ " + tekst;
         setTriggerValue("gezegd", tekst.trim());

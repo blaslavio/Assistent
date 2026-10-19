@@ -247,10 +247,10 @@ def euro(bedrag: float | None) -> str:
 
 
 NIVEAUS = {
-    "particulier": ("🙂 Particulier", "Alle functies van de assistent. Op de marktplaats tot 10 dingen tegelijk."),
-    "verkoper": ("🏷️ Verkoper", "Voor wie vaker verkoopt: tot 100 dingen tegelijk en een verkoopoverzicht met omzet "
+    "particulier": ("Particulier", "Alle functies van de assistent. Op de marktplaats tot 10 dingen tegelijk."),
+    "verkoper": ("Verkoper", "Voor wie vaker verkoopt: tot 100 dingen tegelijk en een verkoopoverzicht met omzet "
                  "per maand, best verkochte producten en beoordelingen."),
-    "ondernemer": ("🏢 Ondernemer", "Voor bedrijven en zzp'ers: bedrijfsprofiel met KvK-nummer, label 'Zakelijk' bij "
+    "ondernemer": ("Ondernemer", "Voor bedrijven en zzp'ers: bedrijfsprofiel met KvK-nummer, label 'Zakelijk' bij "
                    "je aanbod, tot 1000 dingen tegelijk, verkoopoverzicht, klantenoverzicht en facturen."),
 }
 

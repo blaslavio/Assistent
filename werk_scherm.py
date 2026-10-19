@@ -25,7 +25,7 @@ def met_claude(bezig: str, functie, *args, **kwargs):
     """Voert een klus van Claude uit met een wachtmelding. Geeft het resultaat, of None met een nette fout."""
     sleutel = opslag.instellingen().get("anthropic_sleutel", "")
     if not sleutel:
-        st.warning("Hiervoor is de assistent nodig. Zet je Anthropic-sleutel bij ⚙️ Instellingen › Assistent.")
+        st.warning("Hiervoor is de assistent nodig. Zet je Anthropic-sleutel bij Instellingen › Assistent.")
         return None
     try:
         with st.spinner(bezig):
@@ -56,24 +56,24 @@ def score_per_stap(uitslagen: list[tuple[int, bool]]) -> dict[int, int]:
 def oefenknoppen(doel: dict) -> None:
     """De manieren om te oefenen bij een leerdoel."""
     kol1, kol2 = st.columns(2)
-    with kol1.popover("📝 Oefentoets", width="stretch"):
+    with kol1.popover("Oefentoets", width="stretch"):
         aantal = st.segmented_control("Aantal vragen", [5, 10, 15], default=10, key=f"toets_aantal_{doel['id']}")
         if st.button("Start de toets", key=f"toets_start_{doel['id']}", type="primary"):
             if vragen := met_claude("Toets maken...", slim.oefentoets, doel["onderwerp"], doel["stappen"], aantal or 10):
                 st.session_state.oefenen = {"soort": "toets", "doel": doel["id"], "vragen": vragen}
                 st.rerun()
-    if kol2.button("🃏 Flitskaarten", key=f"kaarten_{doel['id']}", width="stretch"):
+    if kol2.button("Flitskaarten", key=f"kaarten_{doel['id']}", width="stretch"):
         if kaarten := met_claude("Kaarten maken...", slim.flitskaarten, doel["onderwerp"], doel["stappen"]):
             random.shuffle(kaarten)
             st.session_state.oefenen = {"soort": "kaarten", "doel": doel["id"], "kaarten": kaarten, "nr": 0,
                                         "om": False, "uitslag": []}
             st.rerun()
     kol3, kol4 = st.columns(2)
-    if kol3.button("🎯 Mondeling overhoren", key=f"overhoor_{doel['id']}", width="stretch",
+    if kol3.button("Mondeling overhoren", key=f"overhoor_{doel['id']}", width="stretch",
                    help="De assistent stelt vragen; je kunt ook praten met 🎤"):
         vraag_assistent(f"Overhoor me over {doel['onderwerp']} (leerdoel {doel['id']}). Stel één vraag tegelijk en "
                         "begin bij wat ik het minst goed beheers. Leg de score per stap vast.")
-    if kol4.button("📖 Volgende stap uitleggen", key=f"uitleg_{doel['id']}", width="stretch"):
+    if kol4.button("Volgende stap uitleggen", key=f"uitleg_{doel['id']}", width="stretch"):
         vraag_assistent(f"Leg de volgende stap van mijn leerdoel {doel['onderwerp']} (leerdoel {doel['id']}) uit "
                         "en stel daarna controlevragen.")
     if toetsen := doel.get("toetsen"):
@@ -92,7 +92,7 @@ def oefenen_bezig() -> bool:
         st.session_state.pop("oefenen")
         return False
     kol1, kol2 = st.columns([4, 1], vertical_alignment="center")
-    kol1.markdown(f"**{'📝 Oefentoets' if o['soort'] == 'toets' else '🃏 Flitskaarten'}: {doel['onderwerp']}**")
+    kol1.markdown(f"**{'Oefentoets' if o['soort'] == 'toets' else 'Flitskaarten'}: {doel['onderwerp']}**")
     if kol2.button("Stoppen", width="stretch"):
         st.session_state.pop("oefenen")
         st.rerun()
@@ -127,7 +127,7 @@ def toets(o: dict, doel: dict) -> None:
         return
     goed = sum(k == v["juist"] for v, k in zip(vragen, o["keuzes"]))
     st.progress(goed / len(vragen), text=f"{goed} van {len(vragen)} goed")
-    st.markdown("🤩 Uitstekend!" if goed == len(vragen) else "😀 Goed bezig!" if goed >= 0.7 * len(vragen)
+    st.markdown("Uitstekend!" if goed == len(vragen) else "Goed bezig!" if goed >= 0.7 * len(vragen)
                 else "Dit oefen je binnenkort nog een keer; de app plant het in.")
     for i, (v, k) in enumerate(zip(vragen, o["keuzes"])):
         juist = k == v["juist"]
@@ -151,12 +151,12 @@ def kaarten(o: dict, doel: dict) -> None:
         if o["om"]:
             st.markdown(kaart["achterkant"])
     if not o["om"]:
-        if st.button("🔄 Omdraaien", type="primary", width="stretch"):
+        if st.button("Omdraaien", type="primary", width="stretch"):
             o["om"] = True
             st.rerun()
         return
     kol1, kol2 = st.columns(2)
-    for kolom, label, goed in ((kol1, "😀 Wist ik", True), (kol2, "😕 Nog niet", False)):
+    for kolom, label, goed in ((kol1, "Wist ik", True), (kol2, "Nog niet", False)):
         if kolom.button(label, width="stretch", key=f"kaart_{goed}"):
             o["uitslag"].append((kaart["stap"], goed))
             o["nr"], o["om"] = nr + 1, False
@@ -183,35 +183,35 @@ def totaal_voortgang(doelen: list[dict]) -> None:
 # --- Hulpmiddelen: notities, focustimer, rekenhulp ------------------------------------
 
 def hulpmiddelen() -> None:
-    keuze = st.segmented_control("Hulpmiddel", ["📝 Notities", "⏱️ Focustimer", "🧮 Rekenhulp"], default="📝 Notities",
-                                 key="hulpmiddel", label_visibility="collapsed") or "📝 Notities"
-    {"📝 Notities": notities, "⏱️ Focustimer": focustimer, "🧮 Rekenhulp": rekenhulp}[keuze]()
+    keuze = st.segmented_control("Hulpmiddel", ["Notities", "Focustimer", "Rekenhulp"], default="Notities",
+                                 key="hulpmiddel", label_visibility="collapsed") or "Notities"
+    {"Notities": notities, "Focustimer": focustimer, "Rekenhulp": rekenhulp}[keuze]()
 
 
 def notities() -> None:
-    with st.expander("➕ Nieuwe notitie", expanded=not opslag.lijst("notities")):
+    with st.expander("Nieuwe notitie", expanded=not opslag.lijst("notities")):
         with st.form("nieuwe_notitie", clear_on_submit=True, border=False):
             titel = st.text_input("Titel", placeholder="Bijv. Ideeën presentatie")
             tekst = st.text_area("Notitie", height=150)
             if st.form_submit_button("Bewaren", type="primary") and (titel.strip() or tekst.strip()):
                 opslag.lijst_toevoegen("notities", titel=titel.strip() or tekst.strip()[:40], tekst=tekst.strip())
                 st.rerun()
-    zoek = st.text_input("Zoeken in notities", placeholder="🔎 Zoeken", label_visibility="collapsed")
+    zoek = st.text_input("Zoeken in notities", placeholder="Zoeken", label_visibility="collapsed")
     for n in reversed(opslag.lijst("notities")):
         if zoek and zoek.lower() not in (n["titel"] + n["tekst"]).lower():
             continue
-        with st.expander(f"📝 {n['titel']}"):
+        with st.expander(f"{n['titel']}"):
             tekst = st.text_area("Tekst", value=n["tekst"], height=200, key=f"notitie_{n['id']}",
                                  label_visibility="collapsed")
             kol1, kol2, kol3 = st.columns(3)
             if kol1.button("Bewaren", key=f"not_bew_{n['id']}", width="stretch") and tekst != n["tekst"]:
                 opslag.lijst_bijwerken("notities", n["id"], tekst=tekst)
                 st.toast("Bewaard.", icon="📝")
-            if kol2.button("💬 Hulp", key=f"not_hulp_{n['id']}", width="stretch",
+            if kol2.button("Hulp", key=f"not_hulp_{n['id']}", width="stretch",
                            help="Laat de assistent samenvatten, ordenen of er taken uit halen"):
                 vraag_assistent(f"Hier is mijn notitie '{n['titel']}':\n\n{tekst}\n\nVat hem kort samen, orden hem en "
-                                "stel voor welke taken of afspraken ik eruit kan halen.", f"📝 Help met '{n['titel']}'")
-            if kol3.button("🗑️ Weg", key=f"not_weg_{n['id']}", width="stretch"):
+                                "stel voor welke taken of afspraken ik eruit kan halen.", f"Help met '{n['titel']}'")
+            if kol3.button("Weg", key=f"not_weg_{n['id']}", width="stretch"):
                 opslag.lijst_weg("notities", n["id"])
                 st.rerun()
 
@@ -314,7 +314,7 @@ def rekenhulp() -> None:
 
 # --- Kooplijst en wenslijst ------------------------------------------------------------
 
-LIJSTNAAM = {"kooplijst": "🛍️ Kooplijst", "wenslijst": "⭐ Wenslijst"}
+LIJSTNAAM = {"kooplijst": "Kooplijst", "wenslijst": "Wenslijst"}
 
 
 def lijstje(naam: str) -> None:
@@ -331,7 +331,7 @@ def lijstje(naam: str) -> None:
             st.rerun()
     items = opslag.lijst(naam)
     if not items:
-        st.caption("Nog leeg. Zet hier iets op, of doe het vanuit 🔨 DIY of 📷 Scannen.")
+        st.caption("Nog leeg. Zet hier iets op, of doe het vanuit DIY of Scannen.")
         return
     open_items = [i for i in items if not i.get("gekocht")]
     if bekend := [i["prijs"] for i in open_items if i.get("prijs")]:
@@ -351,12 +351,12 @@ def lijst_item(naam: str, ander: str, item: dict) -> None:
             details.append(f":gray[{item['bron']}]")
         st.markdown(titel + ("  \n" + " · ".join(details) if details else ""))
         kol1, kol2, kol3, kol4 = st.columns(4)
-        if kol1.button("💶 Vergelijk", key=f"verg_{item['id']}", width="stretch", help="Zoek de goedkoopste winkel"):
+        if kol1.button("Vergelijk", key=f"verg_{item['id']}", width="stretch", help="Zoek de goedkoopste winkel"):
             if opties := met_claude("Prijzen zoeken op internet...", slim.vergelijken, item["naam_product"]):
                 opslag.lijst_bijwerken(naam, item["id"], opties=opties)
                 st.rerun()
         if naam == "kooplijst":
-            gekocht = kol2.button("↩️ Terug" if item.get("gekocht") else "✅ Gekocht", key=f"gek_{item['id']}",
+            gekocht = kol2.button("Terug" if item.get("gekocht") else "Gekocht", key=f"gek_{item['id']}",
                                   width="stretch")
             if gekocht:
                 opslag.lijst_bijwerken(naam, item["id"], gekocht=not item.get("gekocht"))
@@ -394,7 +394,7 @@ IDEEEN = ["Vogelhuisje bouwen", "Kaarsen maken", "Moestuinbak van steigerhout", 
 
 
 def diy() -> None:
-    with st.expander("➕ Nieuw project", expanded=not opslag.lijst("diy")):
+    with st.expander("Nieuw project", expanded=not opslag.lijst("diy")):
         idee = st.pills("Ideeën", IDEEEN, key="diy_idee", label_visibility="collapsed")
         with st.form("diy_nieuw", border=False):
             project = st.text_input("Wat wil je maken of doen?", value=idee or "",
@@ -402,7 +402,7 @@ def diy() -> None:
             kol1, kol2 = st.columns(2)
             niveau = kol1.selectbox("Ervaring", ["beginner", "een beetje ervaring", "gevorderd"])
             budget = kol2.number_input("Budget in euro (optioneel)", min_value=0.0, value=None, step=10.0)
-            if st.form_submit_button("🔨 Maak een plan", type="primary") and project.strip():
+            if st.form_submit_button("Maak een plan", type="primary") and project.strip():
                 if plan := met_claude("Plan maken...", slim.diy_plan, project.strip(), niveau, budget):
                     opslag.lijst_toevoegen("diy", project=project.strip(), plan=plan, gedaan=[])
                     st.rerun()
@@ -423,7 +423,7 @@ def diy_project(p: dict) -> None:
         st.markdown(f"**🔨 {plan['titel']}**  \n{plan['moeilijkheid']} · {plan['tijd']} · materiaal ongeveer "
                     f"**{euro(kosten)}**")
         st.progress(len(gedaan) / max(len(plan["stappen"]), 1), text=f"{len(gedaan)} van {len(plan['stappen'])} stappen")
-        with st.expander("🛒 Wat heb je nodig"):
+        with st.expander("Wat heb je nodig"):
             for nr, m in enumerate(materialen):
                 kol1, kol2, kol3 = st.columns([5, 1, 1], vertical_alignment="center")
                 links = " · ".join(f"[{w}]({u})" for w, u in slim.winkel_links(m["zoekterm"], m["winkel"]))
@@ -432,15 +432,15 @@ def diy_project(p: dict) -> None:
                     op_lijst("kooplijst", m["naam"], m["prijs"], f"voor {plan['titel']}")
                 if kol3.button("⭐", key=f"diy_w_{p['id']}_{nr}", help="Op je wenslijst"):
                     op_lijst("wenslijst", m["naam"], m["prijs"], f"voor {plan['titel']}")
-            if st.button("🛍️ Alles op mijn kooplijst", key=f"diy_alles_{p['id']}"):
+            if st.button("Alles op mijn kooplijst", key=f"diy_alles_{p['id']}"):
                 for m in materialen:
                     opslag.lijst_toevoegen("kooplijst", naam_product=m["naam"], prijs=m["prijs"], winkel="", link="",
                                            gekocht=False, bron=f"voor {plan['titel']}")
                 st.toast(f"{len(materialen)} dingen op je kooplijst gezet.", icon="🛍️")
             if plan["gereedschap"]:
                 st.caption("Gereedschap: " + ", ".join(plan["gereedschap"]))
-            st.caption("Prijzen zijn een schatting; tik op 💶 Vergelijk bij je kooplijst voor actuele prijzen.")
-        with st.expander("📋 Stappen"):
+            st.caption("Prijzen zijn een schatting; tik op Vergelijk bij je kooplijst voor actuele prijzen.")
+        with st.expander("Stappen"):
             if plan.get("uitleg"):
                 st.markdown(plan["uitleg"])
             for nr, stap in enumerate(plan["stappen"]):
@@ -449,15 +449,15 @@ def diy_project(p: dict) -> None:
                     opslag.lijst_bijwerken("diy", p["id"], gedaan=sorted(gedaan ^ {nr}))
                     st.rerun()
         if plan["veiligheid"]:
-            with st.expander("🦺 Veiligheid"):
+            with st.expander("Veiligheid"):
                 for tip in plan["veiligheid"]:
                     st.markdown(f"- {tip}")
         kol1, kol2 = st.columns(2)
-        if kol1.button("💬 Vraag over dit project", key=f"diy_v_{p['id']}", width="stretch"):
+        if kol1.button("Vraag over dit project", key=f"diy_v_{p['id']}", width="stretch"):
             vraag_assistent(f"Ik ben bezig met het DIY-project '{plan['titel']}'. Ik heb {len(gedaan)} van de "
                             f"{len(plan['stappen'])} stappen gedaan. Help me verder: wat is de volgende stap en waar "
-                            "moet ik op letten?", f"🔨 Help met {plan['titel']}")
-        if kol2.button("🗑️ Project weghalen", key=f"diy_weg_{p['id']}", width="stretch"):
+                            "moet ik op letten?", f"Help met {plan['titel']}")
+        if kol2.button("Project weghalen", key=f"diy_weg_{p['id']}", width="stretch"):
             opslag.lijst_weg("diy", p["id"])
             st.rerun()
 
@@ -467,17 +467,17 @@ def diy_project(p: dict) -> None:
 def scannen() -> None:
     st.caption("Maak of kies een foto van een product, poster, brief, uitnodiging of bord. De assistent herkent "
                "producten, leest de tekst en zet afspraken, taken of producten met één tik op de goede plek.")
-    camera = st.toggle("📷 Camera gebruiken", key="scan_camera")
+    camera = st.toggle("Camera gebruiken", key="scan_camera")
     foto = (st.camera_input("Maak een foto", label_visibility="collapsed") if camera else
             st.file_uploader("Kies of maak een foto", type=["jpg", "jpeg", "png", "webp", "heic"]))
     wens = st.text_input("Wat wil je weten? (optioneel)", placeholder="Bijv. wat kost dit elders, of zet dit in mijn agenda")
-    if foto and st.button("🔍 Bekijk de foto", type="primary", width="stretch"):
+    if foto and st.button("Bekijk de foto", type="primary", width="stretch"):
         data = foto.getvalue()
         if uitslag := met_claude("Foto bekijken...", slim.foto_lezen, data, date.today().isoformat(), wens.strip()):
             st.session_state.scan = uitslag
     if uitslag := st.session_state.get("scan"):
         scan_uitslag(uitslag)
-    st.caption("🔒 Gezichten worden niet herkend: de assistent zegt nooit wie iemand is. Zo blijft ieders privacy "
+    st.caption("Gezichten worden niet herkend: de assistent zegt nooit wie iemand is. Zo blijft ieders privacy "
                "beschermd. De foto wordt niet bewaard.")
 
 
@@ -488,7 +488,7 @@ def scan_uitslag(u: dict) -> None:
     for nr, a in enumerate(u["afspraken"]):
         with st.container(border=True):
             wanneer = f"{a['datum']} {a['begin']}{'-' + a['einde'] if a['einde'] else ''}".strip()
-            st.markdown(f"📅 **{a['titel']}** · {wanneer}" + (f" · 📍 {a['locatie']}" if a["locatie"] else ""))
+            st.markdown(f"**{a['titel']}** · {wanneer}" + (f" · :material/location_on: {a['locatie']}" if a["locatie"] else ""))
             if st.button("In mijn agenda", key=f"scan_ag_{nr}"):
                 try:
                     date.fromisoformat(a["datum"])
@@ -501,29 +501,29 @@ def scan_uitslag(u: dict) -> None:
                     st.toast(f"In je agenda: {a['titel']}", icon="📅")
     for nr, taak in enumerate(u["taken"]):
         kol1, kol2 = st.columns([5, 1], vertical_alignment="center")
-        kol1.markdown(f"✅ {taak}")
+        kol1.markdown(f"{taak}")
         if kol2.button("➕", key=f"scan_taak_{nr}", help="Als taak toevoegen"):
             opslag.taak_toevoegen(taak)
             st.toast("Taak toegevoegd.", icon="✅")
     for nr, p in enumerate(u["producten"]):
         naam = f"{p['merk']} {p['naam']}".strip() if p["merk"] and p["merk"].lower() not in p["naam"].lower() else p["naam"]
         with st.container(border=True):
-            st.markdown(f"🏷️ **{naam}**" + (f" · op de foto {euro(p['prijs_op_foto'])}" if p["prijs_op_foto"] else ""))
+            st.markdown(f"**{naam}**" + (f" · op de foto {euro(p['prijs_op_foto'])}" if p["prijs_op_foto"] else ""))
             kol1, kol2, kol3 = st.columns(3)
-            if kol1.button("💶 Vergelijk", key=f"scan_verg_{nr}", width="stretch"):
+            if kol1.button("Vergelijk", key=f"scan_verg_{nr}", width="stretch"):
                 if opties := met_claude("Prijzen zoeken op internet...", slim.vergelijken, p["zoekterm"]):
                     st.session_state[f"scan_opties_{nr}"] = opties
-            if kol2.button("🛍️ Kooplijst", key=f"scan_k_{nr}", width="stretch"):
+            if kol2.button("Kooplijst", key=f"scan_k_{nr}", width="stretch"):
                 op_lijst("kooplijst", naam, p["prijs_op_foto"], "van een foto")
-            if kol3.button("⭐ Wenslijst", key=f"scan_w_{nr}", width="stretch"):
+            if kol3.button("Wenslijst", key=f"scan_w_{nr}", width="stretch"):
                 op_lijst("wenslijst", naam, p["prijs_op_foto"], "van een foto")
             for i, o in enumerate(st.session_state.get(f"scan_opties_{nr}", [])):
                 totaal = o["prijs"] + (o["verzendkosten"] or 0)
                 st.markdown(f"{'🏆 ' if i == 0 else ''}**{euro(totaal)}** · [{o['winkel']}]({o['link']})"
                             f" · :gray[{o['product']}]")
     if u["tekst"]:
-        with st.expander("📄 Tekst op de foto"):
+        with st.expander("Tekst op de foto"):
             st.code(u["tekst"], language=None, wrap_lines=True)
-            if st.button("📝 Bewaar als notitie"):
+            if st.button("Bewaar als notitie"):
                 opslag.lijst_toevoegen("notities", titel=u["beschrijving"][:40], tekst=u["tekst"])
                 st.toast("Bewaard bij Hulpmiddelen › Notities.", icon="📝")

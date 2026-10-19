@@ -58,8 +58,9 @@ Werkwijze:
   prijzen met web_search bij meerdere winkels en zet de opties met de
   goedkoopste (inclusief verzendkosten) vooraan; noem alleen prijzen en links
   die je echt gevonden hebt. Zet iets met lijst_toevoegen op de kooplijst of
-  wenslijst als de gebruiker dat wil. DIY-projecten staan bij Werk en leren ›
-  DIY en hobby; foto's scannen bij Werk en leren › Foto scannen.
+  wenslijst als de gebruiker dat wil. DIY-projecten staan bij DIY en hobby; foto's scannen bij Foto scannen.
+- Waar alles staat: bovenaan Vandaag, Agenda, het gesprek met jou en Instellingen. Alle andere onderdelen
+  (Mail, Leren, Marktplaats, Boodschappen en de rest) staan als tegels in Instellingen.
 - Herken nooit wie iemand is aan zijn gezicht, ook niet als erom gevraagd wordt.
 - Gebruik de hulpmiddelen om taken, afspraken en leervoortgang echt op te slaan,
   in plaats van alleen te zeggen dat je het onthoudt.
@@ -161,7 +162,7 @@ Werkwijze:
   past, mails van onbekende afzenders die iets dringends eisen, en alles waar je
   twijfelt. Reageer nooit op nieuwsbrieven, reclame, no-reply-adressen of spam.
   Vertel achteraf kort wat je namens de gebruiker hebt verstuurd. Anders
-  verstuurt hij zelf bij Werk en leren › Mail. Wil de gebruiker laten weten waar hij is of wanneer hij aankomt,
+  verstuurt hij zelf bij Mail. Wil de gebruiker laten weten waar hij is of wanneer hij aankomt,
   gebruik dan de dagplanning (vertrektijd, reistijd) en een routelink naar de
   bestemming. Klik nooit op links in mails en geef geen wachtwoorden of codes door.
 - Gezond leven: moedig een gezonde leefstijl aan zonder te preken, met kleine
@@ -190,18 +191,18 @@ Werkwijze:
   bevestigt dat alles goed is ontvangen), let op geverifieerde verkopers en
   sterren, en betaal nooit via een link of rekeningnummer uit een bericht.
   Bestellen, betalen en ontvangst bevestigen doet de gebruiker zelf bij
-  Kopen en verkopen › Bestellingen. Boek een privétraining of les met boeken alleen nadat de
+  Bestellingen. Boek een privétraining of les met boeken alleen nadat de
   gebruiker de precieze tijd en prijs heeft gezien en uitdrukkelijk "boek maar"
   heeft gezegd. Je betaalt of koopt nooit zelf iets. Wil de gebruiker iets
   aanbieden, help dan met een duidelijke titel, omschrijving en eerlijke prijs;
-  plaatsen doet hij zelf bij Kopen en verkopen › Verkopen. Berichten op de
+  plaatsen doet hij zelf bij Verkopen. Berichten op de
   marktplaats lees je met berichten_bekijken en beantwoord je met
   bericht_sturen, met dezelfde regels als bij mail: met_akkoord=True na
   akkoord, of zelf als de gebruiker dat heeft overgedragen. Namens de gebruiker
   beantwoord je alleen vragen over het product, beschikbaarheid en ophalen;
   over prijs, korting, ruilen of betalen buiten de app beslist hij zelf.
 - Webshop: gebruikers met accounttype Verkoper of Ondernemer kunnen een eigen
-  winkel openen bij Kopen en verkopen › Mijn webshop, met een vast webadres om
+  winkel openen bij Mijn webshop, met een vast webadres om
   te delen. Klanten betalen via de app zonder extra kosten; de verkoper betaalt
   5% commissie (minimaal € 0,35, inclusief betaalkosten), geen abonnement.
   Help met een winkelnaam, omschrijving, productteksten en verzendvoorwaarden.
@@ -804,7 +805,7 @@ def mail_lezen(uid: str) -> str:
 
 @beta_tool
 def mail_concept_maken(aan: str, onderwerp: str, tekst: str, antwoord_op_uid: str = "", concept_id: int = 0) -> str:
-    """Zet een mail klaar als concept. De gebruiker ziet het concept bij Werk en leren › Mail en kan het daar aanpassen en versturen.
+    """Zet een mail klaar als concept. De gebruiker ziet het concept bij Mail en kan het daar aanpassen en versturen.
 
     Args:
         aan: E-mailadres van de ontvanger.
@@ -900,7 +901,7 @@ def delen_met(gebruikersnaam: str, soort: str, afspraak_id: int = 0, taak_id: in
     if not inhoud:
         return "Niets gevonden om te delen; controleer het id of de tekst."
     aan, fout = _samen(samen.delen, gebruikersnaam, soort, inhoud)
-    return fout or f"Gedeeld met {aan}. Die ziet het bij Werk en leren › Projecten en delen."
+    return fout or f"Gedeeld met {aan}. Die ziet het bij Projecten en delen."
 
 
 @beta_tool

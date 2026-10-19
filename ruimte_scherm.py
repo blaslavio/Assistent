@@ -41,12 +41,12 @@ def bekijken(ruimte_id: int, ingelogd: bool = True) -> None:
     if r.get("openbaar"):
         adres = link(r["id"])
         k1, k2 = st.columns(2)
-        k1.link_button("📤 Delen via WhatsApp", f"https://wa.me/?text={quote(r['titel'] + ': ' + adres)}",
+        k1.link_button("Delen via WhatsApp", f"https://wa.me/?text={quote(r['titel'] + ': ' + adres)}",
                        width="stretch")
-        with k2.popover("🔗 Link", width="stretch"):
+        with k2.popover("Link", width="stretch"):
             st.code(adres, language=None)
     if ingelogd and not r.get("van_mij"):
-        with st.popover("🚩 Melden"):
+        with st.popover("Melden"):
             with st.form(f"meld_ruimte_{r['id']}", clear_on_submit=True, border=False):
                 reden = st.text_area("Wat klopt er niet?", height=80)
                 if st.form_submit_button("Melden") and reden.strip():
@@ -57,7 +57,7 @@ def bekijken(ruimte_id: int, ingelogd: bool = True) -> None:
 def pagina() -> None:
     """Pagina 🥽 VR-ruimtes."""
     if (open_id := st.session_state.get("open_ruimte")) is not None:
-        if st.button("← Alle ruimtes", type="tertiary"):
+        if st.button("Alle ruimtes", icon=":material/arrow_back:", type="tertiary"):
             st.session_state.pop("open_ruimte", None)
             st.rerun()
         bekijken(open_id)
@@ -71,7 +71,7 @@ def pagina() -> None:
 
 
 def ontdekken() -> None:
-    zoek = st.text_input("Zoek een ruimte", placeholder="🔎 Zoek een ruimte, project of expositie",
+    zoek = st.text_input("Zoek een ruimte", placeholder="Zoek een ruimte, project of expositie",
                          label_visibility="collapsed")
     ruimtes = ruimte.zoeken(zoek.strip())
     if not ruimtes:
@@ -86,7 +86,7 @@ def ontdekken() -> None:
             st.markdown(f"**{r['titel']}**")
             st.caption(f"{ruimte.THEMAS.get(r['thema'], '')} · van {r['maker']} · {r['items']} dingen · "
                        f"{r['bezoeken']}× bezocht")
-            if st.button("🥽 Binnenstappen", key=f"stap_{r['id']}", width="stretch"):
+            if st.button("Binnenstappen", key=f"stap_{r['id']}", width="stretch"):
                 st.session_state.open_ruimte = r["id"]
                 st.rerun()
 
@@ -109,7 +109,7 @@ def ruimte_formulier(sleutel: str, r: dict | None = None) -> None:
 
 
 def mijn_ruimtes() -> None:
-    with st.expander("➕ Nieuwe ruimte"):
+    with st.expander("Nieuwe ruimte"):
         st.caption("Laat een project zien in een 3D-ruimte: foto's aan de muur, teksten op borden en 3D-modellen "
                    "op een sokkel. Deel alleen wat je zelf hebt gemaakt, en geen herkenbare mensen zonder hun toestemming.")
         ruimte_formulier("nieuwe_ruimte")
@@ -117,7 +117,7 @@ def mijn_ruimtes() -> None:
     if not ruimtes:
         st.caption("Je hebt nog geen ruimtes.")
     for r in ruimtes:
-        status = "🌍 openbaar" if r["openbaar"] and not r["verborgen"] else "🙈 verborgen na meldingen" if r["verborgen"] else "🔒 alleen jij"
+        status = "openbaar" if r["openbaar"] and not r["verborgen"] else "verborgen na meldingen" if r["verborgen"] else "alleen jij"
         with st.expander(f"{r['titel']} · {r['items']} dingen · {status}",
                          expanded=st.session_state.get("bewerk_ruimte") == r["id"]):
             ruimte_bewerken(r)
@@ -125,21 +125,21 @@ def mijn_ruimtes() -> None:
 
 def ruimte_bewerken(r: dict) -> None:
     k1, k2 = st.columns(2)
-    if k1.button("🥽 Binnenstappen", key=f"kijk_{r['id']}", width="stretch", type="primary"):
+    if k1.button("Binnenstappen", key=f"kijk_{r['id']}", width="stretch", type="primary"):
         st.session_state.open_ruimte = r["id"]
         st.rerun()
-    with k2.popover("🗑️ Verwijderen", width="stretch"):
+    with k2.popover("Verwijderen", width="stretch"):
         st.write("Deze ruimte en alles erin verwijderen?")
         if st.button("Ja, verwijderen", key=f"weg_{r['id']}", type="primary"):
             _fout(ruimte.weg, r["id"])
             st.rerun()
-    with st.popover("✏️ Titel, sfeer en openbaar"):
+    with st.popover("Titel, sfeer en openbaar"):
         ruimte_formulier(f"wijzig_ruimte_{r['id']}", r)
 
     st.markdown("**Toevoegen**")
-    soort = st.segmented_control("Wat wil je toevoegen?", ["📷 Foto's", "📝 Tekst", "🧊 3D-model"], default="📷 Foto's",
+    soort = st.segmented_control("Wat wil je toevoegen?", ["Foto's", "Tekst", "3D-model"], default="Foto's",
                                  key=f"soort_{r['id']}", label_visibility="collapsed")
-    if soort == "📷 Foto's":
+    if soort == "Foto's":
         with st.form(f"fotos_{r['id']}", clear_on_submit=True, border=False):
             fotos = st.file_uploader("Foto's (je kunt er meer tegelijk kiezen)", type=["jpg", "jpeg", "png", "heic", "webp"],
                                      accept_multiple_files=True)
@@ -152,7 +152,7 @@ def ruimte_bewerken(r: dict) -> None:
                             break
                 st.session_state.bewerk_ruimte = r["id"]
                 st.rerun()
-    elif soort == "📝 Tekst":
+    elif soort == "Tekst":
         with st.form(f"tekst_{r['id']}", clear_on_submit=True, border=False):
             titel = st.text_input("Titel")
             tekst = st.text_area("Tekst", height=110)
@@ -160,7 +160,7 @@ def ruimte_bewerken(r: dict) -> None:
                 if _fout(ruimte.tekst_toevoegen, r["id"], titel.strip(), tekst.strip()) is not None:
                     st.session_state.bewerk_ruimte = r["id"]
                     st.rerun()
-    elif soort == "🧊 3D-model":
+    elif soort == "3D-model":
         st.caption("Een 3D-model als .glb (tot 4 MB). Op de iPhone of iPad maak je dat bijvoorbeeld met een "
                    "3D-scan-app zoals Polycam of Scaniverse; exporteer dan als GLB.")
         with st.form(f"model_{r['id']}", clear_on_submit=True, border=False):
