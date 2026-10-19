@@ -309,6 +309,46 @@ def beoordelen(bestelling_id: int, sterren: int, tekst: str = "") -> None:
     _ok(opslag._rpc_ik("beoordelen", p_bestelling=bestelling_id, p_sterren=sterren, p_tekst=tekst))
 
 
+# --- Webshop ------------------------------------------------------------------------
+# Een eigen winkelpagina voor verkopers en ondernemers. De koper betaalt via de app zonder extra kosten;
+# de verkoper betaalt commissie, die bij het uitbetalen wordt ingehouden.
+
+def mijn_winkel() -> dict:
+    return opslag._rpc_ik("mijn_winkel")
+
+
+def winkel_instellen(adres: str, naam: str, omschrijving: str, kleur: str, verzendkosten: float,
+                     gratis_vanaf: float | None, retour: str, open_: bool) -> str:
+    return _ok(opslag._rpc_ik("winkel_instellen", p_adres=adres, p_winkelnaam=naam, p_omschrijving=omschrijving,
+                              p_kleur=kleur, p_verzendkosten=verzendkosten, p_gratis_vanaf=gratis_vanaf,
+                              p_retour=retour, p_open=open_))["adres"]
+
+
+def winkel_product(aanbod_id: int, in_winkel: bool, voorraad: int | None) -> None:
+    _ok(opslag._rpc_ik("winkel_product", p_aanbod=aanbod_id, p_in_winkel=in_winkel, p_voorraad=voorraad))
+
+
+def winkel_bekijken(adres: str) -> dict:
+    """Een winkel zoals iedereen hem ziet, ook zonder account."""
+    return _ok(opslag._rpc("winkel_bekijken", p_adres=adres))
+
+
+def webshop_bestellen(aanbod_id: int, aantal: int, levering: str, bericht: str = "") -> dict:
+    return _ok(opslag._rpc_ik("webshop_bestellen", p_aanbod=aanbod_id, p_aantal=aantal, p_levering=levering,
+                              p_bericht=bericht))
+
+
+def commissie(bedrag: float, procent: float = 5, minimum: float = 0.35) -> float:
+    """Zelfde berekening als in de database, om vooraf te tonen."""
+    return min(bedrag, max(minimum, round(bedrag * procent / 100, 2)))
+
+
+def verzendkosten(winkel: dict, subtotaal: float, levering: str) -> float:
+    if levering != "verzenden" or (winkel.get("gratis_vanaf") is not None and subtotaal >= winkel["gratis_vanaf"]):
+        return 0.0
+    return float(winkel["verzendkosten"])
+
+
 # --- Betalen via de app (Stripe) --------------------------------------------------------
 
 def betalen_status() -> dict:

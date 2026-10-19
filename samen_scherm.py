@@ -292,8 +292,13 @@ def aanbod_kaart(aanbod: dict) -> None:
             st.caption("Dit is jouw aanbod.")
             return
         kolommen = st.columns(2)
-        with kolommen[0].popover("🛒 Kopen" if aanbod["soort"] == "product" else "🛒 Bestellen", width="stretch"):
-            bestel_formulier(aanbod)
+        if aanbod.get("winkel"):
+            if kolommen[0].button("🏬 Naar de webshop", key=f"winkel_{aanbod['id']}", width="stretch", type="primary"):
+                st.query_params["winkel"] = aanbod["winkel"]
+                st.rerun()
+        else:
+            with kolommen[0].popover("🛒 Kopen" if aanbod["soort"] == "product" else "🛒 Bestellen", width="stretch"):
+                bestel_formulier(aanbod)
         if aanbod["soort"] in ("training", "les", "dienst") and aanbod["vrije_tijden"]:
             with kolommen[1].popover(f"📅 Tijd kiezen ({aanbod['vrije_tijden']})", width="stretch"):
                 tijden_boeken(aanbod)
@@ -456,12 +461,18 @@ def bestelling_kaart(b: dict) -> None:
     koper = b["rol"] == "koper"
     app = b["betaalwijze"] == "app"
     with st.container(border=True):
-        bedrag = samen.euro(b["bedrag"]) + (f" + {samen.euro(b['kosten'])} kopersbescherming" if app and koper else "")
+        bedrag = samen.euro(b["bedrag"]) + (f" + {samen.euro(b['kosten'])} kopersbescherming"
+                                             if app and koper and b.get("kosten") else "")
+        if b.get("webshop"):
+            bedrag = "🏬 " + bedrag + (f" (incl. {samen.euro(b['verzendkosten'])} verzenden)" if b.get("verzendkosten") else "")
         st.markdown(f"**{b['titel']}** · {bedrag}  \n{samen.STATUS[b['status']]} · "
                     f"{'van' if koper else 'voor'} **{b['ander']}** · {samen.BETAALWIJZEN[b['betaalwijze']]} · "
                     f"{samen.LEVERING[b['levering']]}")
         if v := samen.vertrouwen_tekst(b.get("vertrouwen_ander")):
             st.caption(v)
+        if b.get("webshop") and not koper and b.get("commissie") is not None:
+            st.caption(f"Webshopcommissie {samen.euro(b['commissie'])}, je ontvangt "
+                       f"{samen.euro(b['bedrag'] - b['commissie'])}.")
         if app and b["status"] in ("betaald", "geleverd"):
             st.caption("🛡️ Het geld staat veilig bij Stripe en gaat naar de verkoper zodra de koper bevestigt dat alles "
                        "goed is ontvangen.")
@@ -570,6 +581,161 @@ def berichten() -> None:
         if kol2.form_submit_button("➤") and tekst.strip():
             if _fout(samen.bericht_sturen, gesprek["aanbod_id"], tekst.strip(), gesprek["ander_id"]) is not None:
                 st.rerun()
+
+
+# --- Webshop -------------------------------------------------------------------------
+
+def winkel_link(adres: str) -> str:
+    """Het vaste adres van een winkel, op basis van het adres van de app zelf."""
+    from urllib.parse import urlsplit
+
+    deel = urlsplit(st.context.url or "")
+    basis = f"{deel.scheme}://{deel.netloc}" if deel.netloc else samen.betalen_status().get("app_adres", "").rstrip("/")
+    return f"{basis}/?winkel={adres}"
+
+
+def mijn_webshop() -> None:
+    """Pagina 🏬 Mijn webshop: winkel instellen, producten en voorraad, en delen."""
+    m = samen.mijn_winkel()
+    if m["niveau"] not in ("verkoper", "ondernemer"):
+        st.info("Een eigen webshop kan met accounttype 🏷️ Verkoper of 🏢 Ondernemer. Kies dat gratis bij "
+                "⚙️ Instellingen › Account › Accounttype.")
+        return
+    w = m["winkel"]
+    st.caption(f"Je eigen winkelpagina met een vast adres, die je kunt delen. Klanten betalen veilig via de app en "
+               f"betalen niets extra. Per verkoop betaal je {m['commissie_procent']:g}% commissie (minimaal "
+               f"{samen.euro(m['commissie_min'])}), inclusief betaalkosten. Geen abonnement.")
+    if not m["kan_betalen"]:
+        st.warning("Om je winkel te openen, meld je je eerst aan om betalingen via de app te ontvangen "
+                   "(Kopen en verkopen › Verkopen › 💳).")
+    if w and w["open"]:
+        link = winkel_link(w["adres"])
+        st.success(f"Je winkel is open: **{link}**")
+        k1, k2, k3 = st.columns(3)
+        if k1.button("👀 Bekijken", width="stretch"):
+            st.query_params["winkel"] = w["adres"]
+            st.rerun()
+        k2.link_button("📤 WhatsApp", f"https://wa.me/?text={quote(w['naam'] + ': ' + link)}", width="stretch")
+        with k3.popover("▦ QR-code", width="stretch"):
+            st.image(_qr(link), caption="Laat klanten deze code scannen")
+        v = m["verkopen"]
+        c1, c2 = st.columns(2)
+        c1.metric("Verkocht via de webshop", f"{v['aantal']}×", samen.euro(v["omzet"]), delta_color="off")
+        c2.metric("Commissie betaald", samen.euro(v["commissie"]))
+
+    with st.expander("⚙️ Winkel instellen" if w else "⚙️ Winkel aanmaken", expanded=not w):
+        w = w or {}
+        with st.form("winkel", border=False):
+            naam = st.text_input("Naam van je winkel", value=w.get("naam", ""), max_chars=60)
+            adres = st.text_input("Webadres", value=w.get("adres", ""), max_chars=30,
+                                  help="Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-jan.")
+            omschrijving = st.text_area("Over je winkel", value=w.get("omschrijving", ""), height=90)
+            kleur = st.color_picker("Kleur", value=w.get("kleur", "#2563eb"))
+            k1, k2 = st.columns(2)
+            verzend = k1.number_input("Verzendkosten (€)", 0.0, 100.0, float(w.get("verzendkosten") or 0), 0.5)
+            gratis = k2.number_input("Gratis verzenden vanaf (€, 0 = nooit)", 0.0, 10000.0,
+                                     float(w.get("gratis_vanaf") or 0), 5.0)
+            retour = st.text_area("Verzenden en retour", value=w.get("retour", ""), height=70,
+                                  placeholder="Bijv. verzending binnen 2 werkdagen met PostNL; retour binnen 14 dagen")
+            open_ = st.toggle("Winkel open", value=bool(w.get("open")))
+            if st.form_submit_button("Opslaan", type="primary"):
+                if _fout(samen.winkel_instellen, adres, naam, omschrijving, kleur, verzend, gratis or None, retour,
+                         open_) is not None:
+                    st.rerun()
+    if not w:
+        return
+
+    st.markdown("**Producten in je winkel**")
+    producten = [p for p in m["producten"] if not p["geblokkeerd"] and (p["actief"] or p["voorraad"] is not None)]
+    if not producten:
+        st.caption("Nog geen producten. Plaats een product bij 🏷️ Verkopen, met betalen via de app en verzenden of "
+                   "ophalen. Daarna zet je het hier in je winkel.")
+    for p in producten:
+        with st.container(border=True):
+            st.markdown(f"**{p['titel']}** · {samen.euro(p['prijs'])}" + (" · 🏬 in de winkel" if p["in_winkel"] else ""))
+            with st.form(f"wp_{p['id']}", border=False):
+                k1, k2, k3 = st.columns([2, 2, 1], vertical_alignment="bottom")
+                in_winkel = k1.toggle("In de winkel", value=p["in_winkel"])
+                voorraad = k2.number_input("Voorraad (leeg = 1 stuk)", 0, 100000, value=p["voorraad"], step=1,
+                                           placeholder="1 stuk")
+                if k3.form_submit_button("Opslaan"):
+                    if _fout(samen.winkel_product, p["id"], in_winkel, voorraad) is not None:
+                        st.toast("Opgeslagen.", icon="✅")
+                        st.rerun()
+
+
+def winkel_pagina(adres: str, ingelogd: bool) -> None:
+    """De winkel zoals klanten hem zien. Bekijken kan iedereen; bestellen met een (gratis) account."""
+    try:
+        w = samen.winkel_bekijken(adres)
+    except samen.Fout as fout:
+        st.error(str(fout))
+        return
+    kleur = w["kleur"]
+    st.markdown(f'<div style="border-top:6px solid {kleur};padding-top:6px"></div>', unsafe_allow_html=True)
+    st.title(w["naam"])
+    if w["omschrijving"]:
+        st.write(w["omschrijving"])
+    st.caption(f"🏬 Winkel van {w['verkoper']} · {samen.vertrouwen_tekst(w.get('vertrouwen'))}")
+    if bedrijf := samen.zakelijk(w.get("vertrouwen")):
+        st.caption(" · ".join(x for x in (bedrijf.get("naam"), f"KvK {bedrijf['kvk']}" if bedrijf.get("kvk") else "",
+                                           f"btw {bedrijf['btw']}" if bedrijf.get("btw") else "", bedrijf.get("adres"))
+                              if x) + ". Je hebt 14 dagen bedenktijd.")
+    else:
+        st.caption("Je koopt bij een particuliere verkoper.")
+    verzend = (f"Verzenden {samen.euro(w['verzendkosten'])}" if w["verzendkosten"] else "Gratis verzenden") + (
+        f", gratis vanaf {samen.euro(w['gratis_vanaf'])}" if w["verzendkosten"] and w.get("gratis_vanaf") else "")
+    st.caption(f"🚚 {verzend} · 🛡️ Betalen via de app: je geld gaat pas naar de verkoper als jij bevestigt dat alles "
+               "goed is ontvangen.")
+    if w["retour"]:
+        with st.expander("Verzenden en retour"):
+            st.write(w["retour"])
+    if not w["kan_betalen"]:
+        st.warning("Bestellen kan op dit moment even niet. Probeer het later opnieuw.")
+
+    if betalen := st.session_state.get("webshop_betalen"):
+        st.success(f"Bestelling geplaatst: {samen.euro(betalen[1])}. Rond je betaling af.")
+        st.link_button("💳 Nu betalen (iDEAL, Apple Pay, kaart)", betalen[2], type="primary", width="stretch")
+
+    if not w["producten"]:
+        st.caption("Er staat nog niets in deze winkel.")
+    kolommen = st.columns(2)
+    for i, p in enumerate(w["producten"]):
+        with kolommen[i % 2].container(border=True):
+            st.markdown(f"**{p['titel']}**  \n{samen.euro(p['prijs'])}")
+            if p["omschrijving"]:
+                st.caption(p["omschrijving"][:300] + ("..." if len(p["omschrijving"]) > 300 else ""))
+            if p["uitverkocht"]:
+                st.caption("Uitverkocht")
+                continue
+            if p["voorraad"] is not None and p["voorraad"] <= 5:
+                st.caption(f"Nog {p['voorraad']} op voorraad")
+            if not ingelogd:
+                st.caption("Log hieronder in om te bestellen.")
+                continue
+            if not w["kan_betalen"]:
+                continue
+            with st.popover("🛒 Bestellen", width="stretch"):
+                webshop_formulier(w, p)
+
+
+def webshop_formulier(w: dict, p: dict) -> None:
+    with st.form(f"webshop_{p['id']}", border=False):
+        maximum = min(99, p["voorraad"]) if p["voorraad"] is not None else 1
+        aantal = st.number_input("Aantal", 1, max(1, maximum), 1) if maximum > 1 else 1
+        levering = st.radio("Hoe krijg je het?", p["levering"], format_func=samen.LEVERING.get)
+        bericht = st.text_input("Bericht aan de verkoper (optioneel)")
+        st.caption(f"Verzendkosten: {samen.euro(w['verzendkosten'])}"
+                   + (f", gratis vanaf {samen.euro(w['gratis_vanaf'])}" if w.get("gratis_vanaf") else "")
+                   + ". Geen extra kosten.")
+        if st.form_submit_button("Bestellen en betalen", type="primary"):
+            if (b := _fout(samen.webshop_bestellen, p["id"], aantal, levering, bericht.strip())) is None:
+                return
+            url = _fout(samen.afrekenen, b["id"])
+            if url:
+                st.session_state.webshop_betalen = (b["id"], b["bedrag"], url)
+                st.rerun()
+            st.info("Je bestelling staat bij 🧾 Bestellingen; betalen kan daar ook.")
 
 
 # --- Account en beheer ---------------------------------------------------------------

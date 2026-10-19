@@ -18,6 +18,8 @@ Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je 
 
 Wat je niet gebruikt, zet je uit bij Instellingen › Voorpagina en menu; dan verdwijnt het uit het menu.
 
+**Webshop** (Kopen en verkopen › 🏬 Mijn webshop, voor Verkoper en Ondernemer): eigen winkel met vast adres (`?winkel=naam`), kleur, verzendkosten, retourtekst, producten met voorraad. Iedereen kan de winkel bekijken; bestellen met een gratis account, altijd betalen via de app (Stripe). Koper betaalt niets extra; de verkoper betaalt 5% commissie (minimaal € 0,35), ingehouden bij het uitbetalen. Niet betaalde bestellingen vervallen na 75 minuten en de voorraad komt terug. SQL: sql/webshop.sql.
+
 **Kleuren en namens jou reageren**: elke soort in de agenda heeft een eigen kleur (aan te passen bij Instellingen › 🎨 Kleuren in de agenda); taken met een deadline staan als 🔔 herinnering op hun dag. Bij Instellingen › 🤝 Namens jou reageren kies je per kanaal (mail, berichten op de marktplaats): eerst vragen (standaard), zelf reageren aan je contacten, of helemaal zelf. Over geld, contracten, opzeggingen, wachtwoorden en codes vraagt de assistent altijd eerst; maximaal 25 per dag; alles staat bij Mail › 🤖 Namens jou verstuurd. Werkt als de app open staat.
 
 **Accounttypes** (Instellingen › Account › Accounttype, gratis): iedereen houdt alle basisfuncties (agenda, taken, assistent, leren, lijstjes, marktplaats). 🙂 Particulier: tot 10 advertenties. 🏷️ Verkoper: tot 100 advertenties en een 📊 Verkoopoverzicht. 🏢 Ondernemer: bedrijfsprofiel met KvK en btw, label 'Zakelijk' met 14 dagen bedenktijd voor kopers, tot 1000 advertenties, klantenoverzicht en facturen (bewaar als PDF via Delen › Afdrukken in Safari). SQL: sql/niveaus.sql.

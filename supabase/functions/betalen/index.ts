@@ -116,10 +116,13 @@ async function afrekenen(body: Record<string, unknown>) {
     customer_email: g.email ?? undefined,
     line_items: {
       0: { quantity: 1, price_data: { currency: "eur", unit_amount: centen(b.bedrag), product_data: { name: b.titel } } },
-      1: {
-        quantity: 1,
-        price_data: { currency: "eur", unit_amount: centen(b.kosten), product_data: { name: "Kopersbescherming" } },
-      },
+      // In de webshop betaalt de koper geen kopersbescherming (de verkoper betaalt commissie).
+      ...(centen(b.kosten) > 0 ? {
+        1: {
+          quantity: 1,
+          price_data: { currency: "eur", unit_amount: centen(b.kosten), product_data: { name: "Kopersbescherming" } },
+        },
+      } : {}),
     },
     payment_intent_data: { transfer_group: `bestelling-${b.id}`, metadata: { bestelling: b.id } },
     metadata: { bestelling: b.id },
@@ -131,13 +134,14 @@ async function afrekenen(body: Record<string, unknown>) {
   return { url: sessie.url };
 }
 
-// Het geld van de koper naar de verkoper overmaken (zonder de kosten voor kopersbescherming).
+// Het geld van de koper naar de verkoper overmaken (zonder de kosten voor kopersbescherming,
+// en bij de webshop zonder de commissie).
 async function uitbetalen(bestellingId: number) {
   const b = await rpc("stripe_bestelling", { p_id: bestellingId });
   if (b.uitbetaald) return;
   const betaling = await stripe("GET", `/v1/payment_intents/${b.stripe_betaling}`);
   await stripe("POST", "/v1/transfers", {
-    amount: centen(b.bedrag),
+    amount: centen(b.bedrag) - centen(b.commissie ?? 0),
     currency: "eur",
     destination: b.verkoper_account,
     source_transaction: betaling.latest_charge,

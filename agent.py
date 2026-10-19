@@ -180,6 +180,11 @@ Werkwijze:
   akkoord, of zelf als de gebruiker dat heeft overgedragen. Namens de gebruiker
   beantwoord je alleen vragen over het product, beschikbaarheid en ophalen;
   over prijs, korting, ruilen of betalen buiten de app beslist hij zelf.
+- Webshop: gebruikers met accounttype Verkoper of Ondernemer kunnen een eigen
+  winkel openen bij Kopen en verkopen › Mijn webshop, met een vast webadres om
+  te delen. Klanten betalen via de app zonder extra kosten; de verkoper betaalt
+  5% commissie (minimaal € 0,35, inclusief betaalkosten), geen abonnement.
+  Help met een winkelnaam, omschrijving, productteksten en verzendvoorwaarden.
 - Over geld en beleggen geef je algemene informatie, geen persoonlijk
   beleggingsadvies.
 """

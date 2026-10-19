@@ -1994,6 +1994,7 @@ def paginas() -> dict:
             pagina(samen_scherm.aanbieden, "Verkopen", "🏷️", "verkopen"),
         ]
         if ik().get("niveau") in ("verkoper", "ondernemer"):
+            kopen.append(pagina(samen_scherm.mijn_webshop, "Mijn webshop", "🏬", "webshop"))
             kopen.append(pagina(samen_scherm.verkoopoverzicht, "Verkoopoverzicht", "📊", "verkoopoverzicht"))
         kopen += [
             pagina(samen_scherm.markt_bestellingen, "Bestellingen", "🧾", "bestellingen", nieuw.get("bestellingen", 0)),
@@ -2004,9 +2005,26 @@ def paginas() -> dict:
     return menu
 
 
+def webshop_bezoek(adres: str) -> None:
+    """Een winkel via ?winkel=adres. Bekijken mag iedereen; om te bestellen log je in of maak je een account."""
+    ingelogd = bool(st.session_state.get("wachtwoord")) and wachtwoord_ok()
+    if ingelogd and st.button("← Terug naar mijn app", type="tertiary"):
+        del st.query_params["winkel"]
+        st.session_state.pop("webshop_betalen", None)
+        st.rerun()
+    samen_scherm.winkel_pagina(adres, ingelogd)
+    if not ingelogd:
+        st.divider()
+        st.markdown("**Inloggen of gratis een account maken om te bestellen**")
+        wachtwoord_ok()
+
+
 def main() -> None:
     if not opslag.online():
         st.caption("Lokale testmodus: gegevens staan in data/gegevens.json.")
+    if (adres := st.query_params.get("winkel")) and opslag.online():
+        webshop_bezoek(adres)
+        return
     if not st.session_state.get("wachtwoord"):
         st.title("Mijn assistent")
     terug_van_stripe()
