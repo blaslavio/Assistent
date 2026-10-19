@@ -761,7 +761,7 @@ def events_overzicht() -> None:
 
 
 VOORPAGINA = {"weer": "Weer naast de datum", "taken": "Taken", "seintjes": "Korte seintjes (herhalen, sportresultaat)"}
-EXTRA_TABBLADEN = {"✉️ Mail": "Mail", "🛒 Boodschappen": "Boodschappen", "📚 Leren en schrijven": "Leren en schrijven"}
+ONDERDELEN = ["💬 Gesprek", "✉️ Mail", "🛒 Boodschappen", "📚 Leren"]
 
 
 def voorpagina() -> dict:
@@ -786,11 +786,11 @@ def seintjes(nu: datetime) -> None:
     """Hooguit één regel met wat aandacht vraagt; de rest staat op de plek zelf."""
     delen = []
     if herhalingen := opslag.herhalingen_vandaag():
-        delen.append(f"📚 {len(herhalingen)} keer herhalen (Leren)")
+        delen.append(f"📚 {len(herhalingen)} keer herhalen (Assistent › Leren)")
     if sport_zonder_resultaat(nu):
         delen.append("🏃 hoe ging je training? (Agenda)")
     if concepten := opslag.mailconcepten():
-        delen.append(f"✉️ {len(concepten)} antwoord klaar om te versturen (Mail)")
+        delen.append(f"✉️ {len(concepten)} antwoord klaar om te versturen (Assistent › Mail)")
     if opslag.sportdoelen() and not tijd.sportoverzicht((nu.date() - timedelta(days=6)).isoformat(),
                                                          nu.date().isoformat())["aantal"]:
         delen.append("🚶 deze week nog niet bewogen, even een rondje?")
@@ -1296,21 +1296,25 @@ def stijl_instellingen() -> None:
                "je werkt. Wat hij leert, zie je bij 🧠.")
 
 
+def onderdelen_uit() -> list[str]:
+    inst = opslag.instellingen()
+    uit = inst.get("onderdelen_uit", inst.get("tabbladen_uit", []))
+    return ["📚 Leren" if o == "📚 Leren en schrijven" else o for o in uit]
+
+
 def voorpagina_instellingen() -> None:
-    """Wat er op de voorpagina staat en welke extra tabbladen je ziet."""
+    """Wat er op de voorpagina staat en welke onderdelen de assistent heeft."""
     huidig = voorpagina()
     nieuw = {k: st.toggle(label, value=huidig[k], key=f"vp_{k}") for k, label in VOORPAGINA.items()}
     if nieuw != huidig:
         opslag.instellingen_bijwerken(voorpagina=nieuw)
     st.caption("Het dagschema staat er altijd.")
-    uit = opslag.instellingen().get("tabbladen_uit", [])
-    st.markdown("**Tabbladen**")
-    nieuw_uit = [t for t, label in EXTRA_TABBLADEN.items() if not st.toggle(label, value=t not in uit, key=f"tab_{label}")]
+    uit = onderdelen_uit()
+    st.markdown("**Onderdelen bij 💬 Assistent**")
+    nieuw_uit = [o for o in ONDERDELEN[1:] if not st.toggle(o, value=o not in uit, key=f"onderdeel_{o}")]
     if sorted(nieuw_uit) != sorted(uit):
-        opslag.instellingen_bijwerken(tabbladen_uit=nieuw_uit)
-        # Andere tabbladen maken een nieuwe tabbalk; blijf op Instellingen.
-        st.session_state.terug_naar_tab = "⚙️ Instellingen"
-        st.rerun()
+        opslag.instellingen_bijwerken(onderdelen_uit=nieuw_uit)
+    st.caption("Zet uit wat je niet gebruikt; de assistent kan het via het gesprek nog steeds voor je doen.")
 
 
 def thuisadres_instellen() -> None:
@@ -1370,7 +1374,7 @@ def instellingen_tabblad() -> None:
     with st.expander("🏠 Thuisadres" + ("" if inst.get("thuisadres") else " (nog invullen)"),
                      expanded=not inst.get("thuisadres")):
         thuisadres_instellen()
-    with st.expander("🧩 Voorpagina en tabbladen"):
+    with st.expander("🧩 Voorpagina en onderdelen"):
         voorpagina_instellingen()
     with st.expander(f"👤 Contacten ({len(opslag.contacten_zoeken())})"):
         contacten_beheren()
@@ -1538,8 +1542,7 @@ def boodschappen_tabblad() -> None:
 
 # --- Assistent ------------------------------------------------------------
 
-TABBLADEN = ["☀️ Vandaag", "📅 Agenda", "💬 Assistent", "✉️ Mail", "🛒 Boodschappen", "📚 Leren en schrijven",
-             "⚙️ Instellingen"]
+TABBLADEN = ["☀️ Vandaag", "📅 Agenda", "💬 Assistent", "⚙️ Instellingen"]
 BEZIG = {
     "web_search": "🔎 Zoeken op internet...", "web_fetch": "📄 Pagina lezen...", "plaats_zoeken": "📍 Plekken zoeken...",
     "dagplanning": "🗺️ Reistijden berekenen...", "reistijd_berekenen": "🗺️ Reistijd berekenen...",
@@ -1568,6 +1571,18 @@ def vraag_assistent(vraag: str, label: str | None = None) -> None:
 
 
 def assistent_tabblad() -> None:
+    """Alles waarmee de assistent helpt, bij elkaar: gesprek, mail, boodschappen en leren."""
+    zichtbaar = [o for o in ONDERDELEN if o not in onderdelen_uit()]
+    if st.session_state.get("onderdeel") not in zichtbaar:
+        st.session_state.onderdeel = ONDERDELEN[0]
+    if len(zichtbaar) > 1:
+        st.segmented_control("Onderdeel", zichtbaar, key="onderdeel", label_visibility="collapsed")
+    keuze = st.session_state.get("onderdeel") or ONDERDELEN[0]
+    {"💬 Gesprek": gesprek, "✉️ Mail": mail_tabblad, "🛒 Boodschappen": boodschappen_tabblad,
+     "📚 Leren": leren_tabblad}[keuze]()
+
+
+def gesprek() -> None:
     """Het gesprek met de assistent; antwoorden verschijnen woord voor woord."""
     st.session_state.setdefault("chat", [])
     # Twee lijsten: wat de gebruiker ziet, en de volledige geschiedenis voor Claude.
@@ -1649,19 +1664,14 @@ def main() -> None:
         st.session_state.naar_assistent = True
     if st.session_state.pop("naar_assistent", False):
         st.session_state.tabblad = "💬 Assistent"
+        st.session_state.onderdeel = "💬 Gesprek"
 
     strava_terugkomst()
     strava_bijwerken()
-    alle = dict(zip(TABBLADEN, [vandaag_overzicht, agenda_tabblad, assistent_tabblad, mail_tabblad,
-                                 boodschappen_tabblad, leren_tabblad, instellingen_tabblad]))
-    uit = opslag.instellingen().get("tabbladen_uit", [])
-    zichtbaar = {naam: toon for naam, toon in alle.items() if naam not in uit}
-    if terug := st.session_state.pop("terug_naar_tab", None):
-        st.session_state.tabblad = terug
-    if st.session_state.get("tabblad") not in zichtbaar:
+    if st.session_state.get("tabblad") not in TABBLADEN:
         st.session_state.tabblad = TABBLADEN[0]
-    tabs = st.tabs(list(zichtbaar), key="tabblad", on_change="rerun")
-    for tab, toon in zip(tabs, zichtbaar.values()):
+    tabs = st.tabs(TABBLADEN, key="tabblad", on_change="rerun")
+    for tab, toon in zip(tabs, [vandaag_overzicht, agenda_tabblad, assistent_tabblad, instellingen_tabblad]):
         if tab.open:
             with tab:
                 toon()

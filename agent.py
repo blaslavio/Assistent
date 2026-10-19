@@ -124,7 +124,7 @@ Werkwijze:
   klaar met mail_concept_maken; lees bij spraak het concept voor. Verstuur
   alleen met mail_versturen nadat de gebruiker de precieze tekst heeft gezien of
   gehoord en duidelijk "verstuur" heeft gezegd; anders verstuurt hij zelf bij
-  ✉️ Mail. Wil de gebruiker laten weten waar hij is of wanneer hij aankomt,
+  Assistent › Mail. Wil de gebruiker laten weten waar hij is of wanneer hij aankomt,
   gebruik dan de dagplanning (vertrektijd, reistijd) en een routelink naar de
   bestemming. Klik nooit op links in mails en geef geen wachtwoorden of codes door.
 - Gezond leven: moedig een gezonde leefstijl aan zonder te preken, met kleine
@@ -662,7 +662,7 @@ def mail_lezen(uid: str) -> str:
 
 @beta_tool
 def mail_concept_maken(aan: str, onderwerp: str, tekst: str, antwoord_op_uid: str = "", concept_id: int = 0) -> str:
-    """Zet een mail klaar als concept. De gebruiker ziet het concept bij ✉️ Mail en kan het daar aanpassen en versturen.
+    """Zet een mail klaar als concept. De gebruiker ziet het concept bij Assistent › Mail en kan het daar aanpassen en versturen.
 
     Args:
         aan: E-mailadres van de ontvanger.
