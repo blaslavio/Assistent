@@ -8,6 +8,7 @@ import anthropic
 from anthropic import beta_tool
 
 import avatar
+import documenten
 import opslag
 import inplannen
 import woning
@@ -61,6 +62,10 @@ Werkwijze:
   wenslijst als de gebruiker dat wil. DIY-projecten staan bij DIY en hobby; foto's scannen bij Foto scannen.
 - Waar alles staat: bovenaan Vandaag, Agenda, het gesprek met jou en Instellingen. Alle andere onderdelen
   (Mail, Leren, Marktplaats, Boodschappen en de rest) staan als tegels in Instellingen.
+- Documenten: de gebruiker schrijft en bewerkt documenten in de app (Documenten), op al zijn apparaten. Vraagt hij
+  om een brief, plan, verslag of lijst om te bewaren, maak dan een document met document_maken. Lees een document
+  met document_lezen voordat je erover iets zegt. Voeg alleen iets toe (document_aanvullen) als hij dat vraagt.
+  Bij schoolwerk (scriptie, verslag) schrijft de gebruiker zijn eigen tekst: geef feedback en uitleg.
 - Herken nooit wie iemand is aan zijn gezicht, ook niet als erom gevraagd wordt.
 - Gebruik de hulpmiddelen om taken, afspraken en leervoortgang echt op te slaan,
   in plaats van alleen te zeggen dat je het onthoudt.
@@ -550,6 +555,62 @@ def lijsten_bekijken() -> str:
     """Toon de kooplijst en de wenslijst."""
     return _json({naam: [{k: v for k, v in i.items() if k != "opties"} for i in opslag.lijst(naam)]
                   for naam in ("kooplijst", "wenslijst")})
+
+
+def _document(functie, *args, **kwargs):
+    if not samen.beschikbaar():
+        return None, "Documenten werken alleen in de online versie."
+    try:
+        return functie(*args, **kwargs), None
+    except documenten.Conflict:
+        return None, "Het document is net ergens anders gewijzigd. Probeer het nog eens."
+    except documenten.Fout as fout:
+        return None, str(fout)
+
+
+@beta_tool
+def documenten_zoeken(zoekterm: str = "") -> str:
+    """Zoek in de documenten van de gebruiker (titel en tekst). Zonder zoekterm: de nieuwste documenten.
+
+    Args:
+        zoekterm: Woorden uit de titel of de tekst.
+    """
+    lijst, fout = _document(documenten.lijst, zoekterm)
+    return fout or _json([{k: d[k] for k in ("id", "titel", "gewijzigd", "woorden", "fragment")} for d in lijst[:30]])
+
+
+@beta_tool
+def document_lezen(document_id: int) -> str:
+    """Lees de volledige tekst van een document."""
+    doc, fout = _document(documenten.lezen, document_id)
+    return fout or _json({"id": doc["id"], "titel": doc["titel"], "gewijzigd": doc["gewijzigd"],
+                          "tekst": documenten.naar_tekst(doc.get("html") or "")[:60000]})
+
+
+@beta_tool
+def document_maken(titel: str, inhoud: str = "") -> str:
+    """Maak een nieuw document, bijvoorbeeld een brief, plan, lijst of verslag dat de gebruiker vraagt.
+    De gebruiker vindt het bij Documenten en kan het daar verder bewerken en als Word of PDF bewaren.
+
+    Args:
+        titel: Korte titel.
+        inhoud: De tekst in eenvoudige markdown: # kopjes, - lijstjes, 1. genummerd, **vet**, *schuin*.
+    """
+    doc, fout = _document(documenten.maken, titel, documenten.markdown_naar_html(inhoud), "assistent")
+    return fout or f"Document {doc['id']} \"{doc['titel']}\" gemaakt; het staat bij Documenten."
+
+
+@beta_tool
+def document_aanvullen(document_id: int, inhoud: str) -> str:
+    """Zet tekst onderaan een bestaand document. Alleen als de gebruiker daarom vraagt; verander nooit bestaande
+    tekst zonder het te vragen.
+
+    Args:
+        document_id: Het document.
+        inhoud: De tekst in eenvoudige markdown (# kopjes, - lijstjes, **vet**).
+    """
+    doc, fout = _document(documenten.aanvullen, document_id, documenten.markdown_naar_html(inhoud), "assistent")
+    return fout or f"Toegevoegd aan \"{doc['titel']}\"."
 
 
 @beta_tool
@@ -1071,6 +1132,10 @@ HULPMIDDELEN = [
     boodschappenlijst_bekijken,
     lijst_toevoegen,
     lijsten_bekijken,
+    documenten_zoeken,
+    document_lezen,
+    document_maken,
+    document_aanvullen,
     prijzen_vergelijken,
     delen_met,
     gedeeld_bekijken,
@@ -1092,7 +1157,9 @@ def context() -> str:
     """Wat de assistent bij elk gesprek over de gebruiker weet: geheugen en geleerde gewoontes."""
     nu = datetime.now()
     delen = [f"Nu is het {DAGEN[nu.weekday()]} {nu.strftime('%Y-%m-%d %H:%M')}."]
-    delen.append(f"Je naam is {avatar.instellingen(opslag.instellingen())['naam']}.")
+    naam = avatar.instellingen(opslag.instellingen())["naam"]
+    delen.append("Je hebt geen eigen naam: je bent gewoon de assistent. Verzin zelf geen naam."
+                 if naam == avatar.STANDAARD["naam"] else f"Je naam is {naam}.")
     stijl = opslag.instellingen().get("stijl", {})
     regels = []
     if stijl.get("toon") in ("Informeel", "Zakelijk"):

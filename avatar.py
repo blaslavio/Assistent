@@ -15,11 +15,20 @@ STIJLEN = {
 }
 KLEUREN = {"b6e3f4": "Lichtblauw", "c0aede": "Lila", "ffd5dc": "Roze", "ffdfbf": "Perzik", "d1f4d9": "Mint",
            "e5e7eb": "Grijs"}
-STANDAARD = {"naam": "Sam", "stijl": "avataaars", "code": "assistent", "kleur": "b6e3f4", "foto": ""}
+STANDAARD = {"naam": "Assistent", "stijl": "avataaars", "code": "assistent", "kleur": "b6e3f4", "foto": ""}
 
 
 def instellingen(inst: dict) -> dict:
-    return STANDAARD | inst.get("avatar", {})
+    a = STANDAARD | inst.get("avatar", {})
+    if a["naam"] == "Sam":
+        # Vroeger de standaardnaam, nooit door de gebruiker gekozen: geen verzonnen naam meer.
+        a["naam"] = STANDAARD["naam"]
+    return a
+
+
+def aanspreken(a: dict) -> str:
+    """Hoe je de assistent in een zin noemt: "de assistent", of de naam die de gebruiker koos."""
+    return "de assistent" if a["naam"] == STANDAARD["naam"] else a["naam"]
 
 
 def nieuwe_code() -> str:

@@ -18,6 +18,9 @@ import activiteiten
 import agent
 import avatar
 import boodschappen
+import documenten
+import documenten_scherm
+import editor
 import events
 import ics
 import mail
@@ -46,7 +49,7 @@ import winkelkaart
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
 for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -576,7 +579,7 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
     einde = datetime.fromisoformat(a["einde"]) if a.get("einde") and "T" in a["einde"] else None
     contacten = contact_opties()
     with st.form(sleutel, clear_on_submit=not afspraak, border=False):
-        titel = st.text_input("Wat", value=a.get("titel", ""), placeholder="Bijvoorbeeld: samen hardlopen met Sam")
+        titel = st.text_input("Wat", value=a.get("titel", ""), placeholder="Bijvoorbeeld: samen hardlopen")
         soort = st.pills("Soort", list(tijd.SOORTEN), default=tijd.soort_van(a), key=f"{sleutel}_soort",
                          format_func=lambda s: f"{tijd.SOORTEN[s]} {s.capitalize()}") or "afspraak"
         kol1, kol2, kol3 = st.columns(3)
@@ -729,7 +732,7 @@ def snel_melding() -> None:
         st.markdown(laatst["tekst"])
         kol1, kol2 = st.columns(2)
         kol1.button("Ongedaan maken", on_click=ongedaan, args=(False,), width="stretch", key="snel_terug")
-        kol2.button(f"Vraag het {mijn_avatar()['naam']}", on_click=ongedaan, args=(True,), width="stretch",
+        kol2.button(f"Vraag het {avatar.aanspreken(mijn_avatar())}", on_click=ongedaan, args=(True,), width="stretch",
                     key="snel_vraag", help="Haalt dit weer weg en stelt je zin als vraag aan de assistent.")
 
 
@@ -1026,7 +1029,7 @@ VOORPAGINA = {"weer": "Weer naast de datum", "startpunt": "Snel aan de slag (ver
               "seintjes": "Korte seintjes (herhalen, sportresultaat)",
               "woning": "Knoppen voor Apple Woning (als je scènes hebt ingesteld)"}
 # Wat je in het menu aan of uit kunt zetten (de sleutels staan zo in je instellingen).
-ONDERDELEN = {"Mail": "Mail", "Leren": "Leren en schrijven", "Samen": "Projecten en delen",
+ONDERDELEN = {"Documenten": "Documenten", "Mail": "Mail", "Leren": "Leren en schrijven", "Samen": "Projecten en delen",
               "DIY": "DIY en hobby", "Hulpmiddelen": "Hulpmiddelen (notities, timer, rekenen)",
               "Scannen": "Foto scannen", "VR-ruimtes": "VR-ruimtes (projecten in 3D)",
               "Boodschappen": "Boodschappen",
@@ -1714,7 +1717,7 @@ def mail_tabblad() -> None:
     kol1, kol2 = st.columns([3, 1], vertical_alignment="center")
     if kol1.button("Wat vraagt actie?", width="stretch"):
         vraag_assistent("Welke mails vragen actie? Vat ze kort samen en stel voor wat ik ermee doe.")
-    if opslag.namens("mail") != "vragen" and st.button(f"Laat {mijn_avatar()['naam']} je inbox afhandelen",
+    if opslag.namens("mail") != "vragen" and st.button(f"Laat {avatar.aanspreken(mijn_avatar())} je inbox afhandelen",
                                                       width="stretch"):
         vraag_assistent("Loop mijn ongelezen mails na. Beantwoord namens mij wat je volgens mijn instelling mag "
                         "beantwoorden, zet de rest klaar als concept, zet afspraken en taken in mijn agenda en vertel "
@@ -1752,7 +1755,7 @@ def namens_overzicht() -> None:
 
 def namens_instellingen() -> None:
     """Hoe zelfstandig de assistent namens je mag reageren."""
-    naam = mijn_avatar()["naam"]
+    naam = avatar.aanspreken(mijn_avatar())
     st.caption(f"Standaard zet {naam} antwoorden klaar en verstuur jij ze. Je kunt het reageren ook aan {naam} "
                "overdragen. Over geld, betalingen, contracten, opzeggingen, wachtwoorden en codes vraagt "
                f"{naam} altijd eerst. Alles wat namens jou weggaat, zie je bij Mail. "
@@ -1852,7 +1855,7 @@ def avatar_instellingen() -> None:
     nieuw = dict(a)
     kol1, kol2 = st.columns([1, 3], vertical_alignment="center")
     kol1.image(avatar.plaatje(a), width=88)
-    nieuw["naam"] = kol2.text_input("Naam van je assistent", value=a["naam"], max_chars=20).strip() or "Sam"
+    nieuw["naam"] = kol2.text_input("Naam van je assistent", value=a["naam"], max_chars=20).strip() or avatar.STANDAARD["naam"]
     st.caption("Kies een uiterlijk")
     stijlen = list(avatar.STIJLEN)
     for rij in (stijlen[:4], stijlen[4:]):
@@ -2155,6 +2158,8 @@ BEZIG = {
     "prijzen_vergelijken": "Prijzen vergelijken...", "weer_bekijken": "Weer opzoeken...",
     "afspraak_toevoegen": "In je agenda zetten...", "events_zoeken": "Events zoeken...",
     "uitjes_zoeken": "Uitjes zoeken...", "boodschappen_toevoegen": "Op je lijst zetten...",
+    "document_maken": "Document maken...", "document_lezen": "Document lezen...",
+    "document_aanvullen": "Document aanvullen...", "documenten_zoeken": "Documenten zoeken...",
     "mails_bekijken": "Mails bekijken...", "mail_lezen": "Mail lezen...",
     "mail_concept_maken": "Antwoord klaarzetten...", "mail_versturen": "Versturen...",
     "bronnen_zoeken": "Wetenschappelijke bronnen zoeken...", "bron_controleren": "Bron controleren...",
@@ -2368,6 +2373,8 @@ def paginas() -> list:
           als(online and "Marktplaats" not in uit and ik().get("niveau") in ("verkoper", "ondernemer"),
               samen_scherm.verkoopoverzicht, "Verkoopoverzicht", ":material/bar_chart:", "verkoopoverzicht"))
     groep("Leren en werk",
+          als(online and "Documenten" not in uit, documenten_scherm.pagina, "Documenten", ":material/description:",
+              "documenten"),
           als("Leren" not in uit, leren_tabblad, "Leren", ":material/school:", "leren"),
           als("Mail" not in uit, mail_tabblad, "Mail", ":material/mail:", "mail"),
           als(online and "Samen" not in uit, samen_scherm.samen_tabblad, "Samen", ":material/group:", "samen",
@@ -2490,7 +2497,7 @@ def main() -> None:
 
     # Het invoerveld onderaan: "morgen 9u tandarts" komt meteen in de agenda (ook zonder Claude),
     # al het andere gaat naar het gesprek met de assistent.
-    if vraag := st.chat_input(f"Vraag {mijn_avatar()['naam']} of typ \"morgen 9u tandarts\"..."):
+    if vraag := st.chat_input(f"Vraag {avatar.aanspreken(mijn_avatar())} of typ \"morgen 9u tandarts\"..."):
         if snelinvoer.lijkt_invoer(vraag):
             snel_toevoegen(vraag)
         else:

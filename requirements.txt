@@ -6,3 +6,4 @@ pypdf
 python-docx
 qrcode
 pillow-heif
+fpdf2
