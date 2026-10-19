@@ -25,7 +25,7 @@ def met_claude(bezig: str, functie, *args, **kwargs):
     """Voert een klus van Claude uit met een wachtmelding. Geeft het resultaat, of None met een nette fout."""
     sleutel = opslag.instellingen().get("anthropic_sleutel", "")
     if not sleutel:
-        st.warning("Hiervoor is de assistent nodig. Zet je Anthropic-sleutel bij ⚙️ Instellingen › Koppelingen.")
+        st.warning("Hiervoor is de assistent nodig. Zet je Anthropic-sleutel bij ⚙️ Instellingen › Assistent.")
         return None
     try:
         with st.spinner(bezig):
