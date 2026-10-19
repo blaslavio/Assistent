@@ -35,25 +35,36 @@ def voorwaarden() -> str:
 5. **Betalen.** Koper en verkoper spreken af hoe er betaald wordt: via de app, met een betaalverzoek, door over te
    maken of contant. **Betalen via de app** loopt via Stripe, een betaaldienst met een vergunning. Het geld blijft
    bij Stripe tot de koper bevestigt dat alles goed is ontvangen; daarna wordt het aan de verkoper uitbetaald. De
-   koper betaalt daarvoor een vaste vergoeding voor kopersbescherming, die je ziet voordat je betaalt. Meldt de koper
+   koper betaalt daarvoor een vergoeding voor kopersbescherming (zie artikel 6), die je ziet voordat je betaalt. Meldt de koper
    een probleem, dan blijft het geld vastgehouden en beslist de beheerder op basis van de berichten en het bewijs:
    terugbetalen aan de koper of uitbetalen aan de verkoper. Verkopers die via de app betalingen ontvangen, laten hun
    identiteit door Stripe controleren en gaan akkoord met de voorwaarden van Stripe. Bij betalen buiten de app is er
    geen kopersbescherming.
-6. **Niet toegestaan.** Illegale producten of diensten, wapens, drugs, medicijnen op recept, namaak, dieren,
+6. **Kosten.** De app zelf is gratis, net als alle accounttypes. Je betaalt alleen in deze gevallen:
+   - **Kopen via de app op de marktplaats:** de koper betaalt € 0,50 plus 3% van het bedrag voor kopersbescherming.
+     De verkoper betaalt niets.
+   - **Verkopen via je eigen webshop in de app** (zodra die beschikbaar is): de verkoper betaalt 5% van het
+     verkochte bedrag (inclusief verzendkosten die de koper betaalt), met een minimum van € 0,35 per bestelling.
+     Daarin zitten de betaalkosten van Stripe al. Er is geen abonnement en er zijn geen vaste maandkosten. Het
+     bedrag wordt ingehouden op de uitbetaling en staat per bestelling in je verkoopoverzicht. De koper betaalt
+     in een webshop niets extra.
+   - Bij betalen buiten de app (contant, betaalverzoek, overmaken) rekent de app niets.
+   Verandert een tarief, dan hoor je dat minstens 30 dagen van tevoren in de app. Het nieuwe tarief geldt alleen
+   voor bestellingen daarna; je kunt in die tijd kosteloos stoppen.
+7. **Niet toegestaan.** Illegale producten of diensten, wapens, drugs, medicijnen op recept, namaak, dieren,
    oplichting, spam, haatdragende of seksuele inhoud, en gegevens van anderen zonder toestemming.
-7. **Melden en blokkeren.** Zie je iets wat niet mag? Gebruik de knop 🚩 Melden. De beheerder bekijkt meldingen zo
+8. **Melden en blokkeren.** Zie je iets wat niet mag? Gebruik de knop 🚩 Melden. De beheerder bekijkt meldingen zo
    snel mogelijk en kan aanbod offline halen of een account blokkeren. Wordt iets door meerdere mensen gemeld, dan
    gaat het automatisch offline tot de beheerder heeft gekeken. Nieuwe accounts kunnen de eerste week minder
    tegelijk aanbieden en bestellen. Je kunt bezwaar maken via {_contact()}.
-8. **Delen en projecten.** Wat je deelt of in een project zet, kunnen de ontvangers of projectleden zien. Deel alleen
+9. **Delen en projecten.** Wat je deelt of in een project zet, kunnen de ontvangers of projectleden zien. Deel alleen
    wat je wilt delen.
-9. **Stoppen.** Je kunt je account altijd verwijderen via Instellingen > Account. De beheerder kan accounts die
+10. **Stoppen.** Je kunt je account altijd verwijderen via Instellingen > Account. De beheerder kan accounts die
    deze voorwaarden overtreden blokkeren. Een account met een lopende betaling of een open geschil kun je pas
    verwijderen als die is afgerond.
-10. **Aansprakelijkheid.** De app wordt aangeboden zoals hij is. De beheerder is niet aansprakelijk voor afspraken
+11. **Aansprakelijkheid.** De app wordt aangeboden zoals hij is. De beheerder is niet aansprakelijk voor afspraken
    tussen gebruikers onderling, of voor schade door het gebruik van de app, behalve bij opzet of grove schuld.
-11. **Wijzigingen.** Als deze voorwaarden veranderen, zie je dat in de app. Op deze voorwaarden is Nederlands recht
+12. **Wijzigingen.** Als deze voorwaarden veranderen, zie je dat in de app. Op deze voorwaarden is Nederlands recht
     van toepassing.
 
 Contact: {_contact()}.
