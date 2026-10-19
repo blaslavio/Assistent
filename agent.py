@@ -1,6 +1,7 @@
 """De agent: Claude met hulpmiddelen voor taken, agenda, leren en zoeken op internet."""
 
 import json
+import threading
 from datetime import datetime, timedelta
 
 import anthropic
@@ -9,6 +10,7 @@ from anthropic import beta_tool
 import avatar
 import opslag
 import inplannen
+import woning
 import planning
 import reizen
 import samen
@@ -61,6 +63,8 @@ Werkwijze:
 - Herken nooit wie iemand is aan zijn gezicht, ook niet als erom gevraagd wordt.
 - Gebruik de hulpmiddelen om taken, afspraken en leervoortgang echt op te slaan,
   in plaats van alleen te zeggen dat je het onthoudt.
+- Apple Woning: vraagt de gebruiker iets in huis te bedienen (licht, verwarming,
+  een scène), gebruik woning_bedienen; er komt dan een knop onder je antwoord.
 - Slim plannen: heeft de gebruiker het druk of vraagt hij wanneer hij iets moet
   doen, bied dan aan zijn taken in te plannen met taken_inplannen (eerst het
   voorstel laten zien, pas na akkoord vastleggen).
@@ -243,6 +247,35 @@ def taken_inplannen(vastleggen: bool = False) -> str:
     if vastleggen:
         return _json({"ingepland_blokken": inplannen.vastleggen(plan), "plan": plan})
     return _json({"voorstel": plan, "planuren": inplannen.planuren()})
+
+
+# Woning-knoppen die de assistent in deze beurt klaarzet; de app toont ze onder het antwoord.
+WONING_KNOPPEN: dict[int, list[str]] = {}
+
+
+def woning_knoppen_ophalen() -> list[str]:
+    return WONING_KNOPPEN.pop(threading.get_ident(), [])
+
+
+@beta_tool
+def woning_bedienen(scene: str) -> str:
+    """Zet een knop klaar om een scène uit Apple Woning te starten (bijvoorbeeld "Licht uit").
+
+    De gebruiker tikt zelf op de knop; jij kunt niets op de achtergrond schakelen. Gebruik alleen
+    scènes die de gebruiker heeft ingesteld (zie de context).
+
+    Args:
+        scene: De naam van de scène.
+    """
+    gevonden = woning.zoek(scene)
+    if not gevonden:
+        bekend = woning.scenes()
+        return ("Die scène is niet ingesteld. " + (f"Ingesteld: {', '.join(bekend)}." if bekend else
+                "Er zijn nog geen scènes; dat doet de gebruiker bij Instellingen › Koppelingen › Siri en Apple Woning."))
+    lijst = WONING_KNOPPEN.setdefault(threading.get_ident(), [])
+    if gevonden not in lijst:
+        lijst.append(gevonden)
+    return f"Knop '{gevonden}' staat onder je antwoord. Zeg kort dat de gebruiker erop kan tikken."
 
 
 @beta_tool
@@ -1002,6 +1035,7 @@ HULPMIDDELEN = [
     gewoontes_bekijken,
     taak_toevoegen,
     taken_inplannen,
+    woning_bedienen,
     taken_bekijken,
     taak_afronden,
     afspraak_toevoegen,
@@ -1072,6 +1106,8 @@ def context() -> str:
     delen.append("Namens de gebruiker reageren: " + "; ".join(
         f"{k}: {'eerst akkoord vragen' if v == 'vragen' else 'zelf reageren aan contacten, anderen eerst vragen' if v == 'bekenden' else 'zelf reageren'}"
         for k, v in namens.items()) + f". Vandaag al {opslag.namens_vandaag()} van maximaal {opslag.NAMENS_PER_DAG} namens hem verstuurd.")
+    if scenes := woning.scenes():
+        delen.append("Scènes in Apple Woning (via woning_bedienen): " + ", ".join(scenes) + ".")
     if (reeks := opslag.leerreeks())["reeks"] or reeks["vandaag"]:
         delen.append(f"Leerreeks: {reeks['reeks']} dagen op rij het dagdoel gehaald; vandaag {reeks['vandaag']} van "
                      f"{reeks['dagdoel']} geoefend. Moedig kort aan als het past, zonder te zeuren.")

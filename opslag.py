@@ -182,6 +182,40 @@ def beveiliging() -> dict:
     return _rpc_ik("beveiliging")
 
 
+# --- Vertrouwde apparaten: ingelogd blijven (ook voor Siri) ---------------------------
+
+def apparaat_onthouden(naam_apparaat: str) -> str | None:
+    """Een sleutel om op dit apparaat ingelogd te blijven, of None (lokaal of geen toegang)."""
+    if not online():
+        return None
+    return _rpc_ik("apparaat_onthouden", p_apparaat=naam_apparaat).get("token")
+
+
+def apparaat_inloggen(token: str, naam_apparaat: str) -> dict | None:
+    """Ruilt een bewaarde apparaatsleutel in voor een sessie: {"token", "naam"} of None als hij niet meer geldt."""
+    if not online() or not token.startswith("apparaat."):
+        return None
+    antwoord = _rpc("apparaat_inloggen", p_token=token, p_apparaat=naam_apparaat)
+    return antwoord if antwoord.get("token") else None
+
+
+def apparaat_vergeten(token: str) -> None:
+    if online() and token.startswith("apparaat."):
+        try:
+            _rpc("apparaat_vergeten", p_token=token)
+        except Exception:
+            pass
+
+
+def mijn_apparaten() -> list[dict]:
+    return _rpc_ik("mijn_apparaten")["apparaten"] if online() else []
+
+
+def apparaat_intrekken(apparaat_id: int | None = None) -> None:
+    """Eén bewaard apparaat vergeten, of alle (zonder id)."""
+    _rpc_ik("apparaat_intrekken", p_id=apparaat_id)
+
+
 def overal_uitloggen() -> None:
     _rpc_ik("overal_uitloggen")
 

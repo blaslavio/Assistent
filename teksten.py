@@ -98,6 +98,11 @@ Je 👍/👎 en opmerkingen bij antwoorden bewaren we bij je eigen gegevens, zod
 natuurlijke stem aan, dan gaat de tekst van het antwoord via je eigen sleutel naar ElevenLabs (Verenigde Staten) om
 voorgelezen te worden.
 
+Kies je "Ingelogd blijven op dit apparaat", dan bewaart je browser een sleutel waarmee de app je herkent; wij bewaren
+alleen een onherkenbare versie ervan, met de naam van het apparaat en wanneer het voor het laatst is gebruikt. Na 90
+dagen zonder gebruik vervalt hij. De namen van je Woning-opdrachten bewaren we bij je instellingen; de app bedient je
+huis nooit zelf, dat doet de app Opdrachten op je eigen apparaat als jij op een knop tikt.
+
 In een VR-ruimte bewaren we de foto's, teksten en 3D-modellen die je erin zet, en hoe vaak hij is bezocht. De 3D-weergave gebruikt A-Frame, geladen via jsDelivr.
 
 **Waarom.** Alleen om de app te laten werken: jouw gegevens tonen, de assistent laten helpen, en gebruikers met

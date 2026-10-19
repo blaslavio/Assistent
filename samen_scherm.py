@@ -1471,10 +1471,26 @@ def beveiliging() -> None:
         laatst = datetime.fromisoformat(sessie["laatst"]).astimezone().strftime("%d-%m %H:%M")
         st.markdown(f"{'📍 ' if sessie['deze'] else ''}{sessie['apparaat'] or 'onbekend'} · laatst {laatst}"
                     + (" · :green[dit apparaat]" if sessie["deze"] else ""))
-    if len(b["sessies"]) > 1 and st.button("Op alle andere apparaten uitloggen"):
+    apparaten = opslag.mijn_apparaten()
+    if (len(b["sessies"]) > 1 or apparaten) and st.button("Op alle andere apparaten uitloggen"):
         opslag.overal_uitloggen()
+        if st.session_state.get("apparaat_token"):
+            # Dit apparaat blijft onthouden: het krijgt een nieuwe sleutel.
+            nieuw = opslag.apparaat_onthouden(st.session_state.get("apparaat_naam", ""))
+            st.session_state.apparaat_token = st.session_state.apparaat_bewaar = nieuw
         st.toast("Andere apparaten zijn uitgelogd.", icon="🔐")
         st.rerun()
+    if apparaten:
+        st.markdown("**Ingelogd blijven op**")
+        for a in apparaten:
+            laatst = datetime.fromisoformat(a["laatst"]).astimezone().strftime("%d-%m %H:%M")
+            kol1, kol2 = st.columns([4, 1], vertical_alignment="center")
+            kol1.markdown(f"📱 {a['naam'] or 'onbekend'} · laatst {laatst}")
+            if kol2.button("Vergeten", key=f"apparaat_weg_{a['id']}"):
+                opslag.apparaat_intrekken(a["id"])
+                st.rerun()
+        st.caption("Op deze apparaten hoef je niet in te loggen, en kan Siri de app openen. Vergeet je een apparaat, "
+                   "dan moet je daar weer inloggen.")
     if b["inlogs"]:
         with st.expander("Recente inlogpogingen"):
             for i in b["inlogs"]:

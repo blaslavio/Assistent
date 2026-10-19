@@ -38,13 +38,15 @@ import werk_scherm
 import weer
 import wetenschap
 import inplannen
+import onthouden
 import snelinvoer
+import woning
 import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
 for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -97,7 +99,25 @@ def inloggen(naam: str, wachtwoord: str, gebruiker: dict) -> None:
     st.session_state.naam = naam
     st.session_state.wachtwoord = wachtwoord
     st.session_state.ik = gebruiker
+    st.session_state.apparaat_naam = apparaat()
     opslag.gebruik_account(naam, wachtwoord)
+
+
+def apparaat_herkennen() -> bool:
+    """Op een onthouden apparaat (bijvoorbeeld je eigen iPhone) log je vanzelf in."""
+    if st.session_state.pop("apparaat_wis", False):
+        onthouden.wissen()
+        return False
+    sleutel = onthouden.lezen()
+    if not sleutel or st.session_state.get("apparaat_geprobeerd"):
+        return False
+    st.session_state.apparaat_geprobeerd = True
+    if not (sessie := opslag.apparaat_inloggen(sleutel, apparaat())):
+        onthouden.wissen()
+        return False
+    inloggen(sessie["naam"], sessie["token"], opslag.inloggen(sessie["naam"], sessie["token"]) or {})
+    st.session_state.apparaat_token = sleutel
+    return True
 
 
 def ik() -> dict:
@@ -140,6 +160,8 @@ def aanmelden(naam: str, wachtwoord: str, code: str = "") -> str | None:
     if token := antwoord.get("token"):
         st.session_state.pop("twee_stap_login", None)
         inloggen(naam, token, opslag.inloggen(naam, token) or {})
+        if st.session_state.get("onthoud_apparaat", True) and (sleutel := opslag.apparaat_onthouden(apparaat())):
+            st.session_state.apparaat_token = st.session_state.apparaat_bewaar = sleutel
         if opslag.online():
             try:
                 st.session_state.mislukt_melding = opslag.beveiliging().get("mislukt_recent", 0)
@@ -159,7 +181,11 @@ def inlogformulier() -> None:
         naam = st.text_input("Gebruikersnaam of mailadres", autocomplete="username",
                              help="Nog nooit een gebruikersnaam gekozen omdat je de app als eerste instelde? Laat dit leeg.")
         wachtwoord = st.text_input("Wachtwoord", type="password", autocomplete="current-password")
+        onthoud = st.checkbox("Ingelogd blijven op dit apparaat", value=True,
+                              help="Handig op je eigen iPhone of iPad, en nodig voor Siri. Niet doen op een "
+                                   "computer van een ander.") if opslag.online() else False
         if st.form_submit_button("Inloggen", type="primary", width="stretch") and wachtwoord:
+            st.session_state.onthoud_apparaat = onthoud
             if fout := aanmelden(naam.strip().lower().lstrip("@"), wachtwoord):
                 st.error(fout)
             elif st.session_state.get("twee_stap_login"):
@@ -225,6 +251,8 @@ def wachtwoord_ok() -> bool:
     if not opslag.online():
         inlogformulier()
         return False
+    if apparaat_herkennen():
+        return True
     keuze = st.segmented_control("Account", ["Inloggen", "Account maken"], default="Inloggen",
                                  label_visibility="collapsed", key="inlogkeuze")
     if keuze == "Account maken":
@@ -993,7 +1021,8 @@ VOORPAGINA = {"weer": "Weer naast de datum", "startpunt": "Snel aan de slag (ver
               "afspraken": "Geplande afspraken (dagschema)",
               "meldingen": "Meldingen (verkocht, bestellingen, berichten, gedeeld)",
               "saldo": "Saldo van de marktplaats", "taken": "Taken",
-              "seintjes": "Korte seintjes (herhalen, sportresultaat)"}
+              "seintjes": "Korte seintjes (herhalen, sportresultaat)",
+              "woning": "Knoppen voor Apple Woning (als je scènes hebt ingesteld)"}
 # Wat je in het menu aan of uit kunt zetten (de sleutels staan zo in je instellingen).
 ONDERDELEN = {"✉️ Mail": "✉️ Mail", "📚 Leren": "📚 Leren en schrijven", "🤝 Samen": "🤝 Projecten en delen",
               "🔨 DIY": "🔨 DIY en hobby", "🧰 Hulpmiddelen": "🧰 Hulpmiddelen (notities, timer, rekenen)",
@@ -1047,6 +1076,8 @@ def vandaag_overzicht() -> None:
             saldo_blok(nieuw.get("saldo"))
     if keuze["taken"]:
         taken_blok()
+    if keuze["woning"]:
+        woning.knoppen(woning.scenes(), "vandaag")
     if keuze["seintjes"]:
         seintjes(nu)
 
@@ -1451,6 +1482,52 @@ def schrijven_onderdeel() -> None:
 
 def stem() -> dict:
     return spraak.instellingen(opslag.instellingen().get("stem"))
+
+
+def app_adres() -> str:
+    """Het webadres van de app zelf, zoals de browser het gebruikt."""
+    try:
+        deel = urlparse(st.context.url or "")
+        if deel.netloc:
+            return f"{deel.scheme}://{deel.netloc}"
+    except Exception:
+        pass
+    return "https://jouw-app.streamlit.app"
+
+
+def siri_en_woning() -> None:
+    """Uitleg en instellingen om de assistent vanuit Siri te gebruiken en Apple Woning te bedienen."""
+    adres = app_adres()
+    st.markdown("**🗣️ Siri**")
+    st.markdown(
+        "Zeg straks *\"Hé Siri, assistent\"* en spreek in wat je wilt: *\"morgen 9 uur tandarts\"* komt meteen in "
+        "je agenda, een vraag gaat naar je assistent. Eén keer instellen in de app **Opdrachten**:\n\n"
+        "1. Tik op **+** (nieuwe opdracht) en noem hem **Assistent**.\n"
+        "2. Voeg **Dicteer tekst** toe.\n"
+        "3. Voeg **Codeer URL** toe (die pakt vanzelf de gedicteerde tekst).\n"
+        f"4. Voeg **Open URL's** toe en typ: `{adres}/?zeg=` en tik daarna op **Variabele** › **Gecodeerde URL**.\n"
+        "5. Klaar. Zeg \"Hé Siri, assistent\" om het te proberen.")
+    st.caption("Tip: log één keer in met \"Ingelogd blijven op dit apparaat\" aan. Dan opent Siri de app zonder "
+               "inloggen. Je ziet je apparaten bij Account › Beveiliging.")
+    st.divider()
+    st.markdown("**🏠 Apple Woning**")
+    st.markdown(
+        "Maak in **Opdrachten** per scène een opdracht met de actie **Bedien woning** (bijvoorbeeld *Licht uit*). "
+        "Zet hieronder dezelfde namen. Dan krijg je knoppen op ☀️ Vandaag, en je assistent zet ze klaar als je "
+        "vraagt *\"doe het licht uit\"*. Jij tikt zelf, zo kan niemand anders je huis bedienen.")
+    huidig = woning.scenes()
+    with st.form("woning", border=False):
+        tekst = st.text_area("Namen van je opdrachten (één per regel)", value="\n".join(huidig), height=120,
+                             placeholder="\n".join(woning.VOORBEELDEN[:3]))
+        if st.form_submit_button("Opslaan", type="primary"):
+            namen = list(dict.fromkeys(r.strip() for r in tekst.splitlines() if r.strip()))[:20]
+            opslag.instellingen_bijwerken(woning=namen)
+            st.rerun()
+    if huidig:
+        st.caption("Probeer ze hier:")
+        woning.knoppen(huidig, "instellingen")
+    st.caption("Google Home en Gemini laten nog geen gewone apps aansluiten. Dat kan later via een thuis-hub "
+               "(bijvoorbeeld Home Assistant).")
 
 
 def stem_instellingen() -> None:
@@ -1872,6 +1949,8 @@ def instellingen_tabblad() -> None:
     with st.expander("✉️ Mail" + (" ✅" if mail.gekoppeld() else "")):
         mail_instellen()
     strava_instellingen()
+    with st.expander("🗣️ Siri en 🏠 Apple Woning" + (" ✅" if woning.scenes() else "")):
+        siri_en_woning()
     with st.expander("🎟️ Events (Ticketmaster)" + (" ✅" if events.sleutel() else "")):
         events_instellen()
     with st.expander("🔑 Anthropic-sleutel (voor de assistent)"):
@@ -1885,7 +1964,10 @@ def instellingen_tabblad() -> None:
     samen_scherm.account_instellingen()
     if st.button("🔒 Uitloggen"):
         opslag.uitloggen()
+        opslag.apparaat_vergeten(st.session_state.get("apparaat_token", ""))
         st.session_state.clear()
+        st.session_state.apparaat_wis = True
+        st.session_state.apparaat_geprobeerd = True
         st.rerun()
 
 
@@ -2073,6 +2155,7 @@ def gesprek() -> None:
     for rol, tekst in st.session_state.chat:
         st.chat_message(rol, avatar=gezicht if rol == "assistant" else None).markdown(tekst)
     if st.session_state.chat and st.session_state.chat[-1][0] == "assistant":
+        woning.knoppen(st.session_state.get("woning_onder", []), "gesprek")
         feedback_vragen_antwoord()
 
     vraag = st.session_state.pop("vooraf_vraag", None)
@@ -2083,6 +2166,7 @@ def gesprek() -> None:
             st.rerun()
         return
     ingesproken = st.session_state.pop("ingesproken", False)
+    st.session_state.woning_onder = []
     zichtbaar = st.session_state.pop("vooraf_label", None) or vraag
     st.chat_message("user").markdown(zichtbaar)
     st.session_state.chat.append(("user", zichtbaar))
@@ -2115,6 +2199,7 @@ def gesprek() -> None:
                 tekst = foutmelding(fout)
             status.empty()
             vak.empty()
+            st.session_state.woning_onder = agent.woning_knoppen_ophalen()
         ruw = tekst
         gevoel = spraak.gevoel_van("".join(delen) or ruw) if sleutel else "neutraal"
         tekst = spraak.zonder_labels(tekst) or "Klaar."
@@ -2272,6 +2357,10 @@ def webshop_bezoek(adres: str) -> None:
 def main() -> None:
     if not opslag.online():
         st.caption("Lokale testmodus: gegevens staan in data/gegevens.json.")
+    # Siri (app Opdrachten) opent de app met ?zeg=wat je zei. Dat bewaren we tot je ingelogd bent.
+    if zin := st.query_params.get("zeg", "").strip():
+        st.session_state.siri_zeg = zin[:500]
+        del st.query_params["zeg"]
     if (nummer := st.query_params.get("ruimte", "")).isdigit() and opslag.online():
         if not st.session_state.get("wachtwoord"):
             ruimte_bezoek(int(nummer))
@@ -2308,6 +2397,14 @@ def main() -> None:
     terug_van_stripe()
     if not wachtwoord_ok():
         return
+    if sleutel := st.session_state.pop("apparaat_bewaar", None):
+        onthouden.bewaren(sleutel)
+    if zin := st.session_state.pop("siri_zeg", None):
+        if snelinvoer.lijkt_invoer(zin):
+            snel_toevoegen(zin)
+        else:
+            st.session_state.vooraf_vraag = zin
+            st.session_state.ga_naar = "assistent"
     terug_van_stripe()
     nu_open = st.navigation(paginas(), position="top")
     if mislukt := st.session_state.pop("mislukt_melding", 0):
