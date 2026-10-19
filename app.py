@@ -119,17 +119,63 @@ def eerste_keer() -> None:
             st.rerun()
 
 
+def apparaat() -> str:
+    """Een korte naam voor het apparaat, voor het overzicht van inlogs."""
+    agent_tekst = st.context.headers.get("User-Agent", "")
+    soort = next((n for k, n in (("iPad", "iPad"), ("iPhone", "iPhone"), ("Android", "Android"), ("Macintosh", "Mac"),
+                                 ("Windows", "Windows"), ("Linux", "Linux")) if k in agent_tekst), "onbekend apparaat")
+    browser = next((n for k, n in (("Edg", "Edge"), ("CriOS", "Chrome"), ("Chrome", "Chrome"), ("Firefox", "Firefox"),
+                                   ("Safari", "Safari")) if k in agent_tekst), "browser")
+    return f"{browser} op {soort}"
+
+
+def aanmelden(naam: str, wachtwoord: str, code: str = "") -> str | None:
+    """Logt in. Geeft een foutmelding, of None (gelukt of er is nog een code nodig)."""
+    antwoord = opslag.aanmelden(naam, wachtwoord, code, apparaat())
+    if token := antwoord.get("token"):
+        st.session_state.pop("twee_stap_login", None)
+        inloggen(naam, token, opslag.inloggen(naam, token) or {})
+        if opslag.online():
+            try:
+                st.session_state.mislukt_melding = opslag.beveiliging().get("mislukt_recent", 0)
+            except Exception:
+                pass
+        st.rerun()
+    if antwoord.get("code_nodig"):
+        st.session_state.twee_stap_login = (naam, wachtwoord)
+    return antwoord.get("fout")
+
+
 def inlogformulier() -> None:
+    if wacht := st.session_state.get("twee_stap_login"):
+        code_formulier(*wacht)
+        return
     with st.form("inloggen"):
         naam = st.text_input("Gebruikersnaam of mailadres", autocomplete="username",
                              help="Nog nooit een gebruikersnaam gekozen omdat je de app als eerste instelde? Laat dit leeg.")
         wachtwoord = st.text_input("Wachtwoord", type="password", autocomplete="current-password")
         if st.form_submit_button("Inloggen", type="primary", width="stretch") and wachtwoord:
-            naam = naam.strip().lower().lstrip("@")
-            if gebruiker := opslag.inloggen(naam, wachtwoord):
-                inloggen(naam, wachtwoord, gebruiker)
+            if fout := aanmelden(naam.strip().lower().lstrip("@"), wachtwoord):
+                st.error(fout)
+            elif st.session_state.get("twee_stap_login"):
                 st.rerun()
-            st.error("Gebruikersnaam of wachtwoord klopt niet. Na 10 foute pogingen moet je een kwartier wachten.")
+    st.caption("🔐 Tip: laat Safari je wachtwoord bewaren. Dan log je voortaan in met Face ID.")
+
+
+def code_formulier(naam: str, wachtwoord: str) -> None:
+    """Tweede stap: de code uit de app met verificatiecodes (of een herstelcode)."""
+    st.markdown("**🔐 Tweestapsverificatie**")
+    with st.form("code"):
+        code = st.text_input("Code uit je app", autocomplete="one-time-code", max_chars=12,
+                             placeholder="6 cijfers",
+                             help="Open Wachtwoorden (of je authenticator-app) en typ de code bij Mijn assistent. "
+                                  "Telefoon kwijt? Gebruik een van je herstelcodes.")
+        if st.form_submit_button("Bevestigen", type="primary", width="stretch") and code.strip():
+            if fout := aanmelden(naam, wachtwoord, code.strip()):
+                st.error(fout)
+    if st.button("Terug"):
+        st.session_state.pop("twee_stap_login", None)
+        st.rerun()
 
 
 def account_maken_formulier() -> None:
@@ -150,9 +196,9 @@ def account_maken_formulier() -> None:
             elif fout := opslag.account_maken(naam, weergavenaam.strip(), email.strip(), wachtwoord, akkoord):
                 st.error(fout)
             else:
-                inloggen(naam, wachtwoord, opslag.inloggen(naam, wachtwoord) or {})
                 st.session_state.welkom = True
-                st.rerun()
+                if fout := aanmelden(naam, wachtwoord):
+                    st.error(fout)
     with st.expander("📄 Voorwaarden"):
         st.markdown(teksten.voorwaarden())
     with st.expander("🔒 Privacyverklaring"):
@@ -1557,6 +1603,7 @@ def instellingen_tabblad() -> None:
     st.markdown("**Account**")
     samen_scherm.account_instellingen()
     if st.button("🔒 Uitloggen"):
+        opslag.uitloggen()
         st.session_state.clear()
         st.rerun()
 
@@ -1881,6 +1928,10 @@ def main() -> None:
         return
     terug_van_stripe()
     nu_open = st.navigation(paginas(), position="top")
+    if mislukt := st.session_state.pop("mislukt_melding", 0):
+        st.warning(f"Sinds je vorige keer is {mislukt} keer geprobeerd in te loggen met een fout wachtwoord of code. "
+                   "Was jij dat niet? Kies een nieuw wachtwoord en zet tweestapsverificatie aan bij "
+                   "⚙️ Instellingen › Account › 🔐 Beveiliging.", icon="⚠️")
     if st.session_state.pop("welkom", False):
         st.success(f"Welkom, {samen_scherm.ik().get('weergavenaam') or ''}! Je agenda, taken, Samen en de marktplaats "
                    "werken meteen. Wil je ook met de assistent praten? Zet dan je eigen Anthropic-sleutel bij "

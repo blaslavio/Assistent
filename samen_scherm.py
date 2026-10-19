@@ -1,7 +1,9 @@
 """Schermen voor samen: delen, projecten, de marktplaats, je account en beheer."""
 
+import base64
 import time
 from datetime import date, datetime, timedelta
+from urllib.parse import quote
 
 import streamlit as st
 
@@ -587,12 +589,15 @@ def account_instellingen() -> None:
                         # De eigenaar mag met een lege naam blijven inloggen; wie met zijn mailadres inlogde ook.
                         if st.session_state.get("naam") and "@" not in st.session_state.naam:
                             st.session_state.naam = nieuwe_naam or st.session_state.naam
-                        if nieuw:
+                        if nieuw and not opslag.is_sessie(st.session_state.wachtwoord):
                             st.session_state.wachtwoord = nieuw
                         opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.wachtwoord)
                         st.session_state.ik = opslag.inloggen(st.session_state.get("naam", ""),
                                                               st.session_state.wachtwoord)
                         st.success("Opgeslagen.")
+    if samen.beschikbaar():
+        with st.expander("🔐 Beveiliging"):
+            beveiliging()
     with st.expander("📄 Voorwaarden en privacy"):
         st.markdown(teksten.voorwaarden())
         st.divider()
@@ -613,6 +618,117 @@ def account_instellingen() -> None:
                 st.error("Dat lukte niet. Probeer het opnieuw.")
     if gebruiker.get("beheerder") and samen.beschikbaar():
         beheer()
+
+
+def _qr(tekst: str) -> bytes:
+    import io
+
+    import qrcode
+
+    uit = io.BytesIO()
+    qrcode.make(tekst, box_size=6, border=2).save(uit)
+    return uit.getvalue()
+
+
+def beveiliging() -> None:
+    """Tweestapsverificatie, Face ID via Safari, apparaten en recente inlogs."""
+    if not opslag.is_sessie(st.session_state.get("wachtwoord", "")):
+        st.info("Log één keer uit en weer in om de nieuwe beveiliging te gebruiken.")
+        return
+    if herstelcodes_tonen():
+        return
+    b = opslag.beveiliging()
+    st.markdown("**Tweestapsverificatie** " + ("✅ staat aan" if b["twee_stap"] else "· staat uit"))
+    if not b["twee_stap"]:
+        twee_stap_aanzetten()
+    else:
+        st.caption(f"Bij inloggen vraagt de app je wachtwoord én een code uit je app. "
+                   f"Je hebt nog {b['herstelcodes_over']} herstelcodes voor als je telefoon kwijt is.")
+        with st.popover("Uitzetten"):
+            with st.form("twee_stap_uit", border=False):
+                ww = st.text_input("Je wachtwoord", type="password", autocomplete="current-password")
+                code = st.text_input("Code uit je app of een herstelcode", autocomplete="one-time-code")
+                if st.form_submit_button("Tweestapsverificatie uitzetten"):
+                    if fout := opslag.twee_stap_uitzetten(ww, code.strip()).get("fout"):
+                        st.error(fout)
+                    else:
+                        st.rerun()
+
+    st.markdown("**Inloggen met Face ID**")
+    st.caption("Laat Safari je wachtwoord bewaren in Wachtwoorden (iCloud-sleutelhanger) als het daarom vraagt. "
+               "Daarna tik je bij inloggen op je wachtwoord en bevestig je met Face ID. Zet je de code ook in "
+               "Wachtwoorden, dan vult je iPhone of iPad die ook in.")
+
+    st.markdown("**Ingelogd op**")
+    for sessie in b["sessies"]:
+        laatst = datetime.fromisoformat(sessie["laatst"]).astimezone().strftime("%d-%m %H:%M")
+        st.markdown(f"{'📍 ' if sessie['deze'] else ''}{sessie['apparaat'] or 'onbekend'} · laatst {laatst}"
+                    + (" · :green[dit apparaat]" if sessie["deze"] else ""))
+    if len(b["sessies"]) > 1 and st.button("Op alle andere apparaten uitloggen"):
+        opslag.overal_uitloggen()
+        st.toast("Andere apparaten zijn uitgelogd.", icon="🔐")
+        st.rerun()
+    if b["inlogs"]:
+        with st.expander("Recente inlogpogingen"):
+            for i in b["inlogs"]:
+                tijd = datetime.fromisoformat(i["tijd"]).astimezone().strftime("%d-%m %H:%M")
+                reden = {"wachtwoord": "fout wachtwoord", "code": "foute code"}.get(i["reden"], "")
+                st.markdown(f"{'✅' if i['gelukt'] else '❌'} {tijd} · {i['apparaat'] or 'onbekend'}"
+                            + (f" · :red[{reden}]" if reden else ""))
+            st.caption("Zie je iets wat jij niet was? Kies een nieuw wachtwoord bij 🙂 Mijn account; andere "
+                       "apparaten worden dan uitgelogd.")
+
+
+def herstelcodes_tonen() -> bool:
+    """Eenmalig, direct na het aanzetten."""
+    if codes := st.session_state.get("herstelcodes"):
+        st.success("Tweestapsverificatie staat aan.")
+        st.markdown("**Bewaar deze herstelcodes** (bijvoorbeeld in Notities of op papier). Elke code werkt één keer, "
+                    "voor als je telefoon kwijt is. Je ziet ze maar één keer.")
+        st.code("\n".join(codes), language=None)
+        st.download_button("Herstelcodes downloaden", "\n".join(codes), file_name="herstelcodes-assistent.txt")
+        if st.button("Ik heb ze bewaard", type="primary"):
+            st.session_state.pop("herstelcodes")
+            st.rerun()
+        return True
+    return False
+
+
+def twee_stap_aanzetten() -> None:
+    st.caption("Extra slot op je account: naast je wachtwoord is een code van 6 cijfers nodig, die elke 30 seconden "
+               "verandert. Zelfs met je wachtwoord komt een hacker er dan niet in.")
+    geheim = st.session_state.get("totp_geheim")
+    if not geheim:
+        if st.button("🔐 Tweestapsverificatie aanzetten", type="primary"):
+            antwoord = opslag.twee_stap_starten()
+            if fout := antwoord.get("fout"):
+                st.error(fout)
+            else:
+                st.session_state.totp_geheim = antwoord["geheim"]
+                st.rerun()
+        return
+    sleutel = base64.b32encode(bytes.fromhex(geheim)).decode().rstrip("=")
+    account = ik().get("naam") or ik().get("email") or "eigenaar"
+    uri = f"otpauth://totp/Mijn%20assistent:{quote(account)}?secret={sleutel}&issuer=Mijn%20assistent"
+    st.markdown("**1.** Voeg de code toe aan je app voor verificatiecodes:")
+    st.link_button("📲 Toevoegen aan Wachtwoorden (op deze iPhone of iPad)", uri, width="stretch")
+    st.caption("Of scan de QR-code met een ander apparaat, bijvoorbeeld met de camera of Google Authenticator:")
+    st.image(_qr(uri), width=180)
+    st.caption(f"Of typ de sleutel over: `{' '.join(sleutel[i:i + 4] for i in range(0, len(sleutel), 4))}`")
+    with st.form("twee_stap_bevestigen", border=False):
+        code = st.text_input("**2.** Typ de code van 6 cijfers die je app nu laat zien", autocomplete="one-time-code",
+                             max_chars=7)
+        if st.form_submit_button("Bevestigen en aanzetten", type="primary") and code.strip():
+            antwoord = opslag.twee_stap_bevestigen(code.strip())
+            if fout := antwoord.get("fout"):
+                st.error(fout)
+            else:
+                st.session_state.pop("totp_geheim")
+                st.session_state.herstelcodes = antwoord["herstelcodes"]
+                st.rerun()
+    if st.button("Annuleren"):
+        st.session_state.pop("totp_geheim")
+        st.rerun()
 
 
 def betalen_instellen() -> None:

@@ -88,6 +88,7 @@ offline. Berichten die je naar anderen stuurde, blijven bij de ontvanger zichtba
 aanpassen en laten verwijderen. Vragen of een klacht? Neem contact op via {_contact()}. Je kunt ook een klacht
 indienen bij de Autoriteit Persoonsgegevens.
 
-**Beveiliging.** Gegevens zijn alleen bereikbaar met je naam en wachtwoord. Na 10 foute pogingen wordt inloggen een
-kwartier geblokkeerd.
+**Beveiliging.** Gegevens zijn alleen bereikbaar met je naam en wachtwoord, en als je dat aanzet ook met een code uit
+je app (tweestapsverificatie). Na 10 foute pogingen wordt inloggen een kwartier geblokkeerd. We bewaren wanneer en met
+welk soort apparaat (bijvoorbeeld Safari op iPad) is ingelogd, zodat jij kunt zien of iemand anders het probeerde.
 """

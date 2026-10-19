@@ -138,6 +138,48 @@ def inloggen(naam: str, wachtwoord: str) -> dict | None:
     return None if antwoord.get("geen_toegang") else antwoord["gebruiker"]
 
 
+def aanmelden(naam: str, wachtwoord: str, code: str = "", apparaat: str = "") -> dict:
+    """Inloggen met wachtwoord en eventueel een code. Geeft {"token"}, {"code_nodig"} en/of {"fout"}.
+
+    Het token gebruikt de app daarna in plaats van het wachtwoord.
+    """
+    if not online():
+        return {"token": wachtwoord} if inloggen(naam, wachtwoord) else {"fout": "Wachtwoord klopt niet."}
+    return _rpc("inloggen", p_naam=naam, p_wachtwoord=wachtwoord, p_code=code, p_apparaat=apparaat)
+
+
+def is_sessie(wachtwoord: str) -> bool:
+    return wachtwoord.startswith("sessie.")
+
+
+def uitloggen() -> None:
+    if online() and is_sessie(_wachtwoord.get()):
+        try:
+            _rpc_ik("uitloggen")
+        except Exception:
+            pass
+
+
+def beveiliging() -> dict:
+    return _rpc_ik("beveiliging")
+
+
+def overal_uitloggen() -> None:
+    _rpc_ik("overal_uitloggen")
+
+
+def twee_stap_starten() -> dict:
+    return _rpc_ik("twee_stap_starten")
+
+
+def twee_stap_bevestigen(code: str) -> dict:
+    return _rpc_ik("twee_stap_bevestigen", p_code=code)
+
+
+def twee_stap_uitzetten(wachtwoord: str, code: str) -> dict:
+    return _rpc_ik("twee_stap_uitzetten", p_huidig_wachtwoord=wachtwoord, p_code=code)
+
+
 # --- Account ---------------------------------------------------------------
 
 def account_maken(naam: str, weergavenaam: str, email: str, wachtwoord: str, akkoord: bool) -> str | None:

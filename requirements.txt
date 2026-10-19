@@ -4,3 +4,4 @@ httpx
 pillow
 pypdf
 python-docx
+qrcode
