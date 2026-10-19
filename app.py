@@ -38,12 +38,13 @@ import werk_scherm
 import weer
 import wetenschap
 import inplannen
+import snelinvoer
 import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
 for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -660,6 +661,48 @@ def blok_tekst(blok: dict) -> str:
     return f"{DAGEN[start.weekday()]} {start.day} {MAANDEN[start.month - 1]}, {start:%H:%M}–{einde:%H:%M}"
 
 
+def snel_toevoegen(zin: str) -> dict:
+    """Zet een zin in gewone taal als afspraak of taak weg en onthoudt wat er gebeurde (voor ongedaan maken)."""
+    r = snelinvoer.lees(zin)
+    if r["wat"] == "afspraak":
+        item = opslag.afspraak_toevoegen(r["titel"], r["start"], r["einde"], locatie=r["locatie"], soort=r["soort_agenda"])
+        start, einde = datetime.fromisoformat(r["start"]), datetime.fromisoformat(r["einde"])
+        wanneer = f"{DAGEN[start.weekday()]} {start.day} {MAANDEN[start.month - 1]}, {start:%H:%M}–{einde:%H:%M}"
+        tekst = f"{tijd.SOORTEN.get(r['soort_agenda'], '📅')} In je agenda: **{r['titel']}**, {wanneer}"
+        tekst += f" · 📍 {r['locatie']}" if r["locatie"] else ""
+    else:
+        item = opslag.taak_toevoegen(r["titel"], r["deadline"], r["minuten"])
+        tekst = f"✅ Nieuwe taak: **{r['titel']}**"
+        if r["deadline"]:
+            d = date.fromisoformat(r["deadline"])
+            tekst += f", vóór {DAGEN[d.weekday()]} {d.day} {MAANDEN[d.month - 1]}"
+        tekst += f" · {r['minuten']} min" if r["minuten"] else ""
+    st.session_state.snel_toegevoegd = {"wat": r["wat"], "id": item["id"], "tekst": tekst, "zin": zin}
+    return r
+
+
+def snel_melding() -> None:
+    """Eén keer laten zien wat er snel is toegevoegd, met ongedaan maken."""
+    if not (laatst := st.session_state.pop("snel_toegevoegd", None)):
+        return
+
+    def ongedaan(naar_assistent: bool) -> None:
+        opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
+        (opslag.afspraak_verwijderen if laatst["wat"] == "afspraak" else opslag.taak_verwijderen)(laatst["id"])
+        if naar_assistent:
+            st.session_state.vooraf_vraag = laatst["zin"]
+            st.session_state.ga_naar = "assistent"
+        else:
+            st.toast("Weggehaald.", icon="↩️")
+
+    with st.container(border=True):
+        st.markdown(laatst["tekst"])
+        kol1, kol2 = st.columns(2)
+        kol1.button("↩️ Ongedaan maken", on_click=ongedaan, args=(False,), width="stretch", key="snel_terug")
+        kol2.button(f"💬 Vraag het {mijn_avatar()['naam']}", on_click=ongedaan, args=(True,), width="stretch",
+                    key="snel_vraag", help="Haalt dit weer weg en stelt je zin als vraag aan de assistent.")
+
+
 def taken_inplannen() -> None:
     """Open taken automatisch in vrije tijd zetten: eerst een voorstel, pas na akkoord in de agenda."""
     uren = inplannen.planuren()
@@ -1174,6 +1217,7 @@ def taken_blok() -> None:
             deadline = st.date_input("Deadline (optioneel)", value=None, format="DD-MM-YYYY")
             minuten = st.select_slider("Hoe lang duurt het ongeveer?", options=[15, 30, 45, 60, 90, 120, 180, 240],
                                        value=30, format_func=lambda m: f"{m} min" if m < 60 else f"{m / 60:g} uur")
+            st.caption("Sneller: typ onderaan gewoon \"vrijdag belasting, 1 uur\".")
             if st.form_submit_button("Toevoegen", type="primary") and titel.strip():
                 opslag.taak_toevoegen(titel.strip(), deadline.isoformat() if deadline else None, minuten)
                 st.rerun()
@@ -2275,14 +2319,19 @@ def main() -> None:
                    "werken meteen. Wil je ook met de assistent praten? Zet dan je eigen Anthropic-sleutel bij "
                    "⚙️ Instellingen › Koppelingen.")
 
-    # Een vraag uit het invoerveld onderaan gaat altijd naar het gesprek met de assistent.
-    if vraag := st.chat_input(f"Vraag {mijn_avatar()['naam']}..."):
-        st.session_state.vooraf_vraag = vraag
-        st.session_state.ga_naar = "assistent"
+    # Het invoerveld onderaan: "morgen 9u tandarts" komt meteen in de agenda (ook zonder Claude),
+    # al het andere gaat naar het gesprek met de assistent.
+    if vraag := st.chat_input(f"Vraag {mijn_avatar()['naam']} of typ \"morgen 9u tandarts\"..."):
+        if snelinvoer.lijkt_invoer(vraag):
+            snel_toevoegen(vraag)
+        else:
+            st.session_state.vooraf_vraag = vraag
+            st.session_state.ga_naar = "assistent"
     doel = st.session_state.pop("ga_naar", None)
     if doel in PAGINA and nu_open.url_path != doel:
         st.switch_page(PAGINA[doel])
 
+    snel_melding()
     if melding := st.session_state.pop("bezoek_melding", None):
         (st.success if melding[0] == "ok" else st.error)(melding[1], icon="⭐" if melding[0] == "ok" else None)
     strava_terugkomst()

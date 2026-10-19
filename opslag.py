@@ -263,6 +263,15 @@ def taak_toevoegen(titel: str, deadline: str | None = None, minuten: int | None 
     return taak
 
 
+def taak_verwijderen(taak_id: int) -> bool:
+    with _slot:
+        g = laden()
+        voor = len(g["taken"])
+        g["taken"] = [t for t in g["taken"] if t["id"] != taak_id]
+        opslaan(g)
+        return len(g["taken"]) < voor
+
+
 def taak_afronden(taak_id: int) -> dict | None:
     with _slot:
         g = laden()
