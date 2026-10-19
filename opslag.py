@@ -10,6 +10,7 @@ lokaal te testen.
 """
 
 import contextvars
+import copy
 import hashlib
 import hmac
 import json
@@ -33,6 +34,9 @@ LEEG = {"taken": [], "afspraken": [], "contacten": [], "leerdoelen": [], "sportd
 # Een lege naam is de eigenaar van de app.
 _naam: contextvars.ContextVar[str] = contextvars.ContextVar("naam", default="")
 _wachtwoord: contextvars.ContextVar[str] = contextvars.ContextVar("wachtwoord", default="")
+# De gegevens van deze run, zodat een pagina ze maar één keer uit de database haalt: (account, tijd, gegevens).
+_onthouden: contextvars.ContextVar[tuple | None] = contextvars.ContextVar("onthouden", default=None)
+ONTHOUD_SECONDEN = 20
 
 
 class GeenToegang(Exception):
@@ -40,8 +44,10 @@ class GeenToegang(Exception):
 
 
 def gebruik_account(naam: str, wachtwoord: str) -> None:
+    """Begin van elke run (en elke knop): vanaf hier de gegevens van dit account, vers uit de database."""
     _naam.set(naam)
     _wachtwoord.set(wachtwoord)
+    _onthouden.set(None)
 
 
 def gebruik_wachtwoord(wachtwoord: str) -> None:
@@ -53,10 +59,14 @@ def online() -> bool:
     return os.environ.get("ASSISTENT_LOKAAL") != "1"
 
 
+# Eén verbinding die open blijft: scheelt bij elke databasevraag een nieuwe (trage) beveiligde verbinding.
+_verbinding = httpx.Client(timeout=15)
+
+
 def _rpc(functie: str, **parameters):
     url = os.environ.get("SUPABASE_URL", SUPABASE_URL).rstrip("/")
     sleutel = os.environ.get("SUPABASE_KEY", SUPABASE_PUBLISHABLE_KEY)
-    r = httpx.post(f"{url}/rest/v1/rpc/{functie}", json=parameters, headers={"apikey": sleutel}, timeout=15)
+    r = _verbinding.post(f"{url}/rest/v1/rpc/{functie}", json=parameters, headers={"apikey": sleutel})
     r.raise_for_status()
     return r.json()
 
@@ -91,15 +101,23 @@ def _lokale_hash(wachtwoord: str, zout: str) -> str:
 def laden() -> dict:
     if not online():
         return _lokaal_laden()
-    gegevens = _rpc_ik("mijn_gegevens").get("data") or {}
-    return {**json.loads(json.dumps(LEEG)), **gegevens}
+    account = (_naam.get(), _wachtwoord.get())
+    bewaard = _onthouden.get()
+    if bewaard and bewaard[0] == account and datetime.now().timestamp() - bewaard[1] < ONTHOUD_SECONDEN:
+        return copy.deepcopy(bewaard[2])
+    gegevens = {**json.loads(json.dumps(LEEG)), **(_rpc_ik("mijn_gegevens").get("data") or {})}
+    _onthouden.set((account, datetime.now().timestamp(), gegevens))
+    return copy.deepcopy(gegevens)
 
 
 def opslaan(gegevens: dict) -> None:
     if not online():
         _lokaal_opslaan(gegevens)
     elif not _rpc_ik("mijn_gegevens_bewaren", p_data=gegevens):
+        _onthouden.set(None)
         raise GeenToegang
+    else:
+        _onthouden.set(((_naam.get(), _wachtwoord.get()), datetime.now().timestamp(), copy.deepcopy(gegevens)))
 
 
 # --- Wachtwoord ------------------------------------------------------------
