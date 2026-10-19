@@ -232,14 +232,15 @@ def project_kaart(project: dict) -> None:
 
 def marktplaats_tabblad() -> None:
     """Onze eigen marktplaats, met verwijzingen naar andere marktplaatsen."""
-    keuzes = ["🔎 Zoeken", "➕ Aanbieden", "📅 Boekingen", "💬 Berichten"]
-    keuze = st.segmented_control("Marktplaats", keuzes, default=keuzes[0], key="markt_deel",
-                                 label_visibility="collapsed") or keuzes[0]
-    {"🔎 Zoeken": zoeken, "➕ Aanbieden": aanbieden, "📅 Boekingen": boekingen, "💬 Berichten": berichten}[keuze]()
+    keuzes = ["🔎 Zoeken", "➕ Aanbieden", "🧾 Bestellingen", "📅 Boekingen", "💬 Berichten"]
+    if st.session_state.get("markt_deel") not in keuzes:
+        st.session_state.markt_deel = keuzes[0]
+    keuze = st.segmented_control("Marktplaats", keuzes, key="markt_deel", label_visibility="collapsed") or keuzes[0]
+    {"🔎 Zoeken": zoeken, "➕ Aanbieden": aanbieden, "🧾 Bestellingen": bestellingen, "📅 Boekingen": boekingen,
+     "💬 Berichten": berichten}[keuze]()
     with st.expander("🛡️ Veilig kopen, verkopen en boeken"):
         st.markdown(samen.VEILIG)
-        st.caption("De app regelt geen betalingen en is geen partij bij de koop of boeking. Zie de voorwaarden bij "
-                   "Instellingen › Account.")
+        st.caption("De koop of boeking sluit je met de ander af. Zie de voorwaarden bij Instellingen › Account.")
 
 
 def zoeken() -> None:
@@ -266,7 +267,10 @@ def zoeken() -> None:
 def aanbod_kaart(aanbod: dict) -> None:
     with st.container(border=True):
         st.markdown(f"**{aanbod['titel']}**  \n{samen.SOORTEN_AANBOD[aanbod['soort']]} · **{samen.prijs_tekst(aanbod)}**"
-                    + (f" · 📍 {aanbod['plaats']}" if aanbod["plaats"] else "") + f" · {aanbod['aanbieder']}")
+                    + (f" · 📍 {aanbod['plaats']}" if aanbod["plaats"] else ""))
+        st.caption(f"{aanbod['aanbieder']} · {samen.vertrouwen_tekst(aanbod.get('vertrouwen'))}  \n"
+                   + " · ".join(samen.BETAALWIJZEN[b] for b in aanbod.get("betaalwijzen", []))
+                   + "  \n" + " · ".join(samen.LEVERING[l] for l in aanbod.get("levering", [])))
         if aanbod["omschrijving"]:
             st.caption(aanbod["omschrijving"][:400] + ("..." if len(aanbod["omschrijving"]) > 400 else ""))
         if aanbod["contact"]:
@@ -274,22 +278,40 @@ def aanbod_kaart(aanbod: dict) -> None:
         if aanbod["van_mij"]:
             st.caption("Dit is jouw aanbod.")
             return
-        kolommen = st.columns(3)
+        kolommen = st.columns(2)
+        with kolommen[0].popover("🛒 Kopen" if aanbod["soort"] == "product" else "🛒 Bestellen", width="stretch"):
+            bestel_formulier(aanbod)
         if aanbod["soort"] in ("training", "les", "dienst") and aanbod["vrije_tijden"]:
-            with kolommen[0].popover(f"📅 Boeken ({aanbod['vrije_tijden']})", width="stretch"):
+            with kolommen[1].popover(f"📅 Tijd kiezen ({aanbod['vrije_tijden']})", width="stretch"):
                 tijden_boeken(aanbod)
-        with kolommen[1].popover("💬 Bericht", width="stretch"):
+        kolommen = st.columns(2)
+        with kolommen[0].popover("💬 Bericht", width="stretch"):
             with st.form(f"vraag_{aanbod['id']}", clear_on_submit=True, border=False):
                 tekst = st.text_area("Je bericht", placeholder="Is dit nog beschikbaar?", height=80)
                 if st.form_submit_button("Versturen", type="primary") and tekst.strip():
                     if _fout(samen.bericht_sturen, aanbod["id"], tekst.strip()) is not None:
                         st.success("Verstuurd. Het antwoord zie je bij 💬 Berichten.")
-        with kolommen[2].popover("🚩 Melden", width="stretch"):
+        with kolommen[1].popover("🚩 Melden", width="stretch"):
             with st.form(f"meld_{aanbod['id']}", clear_on_submit=True, border=False):
                 reden = st.text_area("Wat klopt er niet?", height=80)
                 if st.form_submit_button("Melden") and reden.strip():
                     samen.melden(aanbod["id"], reden.strip())
                     st.success("Bedankt, de beheerder kijkt ernaar.")
+
+
+def bestel_formulier(aanbod: dict) -> None:
+    wijzen = aanbod.get("betaalwijzen") or ["tikkie"]
+    with st.form(f"bestel_{aanbod['id']}", border=False):
+        betaal = st.radio("Hoe wil je betalen?", wijzen, format_func=samen.BETAALWIJZEN.get)
+        levering = st.radio("Hoe krijg je het?", aanbod.get("levering") or ["ophalen"], format_func=samen.LEVERING.get)
+        bericht = st.text_input("Bericht aan de verkoper (optioneel)", placeholder="Bijv. wanneer kan ik het ophalen?")
+        if "app" in wijzen:
+            st.caption(f"💳 Via de app: {samen.prijs_tekst(aanbod)} plus kopersbescherming. Je geld gaat pas naar de "
+                       "verkoper als jij bevestigt dat alles goed is ontvangen.")
+        if st.form_submit_button("Bestelling versturen", type="primary"):
+            if _fout(samen.bestellen, aanbod["id"], betaal, levering, bericht.strip()) is not None:
+                _vergeet_nieuw()
+                st.success("Verstuurd. De verkoper moet je bestelling eerst accepteren; je ziet het bij 🧾 Bestellingen.")
 
 
 def tijden_boeken(aanbod: dict) -> None:
@@ -306,7 +328,32 @@ def tijden_boeken(aanbod: dict) -> None:
                            f"Betalen regel je met {boeking['aanbieder']}.")
 
 
+def verkoper_aanmelden(status: dict) -> None:
+    """Aanmelden bij Stripe om betalingen via de app te ontvangen."""
+    if not status.get("aan") or status.get("ik_kan_ontvangen"):
+        return
+    with st.container(border=True):
+        st.markdown("**💳 Betalingen via de app ontvangen**")
+        st.caption("Meld je eenmalig aan bij Stripe, onze betaaldienst. Stripe controleert je identiteit en vraagt je "
+                   "rekeningnummer. Daarna krijg je ✅ geverifieerd bij je aanbod, en kopers betalen veilig via de app.")
+        kol1, kol2 = st.columns(2)
+        if kol1.button("Aanmelden bij Stripe" if not status.get("ik_ben_aangemeld") else "Aanmelding afmaken",
+                       type="primary", width="stretch"):
+            if url := _fout(samen.verkoper_aanmelden):
+                st.session_state.stripe_link = url
+        if status.get("ik_ben_aangemeld") and kol2.button("Ik ben klaar, controleer", width="stretch"):
+            if _fout(samen.verkoper_status):
+                st.rerun()
+            else:
+                st.info("Stripe is nog bezig met controleren, of er ontbreekt nog iets. Maak de aanmelding af.")
+        if url := st.session_state.get("stripe_link"):
+            st.link_button("➡️ Ga naar Stripe", url, width="stretch")
+
+
 def aanbieden() -> None:
+    status = _fout(samen.betalen_status) or {}
+    verkoper_aanmelden(status)
+    wijzen = [w for w in samen.BETAALWIJZEN if w != "app" or status.get("ik_kan_ontvangen")]
     with st.expander("➕ Iets nieuws aanbieden", expanded=not st.session_state.get("markt_heeft_aanbod")):
         with st.form("aanbod_nieuw", clear_on_submit=True, border=False):
             soort = st.pills("Wat bied je aan?", list(samen.SOORTEN_AANBOD), default="product",
@@ -321,13 +368,18 @@ def aanbieden() -> None:
             plaats = st.text_input("Plaats", placeholder="Bijv. Rotterdam, of Online")
             contact = st.text_input("Contact (optioneel, iedereen ziet dit)",
                                     placeholder="Laat leeg om alleen via berichten in de app contact te hebben")
+            betaal = st.pills("Hoe kan de koper betalen?", wijzen, selection_mode="multi",
+                              default=["app"] if "app" in wijzen else ["tikkie", "contant"],
+                              format_func=samen.BETAALWIJZEN.get)
+            levering = st.pills("Hoe komt het bij de koper?", list(samen.LEVERING), selection_mode="multi",
+                                default=["ophalen"], format_func=samen.LEVERING.get)
             if soort in ("training", "les"):
                 st.caption("Na het plaatsen zet je hieronder bij Mijn aanbod de tijden waarop mensen kunnen boeken.")
             if st.form_submit_button("Plaatsen", type="primary"):
                 if not titel.strip():
                     st.error("Vul een titel in.")
                 elif _fout(samen.aanbod_plaatsen, soort, titel.strip(), omschrijving.strip(), prijs, per, plaats.strip(),
-                           contact.strip()) is not None:
+                           contact.strip(), betaal, levering) is not None:
                     st.toast("Je aanbod staat online.", icon="🏪")
                     st.rerun()
     mijn = samen.mijn_aanbod()
@@ -377,6 +429,78 @@ def tijden_beheren(aanbod: dict) -> None:
                     st.rerun()
 
 
+def bestellingen() -> None:
+    lijst = samen.mijn_bestellingen()
+    if not lijst:
+        st.caption("Nog geen bestellingen. Bij 🔎 Zoeken tik je op 🛒 Kopen of 🛒 Bestellen.")
+        return
+    for b in lijst:
+        bestelling_kaart(b)
+
+
+def bestelling_kaart(b: dict) -> None:
+    koper = b["rol"] == "koper"
+    app = b["betaalwijze"] == "app"
+    with st.container(border=True):
+        bedrag = samen.euro(b["bedrag"]) + (f" + {samen.euro(b['kosten'])} kopersbescherming" if app and koper else "")
+        st.markdown(f"**{b['titel']}** · {bedrag}  \n{samen.STATUS[b['status']]} · "
+                    f"{'van' if koper else 'voor'} **{b['ander']}** · {samen.BETAALWIJZEN[b['betaalwijze']]} · "
+                    f"{samen.LEVERING[b['levering']]}")
+        if v := samen.vertrouwen_tekst(b.get("vertrouwen_ander")):
+            st.caption(v)
+        if app and b["status"] in ("betaald", "geleverd"):
+            st.caption("🛡️ Het geld staat veilig bij Stripe en gaat naar de verkoper zodra de koper bevestigt dat alles "
+                       "goed is ontvangen.")
+        knoppen = []
+        if koper:
+            if b["status"] == "geaccepteerd" and app:
+                knoppen.append(("💳 Betalen", "betalen"))
+            if b["status"] in ("aangevraagd", "geaccepteerd"):
+                knoppen.append(("Annuleren", "annuleren"))
+            if b["status"] in ("betaald", "geleverd"):
+                knoppen.append(("✅ Alles goed ontvangen", "ontvangen"))
+        else:
+            if b["status"] == "aangevraagd":
+                knoppen += [("👍 Accepteren", "accepteren"), ("Weigeren", "weigeren")]
+            if b["status"] == "geaccepteerd" and not app:
+                knoppen.append(("💶 Betaling ontvangen", "betaling_ontvangen"))
+            if b["status"] == "geaccepteerd" and app:
+                st.caption("Wacht op de betaling van de koper via de app.")
+            if b["status"] == "betaald" or (b["status"] == "geaccepteerd" and b["betaalwijze"] == "contant"):
+                knoppen.append(("📦 Verzonden of overhandigd", "geleverd"))
+        kolommen = st.columns(max(len(knoppen), 1))
+        for kolom, (label, actie) in zip(kolommen, knoppen):
+            if kolom.button(label, key=f"best_{actie}_{b['id']}", width="stretch",
+                            type="primary" if actie in ("betalen", "accepteren", "ontvangen") else "secondary"):
+                if actie == "betalen":
+                    if url := _fout(samen.afrekenen, b["id"]):
+                        st.session_state[f"betaallink_{b['id']}"] = url
+                elif actie == "ontvangen":
+                    if _fout(samen.ontvangen_bevestigen, b) is not None:
+                        _vergeet_nieuw()
+                        st.rerun()
+                elif _fout(samen.bestelling_stap, b["id"], actie) is not None:
+                    _vergeet_nieuw()
+                    st.rerun()
+        if url := st.session_state.get(f"betaallink_{b['id']}"):
+            st.link_button("➡️ Naar de betaalpagina (iDEAL, Apple Pay, kaart)", url, type="primary", width="stretch")
+        if koper and b["status"] in ("betaald", "geleverd"):
+            with st.popover("⚠️ Probleem melden"):
+                with st.form(f"probleem_{b['id']}", border=False):
+                    reden = st.text_area("Wat is er mis?", placeholder="Bijv. niet ontvangen, kapot, niet zoals beschreven")
+                    if st.form_submit_button("Melden") and reden.strip():
+                        if _fout(samen.bestelling_stap, b["id"], "probleem", reden.strip()) is not None:
+                            st.success("Gemeld. Het geld blijft vastgehouden tot de beheerder heeft besloten.")
+        if b["status"] == "afgerond" and not b["beoordeeld"]:
+            with st.popover("⭐ Beoordelen"):
+                with st.form(f"beoordeel_{b['id']}", border=False):
+                    sterren = st.feedback("stars")
+                    tekst = st.text_input("Korte toelichting (optioneel)")
+                    if st.form_submit_button("Opslaan") and sterren is not None:
+                        if _fout(samen.beoordelen, b["id"], sterren + 1, tekst.strip()) is not None:
+                            st.rerun()
+
+
 def boekingen() -> None:
     lijst = samen.mijn_boekingen()
     if not lijst:
@@ -413,6 +537,9 @@ def berichten() -> None:
         with st.chat_message("user" if b["van_mij"] else "assistant", avatar="🙂" if b["van_mij"] else "👤"):
             st.markdown(b["tekst"])
             st.caption(datetime.fromisoformat(b["aangemaakt"]).astimezone().strftime("%d-%m %H:%M"))
+            if not b["van_mij"] and samen.VERDACHT.search(b["tekst"]):
+                st.warning("Let op: betaal nooit via een link, rekeningnummer of telefoonnummer uit een bericht. "
+                           "Betaal via de app, dan ben je beschermd.", icon="⚠️")
     if gesprek["ongelezen"]:
         samen.gelezen(gesprek["aanbod_id"], gesprek["ander_id"])
         _vergeet_nieuw()
@@ -429,6 +556,8 @@ def berichten() -> None:
 def account_instellingen() -> None:
     """Profiel, voorwaarden, gegevens downloaden en account verwijderen."""
     gebruiker = ik()
+    if samen.beschikbaar() and not gebruiker.get("email"):
+        st.warning("Vul je mailadres in bij 🙂 Mijn account. Zonder mailadres kun je niet kopen of verkopen.")
     with st.expander("🙂 Mijn account" + (f" (@{gebruiker['naam']})" if gebruiker.get("naam") else "")):
         if not samen.beschikbaar():
             st.caption("Accounts werken alleen in de online versie.")
@@ -436,15 +565,19 @@ def account_instellingen() -> None:
             with st.form("profiel", border=False):
                 naam = st.text_input("Gebruikersnaam", value=gebruiker.get("naam") or "")
                 weergave = st.text_input("Naam die anderen zien", value=gebruiker.get("weergavenaam") or "")
+                email = st.text_input("Mailadres (anderen zien dit niet)", value=gebruiker.get("email") or "",
+                                      autocomplete="email")
                 nieuw = st.text_input("Nieuw wachtwoord (leeg laten = niet wijzigen)", type="password",
                                       autocomplete="new-password")
                 if st.form_submit_button("Opslaan"):
                     nieuwe_naam = naam.strip().lower().lstrip("@")
-                    if fout := opslag.profiel_bijwerken(nieuwe_naam or None, weergave.strip(), nieuw or None):
+                    if email.strip().lower() != (gebruiker.get("email") or "") and (fout := opslag.email_instellen(email)):
+                        st.error(fout)
+                    elif fout := opslag.profiel_bijwerken(nieuwe_naam or None, weergave.strip(), nieuw or None):
                         st.error(fout)
                     else:
-                        # De eigenaar mag met een lege naam blijven inloggen.
-                        if st.session_state.get("naam"):
+                        # De eigenaar mag met een lege naam blijven inloggen; wie met zijn mailadres inlogde ook.
+                        if st.session_state.get("naam") and "@" not in st.session_state.naam:
                             st.session_state.naam = nieuwe_naam or st.session_state.naam
                         if nieuw:
                             st.session_state.wachtwoord = nieuw
@@ -474,10 +607,52 @@ def account_instellingen() -> None:
         beheer()
 
 
+def betalen_instellen() -> None:
+    """Stripe koppelen: alleen de eigenaar. De sleutels gaan naar de database, nooit in de code."""
+    status = samen.betalen_status()
+    with st.expander("💳 Betalen via de app (Stripe)" + (" ✅" if status.get("aan") else " (nog instellen)")):
+        if status.get("aan"):
+            st.caption(("🧪 Testmodus: er wordt nog niet echt betaald. " if status.get("testmodus") else "")
+                       + f"Kopersbescherming: {samen.euro(status['kosten_vast'])} + {status['kosten_procent']:g}% "
+                       "per bestelling, betaald door de koper.")
+        else:
+            st.caption("Volg de stappen die Claude je gaf. Plak hieronder de geheime sleutel en het webhookgeheim uit "
+                       "Stripe. Ze worden veilig in de database bewaard.")
+        with st.form("stripe", border=False):
+            sleutel = st.text_input("Geheime sleutel (sk_...)", type="password",
+                                    placeholder="ingesteld" if status.get("sleutel_ingesteld") else "")
+            webhook = st.text_input("Webhookgeheim (whsec_...)", type="password",
+                                    placeholder="ingesteld" if status.get("webhook_ingesteld") else "")
+            adres = st.text_input("Adres van de app", value=status.get("app_adres") or "",
+                                  placeholder="https://....streamlit.app")
+            if st.form_submit_button("Opslaan"):
+                if _fout(samen.platform_instellen, "".join(sleutel.split()), "".join(webhook.split()),
+                         adres.strip()) is not None:
+                    st.success("Opgeslagen.")
+
+
+def geschillen_afhandelen() -> None:
+    for g in samen.geschillen():
+        with st.container(border=True):
+            st.markdown(f"⚠️ **{g['titel']}** · {samen.euro(g['bedrag'])} · {samen.BETAALWIJZEN[g['betaalwijze']]}  \n"
+                        f"Koper {g['koper']}, verkoper {g['verkoper']}: {g['reden']}")
+            for m in (g.get("berichten") or [])[-6:]:
+                st.caption(f"{m['van']}: {m['tekst']}")
+            kol1, kol2 = st.columns(2)
+            if kol1.button("↩️ Geld terug naar koper", key=f"gk_{g['id']}", width="stretch"):
+                if _fout(samen.geschil_besluiten, g, "koper") is not None:
+                    st.rerun()
+            if kol2.button("✅ Uitbetalen aan verkoper", key=f"gv_{g['id']}", width="stretch"):
+                if _fout(samen.geschil_besluiten, g, "verkoper") is not None:
+                    st.rerun()
+
+
 def beheer() -> None:
+    betalen_instellen()
     gegevens = samen.beheer()
     meldingen = gegevens.get("meldingen", [])
     with st.expander(f"🛡️ Beheer ({len(meldingen)} meldingen)" if meldingen else "🛡️ Beheer"):
+        geschillen_afhandelen()
         st.caption(f"{gegevens.get('gebruikers', 0)} gebruikers · {gegevens.get('aanbod', 0)} keer aanbod online")
         if not meldingen:
             st.caption("Geen open meldingen.")

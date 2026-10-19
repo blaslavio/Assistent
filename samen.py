@@ -4,14 +4,24 @@ Alles loopt via databasefuncties die naam en wachtwoord controleren. Er gaat
 nooit geld via de app: kopers en verkopers regelen de betaling zelf.
 """
 
+import os
+import re
 from datetime import datetime
 from urllib.parse import quote_plus
+
+import httpx
 
 import opslag
 
 SOORTEN_DELEN = {"afspraak": "📅 Afspraak", "taak": "✅ Taak", "boodschappen": "🛒 Boodschappen", "notitie": "📝 Notitie"}
 SOORTEN_ITEM = {"taak": "✅ Taak", "notitie": "📝 Notitie", "afspraak": "📅 Afspraak", "link": "🔗 Link"}
 SOORTEN_AANBOD = {"product": "📦 Product", "dienst": "🛠️ Dienst", "training": "🏋️ Privétraining", "les": "🎓 Les of studie"}
+BETAALWIJZEN = {"app": "💳 Via de app (beschermd)", "tikkie": "📲 Tikkie of betaalverzoek", "overmaken": "🏦 Overmaken",
+                "contant": "💶 Contant bij ophalen"}
+LEVERING = {"ophalen": "🤝 Ophalen", "verzenden": "📦 Verzenden", "op_locatie": "📍 Op locatie", "online": "💻 Online"}
+STATUS = {"aangevraagd": "🕓 Aangevraagd", "geaccepteerd": "👍 Geaccepteerd", "betaald": "💶 Betaald",
+          "geleverd": "📦 Geleverd", "afgerond": "✅ Afgerond", "geannuleerd": "✖️ Geannuleerd",
+          "geschil": "⚠️ Probleem gemeld", "terugbetaald": "↩️ Terugbetaald"}
 
 # Andere marktplaatsen. {q} wordt de zoekterm.
 ANDERE_MARKTPLAATSEN = [
@@ -29,8 +39,15 @@ ANDERE_MARKTPLAATSEN = [
     {"naam": "Superprof", "voor": "Bijles, privélessen en trainers", "thuis": "https://www.superprof.nl/", "zoek": ""},
 ]
 
-VEILIG = ("Betaal en lever het liefst bij ophalen, of via een betaalverzoek als Tikkie nadat je het product hebt gezien. "
-          "Betaal nooit vooruit aan iemand die je niet kent en deel geen inlogcodes. Klopt er iets niet? Gebruik 🚩 Melden.")
+VEILIG = ("Het veiligst is **💳 betalen via de app**: je geld staat bij Stripe en gaat pas naar de verkoper als jij "
+          "bevestigt dat alles goed is ontvangen. Gaat er iets mis, meld dan een probleem; de beheerder beslist. "
+          "Betaal je buiten de app, doe dat dan bij ophalen of nadat je het product hebt gezien. Betaal nooit via een "
+          "link of rekeningnummer dat iemand in een bericht stuurt, en deel nooit inlogcodes. Let op ✅ geverifieerd "
+          "en de sterren. Klopt er iets niet? Gebruik 🚩 Melden.")
+
+# Signalen van oplichting in berichten: links, rekeningnummers, betaalverzoeken, telefoonnummers.
+VERDACHT = re.compile(r"https?://|www\.|\b[A-Z]{2}\d{2}\s?[A-Z]{4}(\s?\d){10}\b|tikkie|betaalverzoek|whatsapp|"
+                      r"(\+31|0031|\b06)[\s-]?\d", re.I)
 
 
 class Fout(Exception):
@@ -150,9 +167,12 @@ def mijn_aanbod() -> list[dict]:
 
 
 def aanbod_plaatsen(soort: str, titel: str, omschrijving: str = "", prijs: float | None = None, prijs_per: str = "",
-                    plaats: str = "", contact: str = "") -> int:
+                    plaats: str = "", contact: str = "", betaalwijzen: list[str] | None = None,
+                    levering: list[str] | None = None) -> int:
     return _ok(opslag._rpc_ik("aanbod_plaatsen", p_soort=soort, p_titel=titel, p_omschrijving=omschrijving,
-                              p_prijs=prijs, p_prijs_per=prijs_per, p_plaats=plaats, p_contact=contact))["id"]
+                              p_prijs=prijs, p_prijs_per=prijs_per, p_plaats=plaats, p_contact=contact,
+                              p_betaalwijzen=betaalwijzen or ["tikkie", "contant"],
+                              p_levering=levering or ["ophalen"]))["id"]
 
 
 def aanbod_actief(aanbod_id: int, actief: bool) -> None:
@@ -220,15 +240,125 @@ def melden(aanbod_id: int, reden: str) -> bool:
     return bool(opslag._rpc_ik("melden", p_aanbod=aanbod_id, p_reden=reden))
 
 
+def euro(bedrag: float | None) -> str:
+    if bedrag is None:
+        return "in overleg"
+    return f"€ {float(bedrag):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def vertrouwen_tekst(v: dict | None) -> str:
+    """Korte regel waaruit blijkt hoe betrouwbaar iemand is."""
+    if not v:
+        return ""
+    delen = []
+    if v.get("geverifieerd"):
+        delen.append("✅ geverifieerd")
+    if v.get("beoordelingen"):
+        delen.append(f"⭐ {str(v['sterren']).replace('.', ',')} ({v['beoordelingen']})")
+    if v.get("verkocht"):
+        delen.append(f"{v['verkocht']} keer verkocht")
+    if v.get("nieuw"):
+        delen.append("🆕 nieuw account")
+    elif v.get("lid_sinds"):
+        delen.append(f"lid sinds {datetime.fromisoformat(v['lid_sinds']):%m-%Y}")
+    return " · ".join(delen)
+
+
+# --- Bestellingen ------------------------------------------------------------------
+
+def bestellen(aanbod_id: int, betaalwijze: str, levering: str, bericht: str = "") -> int:
+    return _ok(opslag._rpc_ik("bestellen", p_aanbod=aanbod_id, p_betaalwijze=betaalwijze, p_levering=levering,
+                              p_bericht=bericht))["id"]
+
+
+def bestelling_stap(bestelling_id: int, actie: str, toelichting: str = "") -> str:
+    """accepteren, weigeren, betaling_ontvangen, geleverd (verkoper); annuleren, ontvangen, probleem (koper)."""
+    return _ok(opslag._rpc_ik("bestelling_bijwerken", p_id=bestelling_id, p_actie=actie,
+                              p_toelichting=toelichting))["status"]
+
+
+def mijn_bestellingen() -> list[dict]:
+    return opslag._rpc_ik("mijn_bestellingen")["bestellingen"]
+
+
+def beoordelen(bestelling_id: int, sterren: int, tekst: str = "") -> None:
+    _ok(opslag._rpc_ik("beoordelen", p_bestelling=bestelling_id, p_sterren=sterren, p_tekst=tekst))
+
+
+# --- Betalen via de app (Stripe) --------------------------------------------------------
+
+def betalen_status() -> dict:
+    return opslag._rpc_ik("betalen_status")
+
+
+def _stripe(actie: str, **velden) -> dict:
+    """Roept de betaalfunctie aan (Supabase Edge Function), die met Stripe praat."""
+    url = os.environ.get("SUPABASE_URL", opslag.SUPABASE_URL).rstrip("/")
+    sleutel = os.environ.get("SUPABASE_KEY", opslag.SUPABASE_PUBLISHABLE_KEY)
+    r = httpx.post(f"{url}/functions/v1/betalen", headers={"apikey": sleutel}, timeout=30,
+                   json={"actie": actie, "naam": opslag._naam.get(), "wachtwoord": opslag._wachtwoord.get(), **velden})
+    try:
+        antwoord = r.json()
+    except ValueError:
+        raise Fout("De betaaldienst is even niet bereikbaar. Probeer het later opnieuw.")
+    return _ok(antwoord)
+
+
+def verkoper_aanmelden() -> str:
+    """Link naar Stripe om je als verkoper aan te melden (identiteit en rekeningnummer)."""
+    return _stripe("verkoper_aanmelden")["url"]
+
+
+def verkoper_status() -> bool:
+    return _stripe("verkoper_status")["klaar"]
+
+
+def afrekenen(bestelling_id: int) -> str:
+    """Link naar de betaalpagina van Stripe (iDEAL, Apple Pay, kaart)."""
+    return _stripe("afrekenen", bestelling=bestelling_id)["url"]
+
+
+def ontvangen_bevestigen(bestelling: dict) -> None:
+    """Koper bevestigt dat alles goed is ontvangen. Bij betalen via de app gaat het geld dan naar de verkoper."""
+    if bestelling["betaalwijze"] == "app":
+        _stripe("ontvangen", bestelling=bestelling["id"])
+    else:
+        bestelling_stap(bestelling["id"], "ontvangen")
+
+
+def platform_instellen(stripe_sleutel: str = "", webhook_geheim: str = "", app_adres: str = "") -> None:
+    _ok(opslag._rpc_ik("platform_instellen", p_stripe_sleutel=stripe_sleutel, p_webhook_geheim=webhook_geheim,
+                       p_app_adres=app_adres))
+
+
 def nieuw() -> dict:
-    """Hoeveel er nieuw is: gedeelde dingen en ongelezen berichten."""
-    return {"gedeeld": len(gedeeld_met_mij()), "berichten": sum(not b["gelezen"] for b in berichten())}
+    """Hoeveel er nieuw is: gedeelde dingen, ongelezen berichten en bestellingen die op jou wachten."""
+    wacht = 0
+    for b in mijn_bestellingen():
+        if b["rol"] == "verkoper":
+            wacht += b["status"] == "aangevraagd" or (b["status"] == "betaald")
+        else:
+            wacht += (b["status"] == "geaccepteerd" and b["betaalwijze"] == "app") or b["status"] == "geleverd"
+    return {"gedeeld": len(gedeeld_met_mij()), "berichten": sum(not b["gelezen"] for b in berichten()),
+            "bestellingen": wacht}
 
 
 # --- Beheer (alleen de eigenaar) ---------------------------------------------------
 
 def beheer() -> dict:
     return opslag._rpc_ik("beheer_meldingen")
+
+
+def geschillen() -> list[dict]:
+    return opslag._rpc_ik("beheer_geschillen")["geschillen"]
+
+
+def geschil_besluiten(geschil: dict, uitkomst: str) -> None:
+    """uitkomst: koper (geld terug) of verkoper (uitbetalen)."""
+    if geschil["betaalwijze"] == "app":
+        _stripe("geschil_besluiten", bestelling=geschil["id"], uitkomst=uitkomst)
+    else:
+        opslag._rpc_ik("beheer_geschil_afhandelen", p_id=geschil["id"], p_uitkomst=uitkomst)
 
 
 def melding_afhandelen(melding_id: int, aanbod_blokkeren: bool = False, aanbieder_blokkeren: bool = False) -> bool:

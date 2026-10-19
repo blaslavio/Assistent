@@ -11,10 +11,10 @@ Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je 
   - 🛒 Boodschappen: lijst en de goedkoopste supermarkt in de buurt.
   - 📚 Leren: leerdoelen, overhoren, en hulp bij scripties en verslagen met echte wetenschappelijke bronnen.
   - 🤝 Samen: afspraken, taken, je boodschappenlijst en notities delen met andere gebruikers, en samen aan projecten werken.
-  - 🏪 Marktplaats: producten, diensten, privétrainingen en lessen aanbieden en vinden, tijden boeken, berichten sturen en melden; met links naar andere marktplaatsen. Betalen gaat buiten de app.
+  - 🏪 Marktplaats: producten, diensten, privétrainingen en lessen aanbieden en vinden, bestellen, tijden boeken, berichten sturen, beoordelen en melden; met links naar andere marktplaatsen. Betalen kan via de app (Stripe, met kopersbescherming: het geld gaat pas naar de verkoper als de koper bevestigt dat alles goed is ontvangen) of buiten de app (Tikkie, overmaken, contant).
 - ⚙️ **Instellingen**: hoe de assistent praat, stem, wat hij over je weet, thuisadres, voorpagina en onderdelen, contacten, koppelingen (mail, Strava, Ticketmaster, Anthropic), je account (profiel, voorwaarden en privacy, gegevens downloaden, account verwijderen), beheer van meldingen (alleen de eigenaar) en uitloggen.
 
-Iedereen kan een gratis account maken met een gebruikersnaam en wachtwoord. Wie met de assistent wil praten, zet zijn eigen Anthropic-sleutel bij Instellingen.
+Iedereen kan een gratis account maken met een gebruikersnaam, mailadres en wachtwoord, en inloggen met naam of mailadres. Wie met de assistent wil praten, zet zijn eigen Anthropic-sleutel bij Instellingen.
 
 Het gesprek met de assistent heeft tegoed bij Anthropic nodig; de rest werkt ook zonder.
 
@@ -52,3 +52,9 @@ Claude heeft de database ingericht. De app gebruikt alleen de openbare (publisha
 - Kosten: Streamlit, Supabase en GitHub zijn gratis. Anthropic rekent per gebruik, meestal enkele centen per gesprek; zoeken op internet kost wat meer.
 - Als de app een tijd niet gebruikt is, "slaapt" hij. Tik dan op de knop om hem te wekken; dat duurt even.
 - Begin bij een nieuw onderwerp liefst een nieuw gesprek (knop onderaan); dat houdt het snel en goedkoop.
+
+## Betalen via de app (Stripe)
+- De betaalfunctie staat in `supabase/functions/betalen` (Supabase Edge Function, zonder JWT-controle; de functie controleert zelf naam en wachtwoord, en de handtekening van Stripe).
+- De eigenaar zet de geheime Stripe-sleutel, het webhookgeheim en het adres van de app bij Instellingen › Account › 💳 Betalen via de app. Ze staan in de database (private.platform), nooit in de code.
+- Webhook in Stripe: `https://lnjsekmlpjyiwdlzcowa.supabase.co/functions/v1/betalen`, gebeurtenissen `checkout.session.completed` en `checkout.session.async_payment_succeeded`.
+- Kopersbescherming: € 0,50 + 3% per bestelling, betaald door de koper (aan te passen in private.platform).

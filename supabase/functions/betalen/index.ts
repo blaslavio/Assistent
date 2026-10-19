@@ -1,0 +1,234 @@
+// Betalen via de app met Stripe Connect.
+//
+// Het geld van de koper komt eerst bij het platform (bij Stripe) en gaat pas naar de verkoper als de koper
+// bevestigt dat alles goed is ontvangen. Bij een geschil beslist de beheerder.
+// De Stripe-sleutels staan in de database (private.platform) of als geheim van deze functie; nooit in de code.
+//
+// Acties (POST, JSON): verkoper_aanmelden, verkoper_status, afrekenen, ontvangen, geschil_besluiten.
+// Stripe stuurt gebeurtenissen (webhook) naar dezelfde URL, met de kop stripe-signature.
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const STRIPE_API = Deno.env.get("STRIPE_API") ?? "https://api.stripe.com";
+
+class Fout extends Error {}
+
+async function rpc(functie: string, parameters: Record<string, unknown> = {}) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${functie}`, {
+    method: "POST",
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify(parameters),
+  });
+  if (!r.ok) throw new Error(`database ${functie}: ${r.status} ${await r.text()}`);
+  return r.json();
+}
+
+let platform: { sleutel: string; webhook_geheim: string; app_adres: string } | null = null;
+
+async function instellingen() {
+  if (!platform) {
+    const p = await rpc("stripe_platform");
+    platform = {
+      sleutel: Deno.env.get("STRIPE_SECRET_KEY") || p.sleutel,
+      webhook_geheim: Deno.env.get("STRIPE_WEBHOOK_SECRET") || p.webhook_geheim,
+      app_adres: (p.app_adres || "").replace(/\/$/, ""),
+    };
+  }
+  if (!platform.sleutel) throw new Fout("Betalen via de app staat nog niet aan.");
+  return platform;
+}
+
+// Stripe verwacht formulier-codering met haakjes voor geneste velden.
+function formulier(data: Record<string, unknown>, voorvoegsel = "", uit = new URLSearchParams()) {
+  for (const [sleutel, waarde] of Object.entries(data)) {
+    if (waarde === undefined || waarde === null) continue;
+    const naam = voorvoegsel ? `${voorvoegsel}[${sleutel}]` : sleutel;
+    if (typeof waarde === "object") formulier(waarde as Record<string, unknown>, naam, uit);
+    else uit.append(naam, String(waarde));
+  }
+  return uit;
+}
+
+async function stripe(methode: string, pad: string, data?: Record<string, unknown>, idempotentie?: string) {
+  const { sleutel } = await instellingen();
+  const headers: Record<string, string> = { Authorization: `Bearer ${sleutel}` };
+  if (data) headers["Content-Type"] = "application/x-www-form-urlencoded";
+  if (idempotentie) headers["Idempotency-Key"] = idempotentie;
+  const r = await fetch(`${STRIPE_API}${pad}`, { method: methode, headers, body: data ? formulier(data) : undefined });
+  const antwoord = await r.json();
+  if (!r.ok) {
+    console.error("stripe", pad, antwoord?.error?.message);
+    throw new Fout("Stripe gaf een fout: " + (antwoord?.error?.message ?? r.status));
+  }
+  return antwoord;
+}
+
+const centen = (euro: number) => Math.round(Number(euro) * 100);
+
+async function gebruiker(body: Record<string, unknown>) {
+  const g = await rpc("stripe_gebruiker", { p_naam: body.naam ?? "", p_wachtwoord: body.wachtwoord ?? "" });
+  if (!g) throw new Fout("Geen toegang. Log opnieuw in.");
+  return g;
+}
+
+async function verkoperAanmelden(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  const { app_adres } = await instellingen();
+  let account = g.stripe_account;
+  if (!account) {
+    const nieuw = await stripe("POST", "/v1/accounts", {
+      type: "express",
+      country: "NL",
+      email: g.email ?? undefined,
+      capabilities: { transfers: { requested: true } },
+      metadata: { gebruiker: g.id },
+    }, `account-${g.id}`);
+    account = nieuw.id;
+    await rpc("stripe_account_opslaan", { p_gebruiker: g.id, p_account: account });
+  }
+  const link = await stripe("POST", "/v1/account_links", {
+    account,
+    refresh_url: `${app_adres}/?stripe=opnieuw`,
+    return_url: `${app_adres}/?stripe=klaar`,
+    type: "account_onboarding",
+  });
+  return { url: link.url };
+}
+
+async function verkoperStatus(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  if (!g.stripe_account) return { klaar: false, aangemeld: false };
+  const a = await stripe("GET", `/v1/accounts/${g.stripe_account}`);
+  const klaar = Boolean(a.details_submitted && a.payouts_enabled);
+  await rpc("stripe_account_klaar", { p_account: g.stripe_account, p_klaar: klaar });
+  return { klaar, aangemeld: true };
+}
+
+async function afrekenen(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  const b = await rpc("stripe_bestelling", { p_id: body.bestelling });
+  if (!b || b.koper !== g.id) throw new Fout("Bestelling niet gevonden.");
+  if (b.betaalwijze !== "app" || b.status !== "geaccepteerd") throw new Fout("Deze bestelling kan nu niet betaald worden.");
+  if (!b.verkoper_klaar) throw new Fout("De verkoper kan nog geen betalingen ontvangen.");
+  const { app_adres } = await instellingen();
+  const sessie = await stripe("POST", "/v1/checkout/sessions", {
+    mode: "payment",
+    customer_email: g.email ?? undefined,
+    line_items: {
+      0: { quantity: 1, price_data: { currency: "eur", unit_amount: centen(b.bedrag), product_data: { name: b.titel } } },
+      1: {
+        quantity: 1,
+        price_data: { currency: "eur", unit_amount: centen(b.kosten), product_data: { name: "Kopersbescherming" } },
+      },
+    },
+    payment_intent_data: { transfer_group: `bestelling-${b.id}`, metadata: { bestelling: b.id } },
+    metadata: { bestelling: b.id },
+    success_url: `${app_adres}/?betaald=${b.id}`,
+    cancel_url: `${app_adres}/?betaald=0`,
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+  });
+  await rpc("stripe_sessie_opslaan", { p_id: b.id, p_sessie: sessie.id, p_kosten: b.kosten });
+  return { url: sessie.url };
+}
+
+// Het geld van de koper naar de verkoper overmaken (zonder de kosten voor kopersbescherming).
+async function uitbetalen(bestellingId: number) {
+  const b = await rpc("stripe_bestelling", { p_id: bestellingId });
+  if (b.uitbetaald) return;
+  const betaling = await stripe("GET", `/v1/payment_intents/${b.stripe_betaling}`);
+  await stripe("POST", "/v1/transfers", {
+    amount: centen(b.bedrag),
+    currency: "eur",
+    destination: b.verkoper_account,
+    source_transaction: betaling.latest_charge,
+    transfer_group: `bestelling-${b.id}`,
+    metadata: { bestelling: b.id },
+  }, `uitbetaling-${b.id}`);
+  await rpc("stripe_uitbetaald", { p_id: b.id });
+}
+
+async function ontvangen(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  const vrij = await rpc("stripe_vrijgeven", { p_id: body.bestelling, p_door: g.id });
+  if (!vrij) throw new Fout("Dat kan nu niet bij deze bestelling.");
+  await uitbetalen(Number(body.bestelling));
+  return { ok: true };
+}
+
+async function geschilBesluiten(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  if (!g.beheerder) throw new Fout("Alleen de beheerder kan dit.");
+  const b = await rpc("stripe_bestelling", { p_id: body.bestelling });
+  if (!b || b.status !== "geschil" || b.betaalwijze !== "app") throw new Fout("Geen open geschil.");
+  if (body.uitkomst === "koper") {
+    await stripe("POST", "/v1/refunds", { payment_intent: b.stripe_betaling, metadata: { bestelling: b.id } },
+                 `terugbetaling-${b.id}`);
+    await rpc("stripe_terugbetaald", { p_id: b.id });
+  } else if (body.uitkomst === "verkoper") {
+    if (!await rpc("stripe_vrijgeven", { p_id: b.id, p_door: 1 })) throw new Fout("Dat kan nu niet.");
+    await uitbetalen(b.id);
+  } else {
+    throw new Fout("Kies koper of verkoper.");
+  }
+  return { ok: true };
+}
+
+// --- Webhook --------------------------------------------------------------------------------
+
+async function handtekeningKlopt(payload: string, kop: string, geheim: string) {
+  const delen = Object.fromEntries(kop.split(",").map((d) => d.split("=", 2)).filter((d) => d.length === 2));
+  const tijd = Number(delen.t);
+  if (!tijd || Math.abs(Date.now() / 1000 - tijd) > 300) return false;
+  const sleutel = await crypto.subtle.importKey("raw", new TextEncoder().encode(geheim), { name: "HMAC", hash: "SHA-256" },
+                                               false, ["sign"]);
+  const handtekening = await crypto.subtle.sign("HMAC", sleutel, new TextEncoder().encode(`${delen.t}.${payload}`));
+  const verwacht = Array.from(new Uint8Array(handtekening)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const gekregen = kop.split(",").filter((d) => d.startsWith("v1=")).map((d) => d.slice(3));
+  return gekregen.some((v) => v.length === verwacht.length &&
+    [...v].reduce((verschil, teken, i) => verschil | (teken.charCodeAt(0) ^ verwacht.charCodeAt(i)), 0) === 0);
+}
+
+async function webhook(payload: string, kop: string) {
+  const { webhook_geheim } = await instellingen();
+  if (!webhook_geheim || !await handtekeningKlopt(payload, kop, webhook_geheim)) {
+    return new Response("ongeldige handtekening", { status: 400 });
+  }
+  const gebeurtenis = JSON.parse(payload);
+  const object = gebeurtenis.data?.object ?? {};
+  if (["checkout.session.completed", "checkout.session.async_payment_succeeded"].includes(gebeurtenis.type)
+      && object.payment_status === "paid" && object.metadata?.bestelling) {
+    await rpc("stripe_betaald", { p_id: Number(object.metadata.bestelling), p_sessie: object.id,
+                                  p_betaling: object.payment_intent });
+  } else if (gebeurtenis.type === "account.updated") {
+    await rpc("stripe_account_klaar", { p_account: object.id,
+                                        p_klaar: Boolean(object.details_submitted && object.payouts_enabled) });
+  }
+  return new Response("ok");
+}
+
+const ACTIES: Record<string, (body: Record<string, unknown>) => Promise<unknown>> = {
+  verkoper_aanmelden: verkoperAanmelden,
+  verkoper_status: verkoperStatus,
+  afrekenen,
+  ontvangen,
+  geschil_besluiten: geschilBesluiten,
+};
+
+export async function verwerk(verzoek: Request): Promise<Response> {
+  if (verzoek.method !== "POST") return new Response("alleen POST", { status: 405 });
+  const payload = await verzoek.text();
+  try {
+    const kop = verzoek.headers.get("stripe-signature");
+    if (kop) return await webhook(payload, kop);
+    const body = JSON.parse(payload || "{}");
+    const actie = ACTIES[body.actie];
+    if (!actie) return Response.json({ fout: "Onbekende actie." }, { status: 400 });
+    return Response.json(await actie(body));
+  } catch (fout) {
+    if (fout instanceof Fout) return Response.json({ fout: fout.message });
+    console.error(fout);
+    return Response.json({ fout: "Er ging iets mis bij het betalen. Probeer het later opnieuw." }, { status: 500 });
+  }
+}
+
+Deno.serve(verwerk);

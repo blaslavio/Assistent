@@ -150,8 +150,11 @@ Werkwijze:
 - Marktplaats: zoek met marktplaats_zoeken in onze eigen marktplaats én geef de
   links naar andere marktplaatsen (Marktplaats, Vinted, Bol, Werkspot,
   Superprof...). Vergelijk prijs, plaats en voorwaarden en wijs op veilig
-  handelen: geen vooruitbetaling aan onbekenden, betalen bij ophalen of via een
-  betaalverzoek. Boek een privétraining of les met boeken alleen nadat de
+  handelen: raad betalen via de app aan (het geld staat bij Stripe tot de koper
+  bevestigt dat alles goed is ontvangen), let op geverifieerde verkopers en
+  sterren, en betaal nooit via een link of rekeningnummer uit een bericht.
+  Bestellen, betalen en ontvangst bevestigen doet de gebruiker zelf bij
+  Assistent › Marktplaats › Bestellingen. Boek een privétraining of les met boeken alleen nadat de
   gebruiker de precieze tijd en prijs heeft gezien en uitdrukkelijk "boek maar"
   heeft gezegd. Je betaalt of koopt nooit zelf iets. Wil de gebruiker iets
   aanbieden, help dan met een duidelijke titel, omschrijving en eerlijke prijs;
@@ -796,8 +799,11 @@ def marktplaats_zoeken(zoekterm: str = "", soort: str = "") -> str:
         soort: Optioneel: product, dienst, training (privétraining) of les (lessen, bijles, studie).
     """
     eigen, fout = _samen(samen.aanbod_zoeken, zoekterm, soort if soort in samen.SOORTEN_AANBOD else "")
-    velden = ("id", "soort", "titel", "omschrijving", "prijs", "prijs_per", "plaats", "aanbieder", "vrije_tijden", "van_mij")
-    return _json({"onze_marktplaats": fout or [{k: a[k] for k in velden} for a in eigen[:15]],
+    velden = ("id", "soort", "titel", "omschrijving", "prijs", "prijs_per", "plaats", "aanbieder", "vrije_tijden", "van_mij",
+              "betaalwijzen", "levering")
+    return _json({"onze_marktplaats": fout or [{**{k: a.get(k) for k in velden},
+                                                "betrouwbaarheid": samen.vertrouwen_tekst(a.get("vertrouwen"))}
+                                               for a in eigen[:15]],
                   "andere_marktplaatsen": samen.externe_links(zoekterm)})
 
 
@@ -825,6 +831,14 @@ def boeken(tijdslot_id: int, opmerking: str = "") -> str:
     boeking, fout = _samen(samen.boeken, tijdslot_id, opmerking)
     return fout or (f"Geboekt: {boeking['titel']} op {samen.tijd_tekst(boeking['start'])} bij {boeking['aanbieder']}. "
                     "Staat in de agenda. De betaling regelt de gebruiker zelf met de aanbieder.")
+
+
+@beta_tool
+def bestellingen_bekijken() -> str:
+    """Bestellingen op de marktplaats (als koper en als verkoper), met status en wat de volgende stap is."""
+    lijst, fout = _samen(samen.mijn_bestellingen)
+    return fout or _json([{k: b[k] for k in ("id", "titel", "bedrag", "betaalwijze", "levering", "status", "rol", "ander")}
+                          for b in lijst])
 
 
 @beta_tool
@@ -884,6 +898,7 @@ HULPMIDDELEN = [
     tijden_bekijken,
     boeken,
     boekingen_bekijken,
+    bestellingen_bekijken,
     {"type": "web_search_20260209", "name": "web_search", "max_uses": 5},
     {"type": "web_fetch_20260209", "name": "web_fetch", "max_uses": 5},
 ]

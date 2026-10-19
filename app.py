@@ -118,7 +118,7 @@ def eerste_keer() -> None:
 
 def inlogformulier() -> None:
     with st.form("inloggen"):
-        naam = st.text_input("Gebruikersnaam", autocomplete="username",
+        naam = st.text_input("Gebruikersnaam of mailadres", autocomplete="username",
                              help="Nog nooit een gebruikersnaam gekozen omdat je de app als eerste instelde? Laat dit leeg.")
         wachtwoord = st.text_input("Wachtwoord", type="password", autocomplete="current-password")
         if st.form_submit_button("Inloggen", type="primary", width="stretch") and wachtwoord:
@@ -130,11 +130,12 @@ def inlogformulier() -> None:
 
 
 def account_maken_formulier() -> None:
-    st.caption("Gratis. Je hebt alleen een gebruikersnaam en wachtwoord nodig, geen mailadres.")
+    st.caption("Gratis. Je mailadres is nodig om te kunnen kopen en verkopen; anderen zien het niet.")
     with st.form("account_maken"):
         naam = st.text_input("Kies een gebruikersnaam", placeholder="bijvoorbeeld sanne.devries",
                              help="3 tot 30 tekens: kleine letters, cijfers, punt of streepje. Anderen vinden je hiermee.")
         weergavenaam = st.text_input("Je naam zoals anderen hem zien", placeholder="Sanne")
+        email = st.text_input("Mailadres", placeholder="sanne@voorbeeld.nl", autocomplete="email")
         wachtwoord = st.text_input("Kies een wachtwoord (minstens 10 tekens)", type="password",
                                    autocomplete="new-password")
         herhaling = st.text_input("Herhaal het wachtwoord", type="password", autocomplete="new-password")
@@ -143,7 +144,7 @@ def account_maken_formulier() -> None:
             naam = naam.strip().lower().lstrip("@")
             if wachtwoord != herhaling:
                 st.error("De wachtwoorden zijn niet gelijk.")
-            elif fout := opslag.account_maken(naam, weergavenaam.strip(), wachtwoord, akkoord):
+            elif fout := opslag.account_maken(naam, weergavenaam.strip(), email.strip(), wachtwoord, akkoord):
                 st.error(fout)
             else:
                 inloggen(naam, wachtwoord, opslag.inloggen(naam, wachtwoord) or {})
@@ -854,6 +855,8 @@ def seintjes(nu: datetime) -> None:
     nieuw = samen_scherm.nieuw_kort()
     if nieuw.get("gedeeld"):
         delen.append(f"🤝 {nieuw['gedeeld']} nieuw met je gedeeld (Assistent › Samen)")
+    if nieuw.get("bestellingen"):
+        delen.append(f"🧾 {nieuw['bestellingen']} bestelling wacht op jou (Assistent › Marktplaats)")
     if nieuw.get("berichten"):
         delen.append(f"💬 {nieuw['berichten']} nieuw bericht (Assistent › Marktplaats)")
     if not opslag.instellingen().get("thuisadres"):
@@ -1717,13 +1720,42 @@ def gesprek() -> None:
     st.rerun()
 
 
+def terug_van_stripe() -> None:
+    """Na betalen of aanmelden bij Stripe komt de gebruiker terug met ?betaald=... of ?stripe=..."""
+    for sleutel in ("betaald", "stripe"):
+        if sleutel in st.query_params:
+            st.session_state[f"terug_{sleutel}"] = st.query_params[sleutel]
+            del st.query_params[sleutel]
+    if not st.session_state.get("wachtwoord"):
+        return
+    betaald = st.session_state.pop("terug_betaald", None)
+    stripe_terug = st.session_state.pop("terug_stripe", None)
+    if betaald or stripe_terug:
+        st.session_state.tabblad = "💬 Assistent"
+        st.session_state.onderdeel = "🏪 Marktplaats"
+        st.session_state.markt_deel = "🧾 Bestellingen" if betaald else "➕ Aanbieden"
+    if betaald and betaald != "0":
+        st.toast("Betaling gelukt. Het geld staat veilig tot je bevestigt dat alles goed is ontvangen.", icon="💳")
+    elif betaald == "0":
+        st.toast("Betaling afgebroken. Je kunt het opnieuw proberen.", icon="ℹ️")
+    if stripe_terug == "klaar":
+        try:
+            klaar = samen.verkoper_status()
+        except samen.Fout:
+            klaar = False
+        st.toast("Je kunt nu betalingen via de app ontvangen." if klaar
+                 else "Stripe is nog bezig met je aanmelding.", icon="✅" if klaar else "ℹ️")
+
+
 def main() -> None:
     if not opslag.online():
         st.caption("Lokale testmodus: gegevens staan in data/gegevens.json.")
     if not st.session_state.get("wachtwoord"):
         st.title("Mijn assistent")
+    terug_van_stripe()
     if not wachtwoord_ok():
         return
+    terug_van_stripe()
     if st.session_state.pop("welkom", False):
         st.success(f"Welkom, {samen_scherm.ik().get('weergavenaam') or ''}! Je agenda, taken, Samen en de marktplaats "
                    "werken meteen. Wil je ook met de assistent praten? Zet dan je eigen Anthropic-sleutel bij "

@@ -26,20 +26,30 @@ def voorwaarden() -> str:
    informatie zelf. De assistent geeft geen medisch, juridisch of financieel advies; ga daarvoor naar een
    deskundige, zoals je huisarts.
 4. **De marktplaats.** De app brengt aanbieders en kopers met elkaar in contact. Koop, verkoop en boekingen sluit je
-   rechtstreeks met de ander af; de app is geen partij bij die afspraak. **Er gaat geen geld via de app.** Je regelt
-   de betaling zelf, bijvoorbeeld bij ophalen of met een betaalverzoek. Aanbieders zijn zelf verantwoordelijk voor
+   rechtstreeks met de ander af; de app is geen partij bij die afspraak. Aanbieders zijn zelf verantwoordelijk voor
    hun aanbod, prijzen, belastingen en eventuele vergunningen en verzekeringen.
-5. **Niet toegestaan.** Illegale producten of diensten, wapens, drugs, medicijnen op recept, namaak, dieren,
+5. **Betalen.** Koper en verkoper spreken af hoe er betaald wordt: via de app, met een betaalverzoek, door over te
+   maken of contant. **Betalen via de app** loopt via Stripe, een betaaldienst met een vergunning. Het geld blijft
+   bij Stripe tot de koper bevestigt dat alles goed is ontvangen; daarna wordt het aan de verkoper uitbetaald. De
+   koper betaalt daarvoor een vaste vergoeding voor kopersbescherming, die je ziet voordat je betaalt. Meldt de koper
+   een probleem, dan blijft het geld vastgehouden en beslist de beheerder op basis van de berichten en het bewijs:
+   terugbetalen aan de koper of uitbetalen aan de verkoper. Verkopers die via de app betalingen ontvangen, laten hun
+   identiteit door Stripe controleren en gaan akkoord met de voorwaarden van Stripe. Bij betalen buiten de app is er
+   geen kopersbescherming.
+6. **Niet toegestaan.** Illegale producten of diensten, wapens, drugs, medicijnen op recept, namaak, dieren,
    oplichting, spam, haatdragende of seksuele inhoud, en gegevens van anderen zonder toestemming.
-6. **Melden en blokkeren.** Zie je iets wat niet mag? Gebruik de knop 🚩 Melden. De beheerder bekijkt meldingen zo
-   snel mogelijk en kan aanbod offline halen of een account blokkeren. Je kunt bezwaar maken via {_contact()}.
-7. **Delen en projecten.** Wat je deelt of in een project zet, kunnen de ontvangers of projectleden zien. Deel alleen
+7. **Melden en blokkeren.** Zie je iets wat niet mag? Gebruik de knop 🚩 Melden. De beheerder bekijkt meldingen zo
+   snel mogelijk en kan aanbod offline halen of een account blokkeren. Wordt iets door meerdere mensen gemeld, dan
+   gaat het automatisch offline tot de beheerder heeft gekeken. Nieuwe accounts kunnen de eerste week minder
+   tegelijk aanbieden en bestellen. Je kunt bezwaar maken via {_contact()}.
+8. **Delen en projecten.** Wat je deelt of in een project zet, kunnen de ontvangers of projectleden zien. Deel alleen
    wat je wilt delen.
-8. **Stoppen.** Je kunt je account altijd verwijderen via Instellingen > Account. De beheerder kan accounts die
-   deze voorwaarden overtreden blokkeren.
-9. **Aansprakelijkheid.** De app wordt aangeboden zoals hij is. De beheerder is niet aansprakelijk voor afspraken
+9. **Stoppen.** Je kunt je account altijd verwijderen via Instellingen > Account. De beheerder kan accounts die
+   deze voorwaarden overtreden blokkeren. Een account met een lopende betaling of een open geschil kun je pas
+   verwijderen als die is afgerond.
+10. **Aansprakelijkheid.** De app wordt aangeboden zoals hij is. De beheerder is niet aansprakelijk voor afspraken
    tussen gebruikers onderling, of voor schade door het gebruik van de app, behalve bij opzet of grove schuld.
-10. **Wijzigingen.** Als deze voorwaarden veranderen, zie je dat in de app. Op deze voorwaarden is Nederlands recht
+11. **Wijzigingen.** Als deze voorwaarden veranderen, zie je dat in de app. Op deze voorwaarden is Nederlands recht
     van toepassing.
 
 Contact: {_contact()}.
@@ -50,9 +60,9 @@ def privacy() -> str:
     return f"""
 **Privacyverklaring** (concept, bijgewerkt {BIJGEWERKT})
 
-**Welke gegevens.** Je gebruikersnaam, weergavenaam en een versleutelde versie van je wachtwoord (het wachtwoord zelf
-bewaren we niet). Verder wat je zelf invult: agenda, taken, contacten, leerdoelen, boodschappen, foto's en
-geluidsopnames bij afspraken, wat je deelt, projecten, aanbod, boekingen en berichten op de marktplaats.
+**Welke gegevens.** Je gebruikersnaam, weergavenaam, mailadres en een versleutelde versie van je wachtwoord (het
+wachtwoord zelf bewaren we niet). Verder wat je zelf invult: agenda, taken, contacten, leerdoelen, boodschappen, foto's en
+geluidsopnames bij afspraken, wat je deelt, projecten, aanbod, bestellingen, boekingen, beoordelingen en berichten op de marktplaats.
 
 **Waarom.** Alleen om de app te laten werken: jouw gegevens tonen, de assistent laten helpen, en gebruikers met
 elkaar in contact brengen. We verkopen niets en tonen geen advertenties.
@@ -60,11 +70,12 @@ elkaar in contact brengen. We verkopen niets en tonen geen advertenties.
 **Waar het staat.** In een database van Supabase in de Europese Unie (Ierland). De app draait bij Streamlit
 (Verenigde Staten). Als je de chat gebruikt, gaat je vraag met de nodige context naar Anthropic (Verenigde Staten)
 via je eigen sleutel. Voor weer, routes, plaatsen en bronnen gebruikt de app open diensten (Open-Meteo,
-OpenStreetMap, OpenAlex, Crossref); daarvoor gaat alleen de zoekvraag of plaats mee, niet je naam. Koppel je je
-mail of Strava, dan haalt de app daar alleen gegevens op als jij erom vraagt.
+OpenStreetMap, OpenAlex, Crossref); daarvoor gaat alleen de zoekvraag of plaats mee, niet je naam. Betaal of verkoop
+je via de app, dan verwerkt Stripe je betaal- en (als verkoper) identiteitsgegevens; zie de privacyverklaring van
+Stripe. Wij zien geen bank- of kaartgegevens. Koppel je je mail of Strava, dan haalt de app daar alleen gegevens op als jij erom vraagt.
 
 **Wie het ziet.** Alleen jij, behalve wat je zelf deelt, in een project zet of op de marktplaats plaatst.
-Aanbod en je weergavenaam zijn zichtbaar voor andere gebruikers. De beheerder kan meldingen en het gemelde aanbod
+Aanbod, je weergavenaam en beoordelingen zijn zichtbaar voor andere gebruikers. Je mailadres niet. De beheerder kan meldingen en het gemelde aanbod
 zien.
 
 **Hoe lang.** Zolang je account bestaat. Verwijder je je account, dan worden je gegevens gewist en gaat je aanbod

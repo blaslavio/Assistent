@@ -140,12 +140,20 @@ def inloggen(naam: str, wachtwoord: str) -> dict | None:
 
 # --- Account ---------------------------------------------------------------
 
-def account_maken(naam: str, weergavenaam: str, wachtwoord: str, akkoord: bool) -> str | None:
+def account_maken(naam: str, weergavenaam: str, email: str, wachtwoord: str, akkoord: bool) -> str | None:
     """Maakt een nieuw account. Geeft een foutmelding terug, of None als het gelukt is."""
     if not online():
         return "Accounts maken kan alleen in de online versie."
-    antwoord = _rpc("account_maken", p_naam=naam, p_weergavenaam=weergavenaam, p_wachtwoord=wachtwoord, p_akkoord=akkoord)
+    antwoord = _rpc("account_maken", p_naam=naam, p_weergavenaam=weergavenaam, p_email=email, p_wachtwoord=wachtwoord,
+                    p_akkoord=akkoord)
     return antwoord.get("fout")
+
+
+def email_instellen(email: str) -> str | None:
+    """Slaat het mailadres op. Geeft een foutmelding, of None."""
+    if not online():
+        return "Kan alleen in de online versie."
+    return _rpc_ik("email_instellen", p_email=email).get("fout")
 
 
 def profiel_bijwerken(nieuwe_naam: str | None = None, weergavenaam: str | None = None,
