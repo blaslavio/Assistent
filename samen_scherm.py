@@ -1,6 +1,7 @@
 """Schermen voor samen: delen, projecten, de marktplaats, je account en beheer."""
 
 import base64
+import html
 import time
 from datetime import date, datetime, timedelta
 from urllib.parse import quote
@@ -11,6 +12,7 @@ import opslag
 import ruimte
 import samen
 import teksten
+import winkelkaart
 
 
 def ik() -> dict:
@@ -18,9 +20,12 @@ def ik() -> dict:
 
 
 def _fout(functie, *args, **kwargs):
-    """Voert een actie uit en toont een nette melding als het niet lukt. Geeft het resultaat of None."""
+    """Voert een actie uit en toont een nette melding als het niet lukt.
+
+    Geeft het resultaat (True als de actie niets teruggeeft), of None als het niet lukte."""
     try:
-        return functie(*args, **kwargs)
+        resultaat = functie(*args, **kwargs)
+        return True if resultaat is None else resultaat
     except samen.Fout as fout:
         st.error(str(fout))
     return None
@@ -372,10 +377,13 @@ def aanbieden() -> None:
     status = _fout(samen.betalen_status) or {}
     verkoper_aanmelden(status)
     wijzen = [w for w in samen.BETAALWIJZEN if w != "app" or status.get("ik_kan_ontvangen")]
-    with st.expander("➕ Iets nieuws aanbieden", expanded=not st.session_state.get("markt_heeft_aanbod")):
+    open_ = st.session_state.pop("aanbod_open", False) or not st.session_state.get("markt_heeft_aanbod")
+    with st.expander("➕ Iets nieuws aanbieden", expanded=open_):
         with st.form("aanbod_nieuw", clear_on_submit=True, border=False):
-            soort = st.pills("Wat bied je aan?", list(samen.SOORTEN_AANBOD), default="product",
-                             format_func=samen.SOORTEN_AANBOD.get) or "product"
+            # Vanaf de voorpagina kan de soort al gekozen zijn (bijvoorbeeld Dienst aanbieden).
+            standaard = {} if "aanbod_soort" in st.session_state else {"default": "product"}
+            soort = st.pills("Wat bied je aan?", list(samen.SOORTEN_AANBOD), key="aanbod_soort",
+                             format_func=samen.SOORTEN_AANBOD.get, **standaard) or "product"
             titel = st.text_input("Titel", placeholder="Bijv. Racefiets maat 56, of Personal training in het park")
             omschrijving = st.text_area("Omschrijving", height=100,
                                         placeholder="Staat, wat je krijgt, voor wie het geschikt is, hoe lang een les duurt.")
@@ -602,6 +610,15 @@ def mijn_webshop() -> None:
                 "⚙️ Instellingen › Account › Accounttype.")
         return
     w = m["winkel"]
+    if w:
+        deel = st.segmented_control("Onderdeel", ["🏬 Winkel", "📣 Marketing", "⭐ Reviews"], default="🏬 Winkel",
+                                    key="webshop_deel", label_visibility="collapsed") or "🏬 Winkel"
+        if deel == "📣 Marketing":
+            marketing(w)
+            return
+        if deel == "⭐ Reviews":
+            winkel_reviews()
+            return
     st.caption(f"Je eigen winkelpagina met een vast adres, die je kunt delen. Klanten betalen veilig via de app en "
                f"betalen niets extra. Per verkoop betaal je {m['commissie_procent']:g}% commissie (minimaal "
                f"{samen.euro(m['commissie_min'])}), inclusief betaalkosten. Geen abonnement.")
@@ -643,6 +660,25 @@ def mijn_webshop() -> None:
                     st.rerun()
     if not w:
         return
+    with st.expander("📍 Op de winkelkaart" + (f" ({w['winkeladres']})" if w.get("winkeladres") else "")):
+        st.caption("Heb je een echte winkel, werkplaats of praktijk waar klanten mogen komen? Vul het adres in; dan "
+                   "staat je winkel met voorrang op de winkelkaart. Alleen online? Laat het leeg. Vul geen woonadres "
+                   "in als je daar geen klanten wilt ontvangen: iedereen kan het zien.")
+        with st.form("vestiging", border=False):
+            plek = st.text_input("Adres van je winkel", value=w.get("winkeladres", ""), max_chars=200,
+                                 placeholder="Straat en huisnummer, plaats")
+            if st.form_submit_button("Opslaan"):
+                if not plek.strip():
+                    if _fout(samen.winkel_vestiging, "", None, None) is not None:
+                        st.rerun()
+                else:
+                    try:
+                        lat, lon, _ = winkelkaart.plek(plek.strip())
+                    except Exception:
+                        st.error("Dit adres kan ik niet op de kaart vinden. Controleer straat, huisnummer en plaats.")
+                    else:
+                        if _fout(samen.winkel_vestiging, plek.strip(), lat, lon) is not None:
+                            st.rerun()
 
     st.markdown("**Producten in je winkel**")
     producten = [p for p in m["producten"] if not p["geblokkeerd"] and (p["actief"] or p["voorraad"] is not None)]
@@ -663,6 +699,180 @@ def mijn_webshop() -> None:
                         st.rerun()
 
 
+def marketing(w: dict) -> None:
+    """Hulpmiddelen om klanten te trekken: cijfers, actiebalk, kortingscodes, nieuws voor volgers, bezoekcodes,
+    posts laten schrijven en een poster met QR-code."""
+    m = _fout(samen.mijn_marketing)
+    if m is None:
+        return
+    link = winkel_link(w["adres"])
+    k1, k2, k3 = st.columns(3)
+    k1.metric("Bezoeken winkelpagina", m["bezoeken"])
+    k2.metric("Volgers", m["volgers"])
+    k3.metric("Verkocht (30 dagen)", m["verkopen_30d"]["aantal"], samen.euro(m["verkopen_30d"]["omzet"]),
+              delta_color="off")
+
+    with st.expander("✨ Laat de assistent een post of tekst schrijven"):
+        st.caption("Voor Instagram, Facebook, je WhatsApp-status, een nieuwsbrief of een flyer. Jij leest het na en "
+                   "plaatst het zelf.")
+        with st.form("post_schrijven", border=False):
+            kanaal = st.pills("Waarvoor?", ["Instagram", "Facebook", "WhatsApp-status", "Nieuwtje voor volgers", "Flyer"],
+                              default="Instagram")
+            onderwerp = st.text_input("Waar gaat het over?", placeholder="Bijv. nieuwe collectie, 10% korting dit weekend")
+            if st.form_submit_button("✨ Schrijf het", type="primary") and onderwerp.strip():
+                st.session_state.marketing_tekst = (kanaal or "Instagram", onderwerp.strip())
+        if gevraagd := st.session_state.get("marketing_tekst"):
+            post_schrijven(w, link, *gevraagd)
+
+    with st.expander("📣 Actiebalk bovenaan je winkel" + (" (aan)" if m["actie"] else "")):
+        with st.form("actie", border=False):
+            tekst = st.text_input("Tekst", value=m["actie"], max_chars=140,
+                                  placeholder="Bijv. Dit weekend 10% korting met code WEEKEND10")
+            tot = st.date_input("Tot en met (leeg = tot je hem weghaalt)", value=date.fromisoformat(m["actie_tot"]) if m["actie_tot"] else None, format="DD-MM-YYYY")
+            if st.form_submit_button("Opslaan"):
+                if _fout(samen.winkel_actie, tekst.strip(), tot.isoformat() if tot else None) is not None:
+                    st.rerun()
+
+    with st.expander(f"🏷️ Kortingscodes ({sum(c['actief'] for c in m['codes'])} actief)"):
+        st.caption("Deel een code in een post, op een flyer of met vaste klanten. De korting gaat van de producten af "
+                   "(niet van de verzendkosten); je commissie wordt berekend over wat de klant echt betaalt.")
+        for c in m["codes"]:
+            k1, k2 = st.columns([4, 1], vertical_alignment="center")
+            korting = f"{c['procent']}%" if c["procent"] else samen.euro(c["bedrag"])
+            regels = [f"**{c['code']}** · {korting} korting", f"{c['gebruikt']}× gebruikt"]
+            if c["minimum"]:
+                regels.append(f"vanaf {samen.euro(c['minimum'])}")
+            if c["max_gebruik"]:
+                regels.append(f"max {c['max_gebruik']}×")
+            if c["geldig_tot"]:
+                regels.append(f"t/m {c['geldig_tot']}")
+            k1.markdown(" · ".join(regels) + ("" if c["actief"] else " · :gray[uit]"))
+            if k2.button("Uit" if c["actief"] else "Aan", key=f"code_{c['id']}"):
+                if _fout(samen.kortingscode_opslaan, code_id=c["id"], actief=not c["actief"]) is not None:
+                    st.rerun()
+        with st.form("nieuwe_code", clear_on_submit=True, border=False):
+            k1, k2 = st.columns(2)
+            code = k1.text_input("Code", max_chars=20, placeholder="WELKOM10")
+            soort = k2.radio("Soort korting", ["Procent", "Bedrag"], horizontal=True)
+            k1, k2 = st.columns(2)
+            waarde = k1.number_input("Korting (% of €)", 1.0, 1000.0, 10.0, 1.0)
+            minimum = k2.number_input("Vanaf bestelbedrag (€)", 0.0, 10000.0, 0.0, 5.0)
+            k1, k2 = st.columns(2)
+            tot = k1.date_input("Geldig t/m (optioneel)", value=None, format="DD-MM-YYYY")
+            maximaal = k2.number_input("Hoe vaak te gebruiken (leeg = onbeperkt)", 1, 100000, value=None)
+            if st.form_submit_button("➕ Code maken"):
+                if _fout(samen.kortingscode_opslaan, code.strip(),
+                         int(waarde) if soort == "Procent" else None, waarde if soort == "Bedrag" else None,
+                         minimum, tot.isoformat() if tot else None, maximaal) is not None:
+                    st.rerun()
+
+    with st.expander(f"📰 Nieuwtje voor je volgers ({m['volgers']})"):
+        st.caption("Volgers zien je nieuwtjes in de app bij 🏬 Winkels. Eén nieuwtje per dag, zodat niemand wordt "
+                   "overspoeld.")
+        with st.form("nieuwtje", clear_on_submit=True, border=False):
+            tekst = st.text_area("Nieuwtje", max_chars=500, height=80,
+                                 placeholder="Bijv. Nieuwe zomercollectie binnen! Kom kijken of bestel in de app.")
+            if st.form_submit_button("Delen met volgers", type="primary") and tekst.strip():
+                if _fout(samen.winkel_nieuws_plaatsen, tekst.strip()) is not None:
+                    st.toast("Gedeeld met je volgers.", icon="📰")
+                    st.rerun()
+        for n in m["nieuws"]:
+            k1, k2 = st.columns([5, 1], vertical_alignment="center")
+            k1.caption(f"{n['datum'][:10]} · {n['tekst']}")
+            if k2.button("🗑️", key=f"nieuws_{n['id']}", help="Weghalen"):
+                _fout(samen.winkel_nieuws_weg, n["id"])
+                st.rerun()
+
+    with st.expander("🎫 Bezoekcode voor een review"):
+        st.caption("Was er een klant in je winkel of werkplaats? Laat hem deze code scannen; daarna kan hij een review "
+                   "schrijven. Elke code werkt één keer en is 14 dagen geldig. Geef de code aan iedere klant, niet "
+                   "alleen aan tevreden klanten: zo blijven je reviews geloofwaardig. Bij bestellingen in de app "
+                   "kan de klant vanzelf een review geven.")
+        st.caption(f"Gemaakt: {m['bezoekcodes']['gemaakt']} · gebruikt: {m['bezoekcodes']['gebruikt']}")
+        if st.button("🎫 Nieuwe bezoekcode", type="primary"):
+            st.session_state.bezoekcode = _fout(samen.bezoekcode_maken)
+        if c := st.session_state.get("bezoekcode"):
+            bezoek_link = link.split("/?")[0] + f"/?bezoek={c['code']}"
+            st.image(_qr(bezoek_link), width=220, caption=f"Code {c['code']}")
+            st.code(bezoek_link, language=None)
+
+    with st.expander("🖨️ Poster voor je etalage of kassa"):
+        st.caption("Een A4-poster met een QR-code naar je winkel in de app. Download hem, open hem en print via Delen.")
+        st.download_button("⬇️ Poster downloaden", poster_html(w, link, m["actie"]), file_name=f"poster-{w['adres']}.html",
+                           mime="text/html")
+
+
+def post_schrijven(w: dict, link: str, kanaal: str, onderwerp: str) -> None:
+    """Laat Claude een marketingtekst schrijven (met de Anthropic-sleutel van de verkoper)."""
+    import anthropic
+
+    import slim
+
+    sleutel = opslag.instellingen().get("anthropic_sleutel", "")
+    if not sleutel:
+        st.info("Hiervoor heb je een Anthropic-sleutel nodig (⚙️ Instellingen › Koppelingen).")
+        return
+    bewaard = st.session_state.setdefault("marketing_teksten", {})
+    sleutel_tekst = f"{kanaal}|{onderwerp}"
+    if sleutel_tekst not in bewaard:
+        with st.spinner("Even schrijven..."):
+            try:
+                bewaard[sleutel_tekst] = slim.marketingtekst(anthropic.Anthropic(api_key=sleutel), w["naam"],
+                                                             w["omschrijving"], kanaal, onderwerp, link)
+            except slim.Mislukt as fout:
+                st.error(str(fout))
+                return
+            except anthropic.APIError as fout:
+                st.error(slim.foutmelding(fout))
+                return
+    t = bewaard[sleutel_tekst]
+    st.markdown(f"**{kanaal}**")
+    st.code(t["tekst"], language=None, wrap_lines=True)
+    if t.get("hashtags"):
+        st.code(" ".join(t["hashtags"]), language=None, wrap_lines=True)
+    if t.get("tip"):
+        st.caption(f"💡 {t['tip']}")
+    k1, k2 = st.columns(2)
+    k1.link_button("📤 Via WhatsApp", f"https://wa.me/?text={quote(t['tekst'])}", width="stretch")
+    if kanaal == "Nieuwtje voor volgers" and k2.button("📰 Delen met volgers", width="stretch"):
+        if _fout(samen.winkel_nieuws_plaatsen, t["tekst"][:500]) is not None:
+            st.toast("Gedeeld met je volgers.", icon="📰")
+    st.caption("Tik lang op de tekst om te kopiëren, of gebruik het kopieerknopje rechtsboven.")
+
+
+def poster_html(w: dict, link: str, actie: str) -> str:
+    import html as _html
+
+    qr = base64.b64encode(_qr(link)).decode()
+    return f"""<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>{_html.escape(w['naam'])}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>@page{{size:A4;margin:0}}body{{margin:0;font-family:-apple-system,Helvetica,Arial,sans-serif;color:#111}}
+.p{{width:210mm;min-height:297mm;box-sizing:border-box;padding:22mm 18mm;display:flex;flex-direction:column;
+align-items:center;text-align:center;border-top:14mm solid {w['kleur']}}}h1{{font-size:44pt;margin:6mm 0 4mm}}
+.o{{font-size:16pt;color:#444;max-width:150mm}}.a{{margin-top:8mm;font-size:22pt;font-weight:700;color:{w['kleur']}}}
+img{{width:110mm;height:110mm;margin:10mm 0 4mm;image-rendering:pixelated}}.s{{font-size:18pt;font-weight:600}}
+.l{{font-size:12pt;color:#666;margin-top:3mm;word-break:break-all}}</style></head><body><div class="p">
+<h1>{_html.escape(w['naam'])}</h1><div class="o">{_html.escape(w['omschrijving'][:200])}</div>
+{f'<div class="a">{_html.escape(actie)}</div>' if actie else ''}
+<img src="data:image/png;base64,{qr}" alt="QR-code"><div class="s">Scan, bestel en betaal veilig in de app</div>
+<div class="l">{_html.escape(link)}</div></div></body></html>"""
+
+
+def winkel_reviews() -> None:
+    """De reviews over jouw winkel, met reageren en melden."""
+    m = _fout(samen.mijn_marketing)
+    if m is None:
+        return
+    if not m["reviews"]:
+        st.caption("Nog geen reviews. Klanten die via de app bestellen kunnen na afloop een review geven. Was iemand "
+                   "in je winkel? Geef een bezoekcode (📣 Marketing › 🎫 Bezoekcode).")
+    gemiddeld = sum(r["sterren"] for r in m["reviews"]) / len(m["reviews"]) if m["reviews"] else None
+    if gemiddeld:
+        st.markdown(f"{sterren(gemiddeld)} **{gemiddeld:.1f}**".replace(".", ",") + f" uit {len(m['reviews'])} reviews")
+    for r in m["reviews"]:
+        review_kaart(r, False, verkoper=True)
+
+
 def naar_winkel(adres: str) -> None:
     """Opent een winkel in de winkelstraat, binnen de app."""
     st.session_state.open_winkel = adres
@@ -672,7 +882,10 @@ def naar_winkel(adres: str) -> None:
 
 
 def winkelstraat() -> None:
-    """Pagina 🏬 Winkels: alle winkels in de app. Een winkel opent hier, je verlaat de app niet."""
+    """Pagina 🏬 Winkels: een kaart met alle winkels in de buurt, de winkels uit de app voorop.
+
+    Een winkel uit de app opent hier; je verlaat de app niet.
+    """
     if adres := st.session_state.get("open_winkel"):
         if st.button("← Alle winkels", type="tertiary"):
             st.session_state.pop("open_winkel", None)
@@ -683,6 +896,21 @@ def winkelstraat() -> None:
     zoek = st.text_input("Zoek een winkel of product", placeholder="🔎 Zoek een winkel of product",
                          label_visibility="collapsed")
     winkels = samen.winkels_zoeken(zoek.strip())
+    if ik() and (nieuws := (_fout(samen.mijn_winkelnieuws) or {}).get("nieuws")):
+        with st.container(border=True):
+            st.markdown("**📰 Nieuws van winkels die je volgt**")
+            for n in nieuws[:3]:
+                k1, k2 = st.columns([4, 1], vertical_alignment="center")
+                k1.markdown(f'<span style="color:{n["kleur"]}">●</span> **{n["winkel"]}** · {n["datum"][:10]}  \n'
+                            f'{html.escape(n["tekst"])}', unsafe_allow_html=True)
+                if k2.button("Bekijk", key=f"nieuws_open_{n['id']}", width="stretch"):
+                    st.session_state.open_winkel = n["adres"]
+                    st.rerun()
+    weergave = st.segmented_control("Weergave", ["🗺️ Kaart", "🏬 Winkels in de app"], default="🗺️ Kaart",
+                                    key="winkels_weergave", label_visibility="collapsed") or "🗺️ Kaart"
+    if weergave == "🗺️ Kaart":
+        winkelkaart_tonen(winkels, zoek)
+        return
     if not winkels:
         st.caption("Geen winkels gevonden." if zoek else
                    "Er zijn nog geen winkels. Heb je accounttype Verkoper of Ondernemer? Open dan je eigen winkel bij "
@@ -696,10 +924,108 @@ def winkelstraat() -> None:
             if w["omschrijving"]:
                 st.caption(w["omschrijving"][:140] + ("..." if len(w["omschrijving"]) > 140 else ""))
             st.caption(f"{w['verkoper']} · {w['producten']} producten"
+                       + (f" · 📍 {w['winkeladres']}" if w.get("winkeladres") else " · 🌐 online")
                        + (" · 🏢 zakelijk" if samen.zakelijk(w.get("vertrouwen")) else ""))
             if st.button("Binnenlopen", key=f"open_{w['adres']}", width="stretch"):
                 st.session_state.open_winkel = w["adres"]
                 st.rerun()
+
+
+@st.cache_data(ttl=24 * 60 * 60, show_spinner=False)
+def _plek(adres: str) -> tuple[float, float, str]:
+    return winkelkaart.plek(adres)
+
+
+@st.cache_data(ttl=6 * 60 * 60, show_spinner=False)
+def _osm(lat: float, lon: float, straal: float) -> list[dict]:
+    return winkelkaart.osm_winkels(lat, lon, straal)
+
+
+def _rgb(kleur: str) -> list[int]:
+    try:
+        return [int(kleur[i:i + 2], 16) for i in (1, 3, 5)]
+    except (TypeError, ValueError):
+        return [37, 99, 235]
+
+
+def _km(afstand: float) -> str:
+    return f"{round(afstand * 1000, -1):.0f} m" if afstand < 1 else f"{afstand:.1f} km".replace(".", ",")
+
+
+def winkelkaart_tonen(winkels: list[dict], zoek: str) -> None:
+    """Kaart met alle winkels uit OpenStreetMap; winkels met een account bij ons groot, gekleurd en bovenaan."""
+    import pydeck as pdk
+
+    k1, k2 = st.columns([3, 2], vertical_alignment="bottom")
+    waar = k1.text_input("Waar?", value=opslag.instellingen().get("thuisadres", "") or "Amsterdam centrum",
+                         key="winkelkaart_plek", placeholder="Plaats, straat of postcode")
+    straal = k2.pills("Straal", [1, 2, 5], default=2, key="winkelkaart_straal", format_func=lambda k: f"{k} km") or 2
+    try:
+        lat, lon, _ = _plek(waar.strip() or "Amsterdam centrum")
+    except Exception:
+        st.error("Die plek kan ik niet vinden. Probeer een plaatsnaam of postcode.")
+        return
+    try:
+        with st.spinner("Winkels zoeken..."):
+            osm = _osm(round(lat, 4), round(lon, 4), straal)
+    except Exception:
+        osm = []
+        st.caption("De andere winkels kan ik nu even niet ophalen; de winkels uit de app zie je wel.")
+    eigen, overig = winkelkaart.samenvoegen(winkels, osm, lat, lon, straal, zoek)
+
+    op_kaart = [w for w in eigen if w.get("lat") is not None]
+    lagen = [
+        pdk.Layer("ScatterplotLayer", id="andere", pickable=True, get_radius=20, radius_min_pixels=5, radius_max_pixels=8,
+                  get_position=["lon", "lat"], get_fill_color=[110, 110, 110, 170],
+                  data=[{"naam": w["naam"], "tip": f"{w['soort']} · {_km(w['afstand_km'])}", "lat": w["lat"],
+                         "lon": w["lon"]} for w in overig]),
+        pdk.Layer("ScatterplotLayer", id="hier", get_radius=25, radius_min_pixels=7, radius_max_pixels=9,
+                  get_position=["lon", "lat"],
+                  get_fill_color=[30, 136, 229, 230], stroked=True, get_line_color=[255, 255, 255],
+                  line_width_min_pixels=3, data=[{"lat": lat, "lon": lon}]),
+        pdk.Layer("ScatterplotLayer", id="onze", pickable=True, get_radius=40, radius_min_pixels=11, radius_max_pixels=16,
+                  get_position=["lon", "lat"], get_fill_color="kleur", stroked=True, get_line_color=[255, 255, 255],
+                  line_width_min_pixels=3,
+                  data=[{"naam": "⭐ " + w["naam"], "tip": "In de app · tik om binnen te lopen", "adres": w["adres"],
+                         "lat": w["lat"], "lon": w["lon"], "kleur": _rgb(w["kleur"])} for w in op_kaart]),
+    ]
+    deck = pdk.Deck(layers=lagen, map_style=None, tooltip={"html": "<b>{naam}</b><br/>{tip}"},
+                    initial_view_state=pdk.ViewState(latitude=lat, longitude=lon,
+                                                     zoom={1: 14.5, 2: 13.5, 5: 12}.get(straal, 13)))
+    keuze = st.pydeck_chart(deck, height=420, on_select="rerun", selection_mode="single-object", key="winkelkaart")
+    gekozen = ((getattr(keuze, "selection", None) or {}).get("objects") or {}).get("onze") or []
+    if gekozen and gekozen[0].get("adres"):
+        st.session_state.open_winkel = gekozen[0]["adres"]
+        st.rerun()
+    st.caption("⭐ Gekleurde stippen: winkels in de app, daar koop je veilig en blijf je in de app. "
+               "Grijze stippen: andere winkels (OpenStreetMap).")
+
+    st.markdown(f"**⭐ In de app** ({len(eigen)})")
+    if not eigen:
+        st.caption("Nog geen winkels in de app hier. Heb je zelf een winkel? Open hem gratis bij 📦 Mijn webshop "
+                   "(accounttype Verkoper of Ondernemer).")
+    for w in eigen[:30]:
+        with st.container(border=True):
+            k1, k2 = st.columns([3, 1], vertical_alignment="center")
+            waar_tekst = (f"📍 {_km(w['afstand_km'])} · {w['winkeladres']}" if w.get("lat") is not None
+                          else "🌐 Online, bezorgt of laat ophalen")
+            k1.markdown(f'<span style="color:{w["kleur"]}">●</span> **{w["naam"]}**', unsafe_allow_html=True)
+            k1.caption(f"{waar_tekst} · {w['producten']} producten")
+            if k2.button("Binnenlopen", key=f"kaart_open_{w['adres']}", width="stretch", type="primary"):
+                st.session_state.open_winkel = w["adres"]
+                st.rerun()
+
+    st.markdown(f"**Andere winkels in de buurt** ({len(overig)})")
+    if not overig:
+        st.caption("Geen andere winkels gevonden binnen deze straal.")
+    for w in overig[:40]:
+        route = f"https://maps.apple.com/?daddr={w['lat']},{w['lon']}&q={quote(w['naam'])}"
+        regel = f"{w['icoon']} **{w['naam']}** · {w['soort']} · {_km(w['afstand_km'])} · [Route]({route})"
+        extra = " · ".join(x for x in (w["adres"], w["openingstijden"]) if x)
+        st.markdown(regel + (f"  \n:gray[{extra}]" if extra else ""))
+    if len(overig) > 40:
+        st.caption(f"En nog {len(overig) - 40} winkels. Zoek bovenaan op naam of soort, of kies een kleinere straal.")
+    st.caption("Kaartgegevens © OpenStreetMap-bijdragers.")
 
 
 def winkel_pagina(adres: str, ingelogd: bool) -> None:
@@ -712,9 +1038,27 @@ def winkel_pagina(adres: str, ingelogd: bool) -> None:
     kleur = w["kleur"]
     st.markdown(f'<div style="border-top:6px solid {kleur};padding-top:6px"></div>', unsafe_allow_html=True)
     st.title(w["naam"])
+    if w.get("actie"):
+        st.info(w["actie"], icon="📣")
     if w["omschrijving"]:
         st.write(w["omschrijving"])
-    st.caption(f"🏬 Winkel van {w['verkoper']} · {samen.vertrouwen_tekst(w.get('vertrouwen'))}")
+    st.caption(f"🏬 Winkel van {w['verkoper']} · {samen.vertrouwen_tekst(w.get('vertrouwen'))}"
+               + (f" · 📍 {w['winkeladres']}" if w.get("winkeladres") else ""))
+    # Elke winkelpagina telt één keer per sessie als bezoek (voor de verkoper zijn cijfers).
+    geteld = st.session_state.setdefault("winkels_geteld", set())
+    if adres not in geteld:
+        geteld.add(adres)
+        try:
+            samen.winkel_bezocht(adres)
+        except Exception:
+            pass
+    reviews = samen.reviews_bekijken(adres)
+    if ingelogd and w.get("verkoper_id") != ik().get("id"):
+        volgt = adres in (samen.mijn_winkelnieuws().get("volgt") or [])
+        if st.button("✓ Je volgt deze winkel" if volgt else "♥ Volgen: nieuws en acties in de app",
+                     key=f"volg_{adres}", type="secondary" if volgt else "primary"):
+            if _fout(samen.winkel_volgen, adres, not volgt) is not None:
+                st.rerun()
     if bedrijf := samen.zakelijk(w.get("vertrouwen")):
         st.caption(" · ".join(x for x in (bedrijf.get("naam"), f"KvK {bedrijf['kvk']}" if bedrijf.get("kvk") else "",
                                            f"btw {bedrijf['btw']}" if bedrijf.get("btw") else "", bedrijf.get("adres"))
@@ -755,6 +1099,69 @@ def winkel_pagina(adres: str, ingelogd: bool) -> None:
                 continue
             with st.popover("🛒 Bestellen", width="stretch"):
                 webshop_formulier(w, p)
+    reviews_blok(w, adres, reviews, ingelogd)
+
+
+def sterren(aantal: float | None) -> str:
+    if not aantal:
+        return "☆☆☆☆☆"
+    heel = int(round(aantal))
+    return "★" * heel + "☆" * (5 - heel)
+
+
+def reviews_blok(w: dict, adres: str, reviews: dict, ingelogd: bool) -> None:
+    """Reviews van echte klanten (na een aankoop of een bevestigd bezoek), met reactie van de verkoper."""
+    st.markdown(f"**Reviews** · {sterren(reviews.get('sterren'))} "
+                + (f"{str(reviews['sterren']).replace('.', ',')} uit {reviews['aantal']}" if reviews.get("aantal")
+                   else "nog geen reviews"))
+    st.caption("Alleen echte klanten kunnen een review schrijven: na een afgeronde bestelling of met een bezoekcode "
+               "die je in de winkel krijgt. Zo blijft het eerlijk, voor klanten en voor de verkoper.")
+    if ingelogd:
+        for bezoek in [b for b in (_fout(samen.mijn_bezoeken) or []) if b["adres"] == adres]:
+            with st.container(border=True):
+                st.markdown("**Hoe was je bezoek?**")
+                with st.form(f"review_{bezoek['id']}", border=False):
+                    keuze = st.feedback("stars")
+                    tekst = st.text_area("Wat ging goed, wat kan beter? (optioneel)", max_chars=500, height=80)
+                    if st.form_submit_button("Review plaatsen", type="primary"):
+                        if keuze is None:
+                            st.error("Kies eerst het aantal sterren.")
+                        elif _fout(samen.winkel_beoordelen, bezoek["id"], keuze + 1, tekst.strip()) is not None:
+                            st.toast("Bedankt voor je review!", icon="⭐")
+                            st.rerun()
+    lijst = reviews.get("reviews") or []
+    for r in lijst[:5]:
+        review_kaart(r, ingelogd and w.get("verkoper_id") != ik().get("id"))
+    if len(lijst) > 5:
+        with st.expander(f"Alle {len(lijst)} reviews"):
+            for r in lijst[5:]:
+                review_kaart(r, ingelogd and w.get("verkoper_id") != ik().get("id"))
+
+
+def review_kaart(r: dict, mag_melden: bool, verkoper: bool = False) -> None:
+    with st.container(border=True):
+        st.markdown(f"{sterren(r['sterren'])} **{r['door']}** · "
+                    f"{'🧾 aankoop' if r['soort'] == 'aankoop' else '🚶 bezoek'} · {r['datum'][:10]}")
+        if r["tekst"]:
+            st.write(r["tekst"])
+        if r.get("antwoord"):
+            st.caption(f"↳ Reactie van de winkel: {r['antwoord']}")
+        if verkoper:
+            with st.popover("💬 Reageren" if not r.get("antwoord") else "💬 Reactie aanpassen"):
+                with st.form(f"antw_{r['soort']}_{r['id']}", border=False):
+                    tekst = st.text_area("Je reactie (iedereen ziet die)", value=r.get("antwoord", ""), max_chars=500)
+                    st.caption("Tip: bedank, blijf vriendelijk en bied bij een klacht een oplossing aan.")
+                    if st.form_submit_button("Opslaan"):
+                        if _fout(samen.review_antwoorden, r["soort"], r["id"], tekst.strip()) is not None:
+                            st.rerun()
+        if mag_melden or verkoper:
+            with st.popover("🚩 Melden"):
+                with st.form(f"meld_{r['soort']}_{r['id']}", border=False, clear_on_submit=True):
+                    reden = st.text_area("Wat klopt er niet? (bijvoorbeeld beledigend of niet over deze winkel)")
+                    st.caption("De review blijft staan tot de beheerder ernaar heeft gekeken.")
+                    if st.form_submit_button("Melden") and reden.strip():
+                        if _fout(samen.review_melden, r["soort"], r["id"], reden.strip()) is not None:
+                            st.success("Gemeld. De beheerder kijkt ernaar.")
 
 
 def webshop_formulier(w: dict, p: dict) -> None:
@@ -763,11 +1170,13 @@ def webshop_formulier(w: dict, p: dict) -> None:
         aantal = st.number_input("Aantal", 1, max(1, maximum), 1) if maximum > 1 else 1
         levering = st.radio("Hoe krijg je het?", p["levering"], format_func=samen.LEVERING.get)
         bericht = st.text_input("Bericht aan de verkoper (optioneel)")
+        code = st.text_input("Kortingscode (optioneel)", max_chars=20)
         st.caption(f"Verzendkosten: {samen.euro(w['verzendkosten'])}"
                    + (f", gratis vanaf {samen.euro(w['gratis_vanaf'])}" if w.get("gratis_vanaf") else "")
                    + ". Geen extra kosten.")
         if st.form_submit_button("Bestellen en betalen", type="primary"):
-            if (b := _fout(samen.webshop_bestellen, p["id"], aantal, levering, bericht.strip())) is None:
+            if (b := _fout(samen.webshop_bestellen, p["id"], aantal, levering, bericht.strip(),
+                                code.strip())) is None:
                 return
             url = _fout(samen.afrekenen, b["id"])
             if url:
@@ -1137,4 +1546,17 @@ def beheer() -> None:
                     st.rerun()
                 if kol3.button("Verbergen", key=f"roff_{m['id']}", width="stretch"):
                     ruimte.beheer_afhandelen(m["ruimte_id"], True)
+                    st.rerun()
+        for r in samen.beheer_reviews():
+            with st.container(border=True):
+                st.markdown(f"⭐ Review van {r['door']} over **{r['over']}** ({r['sterren']} sterren)  \n"
+                            f"{r['tekst'] or '(geen tekst)'}  \nGemeld: {r['gemeld']}")
+                st.caption("Verberg alleen als de review de regels breekt (beledigend, persoonsgegevens, niet over deze "
+                           "winkel of nep). Kritiek op zich is toegestaan.")
+                kol1, kol2 = st.columns(2)
+                if kol1.button("Is in orde", key=f"vok_{r['soort']}_{r['id']}", width="stretch"):
+                    samen.beheer_review_afhandelen(r["soort"], r["id"], False)
+                    st.rerun()
+                if kol2.button("Verbergen", key=f"voff_{r['soort']}_{r['id']}", width="stretch"):
+                    samen.beheer_review_afhandelen(r["soort"], r["id"], True)
                     st.rerun()

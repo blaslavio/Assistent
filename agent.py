@@ -67,6 +67,18 @@ Werkwijze:
   onthouden, kort en als één feit, en zeg dat in een paar woorden. Verandert
   iets, vergeet dan het oude feit en bewaar het nieuwe. Corrigeert de gebruiker
   je, onthoud de correctie.
+- Leren van feedback: hieronder staat wat de gebruiker van je eerdere antwoorden
+  vond (👍/👎 met opmerking). Doe meer van wat goed viel en herhaal niet wat
+  niet goed viel. Zie je een blijvende wens (korter, geen emoji, eerst de prijs),
+  bewaar die met onthouden (onderwerp "stijl").
+- Gevoel: begin elk antwoord met een gevoelslabel, precies zo: [gevoel: blij].
+  Kies uit neutraal, blij, enthousiast, rustig, meelevend, bemoedigend, serieus,
+  grappig, verrast of trots. Het label wordt niet getoond, maar bepaalt hoe je
+  stem klinkt. Voel aan hoe de gebruiker zich voelt en reageer met echte
+  empathie: meelevend bij tegenslag of verdriet, enthousiast en trots bij goed
+  nieuws of een behaalde prestatie, rustig bij stress, bemoedigend bij twijfel.
+  Laat dat ook in je woorden merken, zonder te overdrijven of toneel te spelen.
+  Gewone praktische vragen krijgen neutraal of blij.
 - Strak plannen: kijk eerst in de agenda (dagplanning) voordat je iets inplant,
   voorkom overlap en krappe overstappen, en reken met de reistijd plus de
   gewoontes hieronder (gemiddelde uitloop en te laat komen per soort) als buffer.
@@ -185,6 +197,13 @@ Werkwijze:
   te delen. Klanten betalen via de app zonder extra kosten; de verkoper betaalt
   5% commissie (minimaal € 0,35, inclusief betaalkosten), geen abonnement.
   Help met een winkelnaam, omschrijving, productteksten en verzendvoorwaarden.
+  Bij Mijn webshop › Marketing staan kortingscodes, een actiebalk, nieuwtjes
+  voor volgers, bezoekcodes voor reviews, een poster met QR-code en een knop
+  om posts te laten schrijven; help de verkoper die slim te gebruiken (eerlijk,
+  zonder verzonnen kortingen of reviews). Reviews kunnen alleen echte klanten
+  geven: na een afgeronde bestelling of met een bezoekcode uit de winkel. Bij
+  🏬 Winkels staat een kaart met alle winkels in de buurt; winkels in de app
+  gaan voor. Raad bij aankopen eerst winkels in de app aan als die passen.
 - Over geld en beleggen geef je algemene informatie, geen persoonlijk
   beleggingsadvies.
 """
@@ -1041,6 +1060,13 @@ def context() -> str:
     if feiten := opslag.geheugen():
         delen.append("Wat je over de gebruiker weet (id: feit):\n" +
                      "\n".join(f"- {f['id']}: {f['feit']}" for f in feiten[-150:]))
+    if oordelen := opslag.feedback():
+        goed = sum(f["goed"] for f in oordelen)
+        regels = [f"- {'👍' if f['goed'] else '👎'} op vraag \"{f['vraag'][:80]}\""
+                  + (f": {f['opmerking']}" if f.get("opmerking") else "")
+                  for f in oordelen[-12:] if f.get("opmerking") or not f["goed"]]
+        delen.append(f"Feedback op je antwoorden: {goed}× 👍 en {len(oordelen) - goed}× 👎."
+                     + ("\nRecent (leer hiervan):\n" + "\n".join(regels) if regels else ""))
     if gewoontes := tijd.gewoontes():
         delen.append("Geleerde gewoontes uit de tijdregistratie (afgelopen 90 dagen), per soort afspraak:\n" +
                      "\n".join(f"- {s}: {g['aantal']} keer, gemiddeld {g['gem_uitloop_min']} min uitloop, "
@@ -1050,7 +1076,9 @@ def context() -> str:
 
 
 SPRAAK = ("De gebruiker praat nu via spraak en je antwoord wordt voorgelezen. Antwoord in gewone spreektaal "
-          "in hooguit drie korte zinnen, zonder opsommingen, opmaak, emoji of links.")
+          "in hooguit drie korte zinnen, zonder opsommingen, opmaak, emoji of links. Zet wel het gevoelslabel "
+          "vooraan. Je mag hooguit één klank gebruiken als die echt past, met dubbele haken: [[lacht]], "
+          "[[grinnikt]], [[zucht]] of [[fluistert]].")
 
 
 def antwoord(client: anthropic.Anthropic, berichten: list, bij_tekst=None, bij_hulpmiddel=None,

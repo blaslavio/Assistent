@@ -43,7 +43,7 @@ def voorwaarden() -> str:
 6. **Kosten.** De app zelf is gratis, net als alle accounttypes. Je betaalt alleen in deze gevallen:
    - **Kopen via de app op de marktplaats:** de koper betaalt € 0,50 plus 3% van het bedrag voor kopersbescherming.
      De verkoper betaalt niets.
-   - **Verkopen via je eigen webshop in de app** (zodra die beschikbaar is): de verkoper betaalt 5% van het
+   - **Verkopen via je eigen webshop in de app:** de verkoper betaalt 5% van het
      verkochte bedrag (inclusief verzendkosten die de koper betaalt), met een minimum van € 0,35 per bestelling.
      Daarin zitten de betaalkosten van Stripe al. Er is geen abonnement en er zijn geen vaste maandkosten. Het
      bedrag wordt ingehouden op de uitbetaling en staat per bestelling in je verkoopoverzicht. De koper betaalt
@@ -56,18 +56,26 @@ def voorwaarden() -> str:
 8. **VR-ruimtes.** In een VR-ruimte laat je je eigen project zien. Zet er alleen foto's, teksten en 3D-modellen in
    die je zelf hebt gemaakt of mag gebruiken, en geen herkenbare mensen zonder hun toestemming. Een openbare ruimte
    kan iedereen bekijken, ook zonder account. Je kunt je ruimte en alles erin altijd zelf verwijderen.
-9. **Melden en blokkeren.** Zie je iets wat niet mag? Gebruik de knop 🚩 Melden. De beheerder bekijkt meldingen zo
+9. **Reviews en marketing.** Een review kan alleen een echte klant geven: na een afgeronde bestelling via de app,
+   of na een bezoek dat de winkel heeft bevestigd met een eenmalige bezoekcode. Eén review per aankoop of bezoek,
+   binnen 60 dagen. Schrijf eerlijk en over je eigen ervaring; geen beledigingen, persoonsgegevens of nepreviews.
+   Verkopers mogen niet betalen of iets beloven voor een (goede) review en geven een bezoekcode aan iedere klant,
+   niet alleen aan tevreden klanten. De verkoper kan openbaar reageren en een review melden; de review blijft staan
+   tot de beheerder heeft gekeken, en wordt alleen verborgen als hij deze regels breekt. Kortingscodes, acties en
+   nieuwtjes moeten kloppen: geen nep-"van"-prijzen of misleidende beloftes. Nieuwtjes gaan alleen naar mensen die
+   een winkel zelf volgen, hooguit één per dag; volgen kun je altijd stoppen.
+10. **Melden en blokkeren.** Zie je iets wat niet mag? Gebruik de knop 🚩 Melden. De beheerder bekijkt meldingen zo
    snel mogelijk en kan aanbod offline halen of een account blokkeren. Wordt iets door meerdere mensen gemeld, dan
    gaat het automatisch offline tot de beheerder heeft gekeken. Nieuwe accounts kunnen de eerste week minder
    tegelijk aanbieden en bestellen. Je kunt bezwaar maken via {_contact()}.
-10. **Delen en projecten.** Wat je deelt of in een project zet, kunnen de ontvangers of projectleden zien. Deel alleen
+11. **Delen en projecten.** Wat je deelt of in een project zet, kunnen de ontvangers of projectleden zien. Deel alleen
    wat je wilt delen.
-11. **Stoppen.** Je kunt je account altijd verwijderen via Instellingen > Account. De beheerder kan accounts die
+12. **Stoppen.** Je kunt je account altijd verwijderen via Instellingen > Account. De beheerder kan accounts die
    deze voorwaarden overtreden blokkeren. Een account met een lopende betaling of een open geschil kun je pas
    verwijderen als die is afgerond.
-12. **Aansprakelijkheid.** De app wordt aangeboden zoals hij is. De beheerder is niet aansprakelijk voor afspraken
+13. **Aansprakelijkheid.** De app wordt aangeboden zoals hij is. De beheerder is niet aansprakelijk voor afspraken
    tussen gebruikers onderling, of voor schade door het gebruik van de app, behalve bij opzet of grove schuld.
-13. **Wijzigingen.** Als deze voorwaarden veranderen, zie je dat in de app. Op deze voorwaarden is Nederlands recht
+14. **Wijzigingen.** Als deze voorwaarden veranderen, zie je dat in de app. Op deze voorwaarden is Nederlands recht
     van toepassing.
 
 Contact: {_contact()}.
@@ -81,6 +89,14 @@ def privacy() -> str:
 **Welke gegevens.** Je gebruikersnaam, weergavenaam, mailadres en een versleutelde versie van je wachtwoord (het
 wachtwoord zelf bewaren we niet). Verder wat je zelf invult: agenda, taken, contacten, leerdoelen, boodschappen, foto's en
 geluidsopnames bij afspraken, wat je deelt, projecten, aanbod, bestellingen, boekingen, beoordelingen en berichten op de marktplaats.
+
+Heb je een winkel, dan zijn je winkelnaam, je reacties op reviews en (als je dat invult) het adres van je winkel
+voor iedereen zichtbaar. Reviews tonen je weergavenaam, de sterren, je tekst en de datum. We tellen hoe vaak een
+winkelpagina is bekeken, zonder bij te houden door wie. Een winkel ziet hoeveel volgers hij heeft, niet wie.
+
+Je 👍/👎 en opmerkingen bij antwoorden bewaren we bij je eigen gegevens, zodat de assistent ervan leert. Zet je de
+natuurlijke stem aan, dan gaat de tekst van het antwoord via je eigen sleutel naar ElevenLabs (Verenigde Staten) om
+voorgelezen te worden.
 
 In een VR-ruimte bewaren we de foto's, teksten en 3D-modellen die je erin zet, en hoe vaak hij is bezocht. De 3D-weergave gebruikt A-Frame, geladen via jsDelivr.
 

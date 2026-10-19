@@ -213,7 +213,7 @@ def account_verwijderen() -> bool:
     return online() and bool(_rpc_ik("account_verwijderen"))
 
 
-GEHEIM = {"anthropic_sleutel", "strava_client_secret", "strava_tokens", "ticketmaster_sleutel"}
+GEHEIM = {"anthropic_sleutel", "strava_client_secret", "strava_tokens", "ticketmaster_sleutel", "elevenlabs_sleutel"}
 
 
 def export() -> str:
@@ -645,6 +645,32 @@ def vergeten(feit_id: int) -> bool:
         g["geheugen"] = over
         opslaan(g)
     return True
+
+
+# --- Feedback: wat de gebruiker van de antwoorden vond -----------------------------
+
+def feedback() -> list[dict]:
+    return laden().get("feedback", [])
+
+
+def feedback_geven(goed: bool, vraag: str, antwoord: str, opmerking: str = "", antwoord_id: str = "") -> dict:
+    """Bewaart 👍 of 👎 (met een eventuele opmerking) bij een antwoord. Opnieuw geven vervangt het oude oordeel."""
+    with _slot:
+        g = laden()
+        lijst = [f for f in g.get("feedback", []) if not antwoord_id or f.get("antwoord_id") != antwoord_id]
+        item = {"id": _nieuw_id(g), "goed": goed, "vraag": vraag.strip()[:200], "antwoord": antwoord.strip()[:300],
+                "opmerking": opmerking.strip()[:300], "antwoord_id": antwoord_id,
+                "datum": datetime.now().date().isoformat()}
+        g["feedback"] = (lijst + [item])[-100:]
+        opslaan(g)
+    return item
+
+
+def feedback_vergeten(feedback_id: int) -> None:
+    with _slot:
+        g = laden()
+        g["feedback"] = [f for f in g.get("feedback", []) if f["id"] != feedback_id]
+        opslaan(g)
 
 
 # --- Schrijven: scripties, verslagen en essays ------------------------------

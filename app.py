@@ -37,11 +37,12 @@ import tijd
 import werk_scherm
 import weer
 import wetenschap
+import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
 for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
-                mail, samen, teksten, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
+                mail, samen, teksten, winkelkaart, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -894,7 +895,8 @@ def events_overzicht() -> None:
                "en betaal je direct, bijvoorbeeld met Apple Pay of iDEAL.")
 
 
-VOORPAGINA = {"weer": "Weer naast de datum", "afspraken": "Geplande afspraken (dagschema)",
+VOORPAGINA = {"weer": "Weer naast de datum", "startpunt": "Snel aan de slag (verkopen, dienst aanbieden, leren, winkels)",
+              "afspraken": "Geplande afspraken (dagschema)",
               "meldingen": "Meldingen (verkocht, bestellingen, berichten, gedeeld)",
               "saldo": "Saldo van de marktplaats", "taken": "Taken",
               "seintjes": "Korte seintjes (herhalen, sportresultaat)"}
@@ -939,6 +941,8 @@ def vandaag_overzicht() -> None:
                 f'<img src="{avatar.adres(mijn_avatar())}" width="56" height="56" style="border-radius:50%;flex-shrink:0">'
                 f'<div><b>{html.escape(groet(nu))}</b><br><span style="opacity:.6">{html.escape(regel)}</span></div></div>',
                 unsafe_allow_html=True)
+    if keuze["startpunt"]:
+        startpunt()
     if keuze["afspraken"]:
         dagschema()
     if samen.beschikbaar():
@@ -951,6 +955,30 @@ def vandaag_overzicht() -> None:
         taken_blok()
     if keuze["seintjes"]:
         seintjes(nu)
+
+
+def startpunt() -> None:
+    """Eén rij knoppen: van hier begin je met verkopen, een dienst aanbieden, leren of winkelen."""
+    uit = onderdelen_uit()
+    opties = {}
+    if samen.beschikbaar() and "🏪 Marktplaats" not in uit:
+        opties |= {"🏷️ Verkopen": ("verkopen", "product"), "🛠️ Dienst aanbieden": ("verkopen", "dienst"),
+                   "🏬 Winkels": ("winkels", None)}
+    if "📚 Leren" not in uit:
+        opties["📚 Leren"] = ("leren", None)
+    opties[f"💬 {mijn_avatar()['naam']}"] = ("assistent", None)
+
+    def gekozen() -> None:
+        keuze = st.session_state.get("startpunt")
+        st.session_state.startpunt = None
+        if keuze in opties:
+            url, soort = opties[keuze]
+            if soort:
+                st.session_state.aanbod_soort = soort
+                st.session_state.aanbod_open = True
+            st.session_state.ga_naar = url
+
+    st.pills("Snel aan de slag", list(opties), key="startpunt", on_change=gekozen, label_visibility="collapsed")
 
 
 def meldingen_blok(meldingen: list) -> None:
@@ -1316,13 +1344,52 @@ def stem_instellingen() -> None:
                           help="Uit: alleen voorlezen als je zelf hebt ingesproken.")
     doorpraten = st.toggle("Doorpraten zonder te tikken (handsfree, bijvoorbeeld in de auto)", value=huidig["doorpraten"],
                            key="stem_doorpraten", help="Na het voorlezen luistert de assistent meteen weer.")
-    nieuw = {"regio": regio, "geslacht": geslacht, "snelheid": snelheid, "voorlezen": voorlezen, "doorpraten": doorpraten}
+    st.markdown("**Natuurlijke stem met gevoel**")
+    st.caption("De assistent kiest bij elk antwoord een gevoel (blij, rustig, meelevend, enthousiast...) en laat dat "
+               "horen. Met de stem van je apparaat verandert alleen de toon een beetje. Met ElevenLabs klinkt de stem "
+               "echt menselijk: met warmte, enthousiasme, een lach of een zucht. Daarvoor maak je een eigen account "
+               "op elevenlabs.io (er is een gratis proefversie met een beperkt aantal minuten) en plak je hier je "
+               "API-sleutel.")
+    heeft_sleutel = bool(opslag.instellingen().get("elevenlabs_sleutel"))
+    if st.session_state.pop("stem_natuurlijk_aan", False):
+        st.session_state.stem_natuurlijk = True
+    standaard = {} if "stem_natuurlijk" in st.session_state else {"value": huidig["natuurlijk"] and heeft_sleutel}
+    natuurlijk = st.toggle("Natuurlijke stem gebruiken (ElevenLabs)", key="stem_natuurlijk", disabled=not heeft_sleutel,
+                           **standaard,
+                           help=None if heeft_sleutel else "Vul eerst hieronder je ElevenLabs-sleutel in.")
+    stem_id = huidig.get("stem_id", "")
+    with st.popover("🔑 ElevenLabs-sleutel" + (" ✅" if heeft_sleutel else "")):
+        with st.form("eleven", border=False):
+            nieuwe_sleutel = "".join(st.text_input("API-sleutel", type="password").split())
+            stem_id = st.text_input("Stem-ID (optioneel)", value=stem_id,
+                                    help="Laat leeg voor een standaardstem. Een Nederlandse stem kies je in de "
+                                         "Voice Library van ElevenLabs; kopieer daar het Voice ID.").strip()
+            if st.form_submit_button("Opslaan en testen", type="primary"):
+                test = nieuwe_sleutel or opslag.instellingen().get("elevenlabs_sleutel", "")
+                try:
+                    with st.spinner("Stem testen..."):
+                        geluid = spraak.natuurlijk_voorlezen("Hallo! [[lacht]] Wat fijn dat je er bent.", "blij",
+                                                             {**huidig, "stem_id": stem_id}, test)
+                except (spraak.StemFout, Exception) as fout:
+                    st.error(str(fout) if isinstance(fout, spraak.StemFout) else "ElevenLabs is niet bereikbaar.")
+                else:
+                    opslag.instellingen_bijwerken(elevenlabs_sleutel=test, stem={**huidig, "stem_id": stem_id,
+                                                                                 "natuurlijk": True})
+                    st.session_state.stem_natuurlijk_aan = True
+                    st.session_state.stem_test_geluid = geluid
+                    st.session_state.stem_test_ok = True
+                    st.rerun()
+    if st.session_state.pop("stem_test_ok", False):
+        st.success("De natuurlijke stem werkt. Tik op 🔊 hieronder om te luisteren.")
+    nieuw = {"regio": regio, "geslacht": geslacht, "snelheid": snelheid, "voorlezen": voorlezen, "doorpraten": doorpraten,
+             "natuurlijk": natuurlijk, "stem_id": stem_id}
     if nieuw != huidig:
         opslag.instellingen_bijwerken(stem=nieuw)
-    spraak.knop(nieuw, "Hallo! Zo klink ik. Waar kan ik je mee helpen?", key="stem_test", alleen_voorlezen=True)
-    st.caption("Tik op 🔊 om te luisteren. Natuurlijker klinken? Download op je iPad bij Instellingen > "
-               "Toegankelijkheid > Gesproken materiaal > Stemmen > Nederlands een verbeterde stem, bijvoorbeeld "
-               "Claire of Xander (Nederland) of Ellen (Vlaanderen). Welke stemmen er zijn, hangt af van je apparaat.")
+    spraak.knop(nieuw, "Hallo! Zo klink ik. Waar kan ik je mee helpen?", key="stem_test", alleen_voorlezen=True,
+                gevoel="blij", geluid=st.session_state.get("stem_test_geluid"))
+    st.caption("Tik op 🔊 om te luisteren. Zonder ElevenLabs klinkt het natuurlijker met een verbeterde stem op je "
+               "iPad: Instellingen > Toegankelijkheid > Gesproken materiaal > Stemmen > Nederlands, bijvoorbeeld "
+               "Claire of Xander (Nederland) of Ellen (Vlaanderen).")
 
 
 def geheugen_instellingen() -> None:
@@ -1342,6 +1409,15 @@ def geheugen_instellingen() -> None:
         if kol2.form_submit_button("➕") and feit.strip():
             opslag.onthouden(feit.strip())
             st.rerun()
+    if oordelen := opslag.feedback():
+        goed = sum(f["goed"] for f in oordelen)
+        st.markdown(f"**Wat je van de antwoorden vond** · {goed}× 👍 · {len(oordelen) - goed}× 👎")
+        for f in [f for f in reversed(oordelen) if f.get("opmerking")][:10]:
+            kol1, kol2 = st.columns([6, 1], vertical_alignment="center")
+            kol1.caption(f"{'👍' if f['goed'] else '👎'} {f['opmerking']}  \n:gray[bij: {f['vraag'][:60]}]")
+            if kol2.button("✕", key=f"fbweg_{f['id']}", help="Vergeten"):
+                opslag.feedback_vergeten(f["id"])
+                st.rerun()
     if gewoontes := tijd.gewoontes():
         st.markdown("**Geleerd uit je tijdregistratie**")
         for soort, g in gewoontes.items():
@@ -1726,7 +1802,7 @@ def zelftest() -> None:
     with st.spinner("Claude controleren..."):
         try:
             tekst = agent.antwoord(client, [{"role": "user", "content": "Zelftest: gebruik geen hulpmiddelen en antwoord alleen met OK."}])
-            st.write(f"✅ Claude antwoordt: {tekst[:100]}")
+            st.write(f"✅ Claude antwoordt: {spraak.zonder_labels(tekst)[:100]}")
         except anthropic.APIError as fout:
             st.write(f"❌ Claude: {foutmelding(fout)}")
 
@@ -1860,7 +1936,11 @@ def gesprek() -> None:
     stemkeuze = stem()
     laatste = next((t for r, t in reversed(st.session_state.chat) if r == "assistant"), "")
     voorlezen = st.session_state.get("voorlezen_id", "")
-    gezegd = spraak.knop(stemkeuze, laatste, voorlezen, automatisch=bool(voorlezen))
+    gezegd = spraak.knop(stemkeuze, laatste, voorlezen, automatisch=bool(voorlezen),
+                         gevoel=st.session_state.get("laatste_gevoel", "neutraal"),
+                         geluid=st.session_state.get("voorlezen_geluid"))
+    if melding := st.session_state.pop("stem_melding", None):
+        st.caption(f"🔈 {melding}")
     if gezegd and not st.session_state.get("vooraf_vraag"):
         st.session_state.vooraf_vraag = gezegd
         st.session_state.ingesproken = True
@@ -1872,6 +1952,8 @@ def gesprek() -> None:
     gezicht = avatar.plaatje(mijn_avatar())
     for rol, tekst in st.session_state.chat:
         st.chat_message(rol, avatar=gezicht if rol == "assistant" else None).markdown(tekst)
+    if st.session_state.chat and st.session_state.chat[-1][0] == "assistant":
+        feedback_vragen_antwoord()
 
     vraag = st.session_state.pop("vooraf_vraag", None)
     if not vraag:
@@ -1895,7 +1977,7 @@ def gesprek() -> None:
             def bij_tekst(stukje: str) -> None:
                 status.empty()
                 delen.append(stukje)
-                vak.markdown("".join(delen) + " ▌")
+                vak.markdown(spraak.zonder_labels("".join(delen)) + " ▌")
 
             def bij_hulpmiddel(naam: str) -> None:
                 if delen:
@@ -1913,12 +1995,52 @@ def gesprek() -> None:
                 tekst = foutmelding(fout)
             status.empty()
             vak.empty()
+        ruw = tekst
+        gevoel = spraak.gevoel_van("".join(delen) or ruw) if sleutel else "neutraal"
+        tekst = spraak.zonder_labels(tekst) or "Klaar."
         st.markdown(tekst)
     st.session_state.chat.append(("assistant", tekst))
+    st.session_state.laatste_vraag = zichtbaar
+    st.session_state.laatste_gevoel = gevoel
+    st.session_state.voorlezen_geluid = None
     # Voorlezen gebeurt na de rerun door de spraakknop, één keer per antwoord.
     if ingesproken or stemkeuze["voorlezen"]:
         st.session_state.voorlezen_id = f"antwoord-{len(st.session_state.chat)}"
+        if sleutel and stemkeuze.get("natuurlijk") and (stem_sleutel := opslag.instellingen().get("elevenlabs_sleutel")):
+            with st.spinner("🔊 Stem maken..."):
+                try:
+                    st.session_state.voorlezen_geluid = spraak.natuurlijk_voorlezen(ruw, gevoel, stemkeuze, stem_sleutel)
+                except spraak.StemFout as fout:
+                    st.session_state.stem_melding = str(fout)
+                except Exception:
+                    st.session_state.stem_melding = "De natuurlijke stem is even niet bereikbaar; ik gebruik de stem van je apparaat."
     st.rerun()
+
+
+def feedback_vragen_antwoord() -> None:
+    """👍/👎 onder het laatste antwoord. De assistent leert hiervan (zie agent.context)."""
+    nummer = len(st.session_state.chat)
+    sleutel = f"oordeel_{nummer}"
+
+    def bewaren() -> None:
+        # Een callback draait vóór de rest van het script: eerst het account van deze sessie instellen.
+        opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
+        oordeel = st.session_state.get(sleutel)
+        if oordeel is not None:
+            opslag.feedback_geven(bool(oordeel), st.session_state.get("laatste_vraag", ""),
+                                  st.session_state.chat[-1][1], antwoord_id=f"antwoord-{nummer}")
+
+    oordeel = st.feedback("thumbs", key=sleutel, on_change=bewaren)
+    if oordeel == 0 and not st.session_state.get(f"opmerking_klaar_{nummer}"):
+        with st.form(f"opmerking_{nummer}", border=False):
+            opmerking = st.text_input("Wat kan beter? Dan onthoud ik het.", placeholder="Bijv. korter, minder vragen, "
+                                      "geen emoji, eerst de prijs")
+            if st.form_submit_button("Doorgeven") and opmerking.strip():
+                opslag.feedback_geven(False, st.session_state.get("laatste_vraag", ""), st.session_state.chat[-1][1],
+                                      opmerking.strip(), antwoord_id=f"antwoord-{nummer}")
+                st.session_state[f"opmerking_klaar_{nummer}"] = True
+                st.toast("Dank je, dat onthoud ik.", icon="🧠")
+                st.rerun()
 
 
 def terug_van_stripe() -> None:
@@ -2045,6 +2167,22 @@ def main() -> None:
         del st.query_params["winkel"]
         st.session_state.open_winkel = adres
         st.session_state.ga_naar = "winkels"
+    if (code := st.query_params.get("bezoek")) and opslag.online():
+        if not st.session_state.get("wachtwoord"):
+            st.title("Bedankt voor je bezoek!")
+            st.markdown("Log in of maak gratis een account. Dan bevestig je je bezoek en kun je een review schrijven.")
+            wachtwoord_ok()
+            return
+        del st.query_params["bezoek"]
+        try:
+            bezoek = samen.bezoek_bevestigen(code)
+        except samen.Fout as fout:
+            st.session_state.bezoek_melding = ("fout", str(fout))
+        else:
+            st.session_state.bezoek_melding = ("ok", f"Bezoek aan {bezoek['winkel']} bevestigd. Je kunt nu een "
+                                                     "review schrijven, onderaan de winkelpagina.")
+            st.session_state.open_winkel = bezoek["adres"]
+            st.session_state.ga_naar = "winkels"
     if not st.session_state.get("wachtwoord"):
         st.title("Mijn assistent")
     terug_van_stripe()
@@ -2069,6 +2207,8 @@ def main() -> None:
     if doel in PAGINA and nu_open.url_path != doel:
         st.switch_page(PAGINA[doel])
 
+    if melding := st.session_state.pop("bezoek_melding", None):
+        (st.success if melding[0] == "ok" else st.error)(melding[1], icon="⭐" if melding[0] == "ok" else None)
     strava_terugkomst()
     strava_bijwerken()
     nu_open.run()

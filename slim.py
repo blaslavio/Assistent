@@ -54,6 +54,22 @@ def _vraag(client: anthropic.Anthropic, inhoud, schema: dict, systeem: str, zoek
     raise Mislukt("Het zoeken duurde te lang. Probeer het opnieuw.")
 
 
+def marketingtekst(client: anthropic.Anthropic, winkel: str, omschrijving: str, kanaal: str, onderwerp: str,
+                   link: str) -> dict:
+    """Een eerlijke, pakkende tekst voor een post, nieuwtje of flyer van een winkel in de app."""
+    schema = _object({"tekst": TEKST, "hashtags": _lijst(TEKST), "tip": TEKST})
+    systeem = ("Je schrijft marketingteksten in het Nederlands voor kleine ondernemers en particuliere verkopers. "
+               "Schrijf warm, eerlijk en concreet, in de stijl die past bij het kanaal (Instagram: beeldend met een "
+               "paar emoji; Facebook: iets langer; WhatsApp-status en nieuwtje: kort; flyer: kop, drie korte regels "
+               "en een oproep). Beloof niets wat niet in de opdracht staat: geen verzonnen kortingen, prijzen, "
+               "keurmerken of reviews. Eindig met een duidelijke oproep en de link als die past. Geef alleen bij "
+               "Instagram en Facebook 3 tot 6 Nederlandse hashtags, anders een lege lijst. Geef één korte, "
+               "praktische tip voor het plaatsen (beste moment, foto erbij).")
+    vraag = (f"Winkel: {winkel}\nOver de winkel: {omschrijving or '-'}\nKanaal: {kanaal}\n"
+             f"Onderwerp: {onderwerp}\nLink naar de winkel in de app: {link}")
+    return _vraag(client, vraag, schema, systeem)
+
+
 def foutmelding(fout: anthropic.APIError) -> str:
     if isinstance(fout, anthropic.AuthenticationError):
         return "De Anthropic-sleutel klopt niet. Vervang hem bij ⚙️ Instellingen."

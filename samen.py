@@ -328,6 +328,11 @@ def winkel_product(aanbod_id: int, in_winkel: bool, voorraad: int | None) -> Non
     _ok(opslag._rpc_ik("winkel_product", p_aanbod=aanbod_id, p_in_winkel=in_winkel, p_voorraad=voorraad))
 
 
+def winkel_vestiging(winkeladres: str, lat: float | None, lon: float | None) -> None:
+    """Adres van de echte winkel, zodat hij op de winkelkaart staat. Leeg = alleen online."""
+    _ok(opslag._rpc_ik("winkel_vestiging", p_winkeladres=winkeladres, p_lat=lat, p_lon=lon))
+
+
 def winkel_bekijken(adres: str) -> dict:
     """Een winkel zoals iedereen hem ziet, ook zonder account."""
     return _ok(opslag._rpc("winkel_bekijken", p_adres=adres))
@@ -338,9 +343,89 @@ def winkels_zoeken(zoekterm: str = "") -> list[dict]:
     return opslag._rpc("winkels_zoeken", p_zoekterm=zoekterm)
 
 
-def webshop_bestellen(aanbod_id: int, aantal: int, levering: str, bericht: str = "") -> dict:
+def webshop_bestellen(aanbod_id: int, aantal: int, levering: str, bericht: str = "", code: str = "") -> dict:
     return _ok(opslag._rpc_ik("webshop_bestellen", p_aanbod=aanbod_id, p_aantal=aantal, p_levering=levering,
-                              p_bericht=bericht))
+                              p_bericht=bericht, p_code=code))
+
+
+# --- Reviews: alleen na een echte aankoop of een bevestigd bezoek ------------------------
+
+def reviews_bekijken(adres: str) -> dict:
+    """Reviews van een winkel, voor iedereen (ook zonder account)."""
+    return opslag._rpc("reviews_bekijken", p_adres=adres) or {"aantal": 0, "sterren": None, "reviews": []}
+
+
+def bezoekcode_maken() -> dict:
+    return _ok(opslag._rpc_ik("bezoekcode_maken"))
+
+
+def bezoek_bevestigen(code: str) -> dict:
+    return _ok(opslag._rpc_ik("bezoek_bevestigen", p_code=code))
+
+
+def mijn_bezoeken() -> list[dict]:
+    return opslag._rpc_ik("mijn_bezoeken")["bezoeken"]
+
+
+def winkel_beoordelen(bezoek_id: int, sterren: int, tekst: str) -> None:
+    _ok(opslag._rpc_ik("winkel_beoordelen", p_bezoek=bezoek_id, p_sterren=sterren, p_tekst=tekst))
+
+
+def review_antwoorden(soort: str, review_id: int, tekst: str) -> None:
+    _ok(opslag._rpc_ik("review_antwoorden", p_soort=soort, p_id=review_id, p_tekst=tekst))
+
+
+def review_melden(soort: str, review_id: int, reden: str) -> None:
+    _ok(opslag._rpc_ik("review_melden", p_soort=soort, p_id=review_id, p_reden=reden))
+
+
+def beheer_reviews() -> list[dict]:
+    return opslag._rpc_ik("beheer_reviews").get("reviews", [])
+
+
+def beheer_review_afhandelen(soort: str, review_id: int, verbergen: bool) -> None:
+    _ok(opslag._rpc_ik("beheer_review_afhandelen", p_soort=soort, p_id=review_id, p_verbergen=verbergen))
+
+
+# --- Marketing voor winkels ----------------------------------------------------------------
+
+def mijn_marketing() -> dict:
+    return _ok(opslag._rpc_ik("mijn_marketing"))
+
+
+def kortingscode_opslaan(code: str = "", procent: int | None = None, bedrag: float | None = None, minimum: float = 0,
+                         geldig_tot: str | None = None, max_gebruik: int | None = None, code_id: int | None = None,
+                         actief: bool = True) -> None:
+    _ok(opslag._rpc_ik("kortingscode_opslaan", p_id=code_id, p_code=code, p_procent=procent, p_bedrag=bedrag,
+                       p_minimum=minimum, p_geldig_tot=geldig_tot, p_max_gebruik=max_gebruik, p_actief=actief))
+
+
+def kortingscode_controleren(adres: str, code: str, subtotaal: float) -> float:
+    return _ok(opslag._rpc("kortingscode_controleren", p_adres=adres, p_code=code, p_subtotaal=subtotaal))["korting"]
+
+
+def winkel_actie(tekst: str, tot: str | None) -> None:
+    _ok(opslag._rpc_ik("winkel_actie", p_tekst=tekst, p_tot=tot))
+
+
+def winkel_nieuws_plaatsen(tekst: str) -> None:
+    _ok(opslag._rpc_ik("winkel_nieuws_plaatsen", p_tekst=tekst))
+
+
+def winkel_nieuws_weg(nieuws_id: int) -> None:
+    _ok(opslag._rpc_ik("winkel_nieuws_weg", p_id=nieuws_id))
+
+
+def winkel_volgen(adres: str, aan: bool) -> None:
+    _ok(opslag._rpc_ik("winkel_volgen", p_adres=adres, p_aan=aan))
+
+
+def mijn_winkelnieuws() -> dict:
+    return opslag._rpc_ik("mijn_winkelnieuws")
+
+
+def winkel_bezocht(adres: str) -> None:
+    opslag._rpc("winkel_bezocht", p_adres=adres)
 
 
 def commissie(bedrag: float, procent: float = 5, minimum: float = 0.35) -> float:
@@ -436,6 +521,14 @@ def nieuw() -> dict:
         meldingen.append(("berichten", f"💬 {ongelezen} nieuw bericht" + ("en" if ongelezen > 1 else "")))
     if gedeeld:
         meldingen.append(("samen", f"🤝 {gedeeld} nieuw met je gedeeld"))
+    try:
+        for n in mijn_winkelnieuws().get("nieuws", [])[:2]:
+            if n["datum"][:10] >= (date.today() - timedelta(days=2)).isoformat():
+                meldingen.append(("winkels", f"📰 **{n['winkel']}**: {n['tekst'][:70]}"))
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        pass
     return {"gedeeld": gedeeld, "berichten": ongelezen, "bestellingen": wacht, "meldingen": meldingen, "saldo": saldo}
 
 
