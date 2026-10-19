@@ -293,9 +293,8 @@ def aanbod_kaart(aanbod: dict) -> None:
             return
         kolommen = st.columns(2)
         if aanbod.get("winkel"):
-            if kolommen[0].button("🏬 Naar de webshop", key=f"winkel_{aanbod['id']}", width="stretch", type="primary"):
-                st.query_params["winkel"] = aanbod["winkel"]
-                st.rerun()
+            if kolommen[0].button("🏬 Naar de winkel", key=f"winkel_{aanbod['id']}", width="stretch", type="primary"):
+                naar_winkel(aanbod["winkel"])
         else:
             with kolommen[0].popover("🛒 Kopen" if aanbod["soort"] == "product" else "🛒 Bestellen", width="stretch"):
                 bestel_formulier(aanbod)
@@ -613,8 +612,7 @@ def mijn_webshop() -> None:
         st.success(f"Je winkel is open: **{link}**")
         k1, k2, k3 = st.columns(3)
         if k1.button("👀 Bekijken", width="stretch"):
-            st.query_params["winkel"] = w["adres"]
-            st.rerun()
+            naar_winkel(w["adres"])
         k2.link_button("📤 WhatsApp", f"https://wa.me/?text={quote(w['naam'] + ': ' + link)}", width="stretch")
         with k3.popover("▦ QR-code", width="stretch"):
             st.image(_qr(link), caption="Laat klanten deze code scannen")
@@ -662,6 +660,45 @@ def mijn_webshop() -> None:
                     if _fout(samen.winkel_product, p["id"], in_winkel, voorraad) is not None:
                         st.toast("Opgeslagen.", icon="✅")
                         st.rerun()
+
+
+def naar_winkel(adres: str) -> None:
+    """Opent een winkel in de winkelstraat, binnen de app."""
+    st.session_state.open_winkel = adres
+    st.session_state.pop("webshop_betalen", None)
+    st.session_state.ga_naar = "winkels"
+    st.rerun(scope="app")
+
+
+def winkelstraat() -> None:
+    """Pagina 🏬 Winkels: alle winkels in de app. Een winkel opent hier, je verlaat de app niet."""
+    if adres := st.session_state.get("open_winkel"):
+        if st.button("← Alle winkels", type="tertiary"):
+            st.session_state.pop("open_winkel", None)
+            st.session_state.pop("webshop_betalen", None)
+            st.rerun()
+        winkel_pagina(adres, True)
+        return
+    zoek = st.text_input("Zoek een winkel of product", placeholder="🔎 Zoek een winkel of product",
+                         label_visibility="collapsed")
+    winkels = samen.winkels_zoeken(zoek.strip())
+    if not winkels:
+        st.caption("Geen winkels gevonden." if zoek else
+                   "Er zijn nog geen winkels. Heb je accounttype Verkoper of Ondernemer? Open dan je eigen winkel bij "
+                   "📦 Mijn webshop.")
+    kolommen = st.columns(2)
+    for i, w in enumerate(winkels):
+        with kolommen[i % 2].container(border=True):
+            st.markdown(f'<div style="border-top:5px solid {w["kleur"]};margin:-4px 0 6px"></div>',
+                        unsafe_allow_html=True)
+            st.markdown(f"**{w['naam']}**")
+            if w["omschrijving"]:
+                st.caption(w["omschrijving"][:140] + ("..." if len(w["omschrijving"]) > 140 else ""))
+            st.caption(f"{w['verkoper']} · {w['producten']} producten"
+                       + (" · 🏢 zakelijk" if samen.zakelijk(w.get("vertrouwen")) else ""))
+            if st.button("Binnenlopen", key=f"open_{w['adres']}", width="stretch"):
+                st.session_state.open_winkel = w["adres"]
+                st.rerun()
 
 
 def winkel_pagina(adres: str, ingelogd: bool) -> None:

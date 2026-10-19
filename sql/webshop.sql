@@ -387,3 +387,25 @@ grant execute on function public.mijn_winkel(text, text), public.winkel_instelle
 revoke execute on function public.stripe_bestelling(bigint), public.stripe_vrijgeven(bigint, bigint)
   from public, anon, authenticated;
 grant execute on function public.stripe_bestelling(bigint), public.stripe_vrijgeven(bigint, bigint) to service_role;
+
+-- --- Winkelstraat: alle open winkels in de app ---------------------------------------------
+
+create or replace function public.winkels_zoeken(p_zoekterm text)
+returns jsonb language sql stable security definer set search_path to '' as $$
+  select coalesce(jsonb_agg(x order by x->>'naam'), '[]'::jsonb) from (
+    select private.winkel_json(w) || jsonb_build_object(
+      'verkoper', private.weergave(w.gebruiker_id),
+      'vertrouwen', private.vertrouwen(w.gebruiker_id),
+      'producten', (select count(*) from private.aanbod a where a.gebruiker_id = w.gebruiker_id and a.in_winkel
+                    and not a.geblokkeerd and a.actief and coalesce(a.voorraad, 1) > 0)) as x
+    from private.winkels w join private.gebruikers g on g.id = w.gebruiker_id
+    where w.open and not g.geblokkeerd and not g.verwijderd
+      and (coalesce(trim(p_zoekterm), '') = ''
+           or w.naam ilike '%' || trim(p_zoekterm) || '%' or w.omschrijving ilike '%' || trim(p_zoekterm) || '%'
+           or exists (select 1 from private.aanbod a where a.gebruiker_id = w.gebruiker_id and a.in_winkel
+                      and a.titel ilike '%' || trim(p_zoekterm) || '%'))
+    limit 200) s
+$$;
+
+revoke all on function public.winkels_zoeken(text) from public;
+grant execute on function public.winkels_zoeken(text) to anon, authenticated;

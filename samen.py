@@ -333,6 +333,11 @@ def winkel_bekijken(adres: str) -> dict:
     return _ok(opslag._rpc("winkel_bekijken", p_adres=adres))
 
 
+def winkels_zoeken(zoekterm: str = "") -> list[dict]:
+    """Alle open winkels in de app (de winkelstraat), ook zonder account."""
+    return opslag._rpc("winkels_zoeken", p_zoekterm=zoekterm)
+
+
 def webshop_bestellen(aanbod_id: int, aantal: int, levering: str, bericht: str = "") -> dict:
     return _ok(opslag._rpc_ik("webshop_bestellen", p_aanbod=aanbod_id, p_aantal=aantal, p_levering=levering,
                               p_bericht=bericht))
