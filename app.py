@@ -16,6 +16,7 @@ import streamlit as st
 
 import activiteiten
 import agent
+import avatar
 import boodschappen
 import events
 import ics
@@ -36,7 +37,7 @@ import wetenschap
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
 for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
-                mail, samen, teksten, samen_scherm, agent, spraak):
+                mail, samen, teksten, samen_scherm, avatar, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -818,47 +819,102 @@ def events_overzicht() -> None:
                "en betaal je direct, bijvoorbeeld met Apple Pay of iDEAL.")
 
 
-VOORPAGINA = {"weer": "Weer naast de datum", "taken": "Taken", "seintjes": "Korte seintjes (herhalen, sportresultaat)"}
-ONDERDELEN = ["💬 Gesprek", "✉️ Mail", "🛒 Boodschappen", "📚 Leren", "🤝 Samen", "🏪 Marktplaats"]
+VOORPAGINA = {"weer": "Weer naast de datum", "afspraken": "Geplande afspraken (dagschema)",
+              "meldingen": "Meldingen (verkocht, bestellingen, berichten, gedeeld)",
+              "saldo": "Saldo van de marktplaats", "taken": "Taken",
+              "seintjes": "Korte seintjes (herhalen, sportresultaat)"}
+# Wat je in het menu aan of uit kunt zetten (de sleutels staan zo in je instellingen).
+ONDERDELEN = {"✉️ Mail": "✉️ Mail", "📚 Leren": "📚 Leren en schrijven", "🤝 Samen": "🤝 Projecten en delen",
+              "🛒 Boodschappen": "🛒 Boodschappen", "🏪 Marktplaats": "🏪 Marktplaats"}
+# De pagina's van deze beurt, op url; gevuld door paginas().
+PAGINA: dict = {}
 
 
 def voorpagina() -> dict:
     return {k: True for k in VOORPAGINA} | opslag.instellingen().get("voorpagina", {})
 
 
+def mijn_avatar() -> dict:
+    return avatar.instellingen(opslag.instellingen())
+
+
+def ga_naar(url: str) -> None:
+    """Naar een andere pagina, ook vanuit een knop in een stukje dat zichzelf bijwerkt."""
+    st.session_state.ga_naar = url
+    st.rerun(scope="app")
+
+
+def groet(nu: datetime) -> str:
+    deel = "Goedemorgen" if nu.hour < 12 else "Goedemiddag" if nu.hour < 18 else "Goedenavond"
+    naam = samen_scherm.ik().get("weergavenaam") or ""
+    return f"{deel}{', ' + naam if naam else ''}"
+
+
 def vandaag_overzicht() -> None:
-    """De voorpagina: zo rustig mogelijk. Datum en weer, het dagschema en je taken. Werkt ook zonder Claude."""
+    """De voorpagina: zo rustig mogelijk. Wat er staat, kies je bij Instellingen › Voorpagina en menu."""
     nu = datetime.now()
     keuze = voorpagina()
-    st.markdown(f"#### {DAGEN[nu.weekday()].capitalize()} {nu.day} {MAANDEN[nu.month - 1]}")
+    regel = f"{DAGEN[nu.weekday()].capitalize()} {nu.day} {MAANDEN[nu.month - 1]}"
     if keuze["weer"] and (w := weer_kort()):
-        st.caption(w)
-    dagschema()
+        regel += f" · {w}"
+    st.markdown(f'<div style="display:flex;gap:14px;align-items:center;margin-bottom:8px">'
+                f'<img src="{avatar.adres(mijn_avatar())}" width="56" height="56" style="border-radius:50%;flex-shrink:0">'
+                f'<div><b>{html.escape(groet(nu))}</b><br><span style="opacity:.6">{html.escape(regel)}</span></div></div>',
+                unsafe_allow_html=True)
+    if keuze["afspraken"]:
+        dagschema()
+    if samen.beschikbaar():
+        nieuw = samen_scherm.nieuw_kort()
+        if keuze["meldingen"]:
+            meldingen_blok(nieuw.get("meldingen", []))
+        if keuze["saldo"] and "🏪 Marktplaats" not in onderdelen_uit():
+            saldo_blok(nieuw.get("saldo"))
     if keuze["taken"]:
         taken_blok()
     if keuze["seintjes"]:
         seintjes(nu)
 
 
+def meldingen_blok(meldingen: list) -> None:
+    """Wat er op de marktplaats en bij Samen voor je is gebeurd; tik erop om erheen te gaan."""
+    for pagina, tekst in meldingen[:5]:
+        icoon, rest = tekst.split(" ", 1)
+        if pagina in PAGINA:
+            st.page_link(PAGINA[pagina], label=rest, icon=icoon)
+        else:
+            st.caption(tekst)
+    if len(meldingen) > 5:
+        st.caption(f"En nog {len(meldingen) - 5} meer.")
+
+
+def saldo_blok(saldo: dict | None) -> None:
+    if not saldo:
+        return
+    if not any(saldo.values()):
+        st.caption("🏪 Marktplaats: deze maand nog niets gekocht of verkocht.")
+        return
+    delen = [f"verdiend **{samen.euro(saldo['verdiend'])}**" + (f" ({saldo['verkocht']} verkocht)" if saldo["verkocht"] else "")]
+    if saldo["onderweg"]:
+        delen.append(f"onderweg **{samen.euro(saldo['onderweg'])}**")
+    if saldo["uitgegeven"]:
+        delen.append(f"uitgegeven **{samen.euro(saldo['uitgegeven'])}**")
+    st.markdown("🏪 Deze maand: " + " · ".join(delen),
+                help="Onderweg is betaald via de app; je krijgt het zodra de koper bevestigt dat alles goed is ontvangen."
+                if saldo["onderweg"] else None)
+
+
 def seintjes(nu: datetime) -> None:
     """Hooguit één regel met wat aandacht vraagt; de rest staat op de plek zelf."""
     delen = []
     if herhalingen := opslag.herhalingen_vandaag():
-        delen.append(f"📚 {len(herhalingen)} keer herhalen (Assistent › Leren)")
+        delen.append(f"📚 {len(herhalingen)} keer herhalen (Werk en leren › Leren)")
     if sport_zonder_resultaat(nu):
         delen.append("🏃 hoe ging je training? (Agenda)")
     if concepten := opslag.mailconcepten():
-        delen.append(f"✉️ {len(concepten)} antwoord klaar om te versturen (Assistent › Mail)")
+        delen.append(f"✉️ {len(concepten)} antwoord klaar om te versturen (Werk en leren › Mail)")
     if opslag.sportdoelen() and not tijd.sportoverzicht((nu.date() - timedelta(days=6)).isoformat(),
                                                          nu.date().isoformat())["aantal"]:
         delen.append("🚶 deze week nog niet bewogen, even een rondje?")
-    nieuw = samen_scherm.nieuw_kort()
-    if nieuw.get("gedeeld"):
-        delen.append(f"🤝 {nieuw['gedeeld']} nieuw met je gedeeld (Assistent › Samen)")
-    if nieuw.get("bestellingen"):
-        delen.append(f"🧾 {nieuw['bestellingen']} bestelling wacht op jou (Assistent › Marktplaats)")
-    if nieuw.get("berichten"):
-        delen.append(f"💬 {nieuw['berichten']} nieuw bericht (Assistent › Marktplaats)")
     if not opslag.instellingen().get("thuisadres"):
         delen.append("🏠 vul je thuisadres in voor vertrektijden (Instellingen)")
     if delen:
@@ -1368,18 +1424,56 @@ def onderdelen_uit() -> list[str]:
 
 
 def voorpagina_instellingen() -> None:
-    """Wat er op de voorpagina staat en welke onderdelen de assistent heeft."""
+    """Wat er op de voorpagina staat en wat er in het menu staat."""
     huidig = voorpagina()
+    st.markdown("**Op de voorpagina**")
     nieuw = {k: st.toggle(label, value=huidig[k], key=f"vp_{k}") for k, label in VOORPAGINA.items()}
     if nieuw != huidig:
         opslag.instellingen_bijwerken(voorpagina=nieuw)
-    st.caption("Het dagschema staat er altijd.")
     uit = onderdelen_uit()
-    st.markdown("**Onderdelen bij 💬 Assistent**")
-    nieuw_uit = [o for o in ONDERDELEN[1:] if not st.toggle(o, value=o not in uit, key=f"onderdeel_{o}")]
+    st.markdown("**In het menu**")
+    nieuw_uit = [o for o, label in ONDERDELEN.items() if not st.toggle(label, value=o not in uit, key=f"onderdeel_{o}")]
     if sorted(nieuw_uit) != sorted(uit):
         opslag.instellingen_bijwerken(onderdelen_uit=nieuw_uit)
+        st.rerun()
     st.caption("Zet uit wat je niet gebruikt; de assistent kan het via het gesprek nog steeds voor je doen.")
+
+
+def avatar_instellingen() -> None:
+    """Naam en uiterlijk van de assistent."""
+    a = mijn_avatar()
+    nieuw = dict(a)
+    kol1, kol2 = st.columns([1, 3], vertical_alignment="center")
+    kol1.image(avatar.plaatje(a), width=88)
+    nieuw["naam"] = kol2.text_input("Naam van je assistent", value=a["naam"], max_chars=20).strip() or "Sam"
+    st.caption("Kies een uiterlijk")
+    stijlen = list(avatar.STIJLEN)
+    for rij in (stijlen[:4], stijlen[4:]):
+        for kolom, stijl in zip(st.columns(4), rij):
+            kolom.image(avatar.plaatje(a | {"stijl": stijl, "foto": ""}, 96), width=56,
+                        caption=avatar.STIJLEN[stijl])
+    stijl = st.pills("Uiterlijk", stijlen, default=a["stijl"], format_func=avatar.STIJLEN.get, key="av_stijl",
+                     label_visibility="collapsed") or a["stijl"]
+    kleur = st.pills("Achtergrond", list(avatar.KLEUREN), default=a["kleur"], format_func=avatar.KLEUREN.get,
+                     key="av_kleur") or a["kleur"]
+    if (stijl, kleur) != (a["stijl"], a["kleur"]):
+        nieuw |= {"stijl": stijl, "kleur": kleur, "foto": ""}
+    kol1, kol2 = st.columns(2)
+    if kol1.button("🎲 Ander gezicht", width="stretch"):
+        nieuw |= {"code": avatar.nieuwe_code(), "foto": ""}
+    if a["foto"] and kol2.button("Eigen foto weghalen", width="stretch"):
+        nieuw["foto"] = ""
+    foto = st.file_uploader("Of gebruik een eigen foto of tekening", type=["jpg", "jpeg", "png", "webp"])
+    if foto and st.session_state.get("av_foto") != foto.file_id:
+        try:
+            nieuw["foto"] = avatar.foto_verkleinen(foto.getvalue())
+            st.session_state.av_foto = foto.file_id
+        except Exception:
+            st.error("Deze foto kon niet worden gelezen. Probeer een JPG of PNG.")
+    if nieuw != a:
+        opslag.instellingen_bijwerken(avatar=nieuw)
+        st.rerun()
+    st.caption("De plaatjes komen van DiceBear; daarvoor gaat alleen een willekeurige code mee, niet je naam.")
 
 
 def thuisadres_instellen() -> None:
@@ -1428,6 +1522,8 @@ def instellingen_tabblad() -> None:
     """Alles wat je één keer instelt, netjes ingeklapt."""
     inst = opslag.instellingen()
     st.markdown("**De assistent**")
+    with st.expander(f"🙂 Naam en uiterlijk ({mijn_avatar()['naam']})"):
+        avatar_instellingen()
     with st.expander("💬 Hoe de assistent praat"):
         stijl_instellingen()
     with st.expander("🗣️ Stem"):
@@ -1439,7 +1535,7 @@ def instellingen_tabblad() -> None:
     with st.expander("🏠 Thuisadres" + ("" if inst.get("thuisadres") else " (nog invullen)"),
                      expanded=not inst.get("thuisadres")):
         thuisadres_instellen()
-    with st.expander("🧩 Voorpagina en onderdelen"):
+    with st.expander("🧩 Voorpagina en menu"):
         voorpagina_instellingen()
     with st.expander(f"👤 Contacten ({len(opslag.contacten_zoeken())})"):
         contacten_beheren()
@@ -1609,7 +1705,6 @@ def boodschappen_tabblad() -> None:
 
 # --- Assistent ------------------------------------------------------------
 
-TABBLADEN = ["☀️ Vandaag", "📅 Agenda", "💬 Assistent", "⚙️ Instellingen"]
 BEZIG = {
     "marktplaats_zoeken": "🏪 Marktplaatsen doorzoeken...", "boeken": "📅 Boeken...", "delen_met": "🤝 Delen...",
     "web_search": "🔎 Zoeken op internet...", "web_fetch": "📄 Pagina lezen...", "plaats_zoeken": "📍 Plekken zoeken...",
@@ -1628,28 +1723,13 @@ SUGGESTIES = ["Wat staat er vandaag op de planning?", "Welke mails vragen actie?
 
 
 def vraag_assistent(vraag: str, label: str | None = None) -> None:
-    """Stelt een vraag namens een knop en gaat naar het tabblad van de assistent.
+    """Stelt een vraag namens een knop en gaat naar het gesprek met de assistent.
 
     Met `label` ziet de gebruiker een korte tekst in de chat in plaats van de hele vraag.
     """
     st.session_state.vooraf_vraag = vraag
     st.session_state.vooraf_label = label
-    st.session_state.naar_assistent = True
-    st.rerun()
-
-
-def assistent_tabblad() -> None:
-    """Alles waarmee de assistent helpt, bij elkaar: gesprek, mail, boodschappen, leren, samen en de marktplaats."""
-    zichtbaar = [o for o in ONDERDELEN if o not in onderdelen_uit()
-                 and (samen.beschikbaar() or o not in ("🤝 Samen", "🏪 Marktplaats"))]
-    if st.session_state.get("onderdeel") not in zichtbaar:
-        st.session_state.onderdeel = ONDERDELEN[0]
-    if len(zichtbaar) > 1:
-        st.segmented_control("Onderdeel", zichtbaar, key="onderdeel", label_visibility="collapsed")
-    keuze = st.session_state.get("onderdeel") or ONDERDELEN[0]
-    {"💬 Gesprek": gesprek, "✉️ Mail": mail_tabblad, "🛒 Boodschappen": boodschappen_tabblad,
-     "📚 Leren": leren_tabblad, "🤝 Samen": samen_scherm.samen_tabblad,
-     "🏪 Marktplaats": samen_scherm.marktplaats_tabblad}[keuze]()
+    ga_naar("assistent")
 
 
 def gesprek() -> None:
@@ -1669,8 +1749,9 @@ def gesprek() -> None:
         for i, suggestie in enumerate(SUGGESTIES):
             if st.button(suggestie, key=f"suggestie_{i}"):
                 st.session_state.vooraf_vraag = suggestie
+    gezicht = avatar.plaatje(mijn_avatar())
     for rol, tekst in st.session_state.chat:
-        st.chat_message(rol).markdown(tekst)
+        st.chat_message(rol, avatar=gezicht if rol == "assistant" else None).markdown(tekst)
 
     vraag = st.session_state.pop("vooraf_vraag", None)
     if not vraag:
@@ -1684,7 +1765,7 @@ def gesprek() -> None:
     st.chat_message("user").markdown(zichtbaar)
     st.session_state.chat.append(("user", zichtbaar))
     sleutel = anthropic_sleutel()
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar=gezicht):
         if not sleutel:
             tekst = "Er is nog geen Anthropic-sleutel ingesteld. Dat doe je bij ⚙️ Instellingen."
         else:
@@ -1731,9 +1812,7 @@ def terug_van_stripe() -> None:
     betaald = st.session_state.pop("terug_betaald", None)
     stripe_terug = st.session_state.pop("terug_stripe", None)
     if betaald or stripe_terug:
-        st.session_state.tabblad = "💬 Assistent"
-        st.session_state.onderdeel = "🏪 Marktplaats"
-        st.session_state.markt_deel = "🧾 Bestellingen" if betaald else "➕ Aanbieden"
+        st.session_state.ga_naar = "bestellingen" if betaald else "verkopen"
     if betaald and betaald != "0":
         st.toast("Betaling gelukt. Het geld staat veilig tot je bevestigt dat alles goed is ontvangen.", icon="💳")
     elif betaald == "0":
@@ -1747,6 +1826,43 @@ def terug_van_stripe() -> None:
                  else "Stripe is nog bezig met je aanmelding.", icon="✅" if klaar else "ℹ️")
 
 
+def paginas() -> dict:
+    """Het menu: een paar vaste pagina's, en de rest in twee uitklapmenu's. Wat je uitzet, staat er niet in."""
+    PAGINA.clear()
+    uit = onderdelen_uit()
+    online = samen.beschikbaar()
+    nieuw = samen_scherm.nieuw_kort() if online else {}
+
+    def pagina(functie, titel: str, icoon: str, url: str, aantal: int = 0, **extra) -> st.Page:
+        PAGINA[url] = st.Page(functie, title=titel + (f" ({aantal})" if aantal else ""), icon=icoon, url_path=url,
+                              **extra)
+        return PAGINA[url]
+
+    menu = {"": [pagina(vandaag_overzicht, "Vandaag", "🏠", "vandaag", default=True),
+                 pagina(agenda_tabblad, "Agenda", "📅", "agenda"),
+                 pagina(gesprek, mijn_avatar()["naam"], "💬", "assistent"),
+                 pagina(instellingen_tabblad, "Instellingen", "⚙️", "instellingen")]}
+    werk = []
+    if "✉️ Mail" not in uit:
+        werk.append(pagina(mail_tabblad, "Mail", "✉️", "mail"))
+    if "📚 Leren" not in uit:
+        werk.append(pagina(leren_tabblad, "Leren en schrijven", "📚", "leren"))
+    if online and "🤝 Samen" not in uit:
+        werk.append(pagina(samen_scherm.samen_tabblad, "Projecten en delen", "🤝", "samen", nieuw.get("gedeeld", 0)))
+    if "🛒 Boodschappen" not in uit:
+        werk.append(pagina(boodschappen_tabblad, "Boodschappen", "🛒", "boodschappen"))
+    if werk:
+        menu["Werk en leren"] = werk
+    if online and "🏪 Marktplaats" not in uit:
+        menu["Marktplaats"] = [
+            pagina(samen_scherm.markt_zoeken, "Zoeken", "🔎", "zoeken"),
+            pagina(samen_scherm.aanbieden, "Verkopen", "🏷️", "verkopen"),
+            pagina(samen_scherm.markt_bestellingen, "Bestellingen", "🧾", "bestellingen", nieuw.get("bestellingen", 0)),
+            pagina(samen_scherm.berichten, "Berichten", "💬", "berichten", nieuw.get("berichten", 0)),
+        ]
+    return menu
+
+
 def main() -> None:
     if not opslag.online():
         st.caption("Lokale testmodus: gegevens staan in data/gegevens.json.")
@@ -1756,28 +1872,23 @@ def main() -> None:
     if not wachtwoord_ok():
         return
     terug_van_stripe()
+    nu_open = st.navigation(paginas(), position="top")
     if st.session_state.pop("welkom", False):
         st.success(f"Welkom, {samen_scherm.ik().get('weergavenaam') or ''}! Je agenda, taken, Samen en de marktplaats "
                    "werken meteen. Wil je ook met de assistent praten? Zet dan je eigen Anthropic-sleutel bij "
                    "⚙️ Instellingen › Koppelingen.")
 
-    # Een vraag uit het invoerveld onderaan gaat altijd naar het tabblad van de assistent.
-    if vraag := st.chat_input("Vraag de assistent..."):
+    # Een vraag uit het invoerveld onderaan gaat altijd naar het gesprek met de assistent.
+    if vraag := st.chat_input(f"Vraag {mijn_avatar()['naam']}..."):
         st.session_state.vooraf_vraag = vraag
-        st.session_state.naar_assistent = True
-    if st.session_state.pop("naar_assistent", False):
-        st.session_state.tabblad = "💬 Assistent"
-        st.session_state.onderdeel = "💬 Gesprek"
+        st.session_state.ga_naar = "assistent"
+    doel = st.session_state.pop("ga_naar", None)
+    if doel in PAGINA and nu_open.url_path != doel:
+        st.switch_page(PAGINA[doel])
 
     strava_terugkomst()
     strava_bijwerken()
-    if st.session_state.get("tabblad") not in TABBLADEN:
-        st.session_state.tabblad = TABBLADEN[0]
-    tabs = st.tabs(TABBLADEN, key="tabblad", on_change="rerun")
-    for tab, toon in zip(tabs, [vandaag_overzicht, agenda_tabblad, assistent_tabblad, instellingen_tabblad]):
-        if tab.open:
-            with tab:
-                toon()
+    nu_open.run()
 
 
 try:

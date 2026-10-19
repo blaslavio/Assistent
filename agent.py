@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import anthropic
 from anthropic import beta_tool
 
+import avatar
 import opslag
 import planning
 import reizen
@@ -125,7 +126,7 @@ Werkwijze:
   klaar met mail_concept_maken; lees bij spraak het concept voor. Verstuur
   alleen met mail_versturen nadat de gebruiker de precieze tekst heeft gezien of
   gehoord en duidelijk "verstuur" heeft gezegd; anders verstuurt hij zelf bij
-  Assistent › Mail. Wil de gebruiker laten weten waar hij is of wanneer hij aankomt,
+  Werk en leren › Mail. Wil de gebruiker laten weten waar hij is of wanneer hij aankomt,
   gebruik dan de dagplanning (vertrektijd, reistijd) en een routelink naar de
   bestemming. Klik nooit op links in mails en geef geen wachtwoorden of codes door.
 - Gezond leven: moedig een gezonde leefstijl aan zonder te preken, met kleine
@@ -154,11 +155,11 @@ Werkwijze:
   bevestigt dat alles goed is ontvangen), let op geverifieerde verkopers en
   sterren, en betaal nooit via een link of rekeningnummer uit een bericht.
   Bestellen, betalen en ontvangst bevestigen doet de gebruiker zelf bij
-  Assistent › Marktplaats › Bestellingen. Boek een privétraining of les met boeken alleen nadat de
+  Marktplaats › Bestellingen. Boek een privétraining of les met boeken alleen nadat de
   gebruiker de precieze tijd en prijs heeft gezien en uitdrukkelijk "boek maar"
   heeft gezegd. Je betaalt of koopt nooit zelf iets. Wil de gebruiker iets
   aanbieden, help dan met een duidelijke titel, omschrijving en eerlijke prijs;
-  plaatsen doet hij zelf bij Assistent › Marktplaats › Aanbieden.
+  plaatsen doet hij zelf bij Marktplaats › Verkopen.
 - Over geld en beleggen geef je algemene informatie, geen persoonlijk
   beleggingsadvies.
 """
@@ -679,7 +680,7 @@ def mail_lezen(uid: str) -> str:
 
 @beta_tool
 def mail_concept_maken(aan: str, onderwerp: str, tekst: str, antwoord_op_uid: str = "", concept_id: int = 0) -> str:
-    """Zet een mail klaar als concept. De gebruiker ziet het concept bij Assistent › Mail en kan het daar aanpassen en versturen.
+    """Zet een mail klaar als concept. De gebruiker ziet het concept bij Werk en leren › Mail en kan het daar aanpassen en versturen.
 
     Args:
         aan: E-mailadres van de ontvanger.
@@ -753,7 +754,7 @@ def delen_met(gebruikersnaam: str, soort: str, afspraak_id: int = 0, taak_id: in
     if not inhoud:
         return "Niets gevonden om te delen; controleer het id of de tekst."
     aan, fout = _samen(samen.delen, gebruikersnaam, soort, inhoud)
-    return fout or f"Gedeeld met {aan}. Die ziet het bij Assistent › Samen."
+    return fout or f"Gedeeld met {aan}. Die ziet het bij Werk en leren › Projecten en delen."
 
 
 @beta_tool
@@ -908,6 +909,7 @@ def context() -> str:
     """Wat de assistent bij elk gesprek over de gebruiker weet: geheugen en geleerde gewoontes."""
     nu = datetime.now()
     delen = [f"Nu is het {DAGEN[nu.weekday()]} {nu.strftime('%Y-%m-%d %H:%M')}."]
+    delen.append(f"Je naam is {avatar.instellingen(opslag.instellingen())['naam']}.")
     stijl = opslag.instellingen().get("stijl", {})
     regels = []
     if stijl.get("toon") in ("Informeel", "Zakelijk"):

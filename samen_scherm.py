@@ -230,17 +230,25 @@ def project_kaart(project: dict) -> None:
 
 # --- Marktplaats ------------------------------------------------------------------
 
-def marktplaats_tabblad() -> None:
-    """Onze eigen marktplaats, met verwijzingen naar andere marktplaatsen."""
-    keuzes = ["🔎 Zoeken", "➕ Aanbieden", "🧾 Bestellingen", "📅 Boekingen", "💬 Berichten"]
-    if st.session_state.get("markt_deel") not in keuzes:
-        st.session_state.markt_deel = keuzes[0]
-    keuze = st.segmented_control("Marktplaats", keuzes, key="markt_deel", label_visibility="collapsed") or keuzes[0]
-    {"🔎 Zoeken": zoeken, "➕ Aanbieden": aanbieden, "🧾 Bestellingen": bestellingen, "📅 Boekingen": boekingen,
-     "💬 Berichten": berichten}[keuze]()
+def veilig_handelen() -> None:
     with st.expander("🛡️ Veilig kopen, verkopen en boeken"):
         st.markdown(samen.VEILIG)
         st.caption("De koop of boeking sluit je met de ander af. Zie de voorwaarden bij Instellingen › Account.")
+
+
+def markt_zoeken() -> None:
+    """Pagina 🔎 Zoeken: onze eigen marktplaats, met verwijzingen naar andere marktplaatsen."""
+    zoeken()
+    veilig_handelen()
+
+
+def markt_bestellingen() -> None:
+    """Pagina 🧾 Bestellingen: wat je koopt en verkoopt, en je geboekte tijden."""
+    bestellingen()
+    if samen.mijn_boekingen():
+        st.markdown("**📅 Boekingen**")
+        boekingen()
+    veilig_handelen()
 
 
 def zoeken() -> None:
@@ -255,7 +263,7 @@ def zoeken() -> None:
     resultaten = samen.aanbod_zoeken(zoekterm, soort)
     if not resultaten:
         st.caption("Nog niets gevonden op onze marktplaats." + (" Kijk hieronder ook bij de andere marktplaatsen."
-                                                               if zoekterm else " Wees de eerste: tik op ➕ Aanbieden."))
+                                                               if zoekterm else " Wees de eerste: kies Marktplaats › 🏷️ Verkopen."))
     for aanbod in resultaten:
         aanbod_kaart(aanbod)
     with st.expander("🌐 Ook kijken op andere marktplaatsen", expanded=bool(zoekterm) and not resultaten):

@@ -2,17 +2,19 @@
 
 Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je praat er gewoon Nederlands mee.
 
-**Wat de app kan** (vier tabbladen; onderaan kun je altijd iets vragen aan de assistent)
-- ☀️ **Vandaag**: zo rustig mogelijk: datum en weer, je dagschema dat vanzelf bijwerkt, je eerstvolgende afspraak met route en je taken.
+**Wat de app kan** (een rustig menu bovenaan; op de telefoon via » linksboven; onderaan kun je altijd iets vragen aan de assistent)
+- 🏠 **Vandaag**: je assistent groet je, met datum en weer, je dagschema dat vanzelf bijwerkt, meldingen (verkocht, bestellingen, berichten, gedeeld), je saldo op de marktplaats, je taken en korte seintjes. Wat er staat, kies je bij Instellingen › Voorpagina en menu.
 - 📅 **Agenda**: alles op één plek, met een soort per afspraak (sport, uitgaan, etentje, werk en meer) en een melding op je vertrektijd via 📲. Dichtgeklapt onderaan: ideeën in de buurt, sportdoelen en tijdsbesteding.
-- 💬 **Assistent**: alles waarmee de assistent helpt, bij elkaar:
-  - 💬 Gesprek: praten of typen, antwoorden worden voorgelezen; zoekt op internet, plant strak en onthoudt je voorkeuren.
+- 💬 **Je assistent** (met de naam die je kiest): praten of typen, antwoorden worden voorgelezen; zoekt op internet, plant strak en onthoudt je voorkeuren. Naam en uiterlijk (avatar of eigen foto) kies je bij Instellingen.
+- ⚙️ **Instellingen**: naam en uiterlijk van de assistent, hoe hij praat, stem, wat hij over je weet, thuisadres, voorpagina en menu, contacten, koppelingen (mail, Strava, Ticketmaster, Anthropic), je account, beheer (alleen de eigenaar) en uitloggen.
+- **Werk en leren** (uitklapmenu):
   - ✉️ Mail: mails lezen, afspraken naar je agenda, antwoorden klaarzetten die jij verstuurt.
+  - 📚 Leren en schrijven: leerdoelen, overhoren, en hulp bij scripties en verslagen met echte wetenschappelijke bronnen.
+  - 🤝 Projecten en delen: afspraken, taken, je boodschappenlijst en notities delen, en samen aan projecten werken.
   - 🛒 Boodschappen: lijst en de goedkoopste supermarkt in de buurt.
-  - 📚 Leren: leerdoelen, overhoren, en hulp bij scripties en verslagen met echte wetenschappelijke bronnen.
-  - 🤝 Samen: afspraken, taken, je boodschappenlijst en notities delen met andere gebruikers, en samen aan projecten werken.
-  - 🏪 Marktplaats: producten, diensten, privétrainingen en lessen aanbieden en vinden, bestellen, tijden boeken, berichten sturen, beoordelen en melden; met links naar andere marktplaatsen. Betalen kan via de app (Stripe, met kopersbescherming: het geld gaat pas naar de verkoper als de koper bevestigt dat alles goed is ontvangen) of buiten de app (Tikkie, overmaken, contant).
-- ⚙️ **Instellingen**: hoe de assistent praat, stem, wat hij over je weet, thuisadres, voorpagina en onderdelen, contacten, koppelingen (mail, Strava, Ticketmaster, Anthropic), je account (profiel, voorwaarden en privacy, gegevens downloaden, account verwijderen), beheer van meldingen (alleen de eigenaar) en uitloggen.
+- **Marktplaats** (uitklapmenu): 🔎 Zoeken, 🏷️ Verkopen, 🧾 Bestellingen (ook je geboekte tijden) en 💬 Berichten. Betalen kan via de app (Stripe, met kopersbescherming: het geld gaat pas naar de verkoper als de koper bevestigt dat alles goed is ontvangen) of buiten de app (Tikkie, overmaken, contant).
+
+Wat je niet gebruikt, zet je uit bij Instellingen › Voorpagina en menu; dan verdwijnt het uit het menu.
 
 Iedereen kan een gratis account maken met een gebruikersnaam, mailadres en wachtwoord, en inloggen met naam of mailadres. Wie met de assistent wil praten, zet zijn eigen Anthropic-sleutel bij Instellingen.
 

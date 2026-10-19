@@ -70,7 +70,8 @@ elkaar in contact brengen. We verkopen niets en tonen geen advertenties.
 **Waar het staat.** In een database van Supabase in de Europese Unie (Ierland). De app draait bij Streamlit
 (Verenigde Staten). Als je de chat gebruikt, gaat je vraag met de nodige context naar Anthropic (Verenigde Staten)
 via je eigen sleutel. Voor weer, routes, plaatsen en bronnen gebruikt de app open diensten (Open-Meteo,
-OpenStreetMap, OpenAlex, Crossref); daarvoor gaat alleen de zoekvraag of plaats mee, niet je naam. Betaal of verkoop
+OpenStreetMap, OpenAlex, Crossref) en voor het plaatje van je assistent DiceBear; daarvoor gaat alleen de zoekvraag,
+plaats of een willekeurige code mee, niet je naam. Betaal of verkoop
 je via de app, dan verwerkt Stripe je betaal- en (als verkoper) identiteitsgegevens; zie de privacyverklaring van
 Stripe. Wij zien geen bank- of kaartgegevens. Koppel je je mail of Strava, dan haalt de app daar alleen gegevens op als jij erom vraagt.
 

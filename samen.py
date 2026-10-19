@@ -6,7 +6,7 @@ nooit geld via de app: kopers en verkopers regelen de betaling zelf.
 
 import os
 import re
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from urllib.parse import quote_plus
 
 import httpx
@@ -332,15 +332,42 @@ def platform_instellen(stripe_sleutel: str = "", webhook_geheim: str = "", app_a
 
 
 def nieuw() -> dict:
-    """Hoeveel er nieuw is: gedeelde dingen, ongelezen berichten en bestellingen die op jou wachten."""
-    wacht = 0
+    """Wat er nieuw is: gedeelde dingen, ongelezen berichten, bestellingen die op jou wachten, meldingen en je saldo."""
+    wacht, meldingen = 0, []
+    maand = date.today().strftime("%Y-%m")
+    week = (date.today() - timedelta(days=7)).isoformat()
+    saldo = {"verdiend": 0.0, "verkocht": 0, "onderweg": 0.0, "uitgegeven": 0.0}
     for b in mijn_bestellingen():
+        bijgewerkt = (b.get("bijgewerkt") or "")[:10]
         if b["rol"] == "verkoper":
-            wacht += b["status"] == "aangevraagd" or (b["status"] == "betaald")
+            wacht += b["status"] in ("aangevraagd", "betaald")
+            if b["status"] == "aangevraagd":
+                meldingen.append(("bestellingen", f"🛒 {b['ander']} wil **{b['titel']}** kopen"))
+            elif b["status"] == "betaald":
+                meldingen.append(("bestellingen", f"💶 **{b['titel']}** is betaald, verstuur of overhandig het"))
+            elif b["status"] == "afgerond" and bijgewerkt >= week:
+                meldingen.append(("bestellingen", f"✅ **{b['titel']}** verkocht voor {euro(b['bedrag'])}"))
+            if b["status"] == "afgerond" and bijgewerkt[:7] == maand:
+                saldo["verdiend"] += float(b["bedrag"])
+                saldo["verkocht"] += 1
+            if b["betaalwijze"] == "app" and b["status"] in ("betaald", "geleverd", "geschil"):
+                saldo["onderweg"] += float(b["bedrag"])
         else:
-            wacht += (b["status"] == "geaccepteerd" and b["betaalwijze"] == "app") or b["status"] == "geleverd"
-    return {"gedeeld": len(gedeeld_met_mij()), "berichten": sum(not b["gelezen"] for b in berichten()),
-            "bestellingen": wacht}
+            if b["status"] == "geaccepteerd" and b["betaalwijze"] == "app":
+                wacht += 1
+                meldingen.append(("bestellingen", f"💳 **{b['titel']}**: je kunt nu betalen"))
+            elif b["status"] == "geleverd":
+                wacht += 1
+                meldingen.append(("bestellingen", f"📦 **{b['titel']}** is onderweg, bevestig als het binnen is"))
+            if b["status"] in ("betaald", "geleverd", "afgerond") and bijgewerkt[:7] == maand:
+                saldo["uitgegeven"] += float(b["bedrag"]) + float(b.get("kosten") or 0)
+    ongelezen = sum(not b["gelezen"] for b in berichten())
+    gedeeld = len(gedeeld_met_mij())
+    if ongelezen:
+        meldingen.append(("berichten", f"💬 {ongelezen} nieuw bericht" + ("en" if ongelezen > 1 else "")))
+    if gedeeld:
+        meldingen.append(("samen", f"🤝 {gedeeld} nieuw met je gedeeld"))
+    return {"gedeeld": gedeeld, "berichten": ongelezen, "bestellingen": wacht, "meldingen": meldingen, "saldo": saldo}
 
 
 # --- Beheer (alleen de eigenaar) ---------------------------------------------------
