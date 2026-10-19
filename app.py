@@ -25,6 +25,8 @@ import media
 import opslag
 import planning
 import reizen
+import ruimte
+import ruimte_scherm
 import samen
 import samen_scherm
 import slim
@@ -39,7 +41,7 @@ import wetenschap
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
 for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
-                mail, samen, teksten, samen_scherm, avatar, slim, werk_scherm, agent, spraak):
+                mail, samen, teksten, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -899,7 +901,8 @@ VOORPAGINA = {"weer": "Weer naast de datum", "afspraken": "Geplande afspraken (d
 # Wat je in het menu aan of uit kunt zetten (de sleutels staan zo in je instellingen).
 ONDERDELEN = {"✉️ Mail": "✉️ Mail", "📚 Leren": "📚 Leren en schrijven", "🤝 Samen": "🤝 Projecten en delen",
               "🔨 DIY": "🔨 DIY en hobby", "🧰 Hulpmiddelen": "🧰 Hulpmiddelen (notities, timer, rekenen)",
-              "📷 Scannen": "📷 Foto scannen", "🛒 Boodschappen": "🛒 Boodschappen",
+              "📷 Scannen": "📷 Foto scannen", "🥽 VR-ruimtes": "🥽 VR-ruimtes (projecten in 3D)",
+              "🛒 Boodschappen": "🛒 Boodschappen",
               "🛍️ Lijstjes": "🛍️ Kooplijst en wenslijst", "🏪 Marktplaats": "🏪 Marktplaats (kopen en verkopen bij elkaar)"}
 # De pagina's van deze beurt, op url; gevuld door paginas().
 PAGINA: dict = {}
@@ -1980,6 +1983,8 @@ def paginas() -> dict:
         werk.append(pagina(werk_scherm.hulpmiddelen, "Hulpmiddelen", "🧰", "hulpmiddelen"))
     if "📷 Scannen" not in uit:
         werk.append(pagina(werk_scherm.scannen, "Foto scannen", "📷", "scannen"))
+    if online and "🥽 VR-ruimtes" not in uit:
+        werk.append(pagina(ruimte_scherm.pagina, "VR-ruimtes", "🥽", "ruimtes"))
     if werk:
         menu["Werk en leren"] = werk
     kopen = []
@@ -2006,6 +2011,14 @@ def paginas() -> dict:
     return menu
 
 
+def ruimte_bezoek(ruimte_id: int) -> None:
+    """Een openbare VR-ruimte via ?ruimte=nummer, ook zonder account."""
+    ruimte_scherm.bekijken(ruimte_id, ingelogd=False)
+    st.divider()
+    st.markdown("**Zelf een ruimte maken? Log in of maak gratis een account**")
+    wachtwoord_ok()
+
+
 def webshop_bezoek(adres: str) -> None:
     """Een winkel via ?winkel=adres. Bekijken mag iedereen; om te bestellen log je in of maak je een account."""
     samen_scherm.winkel_pagina(adres, False)
@@ -2017,6 +2030,13 @@ def webshop_bezoek(adres: str) -> None:
 def main() -> None:
     if not opslag.online():
         st.caption("Lokale testmodus: gegevens staan in data/gegevens.json.")
+    if (nummer := st.query_params.get("ruimte", "")).isdigit() and opslag.online():
+        if not st.session_state.get("wachtwoord"):
+            ruimte_bezoek(int(nummer))
+            return
+        del st.query_params["ruimte"]
+        st.session_state.open_ruimte = int(nummer)
+        st.session_state.ga_naar = "ruimtes"
     if (adres := st.query_params.get("winkel")) and opslag.online():
         if not st.session_state.get("wachtwoord"):
             webshop_bezoek(adres)

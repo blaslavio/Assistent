@@ -53,18 +53,21 @@ def voorwaarden() -> str:
    voor bestellingen daarna; je kunt in die tijd kosteloos stoppen.
 7. **Niet toegestaan.** Illegale producten of diensten, wapens, drugs, medicijnen op recept, namaak, dieren,
    oplichting, spam, haatdragende of seksuele inhoud, en gegevens van anderen zonder toestemming.
-8. **Melden en blokkeren.** Zie je iets wat niet mag? Gebruik de knop 🚩 Melden. De beheerder bekijkt meldingen zo
+8. **VR-ruimtes.** In een VR-ruimte laat je je eigen project zien. Zet er alleen foto's, teksten en 3D-modellen in
+   die je zelf hebt gemaakt of mag gebruiken, en geen herkenbare mensen zonder hun toestemming. Een openbare ruimte
+   kan iedereen bekijken, ook zonder account. Je kunt je ruimte en alles erin altijd zelf verwijderen.
+9. **Melden en blokkeren.** Zie je iets wat niet mag? Gebruik de knop 🚩 Melden. De beheerder bekijkt meldingen zo
    snel mogelijk en kan aanbod offline halen of een account blokkeren. Wordt iets door meerdere mensen gemeld, dan
    gaat het automatisch offline tot de beheerder heeft gekeken. Nieuwe accounts kunnen de eerste week minder
    tegelijk aanbieden en bestellen. Je kunt bezwaar maken via {_contact()}.
-9. **Delen en projecten.** Wat je deelt of in een project zet, kunnen de ontvangers of projectleden zien. Deel alleen
+10. **Delen en projecten.** Wat je deelt of in een project zet, kunnen de ontvangers of projectleden zien. Deel alleen
    wat je wilt delen.
-10. **Stoppen.** Je kunt je account altijd verwijderen via Instellingen > Account. De beheerder kan accounts die
+11. **Stoppen.** Je kunt je account altijd verwijderen via Instellingen > Account. De beheerder kan accounts die
    deze voorwaarden overtreden blokkeren. Een account met een lopende betaling of een open geschil kun je pas
    verwijderen als die is afgerond.
-11. **Aansprakelijkheid.** De app wordt aangeboden zoals hij is. De beheerder is niet aansprakelijk voor afspraken
+12. **Aansprakelijkheid.** De app wordt aangeboden zoals hij is. De beheerder is niet aansprakelijk voor afspraken
    tussen gebruikers onderling, of voor schade door het gebruik van de app, behalve bij opzet of grove schuld.
-12. **Wijzigingen.** Als deze voorwaarden veranderen, zie je dat in de app. Op deze voorwaarden is Nederlands recht
+13. **Wijzigingen.** Als deze voorwaarden veranderen, zie je dat in de app. Op deze voorwaarden is Nederlands recht
     van toepassing.
 
 Contact: {_contact()}.
@@ -78,6 +81,8 @@ def privacy() -> str:
 **Welke gegevens.** Je gebruikersnaam, weergavenaam, mailadres en een versleutelde versie van je wachtwoord (het
 wachtwoord zelf bewaren we niet). Verder wat je zelf invult: agenda, taken, contacten, leerdoelen, boodschappen, foto's en
 geluidsopnames bij afspraken, wat je deelt, projecten, aanbod, bestellingen, boekingen, beoordelingen en berichten op de marktplaats.
+
+In een VR-ruimte bewaren we de foto's, teksten en 3D-modellen die je erin zet, en hoe vaak hij is bezocht. De 3D-weergave gebruikt A-Frame, geladen via jsDelivr.
 
 **Waarom.** Alleen om de app te laten werken: jouw gegevens tonen, de assistent laten helpen, en gebruikers met
 elkaar in contact brengen. We verkopen niets en tonen geen advertenties.

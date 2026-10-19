@@ -8,6 +8,7 @@ from urllib.parse import quote
 import streamlit as st
 
 import opslag
+import ruimte
 import samen
 import teksten
 
@@ -1121,4 +1122,19 @@ def beheer() -> None:
                     st.rerun()
                 if kol3.button("Aanbieder blokkeren", key=f"blok_{m['id']}", width="stretch"):
                     samen.melding_afhandelen(m["id"], aanbod_blokkeren=True, aanbieder_blokkeren=True)
+                    st.rerun()
+        for m in ruimte.beheer_meldingen():
+            with st.container(border=True):
+                st.markdown(f"🥽 **{m['titel']}** van {m['maker']}" + (" (verborgen)" if m["verborgen"] else "")
+                            + f"  \nGemeld: {m['reden']}")
+                kol1, kol2, kol3 = st.columns(3)
+                if kol1.button("Bekijken", key=f"rk_{m['id']}", width="stretch"):
+                    st.session_state.open_ruimte = m["ruimte_id"]
+                    st.session_state.ga_naar = "ruimtes"
+                    st.rerun(scope="app")
+                if kol2.button("Is in orde", key=f"rok_{m['id']}", width="stretch"):
+                    ruimte.beheer_afhandelen(m["ruimte_id"], False)
+                    st.rerun()
+                if kol3.button("Verbergen", key=f"roff_{m['id']}", width="stretch"):
+                    ruimte.beheer_afhandelen(m["ruimte_id"], True)
                     st.rerun()
