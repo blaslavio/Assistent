@@ -78,3 +78,9 @@ Claude heeft de database ingericht. De app gebruikt alleen de openbare (publisha
 - De eigenaar zet de geheime Stripe-sleutel, het webhookgeheim en het adres van de app bij Instellingen › Account › 💳 Betalen via de app. Ze staan in de database (private.platform), nooit in de code.
 - Webhook in Stripe: `https://lnjsekmlpjyiwdlzcowa.supabase.co/functions/v1/betalen`, gebeurtenissen `checkout.session.completed` en `checkout.session.async_payment_succeeded`.
 - Kopersbescherming: € 0,50 + 3% per bestelling, betaald door de koper (aan te passen in private.platform).
+
+## Slim inplannen, leerreeks en bieden
+
+- **✨ Plan mijn taken in** (Agenda): open taken komen automatisch in vrije stukken van je agenda, vroegste deadline eerst, binnen de uren die je kiest (⚙️). Eerst een voorstel, pas na "Zet in mijn agenda" staan ze er als 🎯 focusblok. Vink je de taak af, dan verdwijnen de blokken die nog moesten komen. Bij een nieuwe taak geef je aan hoe lang hij duurt (`inplannen.py`).
+- **🔥 Leerreeks** (Leren): elke dag je dagdoel halen (5 vragen, kaarten of herhalingen) bouwt een reeks op; op Vandaag komt 's avonds een seintje als je reeks in gevaar is (`opslag.leerreeks`).
+- **💶 Bod doen** (Marktplaats): kopers bieden minstens de helft van de vraagprijs, de verkoper accepteert, wijst af of doet een tegenbod. Een akkoord geldt 48 uur: bestellen gaat dan voor de afgesproken prijs (`sql/biedingen.sql`, migratie `biedingen`).

@@ -7,7 +7,7 @@ import math
 import re
 import os
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time as kloktijd, timedelta
 from urllib.parse import quote, urlencode, urlparse
 
 import anthropic
@@ -37,12 +37,13 @@ import tijd
 import werk_scherm
 import weer
 import wetenschap
+import inplannen
 import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
 for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
+                mail, samen, teksten, winkelkaart, inplannen, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -629,6 +630,8 @@ def agenda_tabblad() -> None:
     sport_overzicht(datetime.now(), toon_week=False)
     with st.expander("➕ Nieuw in de agenda", expanded=False):
         afspraak_formulier("nieuwe_afspraak")
+    with st.expander("✨ Plan mijn taken in", expanded=bool(st.session_state.get("planvoorstel"))):
+        taken_inplannen()
 
     kol1, kol2 = st.columns([1, 1])
     weergave = kol1.segmented_control("Weergave", ["Dag", "Week"], default="Week", key="agenda_weergave",
@@ -650,6 +653,54 @@ def agenda_tabblad() -> None:
     with st.expander("⏱️ Tijdsbesteding"):
         if not tijdsbesteding_overzicht(date.today()):
             st.caption("Nog niets vastgelegd. Gebruik op ☀️ Vandaag de knoppen \"Ik vertrek nu\" en \"Ik ben er\".")
+
+
+def blok_tekst(blok: dict) -> str:
+    start, einde = datetime.fromisoformat(blok["start"]), datetime.fromisoformat(blok["einde"])
+    return f"{DAGEN[start.weekday()]} {start.day} {MAANDEN[start.month - 1]}, {start:%H:%M}–{einde:%H:%M}"
+
+
+def taken_inplannen() -> None:
+    """Open taken automatisch in vrije tijd zetten: eerst een voorstel, pas na akkoord in de agenda."""
+    uren = inplannen.planuren()
+    kol1, kol2 = st.columns([5, 1], vertical_alignment="center")
+    kol1.caption(f"Je assistent zoekt vrije tijd tussen {uren['van']} en {uren['tot']}"
+                 f"{' (ook in het weekend)' if uren['weekend'] else ' op werkdagen'}, vroegste deadline eerst.")
+    with kol2.popover("⚙️", help="Wanneer mag er gepland worden?"):
+        with st.form("planuren", border=False):
+            van = st.time_input("Vanaf", value=kloktijd.fromisoformat(uren["van"]), step=1800)
+            tot = st.time_input("Tot", value=kloktijd.fromisoformat(uren["tot"]), step=1800)
+            weekend = st.checkbox("Ook in het weekend", value=uren["weekend"])
+            if st.form_submit_button("Opslaan") and van < tot:
+                opslag.instellingen_bijwerken(planuren={"van": f"{van:%H:%M}", "tot": f"{tot:%H:%M}", "weekend": weekend})
+                st.session_state.pop("planvoorstel", None)
+                st.rerun()
+    if st.button("✨ Maak een voorstel", width="stretch",
+                 type="secondary" if st.session_state.get("planvoorstel") else "primary"):
+        st.session_state.planvoorstel = inplannen.voorstel()
+    plan = st.session_state.get("planvoorstel")
+    if plan is None:
+        return
+    if not plan:
+        st.info("Alle open taken staan al in je agenda, of je hebt geen open taken. Voeg een taak toe op ☀️ Vandaag.")
+        return
+    for regel in plan:
+        tekst = f"**{regel['titel']}** · {regel['minuten']} min"
+        if regel.get("te_laat"):
+            tekst += " · 🔴 deadline is al voorbij"
+        st.markdown(tekst + "".join(f"  \n🎯 {blok_tekst(b)}" for b in regel["blokken"]))
+        if regel.get("past_niet"):
+            st.caption(f"⚠️ {regel['past_niet']}")
+    kol1, kol2 = st.columns(2)
+    if kol1.button("📅 Zet in mijn agenda", type="primary", width="stretch",
+                   disabled=not any(r["blokken"] for r in plan)):
+        aantal = inplannen.vastleggen(plan)
+        st.session_state.pop("planvoorstel")
+        st.toast(f"{aantal} {'blok' if aantal == 1 else 'blokken'} ingepland. Vink de taak af als hij klaar is.", icon="🎯")
+        st.rerun()
+    if kol2.button("Annuleren", width="stretch"):
+        st.session_state.pop("planvoorstel")
+        st.rerun()
 
 
 def kleurenuitleg(soorten: set[str]) -> None:
@@ -1014,6 +1065,8 @@ def seintjes(nu: datetime) -> None:
     delen = []
     if herhalingen := opslag.herhalingen_vandaag():
         delen.append(f"📚 {len(herhalingen)} keer herhalen (Werk en leren › Leren)")
+    if (reeks := opslag.leerreeks())["reeks"] and not reeks["vandaag_gehaald"] and nu.hour >= 17:
+        delen.append(f"🔥 oefen vandaag even, dan blijft je reeks van {reeks['reeks']} dagen staan")
     if sport_zonder_resultaat(nu):
         delen.append("🏃 hoe ging je training? (Agenda)")
     if namens := opslag.namens_vandaag():
@@ -1119,8 +1172,10 @@ def taken_blok() -> None:
         with st.form("nieuwe_taak", clear_on_submit=True, border=False):
             titel = st.text_input("Nieuwe taak", placeholder="Wat moet er gebeuren?")
             deadline = st.date_input("Deadline (optioneel)", value=None, format="DD-MM-YYYY")
+            minuten = st.select_slider("Hoe lang duurt het ongeveer?", options=[15, 30, 45, 60, 90, 120, 180, 240],
+                                       value=30, format_func=lambda m: f"{m} min" if m < 60 else f"{m / 60:g} uur")
             if st.form_submit_button("Toevoegen", type="primary") and titel.strip():
-                opslag.taak_toevoegen(titel.strip(), deadline.isoformat() if deadline else None)
+                opslag.taak_toevoegen(titel.strip(), deadline.isoformat() if deadline else None, minuten)
                 st.rerun()
 
     def afvinken(t: dict) -> None:
@@ -1147,9 +1202,30 @@ def leren_tabblad() -> None:
         schrijven_onderdeel()
 
 
+def leerreeks_blok() -> None:
+    """Elke dag een beetje: dagdoel, reeks en de afgelopen week (zoals bij taal-apps)."""
+    r = opslag.leerreeks()
+    if not r["reeks"] and not r["vandaag"] and not any(r["week"]):
+        st.caption(f"🔥 Oefen elke dag even: haal je dagdoel van {r['dagdoel']} vragen of kaarten en bouw een reeks op.")
+        return
+    dagletters = ["ma", "di", "wo", "do", "vr", "za", "zo"]
+    vandaag = date.today()
+    week = " ".join(f"{'🔥' if gehaald else '⚪'}{dagletters[(vandaag - timedelta(days=6 - i)).weekday()]}"
+                    for i, gehaald in enumerate(r["week"]))
+    kol1, kol2 = st.columns([2, 3], vertical_alignment="center")
+    kol1.metric("Reeks", f"🔥 {r['reeks']} {'dag' if r['reeks'] == 1 else 'dagen'}",
+                f"beste: {r['beste']}" if r["beste"] > r["reeks"] else None, delta_color="off")
+    with kol2:
+        st.progress(min(1.0, r["vandaag"] / r["dagdoel"]),
+                    text=("✅ Dagdoel gehaald!" if r["vandaag_gehaald"]
+                          else f"Vandaag {r['vandaag']} van {r['dagdoel']}"))
+        st.caption(week)
+
+
 def leerdoelen_onderdeel() -> None:
     if werk_scherm.oefenen_bezig():
         return
+    leerreeks_blok()
     herhalingen = opslag.herhalingen_vandaag()
     if herhalingen:
         st.markdown(f"**Vandaag herhalen ({len(herhalingen)})**")

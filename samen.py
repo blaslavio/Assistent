@@ -295,6 +295,20 @@ def bestellen(aanbod_id: int, betaalwijze: str, levering: str, bericht: str = ""
                               p_bericht=bericht))["id"]
 
 
+def bod_doen(aanbod_id: int, bedrag: float, bericht: str = "") -> int:
+    return _ok(opslag._rpc_ik("bod_doen", p_aanbod=aanbod_id, p_bedrag=round(bedrag, 2), p_bericht=bericht))["id"]
+
+
+def bod_antwoorden(bod_id: int, actie: str, bedrag: float | None = None) -> None:
+    """Verkoper: accepteren, afwijzen of tegenbod (met bedrag). Koper: accepteren, afwijzen (tegenbod) of intrekken."""
+    _ok(opslag._rpc_ik("bod_antwoorden", p_id=bod_id, p_actie=actie,
+                       p_bedrag=round(bedrag, 2) if bedrag is not None else None))
+
+
+def mijn_biedingen() -> list[dict]:
+    return opslag._rpc_ik("mijn_biedingen")["biedingen"]
+
+
 def bestelling_stap(bestelling_id: int, actie: str, toelichting: str = "") -> str:
     """accepteren, weigeren, betaling_ontvangen, geleverd (verkoper); annuleren, ontvangen, probleem (koper)."""
     return _ok(opslag._rpc_ik("bestelling_bijwerken", p_id=bestelling_id, p_actie=actie,

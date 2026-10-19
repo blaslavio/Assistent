@@ -8,6 +8,7 @@ from anthropic import beta_tool
 
 import avatar
 import opslag
+import inplannen
 import planning
 import reizen
 import samen
@@ -60,6 +61,9 @@ Werkwijze:
 - Herken nooit wie iemand is aan zijn gezicht, ook niet als erom gevraagd wordt.
 - Gebruik de hulpmiddelen om taken, afspraken en leervoortgang echt op te slaan,
   in plaats van alleen te zeggen dat je het onthoudt.
+- Slim plannen: heeft de gebruiker het druk of vraagt hij wanneer hij iets moet
+  doen, bied dan aan zijn taken in te plannen met taken_inplannen (eerst het
+  voorstel laten zien, pas na akkoord vastleggen).
 - Geheugen en bijleren: je krijgt hieronder wat je al over de gebruiker weet.
   Gebruik dat zonder ernaar te vragen. Hoor je iets dat later nuttig is
   (voorkeuren, vaste gewoontes, namen en relaties, favoriete winkels en plekken,
@@ -214,14 +218,31 @@ def _json(data) -> str:
 
 
 @beta_tool
-def taak_toevoegen(titel: str, deadline: str = "") -> str:
+def taak_toevoegen(titel: str, deadline: str = "", minuten: int = 0) -> str:
     """Voeg een taak toe aan de takenlijst.
 
     Args:
         titel: Korte omschrijving van de taak.
         deadline: Optionele datum als JJJJ-MM-DD, leeg laten als er geen deadline is.
+        minuten: Hoe lang de taak ongeveer duurt (schat het in als de gebruiker niets zegt), 0 als onbekend.
     """
-    return _json(opslag.taak_toevoegen(titel, deadline or None))
+    return _json(opslag.taak_toevoegen(titel, deadline or None, minuten or None))
+
+
+@beta_tool
+def taken_inplannen(vastleggen: bool = False) -> str:
+    """Zoek voor de open taken vrije tijd in de agenda van de komende 7 dagen (vroegste deadline eerst).
+
+    Roep eerst aan met vastleggen=false en vertel de gebruiker het voorstel. Pas als de gebruiker
+    akkoord geeft, roep je opnieuw aan met vastleggen=true: dan komen de blokken als 🎯 focus in de agenda.
+
+    Args:
+        vastleggen: true om het voorstel echt in de agenda te zetten.
+    """
+    plan = inplannen.voorstel()
+    if vastleggen:
+        return _json({"ingepland_blokken": inplannen.vastleggen(plan), "plan": plan})
+    return _json({"voorstel": plan, "planuren": inplannen.planuren()})
 
 
 @beta_tool
@@ -980,6 +1001,7 @@ HULPMIDDELEN = [
     vergeten,
     gewoontes_bekijken,
     taak_toevoegen,
+    taken_inplannen,
     taken_bekijken,
     taak_afronden,
     afspraak_toevoegen,
@@ -1050,6 +1072,9 @@ def context() -> str:
     delen.append("Namens de gebruiker reageren: " + "; ".join(
         f"{k}: {'eerst akkoord vragen' if v == 'vragen' else 'zelf reageren aan contacten, anderen eerst vragen' if v == 'bekenden' else 'zelf reageren'}"
         for k, v in namens.items()) + f". Vandaag al {opslag.namens_vandaag()} van maximaal {opslag.NAMENS_PER_DAG} namens hem verstuurd.")
+    if (reeks := opslag.leerreeks())["reeks"] or reeks["vandaag"]:
+        delen.append(f"Leerreeks: {reeks['reeks']} dagen op rij het dagdoel gehaald; vandaag {reeks['vandaag']} van "
+                     f"{reeks['dagdoel']} geoefend. Moedig kort aan als het past, zonder te zeuren.")
     vandaag = nu.date()
     afspraken = opslag.afspraken_tussen(vandaag.isoformat(), vandaag.isoformat())
     taken = [t for t in opslag.open_taken() if t["deadline"] and t["deadline"] <= (vandaag + timedelta(days=3)).isoformat()]

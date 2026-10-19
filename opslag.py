@@ -251,10 +251,13 @@ def _nieuw_id(gegevens: dict) -> int:
 
 # --- Taken ---------------------------------------------------------------
 
-def taak_toevoegen(titel: str, deadline: str | None = None) -> dict:
+def taak_toevoegen(titel: str, deadline: str | None = None, minuten: int | None = None) -> dict:
+    """Nieuwe taak. Minuten: hoe lang hij ongeveer duurt (voor het slim inplannen)."""
     with _slot:
         g = laden()
         taak = {"id": _nieuw_id(g), "titel": titel, "deadline": deadline, "klaar": False}
+        if minuten:
+            taak["minuten"] = int(minuten)
         g["taken"].append(taak)
         opslaan(g)
     return taak
@@ -266,6 +269,9 @@ def taak_afronden(taak_id: int) -> dict | None:
         for taak in g["taken"]:
             if taak["id"] == taak_id:
                 taak["klaar"] = True
+                # Ingeplande blokken voor deze taak die nog moeten komen, zijn niet meer nodig.
+                nu = datetime.now().isoformat(timespec="minutes")
+                g["afspraken"] = [a for a in g["afspraken"] if a.get("taak_id") != taak_id or a["start"] < nu]
                 opslaan(g)
                 return taak
     return None
@@ -287,6 +293,7 @@ def afspraak_toevoegen(
     contact_id: int | None = None,
     sport: str = "",
     soort: str = "",
+    taak_id: int | None = None,
 ) -> dict:
     with _slot:
         g = laden()
@@ -303,6 +310,8 @@ def afspraak_toevoegen(
             afspraak["sport"] = sport.lower()
         if soort:
             afspraak["soort"] = soort.lower()
+        if taak_id:
+            afspraak["taak_id"] = taak_id
         g["afspraken"].append(afspraak)
         opslaan(g)
     return afspraak
@@ -579,6 +588,7 @@ def oefening_vastleggen(leerdoel_id: int, stap_nummer: int, score: int) -> dict 
                     dagen = HERHAAL_NA_DAGEN[score] * (2 if stap["keer_geoefend"] > 2 and score >= 4 else 1)
                     stap["score"] = score
                     stap["herhalen_op"] = (date.today() + timedelta(days=dagen)).isoformat()
+                    _leerpunten(g, 1)
                     opslaan(g)
                     return stap
     return None
@@ -593,7 +603,50 @@ def toets_vastleggen(leerdoel_id: int, soort: str, goed: int, totaal: int) -> No
                 doel.setdefault("toetsen", []).append(
                     {"datum": date.today().isoformat(), "soort": soort, "goed": goed, "totaal": totaal})
                 doel["toetsen"] = doel["toetsen"][-20:]
+                _leerpunten(g, totaal)
                 opslaan(g)
+
+
+# --- Leerreeks: elke dag een beetje (dagdoel en reeks) -------------------------
+
+STANDAARD_DAGDOEL = 5
+
+
+def _leerpunten(g: dict, punten: int) -> None:
+    """Telt wat er vandaag geoefend is: een vraag, kaart of herhaling is één punt."""
+    dagen = g.setdefault("leerdagen", {})
+    vandaag = date.today().isoformat()
+    dagen[vandaag] = dagen.get(vandaag, 0) + max(0, punten)
+    for oud in sorted(dagen)[:-400]:
+        del dagen[oud]
+
+
+def leerreeks() -> dict:
+    """Hoeveel dagen op rij het dagdoel gehaald is, en hoe het vandaag en deze week gaat."""
+    g = laden()
+    dagen = g.get("leerdagen", {})
+    doel = int(g.get("instellingen", {}).get("dagdoel") or STANDAARD_DAGDOEL)
+    vandaag = date.today()
+    gehaald = lambda d: dagen.get(d.isoformat(), 0) >= doel  # noqa: E731
+    # Vandaag nog niet gehaald breekt de reeks niet: dan telt vanaf gisteren.
+    dag, reeks = (vandaag if gehaald(vandaag) else vandaag - timedelta(days=1)), 0
+    while gehaald(dag):
+        reeks += 1
+        dag -= timedelta(days=1)
+    return {"reeks": reeks, "dagdoel": doel, "vandaag": dagen.get(vandaag.isoformat(), 0),
+            "vandaag_gehaald": gehaald(vandaag),
+            "week": [gehaald(vandaag - timedelta(days=i)) for i in range(6, -1, -1)],
+            "beste": _beste_reeks(dagen, doel)}
+
+
+def _beste_reeks(dagen: dict, doel: int) -> int:
+    beste = huidige = 0
+    vorige = None
+    for d in sorted(k for k, v in dagen.items() if v >= doel):
+        dag = date.fromisoformat(d)
+        huidige = huidige + 1 if vorige and dag - vorige == timedelta(days=1) else 1
+        beste, vorige = max(beste, huidige), dag
+    return beste
 
 
 def voortgang(doel: dict) -> int:

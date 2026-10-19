@@ -269,6 +269,9 @@ def zoeken() -> None:
     soort = st.pills("Soort", list(samen.SOORTEN_AANBOD), format_func=samen.SOORTEN_AANBOD.get,
                      label_visibility="collapsed", key="markt_soort") or ""
     resultaten = samen.aanbod_zoeken(zoekterm, soort)
+    # Afgesproken prijzen (geaccepteerde biedingen), één keer per pagina opgehaald.
+    st.session_state._afgesproken = {b["aanbod_id"]: b["tegenbod"] or b["bedrag"] for b in samen.mijn_biedingen()
+                                     if b["ik_ben"] == "koper" and b["status"] == "geaccepteerd" and not b["verlopen"]}
     if not resultaten:
         st.caption("Nog niets gevonden op onze marktplaats." + (" Kijk hieronder ook bij de andere marktplaatsen."
                                                                if zoekterm else " Wees de eerste: kies Kopen en verkopen › Verkopen."))
@@ -307,6 +310,9 @@ def aanbod_kaart(aanbod: dict) -> None:
         if aanbod["soort"] in ("training", "les", "dienst") and aanbod["vrije_tijden"]:
             with kolommen[1].popover(f"📅 Tijd kiezen ({aanbod['vrije_tijden']})", width="stretch"):
                 tijden_boeken(aanbod)
+        elif aanbod["soort"] == "product" and (aanbod.get("prijs") or 0) > 0 and not aanbod.get("winkel"):
+            with kolommen[1].popover("💶 Bod doen", width="stretch"):
+                bod_formulier(aanbod)
         kolommen = st.columns(2)
         with kolommen[0].popover("💬 Bericht", width="stretch"):
             with st.form(f"vraag_{aanbod['id']}", clear_on_submit=True, border=False):
@@ -322,8 +328,72 @@ def aanbod_kaart(aanbod: dict) -> None:
                     st.success("Bedankt, de beheerder kijkt ernaar.")
 
 
+def bod_formulier(aanbod: dict) -> None:
+    prijs = float(aanbod["prijs"])
+    with st.form(f"bod_{aanbod['id']}", border=False):
+        bedrag = st.number_input("Jouw bod in euro", min_value=round(prijs / 2, 2), max_value=round(prijs - 0.01, 2),
+                                 value=float(round(max(prijs / 2, min(prijs - 0.01, prijs * 0.85)))), step=1.0, format="%.2f")
+        bericht = st.text_input("Bericht (optioneel)", placeholder="Bijv. ik kan het morgen ophalen")
+        st.caption("De verkoper accepteert, wijst af of doet een tegenbod. Is het akkoord, dan bestel je binnen "
+                   "48 uur voor die prijs.")
+        if st.form_submit_button("Bod versturen", type="primary"):
+            if _fout(samen.bod_doen, aanbod["id"], bedrag, bericht.strip()) is not None:
+                _vergeet_nieuw()
+                st.success("Je bod is verstuurd. Het antwoord zie je bij 🧾 Bestellingen en 💬 Berichten.")
+
+
+def biedingen() -> None:
+    """Lopende biedingen: wie aan de beurt is, kan hier meteen antwoorden."""
+    lijst = samen.mijn_biedingen()
+    if not lijst:
+        return
+    st.markdown("**💶 Biedingen**")
+    for b in lijst:
+        with st.container(border=True):
+            euro = lambda x: samen.prijs_tekst({"prijs": x})  # noqa: E731
+            wie = f"van {b['koper']}" if b["ik_ben"] == "verkoper" else f"aan {b['verkoper']}"
+            regel = f"**{b['titel']}** · bod {euro(b['bedrag'])} {wie} · vraagprijs {euro(b['vraagprijs'])}"
+            if b["tegenbod"]:
+                regel += f" · tegenbod {euro(b['tegenbod'])}"
+            status = {"open": "⏳ wacht op de verkoper", "tegenbod": "↩️ tegenbod, wacht op de koper",
+                      "geaccepteerd": "✅ akkoord" + (", maar verlopen" if b["verlopen"] else ""),
+                      "afgewezen": "❌ afgewezen", "ingetrokken": "ingetrokken", "gebruikt": "🛒 besteld"}[b["status"]]
+            st.markdown(f"{regel}  \n:gray[{status}]")
+            if b["status"] == "geaccepteerd" and b["ik_ben"] == "koper" and not b["verlopen"]:
+                st.caption(f"Bestel vóór {b['geldig_tot'][:16].replace('T', ' om ')} via 🔎 Zoeken: je betaalt dan "
+                           f"{euro(b['tegenbod'] or b['bedrag'])}.")
+            if not b["aan_de_beurt"] and not (b["ik_ben"] == "koper" and b["status"] == "open"):
+                continue
+            kol = st.columns(3)
+            if b["ik_ben"] == "koper" and b["status"] == "open":
+                if kol[0].button("Intrekken", key=f"bod_in_{b['id']}", width="stretch"):
+                    if _fout(samen.bod_antwoorden, b["id"], "intrekken"):
+                        st.rerun()
+                continue
+            if kol[0].button("✅ Akkoord", key=f"bod_ok_{b['id']}", width="stretch", type="primary"):
+                if _fout(samen.bod_antwoorden, b["id"], "accepteren"):
+                    _vergeet_nieuw()
+                    st.rerun()
+            if kol[1].button("❌ Nee", key=f"bod_nee_{b['id']}", width="stretch"):
+                if _fout(samen.bod_antwoorden, b["id"], "afwijzen"):
+                    _vergeet_nieuw()
+                    st.rerun()
+            if b["ik_ben"] == "verkoper":
+                with kol[2].popover("↩️ Tegenbod", width="stretch"):
+                    with st.form(f"tegenbod_{b['id']}", border=False):
+                        bedrag = st.number_input("Tegenbod in euro", min_value=float(b["bedrag"]) + 0.01,
+                                                 max_value=float(b["vraagprijs"]) - 0.01,
+                                                 value=float(round((float(b["bedrag"]) + float(b["vraagprijs"])) / 2)),
+                                                 step=1.0, format="%.2f")
+                        if st.form_submit_button("Versturen", type="primary"):
+                            if _fout(samen.bod_antwoorden, b["id"], "tegenbod", bedrag):
+                                st.rerun()
+
+
 def bestel_formulier(aanbod: dict) -> None:
     wijzen = aanbod.get("betaalwijzen") or ["tikkie"]
+    if (afgesproken := st.session_state.get("_afgesproken", {}).get(aanbod["id"])) is not None:
+        st.success(f"Jullie zijn het eens over {samen.prijs_tekst({'prijs': afgesproken})}. Die prijs betaal je.")
     with st.form(f"bestel_{aanbod['id']}", border=False):
         betaal = st.radio("Hoe wil je betalen?", wijzen, format_func=samen.BETAALWIJZEN.get)
         levering = st.radio("Hoe krijg je het?", aanbod.get("levering") or ["ophalen"], format_func=samen.LEVERING.get)
@@ -457,6 +527,7 @@ def tijden_beheren(aanbod: dict) -> None:
 
 
 def bestellingen() -> None:
+    biedingen()
     lijst = samen.mijn_bestellingen()
     if not lijst:
         st.caption("Nog geen bestellingen. Bij 🔎 Zoeken tik je op 🛒 Kopen of 🛒 Bestellen.")
