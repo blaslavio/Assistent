@@ -12,13 +12,14 @@ create table if not exists private.ruimtes (
   openbaar boolean not null default false,
   verborgen boolean not null default false,
   bezoeken integer not null default 0,
+  weg boolean not null default false,  -- verwijderd door de maker (inhoud is dan leeggemaakt)
   aangemaakt timestamptz not null default now(),
   bijgewerkt timestamptz not null default now()
 );
 
 create table if not exists private.ruimte_items (
   id bigint generated always as identity primary key,
-  ruimte_id bigint not null references private.ruimtes(id) on delete cascade,
+  ruimte_id bigint not null references private.ruimtes(id),
   volgorde integer not null default 0,
   soort text not null check (soort in ('foto', 'tekst', 'model')),
   titel text not null default '',
@@ -27,13 +28,14 @@ create table if not exists private.ruimte_items (
   klein text not null default '',     -- kleine foto voor overzichten
   breedte integer,
   hoogte integer,
+  weg boolean not null default false,
   aangemaakt timestamptz not null default now()
 );
 create index if not exists ruimte_items_ruimte on private.ruimte_items (ruimte_id, volgorde);
 
 create table if not exists private.ruimte_meldingen (
   id bigint generated always as identity primary key,
-  ruimte_id bigint not null references private.ruimtes(id) on delete cascade,
+  ruimte_id bigint not null references private.ruimtes(id),
   door bigint not null references private.gebruikers(id),
   reden text not null,
   afgehandeld boolean not null default false,
@@ -47,8 +49,8 @@ returns jsonb language sql stable security definer set search_path to '' as $$
     'id', r.id, 'titel', r.titel, 'omschrijving', r.omschrijving, 'thema', r.thema, 'kleur', r.kleur,
     'openbaar', r.openbaar, 'verborgen', r.verborgen, 'bezoeken', r.bezoeken, 'bijgewerkt', r.bijgewerkt,
     'maker', private.weergave(r.gebruiker_id), 'maker_id', r.gebruiker_id,
-    'items', (select count(*) from private.ruimte_items i where i.ruimte_id = r.id),
-    'omslag', (select i.klein from private.ruimte_items i where i.ruimte_id = r.id and i.soort = 'foto'
+    'items', (select count(*) from private.ruimte_items i where i.ruimte_id = r.id and not i.weg),
+    'omslag', (select i.klein from private.ruimte_items i where i.ruimte_id = r.id and i.soort = 'foto' and not i.weg
                order by i.volgorde, i.id limit 1))
 $$;
 
@@ -58,7 +60,7 @@ declare v_id bigint := private.gebruiker_id(p_naam, p_wachtwoord);
 begin
   if v_id is null then return jsonb_build_object('geen_toegang', true); end if;
   return jsonb_build_object('ruimtes', coalesce((select jsonb_agg(private.ruimte_json(r) order by r.bijgewerkt desc)
-                                                 from private.ruimtes r where r.gebruiker_id = v_id), '[]'::jsonb));
+                                                 from private.ruimtes r where r.gebruiker_id = v_id and not r.weg), '[]'::jsonb));
 end; $$;
 
 create or replace function public.ruimte_opslaan(p_naam text, p_wachtwoord text, p_id bigint, p_titel text,
@@ -71,7 +73,7 @@ begin
   if p_thema not in ('galerie', 'museum', 'natuur', 'studio') then p_thema := 'galerie'; end if;
   if coalesce(p_kleur, '') !~ '^#[0-9a-fA-F]{6}$' then p_kleur := '#2563eb'; end if;
   if p_id is null then
-    if (select count(*) from private.ruimtes where gebruiker_id = v_id) >= 20 then
+    if (select count(*) from private.ruimtes where gebruiker_id = v_id and not weg) >= 20 then
       return jsonb_build_object('fout', 'Je kunt maximaal 20 ruimtes hebben.');
     end if;
     insert into private.ruimtes (gebruiker_id, titel, omschrijving, thema, kleur, openbaar)
@@ -81,7 +83,7 @@ begin
   else
     update private.ruimtes set titel = left(trim(p_titel), 80), omschrijving = left(coalesce(p_omschrijving, ''), 2000),
            thema = p_thema, kleur = p_kleur, openbaar = coalesce(p_openbaar, false), bijgewerkt = now()
-    where id = p_id and gebruiker_id = v_id returning id into v_ruimte;
+    where id = p_id and gebruiker_id = v_id and not weg returning id into v_ruimte;
     if v_ruimte is null then return jsonb_build_object('fout', 'Ruimte niet gevonden.'); end if;
   end if;
   return jsonb_build_object('ok', true, 'id', v_ruimte);
@@ -92,7 +94,11 @@ returns jsonb language plpgsql security definer set search_path to '' as $$
 declare v_id bigint := private.gebruiker_id(p_naam, p_wachtwoord);
 begin
   if v_id is null then return jsonb_build_object('geen_toegang', true); end if;
-  delete from private.ruimtes where id = p_id and gebruiker_id = v_id;
+  update private.ruimtes set weg = true, openbaar = false, titel = '', omschrijving = ''
+  where id = p_id and gebruiker_id = v_id and not weg;
+  if found then
+    update private.ruimte_items set weg = true, data = '', klein = '', titel = '', tekst = '' where ruimte_id = p_id;
+  end if;
   return jsonb_build_object('ok', found);
 end; $$;
 
@@ -104,11 +110,11 @@ returns jsonb language plpgsql security definer set search_path to '' as $$
 declare v_id bigint := private.gebruiker_id(p_naam, p_wachtwoord); v_item bigint;
 begin
   if v_id is null then return jsonb_build_object('geen_toegang', true); end if;
-  if not exists (select 1 from private.ruimtes where id = p_ruimte and gebruiker_id = v_id) then
+  if not exists (select 1 from private.ruimtes where id = p_ruimte and gebruiker_id = v_id and not weg) then
     return jsonb_build_object('fout', 'Ruimte niet gevonden.');
   end if;
   if p_soort not in ('foto', 'tekst', 'model') then return jsonb_build_object('fout', 'Onbekende soort.'); end if;
-  if (select count(*) from private.ruimte_items where ruimte_id = p_ruimte) >= 30 then
+  if (select count(*) from private.ruimte_items where ruimte_id = p_ruimte and not weg) >= 30 then
     return jsonb_build_object('fout', 'Een ruimte kan maximaal 30 dingen bevatten.');
   end if;
   if p_soort = 'foto' and (coalesce(p_data, '') = '' or length(p_data) > 2000000) then
@@ -118,7 +124,7 @@ begin
     if coalesce(p_data, '') = '' or length(p_data) > 5600000 then
       return jsonb_build_object('fout', 'Een 3D-model mag hooguit 4 MB zijn.');
     end if;
-    if (select count(*) from private.ruimte_items where ruimte_id = p_ruimte and soort = 'model') >= 2 then
+    if (select count(*) from private.ruimte_items where ruimte_id = p_ruimte and soort = 'model' and not weg) >= 2 then
       return jsonb_build_object('fout', 'Een ruimte kan maximaal 2 3D-modellen bevatten.');
     end if;
   end if;
@@ -139,8 +145,8 @@ returns jsonb language plpgsql security definer set search_path to '' as $$
 declare v_id bigint := private.gebruiker_id(p_naam, p_wachtwoord);
 begin
   if v_id is null then return jsonb_build_object('geen_toegang', true); end if;
-  delete from private.ruimte_items i using private.ruimtes r
-  where i.id = p_item and r.id = i.ruimte_id and r.gebruiker_id = v_id;
+  update private.ruimte_items i set weg = true, data = '', klein = '', titel = '', tekst = ''
+  from private.ruimtes r where i.id = p_item and r.id = i.ruimte_id and r.gebruiker_id = v_id and not i.weg;
   return jsonb_build_object('ok', found);
 end; $$;
 
@@ -151,9 +157,9 @@ declare v_id bigint := private.gebruiker_id(p_naam, p_wachtwoord); v_ruimte bigi
 begin
   if v_id is null then return jsonb_build_object('geen_toegang', true); end if;
   select i.ruimte_id into v_ruimte from private.ruimte_items i join private.ruimtes r on r.id = i.ruimte_id
-  where i.id = p_item and r.gebruiker_id = v_id;
+  where i.id = p_item and r.gebruiker_id = v_id and not i.weg;
   if v_ruimte is null then return jsonb_build_object('fout', 'Niet gevonden.'); end if;
-  select array_agg(id order by volgorde, id) into v_ids from private.ruimte_items where ruimte_id = v_ruimte;
+  select array_agg(id order by volgorde, id) into v_ids from private.ruimte_items where ruimte_id = v_ruimte and not weg;
   v_pos := array_position(v_ids, p_item);
   if v_pos + p_richting between 1 and array_length(v_ids, 1) then
     v_ids[v_pos] := v_ids[v_pos + p_richting];
@@ -171,8 +177,8 @@ returns jsonb language sql stable security definer set search_path to '' as $$
   select coalesce(jsonb_agg(x order by (x->>'bijgewerkt') desc), '[]'::jsonb) from (
     select private.ruimte_json(r) as x
     from private.ruimtes r join private.gebruikers g on g.id = r.gebruiker_id
-    where r.openbaar and not r.verborgen and not g.geblokkeerd and not g.verwijderd
-      and exists (select 1 from private.ruimte_items i where i.ruimte_id = r.id)
+    where r.openbaar and not r.verborgen and not r.weg and not g.geblokkeerd and not g.verwijderd
+      and exists (select 1 from private.ruimte_items i where i.ruimte_id = r.id and not i.weg)
       and (coalesce(trim(p_zoekterm), '') = '' or r.titel ilike '%' || trim(p_zoekterm) || '%'
            or r.omschrijving ilike '%' || trim(p_zoekterm) || '%')
     limit 100) s
@@ -184,7 +190,7 @@ declare v_id bigint := case when coalesce(p_wachtwoord, '') = '' then null
                             else private.gebruiker_id(p_naam, p_wachtwoord) end;
         r private.ruimtes;
 begin
-  select * into r from private.ruimtes where id = p_id;
+  select * into r from private.ruimtes where id = p_id and not weg;
   if r.id is null or (r.gebruiker_id is distinct from v_id and (not r.openbaar or r.verborgen
       or exists (select 1 from private.gebruikers where id = r.gebruiker_id and (geblokkeerd or verwijderd)))) then
     return jsonb_build_object('fout', 'Deze ruimte bestaat niet of is niet openbaar.');
@@ -197,7 +203,7 @@ begin
     'dingen', coalesce((select jsonb_agg(jsonb_build_object(
         'id', i.id, 'soort', i.soort, 'titel', i.titel, 'tekst', i.tekst, 'data', i.data,
         'breedte', i.breedte, 'hoogte', i.hoogte) order by i.volgorde, i.id)
-      from private.ruimte_items i where i.ruimte_id = r.id), '[]'::jsonb));
+      from private.ruimte_items i where i.ruimte_id = r.id and not i.weg), '[]'::jsonb));
 end; $$;
 
 -- Overzicht zonder de grote bestanden, voor het bewerken.
@@ -209,7 +215,7 @@ begin
   return jsonb_build_object('dingen', coalesce((select jsonb_agg(jsonb_build_object(
       'id', i.id, 'soort', i.soort, 'titel', i.titel, 'tekst', i.tekst, 'klein', i.klein) order by i.volgorde, i.id)
     from private.ruimte_items i join private.ruimtes r on r.id = i.ruimte_id
-    where r.id = p_id and r.gebruiker_id = v_id), '[]'::jsonb));
+    where r.id = p_id and r.gebruiker_id = v_id and not i.weg), '[]'::jsonb));
 end; $$;
 
 create or replace function public.ruimte_melden(p_naam text, p_wachtwoord text, p_id bigint, p_reden text)
@@ -235,7 +241,7 @@ begin
   return jsonb_build_object('meldingen', coalesce((select jsonb_agg(jsonb_build_object(
       'id', m.id, 'ruimte_id', m.ruimte_id, 'titel', r.titel, 'maker', private.weergave(r.gebruiker_id),
       'reden', m.reden, 'verborgen', r.verborgen, 'aangemaakt', m.aangemaakt) order by m.id desc)
-    from private.ruimte_meldingen m join private.ruimtes r on r.id = m.ruimte_id where not m.afgehandeld), '[]'::jsonb));
+    from private.ruimte_meldingen m join private.ruimtes r on r.id = m.ruimte_id where not m.afgehandeld and not r.weg), '[]'::jsonb));
 end; $$;
 
 create or replace function public.beheer_ruimte_afhandelen(p_naam text, p_wachtwoord text, p_ruimte bigint,
@@ -263,7 +269,9 @@ begin
   update private.media set verwijderd = true, inhoud = ''::bytea where gebruiker_id = v_id;
   update private.aanbod set actief = false, omschrijving = '', contact = '', in_winkel = false where gebruiker_id = v_id;
   update private.winkels set open = false, omschrijving = '', retour = '' where gebruiker_id = v_id;
-  delete from private.ruimtes where gebruiker_id = v_id;
+  update private.ruimtes set weg = true, openbaar = false, titel = '', omschrijving = '' where gebruiker_id = v_id;
+  update private.ruimte_items i set weg = true, data = '', klein = '', titel = '', tekst = ''
+  from private.ruimtes r where r.id = i.ruimte_id and r.gebruiker_id = v_id;
   update private.project_leden set actief = false where gebruiker_id = v_id;
   update private.gebruikers set verwijderd = true, naam = null, email = null, weergavenaam = 'Verwijderd account',
          hash = extensions.crypt(extensions.gen_random_uuid()::text, extensions.gen_salt('bf', 4))
