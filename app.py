@@ -24,8 +24,11 @@ import media
 import opslag
 import planning
 import reizen
+import samen
+import samen_scherm
 import spraak
 import strava
+import teksten
 import tijd
 import weer
 import wetenschap
@@ -33,7 +36,7 @@ import wetenschap
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
 for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
-                mail, agent, spraak):
+                mail, samen, teksten, samen_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -45,8 +48,8 @@ time.tzset()
 
 st.set_page_config(page_title="Mijn assistent", page_icon="✨", layout="centered")
 
-# Elke run van het script gebruikt het wachtwoord van deze sessie voor de database.
-opslag.gebruik_wachtwoord(st.session_state.get("wachtwoord", ""))
+# Elke run van het script gebruikt de naam en het wachtwoord van deze sessie voor de database.
+opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
 
 
 def anthropic_sleutel() -> str:
@@ -82,13 +85,20 @@ def sleutel_formulier(knoptekst: str) -> str | None:
     return None
 
 
-def inloggen(wachtwoord: str) -> None:
+def inloggen(naam: str, wachtwoord: str, gebruiker: dict) -> None:
+    st.session_state.naam = naam
     st.session_state.wachtwoord = wachtwoord
-    opslag.gebruik_wachtwoord(wachtwoord)
+    st.session_state.ik = gebruiker
+    opslag.gebruik_account(naam, wachtwoord)
+
+
+def ik() -> dict:
+    """De ingelogde gebruiker: id, naam (gebruikersnaam), weergavenaam en of hij beheerder is."""
+    return st.session_state.get("ik") or {}
 
 
 def eerste_keer() -> None:
-    """Eenmalig instellen: wachtwoord kiezen en Anthropic-sleutel invullen."""
+    """Eenmalig instellen door de eigenaar: wachtwoord kiezen en Anthropic-sleutel invullen."""
     st.subheader("Welkom! Eerst even instellen")
     st.write("Kies een wachtwoord en plak je Anthropic-sleutel. Dit hoef je maar één keer te doen.")
     wachtwoord = st.text_input("Kies een wachtwoord (minstens 10 tekens)", type="password")
@@ -101,24 +111,71 @@ def eerste_keer() -> None:
         elif not opslag.registreer(wachtwoord):
             st.error("Er is al een wachtwoord ingesteld. Ververs de pagina en log in.")
         else:
-            inloggen(wachtwoord)
+            inloggen("", wachtwoord, opslag.inloggen("", wachtwoord) or {})
             opslag.instellingen_bijwerken(anthropic_sleutel=sleutel)
             st.rerun()
 
 
+def inlogformulier() -> None:
+    with st.form("inloggen"):
+        naam = st.text_input("Gebruikersnaam", autocomplete="username",
+                             help="Nog nooit een gebruikersnaam gekozen omdat je de app als eerste instelde? Laat dit leeg.")
+        wachtwoord = st.text_input("Wachtwoord", type="password", autocomplete="current-password")
+        if st.form_submit_button("Inloggen", type="primary", width="stretch") and wachtwoord:
+            naam = naam.strip().lower().lstrip("@")
+            if gebruiker := opslag.inloggen(naam, wachtwoord):
+                inloggen(naam, wachtwoord, gebruiker)
+                st.rerun()
+            st.error("Gebruikersnaam of wachtwoord klopt niet. Na 10 foute pogingen moet je een kwartier wachten.")
+
+
+def account_maken_formulier() -> None:
+    st.caption("Gratis. Je hebt alleen een gebruikersnaam en wachtwoord nodig, geen mailadres.")
+    with st.form("account_maken"):
+        naam = st.text_input("Kies een gebruikersnaam", placeholder="bijvoorbeeld sanne.devries",
+                             help="3 tot 30 tekens: kleine letters, cijfers, punt of streepje. Anderen vinden je hiermee.")
+        weergavenaam = st.text_input("Je naam zoals anderen hem zien", placeholder="Sanne")
+        wachtwoord = st.text_input("Kies een wachtwoord (minstens 10 tekens)", type="password",
+                                   autocomplete="new-password")
+        herhaling = st.text_input("Herhaal het wachtwoord", type="password", autocomplete="new-password")
+        akkoord = st.checkbox("Ik ben 16 jaar of ouder en ga akkoord met de voorwaarden en de privacyverklaring")
+        if st.form_submit_button("Account maken", type="primary", width="stretch"):
+            naam = naam.strip().lower().lstrip("@")
+            if wachtwoord != herhaling:
+                st.error("De wachtwoorden zijn niet gelijk.")
+            elif fout := opslag.account_maken(naam, weergavenaam.strip(), wachtwoord, akkoord):
+                st.error(fout)
+            else:
+                inloggen(naam, wachtwoord, opslag.inloggen(naam, wachtwoord) or {})
+                st.session_state.welkom = True
+                st.rerun()
+    with st.expander("📄 Voorwaarden"):
+        st.markdown(teksten.voorwaarden())
+    with st.expander("🔒 Privacyverklaring"):
+        st.markdown(teksten.privacy())
+
+
 def wachtwoord_ok() -> bool:
-    """Toegangscontrole: zonder het juiste wachtwoord kan niemand bij de gegevens."""
+    """Toegangscontrole: zonder de juiste naam en het juiste wachtwoord kan niemand bij de gegevens."""
     if st.session_state.get("wachtwoord"):
+        if "ik" not in st.session_state:
+            # Sessie van voor de update met meerdere gebruikers.
+            st.session_state.ik = opslag.inloggen(st.session_state.get("naam", ""), st.session_state.wachtwoord) or {}
         return True
     if not opslag.is_geregistreerd():
         eerste_keer()
         return False
-    invoer = st.text_input("Wachtwoord", type="password")
-    if invoer and opslag.wachtwoord_klopt(invoer):
-        inloggen(invoer)
-        st.rerun()
-    elif invoer:
-        st.error("Onjuist wachtwoord. Na 10 foute pogingen moet je een kwartier wachten.")
+    if st.session_state.pop("verwijderd", False):
+        st.success("Je account en gegevens zijn verwijderd.")
+    if not opslag.online():
+        inlogformulier()
+        return False
+    keuze = st.segmented_control("Account", ["Inloggen", "Account maken"], default="Inloggen",
+                                 label_visibility="collapsed", key="inlogkeuze")
+    if keuze == "Account maken":
+        account_maken_formulier()
+    else:
+        inlogformulier()
     return False
 
 
@@ -761,7 +818,7 @@ def events_overzicht() -> None:
 
 
 VOORPAGINA = {"weer": "Weer naast de datum", "taken": "Taken", "seintjes": "Korte seintjes (herhalen, sportresultaat)"}
-ONDERDELEN = ["💬 Gesprek", "✉️ Mail", "🛒 Boodschappen", "📚 Leren"]
+ONDERDELEN = ["💬 Gesprek", "✉️ Mail", "🛒 Boodschappen", "📚 Leren", "🤝 Samen", "🏪 Marktplaats"]
 
 
 def voorpagina() -> dict:
@@ -794,6 +851,11 @@ def seintjes(nu: datetime) -> None:
     if opslag.sportdoelen() and not tijd.sportoverzicht((nu.date() - timedelta(days=6)).isoformat(),
                                                          nu.date().isoformat())["aantal"]:
         delen.append("🚶 deze week nog niet bewogen, even een rondje?")
+    nieuw = samen_scherm.nieuw_kort()
+    if nieuw.get("gedeeld"):
+        delen.append(f"🤝 {nieuw['gedeeld']} nieuw met je gedeeld (Assistent › Samen)")
+    if nieuw.get("berichten"):
+        delen.append(f"💬 {nieuw['berichten']} nieuw bericht (Assistent › Marktplaats)")
     if not opslag.instellingen().get("thuisadres"):
         delen.append("🏠 vul je thuisadres in voor vertrektijden (Instellingen)")
     if delen:
@@ -1392,6 +1454,8 @@ def instellingen_tabblad() -> None:
     with st.expander("🩺 Zelftest"):
         if st.button("Start zelftest"):
             zelftest()
+    st.markdown("**Account**")
+    samen_scherm.account_instellingen()
     if st.button("🔒 Uitloggen"):
         st.session_state.clear()
         st.rerun()
@@ -1544,6 +1608,7 @@ def boodschappen_tabblad() -> None:
 
 TABBLADEN = ["☀️ Vandaag", "📅 Agenda", "💬 Assistent", "⚙️ Instellingen"]
 BEZIG = {
+    "marktplaats_zoeken": "🏪 Marktplaatsen doorzoeken...", "boeken": "📅 Boeken...", "delen_met": "🤝 Delen...",
     "web_search": "🔎 Zoeken op internet...", "web_fetch": "📄 Pagina lezen...", "plaats_zoeken": "📍 Plekken zoeken...",
     "dagplanning": "🗺️ Reistijden berekenen...", "reistijd_berekenen": "🗺️ Reistijd berekenen...",
     "prijzen_vergelijken": "💶 Prijzen vergelijken...", "weer_bekijken": "☀️ Weer opzoeken...",
@@ -1571,15 +1636,17 @@ def vraag_assistent(vraag: str, label: str | None = None) -> None:
 
 
 def assistent_tabblad() -> None:
-    """Alles waarmee de assistent helpt, bij elkaar: gesprek, mail, boodschappen en leren."""
-    zichtbaar = [o for o in ONDERDELEN if o not in onderdelen_uit()]
+    """Alles waarmee de assistent helpt, bij elkaar: gesprek, mail, boodschappen, leren, samen en de marktplaats."""
+    zichtbaar = [o for o in ONDERDELEN if o not in onderdelen_uit()
+                 and (samen.beschikbaar() or o not in ("🤝 Samen", "🏪 Marktplaats"))]
     if st.session_state.get("onderdeel") not in zichtbaar:
         st.session_state.onderdeel = ONDERDELEN[0]
     if len(zichtbaar) > 1:
         st.segmented_control("Onderdeel", zichtbaar, key="onderdeel", label_visibility="collapsed")
     keuze = st.session_state.get("onderdeel") or ONDERDELEN[0]
     {"💬 Gesprek": gesprek, "✉️ Mail": mail_tabblad, "🛒 Boodschappen": boodschappen_tabblad,
-     "📚 Leren": leren_tabblad}[keuze]()
+     "📚 Leren": leren_tabblad, "🤝 Samen": samen_scherm.samen_tabblad,
+     "🏪 Marktplaats": samen_scherm.marktplaats_tabblad}[keuze]()
 
 
 def gesprek() -> None:
@@ -1657,6 +1724,10 @@ def main() -> None:
         st.title("Mijn assistent")
     if not wachtwoord_ok():
         return
+    if st.session_state.pop("welkom", False):
+        st.success(f"Welkom, {samen_scherm.ik().get('weergavenaam') or ''}! Je agenda, taken, Samen en de marktplaats "
+                   "werken meteen. Wil je ook met de assistent praten? Zet dan je eigen Anthropic-sleutel bij "
+                   "⚙️ Instellingen › Koppelingen.")
 
     # Een vraag uit het invoerveld onderaan gaat altijd naar het tabblad van de assistent.
     if vraag := st.chat_input("Vraag de assistent..."):
@@ -1681,6 +1752,7 @@ try:
     main()
 except opslag.GeenToegang:
     st.session_state.pop("wachtwoord", None)
+    st.session_state.pop("ik", None)
     st.error("Geen toegang tot je gegevens. Ververs de pagina en log opnieuw in.")
 except opslag.httpx.HTTPError:
     st.error("De database is even niet bereikbaar. Ververs de pagina over een minuut.")

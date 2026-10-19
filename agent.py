@@ -9,6 +9,7 @@ from anthropic import beta_tool
 import opslag
 import planning
 import reizen
+import samen
 import activiteiten
 import boodschappen
 import events
@@ -142,6 +143,19 @@ Werkwijze:
   passen bij interesses, tijd, budget en woonplaats. Zoek concrete opties in de
   buurt of online (met prijs, duur en link), help met de eerste stap en plan die
   na akkoord in de agenda. Moedig aan om het vol te houden en vier vooruitgang.
+- Samen: de gebruiker kan afspraken, taken, de boodschappenlijst en notities
+  delen met andere gebruikers (op gebruikersnaam) met delen_met, en samen aan
+  projecten werken (projecten_bekijken, project_item_toevoegen). Deel alleen
+  wanneer de gebruiker dat vraagt en noem met wie.
+- Marktplaats: zoek met marktplaats_zoeken in onze eigen marktplaats én geef de
+  links naar andere marktplaatsen (Marktplaats, Vinted, Bol, Werkspot,
+  Superprof...). Vergelijk prijs, plaats en voorwaarden en wijs op veilig
+  handelen: geen vooruitbetaling aan onbekenden, betalen bij ophalen of via een
+  betaalverzoek. Boek een privétraining of les met boeken alleen nadat de
+  gebruiker de precieze tijd en prijs heeft gezien en uitdrukkelijk "boek maar"
+  heeft gezegd. Je betaalt of koopt nooit zelf iets. Wil de gebruiker iets
+  aanbieden, help dan met een duidelijke titel, omschrijving en eerlijke prijs;
+  plaatsen doet hij zelf bij Assistent › Marktplaats › Aanbieden.
 - Over geld en beleggen geef je algemene informatie, geen persoonlijk
   beleggingsadvies.
 """
@@ -701,6 +715,125 @@ def mail_versturen(concept_id: int) -> str:
     return f"Verstuurd naar {concept['aan']}."
 
 
+def _samen(functie, *args, **kwargs):
+    if not samen.beschikbaar():
+        return None, "Delen, projecten en de marktplaats werken alleen in de online versie."
+    try:
+        return functie(*args, **kwargs), None
+    except samen.Fout as fout:
+        return None, str(fout)
+
+
+@beta_tool
+def delen_met(gebruikersnaam: str, soort: str, afspraak_id: int = 0, taak_id: int = 0, notitie: str = "") -> str:
+    """Deel iets met een andere gebruiker van de app. Alleen als de gebruiker daarom vraagt.
+
+    Args:
+        gebruikersnaam: Gebruikersnaam van de ontvanger (zonder @).
+        soort: afspraak, taak, boodschappen (de hele open boodschappenlijst) of notitie.
+        afspraak_id: Bij soort afspraak: het id uit agenda_bekijken.
+        taak_id: Bij soort taak: het id uit taken_bekijken.
+        notitie: Bij soort notitie: de tekst.
+    """
+    g = opslag.laden()
+    if soort == "afspraak":
+        a = next((a for a in g["afspraken"] if a["id"] == afspraak_id), None)
+        inhoud = a and {k: a[k] for k in ("titel", "start", "einde", "locatie", "notitie", "soort", "sport") if a.get(k)}
+    elif soort == "taak":
+        t = next((t for t in g["taken"] if t["id"] == taak_id), None)
+        inhoud = t and {"titel": t["titel"], "deadline": t.get("deadline")}
+    elif soort == "boodschappen":
+        nodig = [b["tekst"] for b in g.get("boodschappen", []) if not b["gekocht"]]
+        inhoud = nodig and {"items": nodig}
+    else:
+        soort, inhoud = "notitie", notitie.strip() and {"tekst": notitie.strip()}
+    if not inhoud:
+        return "Niets gevonden om te delen; controleer het id of de tekst."
+    aan, fout = _samen(samen.delen, gebruikersnaam, soort, inhoud)
+    return fout or f"Gedeeld met {aan}. Die ziet het bij Assistent › Samen."
+
+
+@beta_tool
+def gedeeld_bekijken() -> str:
+    """Wat andere gebruikers met de gebruiker hebben gedeeld en nog niet is overgenomen."""
+    lijst, fout = _samen(samen.gedeeld_met_mij)
+    return fout or _json(lijst)
+
+
+@beta_tool
+def projecten_bekijken() -> str:
+    """Gedeelde projecten van de gebruiker, met leden en alle taken, notities en afspraken erin."""
+    lijst, fout = _samen(samen.projecten)
+    if fout:
+        return fout
+    return _json([{**p, "items": samen.items(p["id"])} for p in lijst])
+
+
+@beta_tool
+def project_item_toevoegen(project_id: int, titel: str, soort: str = "taak", toelichting: str = "", datum: str = "",
+                           toegewezen_aan: str = "") -> str:
+    """Zet een taak, notitie, afspraak of link in een gedeeld project; alle leden zien het.
+
+    Args:
+        project_id: Id uit projecten_bekijken.
+        titel: Korte titel.
+        soort: taak, notitie, afspraak of link.
+        toelichting: Extra uitleg, of de url bij een link.
+        datum: Optioneel JJJJ-MM-DD of JJJJ-MM-DDTHH:MM.
+        toegewezen_aan: Optioneel de gebruikersnaam van het projectlid dat het doet.
+    """
+    nieuw, fout = _samen(samen.item_toevoegen, project_id, soort if soort in samen.SOORTEN_ITEM else "taak", titel,
+                         toelichting, datum, toegewezen_aan)
+    return fout or f"Toegevoegd aan het project (id {nieuw})."
+
+
+@beta_tool
+def marktplaats_zoeken(zoekterm: str = "", soort: str = "") -> str:
+    """Zoek aanbod op onze eigen marktplaats en geef links naar andere marktplaatsen met dezelfde zoekterm.
+
+    Args:
+        zoekterm: Wat de gebruiker zoekt, bijvoorbeeld "racefiets" of "personal trainer Utrecht".
+        soort: Optioneel: product, dienst, training (privétraining) of les (lessen, bijles, studie).
+    """
+    eigen, fout = _samen(samen.aanbod_zoeken, zoekterm, soort if soort in samen.SOORTEN_AANBOD else "")
+    velden = ("id", "soort", "titel", "omschrijving", "prijs", "prijs_per", "plaats", "aanbieder", "vrije_tijden", "van_mij")
+    return _json({"onze_marktplaats": fout or [{k: a[k] for k in velden} for a in eigen[:15]],
+                  "andere_marktplaatsen": samen.externe_links(zoekterm)})
+
+
+@beta_tool
+def tijden_bekijken(aanbod_id: int) -> str:
+    """Vrije tijden om een privétraining, les of dienst van de marktplaats te boeken.
+
+    Args:
+        aanbod_id: Id uit marktplaats_zoeken.
+    """
+    tijden, fout = _samen(samen.tijden, aanbod_id)
+    return fout or _json([{"tijdslot_id": t["id"], "wanneer": samen.tijd_tekst(t["start"]), "minuten": t["minuten"]}
+                          for t in tijden if t["vrij"]][:30])
+
+
+@beta_tool
+def boeken(tijdslot_id: int, opmerking: str = "") -> str:
+    """Boek een tijd bij een aanbieder en zet hem in de agenda. Alleen gebruiken nadat de gebruiker de precieze tijd en
+    prijs heeft gezien of gehoord en uitdrukkelijk heeft gezegd dat je mag boeken. Betalen gaat buiten de app.
+
+    Args:
+        tijdslot_id: Id uit tijden_bekijken.
+        opmerking: Optioneel bericht voor de aanbieder.
+    """
+    boeking, fout = _samen(samen.boeken, tijdslot_id, opmerking)
+    return fout or (f"Geboekt: {boeking['titel']} op {samen.tijd_tekst(boeking['start'])} bij {boeking['aanbieder']}. "
+                    "Staat in de agenda. De betaling regelt de gebruiker zelf met de aanbieder.")
+
+
+@beta_tool
+def boekingen_bekijken() -> str:
+    """Komende boekingen op de marktplaats: wat de gebruiker heeft geboekt en wat anderen bij hem hebben geboekt."""
+    lijst, fout = _samen(samen.mijn_boekingen)
+    return fout or _json([{**b, "wanneer": samen.tijd_tekst(b["start"])} for b in lijst])
+
+
 HULPMIDDELEN = [
     mails_bekijken,
     mail_lezen,
@@ -743,6 +876,14 @@ HULPMIDDELEN = [
     boodschappen_toevoegen,
     boodschappenlijst_bekijken,
     prijzen_vergelijken,
+    delen_met,
+    gedeeld_bekijken,
+    projecten_bekijken,
+    project_item_toevoegen,
+    marktplaats_zoeken,
+    tijden_bekijken,
+    boeken,
+    boekingen_bekijken,
     {"type": "web_search_20260209", "name": "web_search", "max_uses": 5},
     {"type": "web_fetch_20260209", "name": "web_fetch", "max_uses": 5},
 ]

@@ -2,7 +2,7 @@
 
 Online staan ze in een aparte tabel in Supabase (niet in de gewone gegevens,
 want die worden bij elke wijziging helemaal opgeslagen). Ook hier is het
-wachtwoord van de gebruiker nodig.
+naam en wachtwoord van de gebruiker nodig.
 """
 
 import base64
@@ -44,8 +44,8 @@ def toevoegen(afspraak_id: int, soort: str, naam: str, mime: str, inhoud: bytes)
         index.append({"id": nieuw, "afspraak_id": afspraak_id, "soort": soort, "naam": naam, "mime": mime})
         _lokale_index_opslaan(index)
         return nieuw
-    nieuw = opslag._rpc("media_toevoegen", p_wachtwoord=opslag._wachtwoord.get(), p_afspraak_id=afspraak_id,
-                        p_soort=soort, p_naam=naam, p_mime=mime, p_inhoud=base64.b64encode(inhoud).decode())
+    nieuw = opslag._rpc_ik("media_toevoegen", p_afspraak_id=afspraak_id, p_soort=soort, p_bestandsnaam=naam,
+                           p_mime=mime, p_inhoud=base64.b64encode(inhoud).decode())
     if nieuw is None:
         raise opslag.GeenToegang
     return nieuw
@@ -54,25 +54,20 @@ def toevoegen(afspraak_id: int, soort: str, naam: str, mime: str, inhoud: bytes)
 def lijst(afspraak_id: int) -> list[dict]:
     if not opslag.online():
         return [m for m in _lokale_index() if m["afspraak_id"] == afspraak_id]
-    antwoord = opslag._rpc("media_lijst", p_wachtwoord=opslag._wachtwoord.get(), p_afspraak_id=afspraak_id)
-    if antwoord.get("geen_toegang"):
-        raise opslag.GeenToegang
-    return antwoord["media"]
+    return opslag._rpc_ik("media_lijst", p_afspraak_id=afspraak_id)["media"]
 
 
 def ophalen(media_id: int) -> bytes:
     if not opslag.online():
         return (MEDIA_MAP / str(media_id)).read_bytes()
-    antwoord = opslag._rpc("media_ophalen", p_wachtwoord=opslag._wachtwoord.get(), p_id=media_id) or {}
-    if antwoord.get("geen_toegang"):
-        raise opslag.GeenToegang
+    antwoord = opslag._rpc_ik("media_ophalen", p_id=media_id) or {}
     return base64.b64decode(antwoord.get("inhoud", ""))
 
 
 def weghalen(media_id: int) -> None:
     if not opslag.online():
         _lokale_index_opslaan([m for m in _lokale_index() if m["id"] != media_id])
-    elif not opslag._rpc("media_weghalen", p_wachtwoord=opslag._wachtwoord.get(), p_id=media_id):
+    elif not opslag._rpc_ik("media_weghalen", p_id=media_id):
         raise opslag.GeenToegang
 
 

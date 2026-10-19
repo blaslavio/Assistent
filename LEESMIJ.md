@@ -10,7 +10,11 @@ Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je 
   - ✉️ Mail: mails lezen, afspraken naar je agenda, antwoorden klaarzetten die jij verstuurt.
   - 🛒 Boodschappen: lijst en de goedkoopste supermarkt in de buurt.
   - 📚 Leren: leerdoelen, overhoren, en hulp bij scripties en verslagen met echte wetenschappelijke bronnen.
-- ⚙️ **Instellingen**: hoe de assistent praat, stem, wat hij over je weet, thuisadres, voorpagina en onderdelen, contacten, koppelingen (mail, Strava, Ticketmaster, Anthropic) en uitloggen.
+  - 🤝 Samen: afspraken, taken, je boodschappenlijst en notities delen met andere gebruikers, en samen aan projecten werken.
+  - 🏪 Marktplaats: producten, diensten, privétrainingen en lessen aanbieden en vinden, tijden boeken, berichten sturen en melden; met links naar andere marktplaatsen. Betalen gaat buiten de app.
+- ⚙️ **Instellingen**: hoe de assistent praat, stem, wat hij over je weet, thuisadres, voorpagina en onderdelen, contacten, koppelingen (mail, Strava, Ticketmaster, Anthropic), je account (profiel, voorwaarden en privacy, gegevens downloaden, account verwijderen), beheer van meldingen (alleen de eigenaar) en uitloggen.
+
+Iedereen kan een gratis account maken met een gebruikersnaam en wachtwoord. Wie met de assistent wil praten, zet zijn eigen Anthropic-sleutel bij Instellingen.
 
 Het gesprek met de assistent heeft tegoed bij Anthropic nodig; de rest werkt ook zonder.
 
@@ -43,7 +47,8 @@ Claude heeft de database ingericht. De app gebruikt alleen de openbare (publisha
 
 ## Goed om te weten
 - Het adres en de code zijn openbaar, maar zonder je wachtwoord kan niemand je gegevens zien of je sleutel gebruiken. Kies dus een sterk wachtwoord.
-- Wachtwoord vergeten? Claude kan het via Supabase opnieuw instellen.
+- Wachtwoord vergeten? Claude kan het via Supabase opnieuw instellen (tabel private.gebruikers).
+- De voorwaarden en privacyverklaring (teksten.py) zijn een concept: laat ze nakijken en vul een contactadres in.
 - Kosten: Streamlit, Supabase en GitHub zijn gratis. Anthropic rekent per gebruik, meestal enkele centen per gesprek; zoeken op internet kost wat meer.
 - Als de app een tijd niet gebruikt is, "slaapt" hij. Tik dan op de knop om hem te wekken; dat duurt even.
 - Begin bij een nieuw onderwerp liefst een nieuw gesprek (knop onderaan); dat houdt het snel en goedkoop.

@@ -29,16 +29,23 @@ SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Bq-K3J6yt0-B-mHWYj-tnQ_DWD0c9KX"
 
 LEEG = {"taken": [], "afspraken": [], "contacten": [], "leerdoelen": [], "sportdoelen": [], "volgend_id": 1}
 
-# Het wachtwoord van de ingelogde gebruiker, per sessie (Streamlit draait elke sessie in een eigen thread).
+# Naam en wachtwoord van de ingelogde gebruiker, per sessie (Streamlit draait elke sessie in een eigen thread).
+# Een lege naam is de eigenaar van de app.
+_naam: contextvars.ContextVar[str] = contextvars.ContextVar("naam", default="")
 _wachtwoord: contextvars.ContextVar[str] = contextvars.ContextVar("wachtwoord", default="")
 
 
 class GeenToegang(Exception):
-    """Het wachtwoord klopt niet (of er waren te veel foute pogingen)."""
+    """Naam of wachtwoord klopt niet (of er waren te veel foute pogingen)."""
+
+
+def gebruik_account(naam: str, wachtwoord: str) -> None:
+    _naam.set(naam)
+    _wachtwoord.set(wachtwoord)
 
 
 def gebruik_wachtwoord(wachtwoord: str) -> None:
-    _wachtwoord.set(wachtwoord)
+    gebruik_account("", wachtwoord)
 
 
 def online() -> bool:
@@ -52,6 +59,14 @@ def _rpc(functie: str, **parameters):
     r = httpx.post(f"{url}/rest/v1/rpc/{functie}", json=parameters, headers={"apikey": sleutel}, timeout=15)
     r.raise_for_status()
     return r.json()
+
+
+def _rpc_ik(functie: str, **parameters):
+    """Roept een databasefunctie aan als de ingelogde gebruiker."""
+    antwoord = _rpc(functie, p_naam=_naam.get(), p_wachtwoord=_wachtwoord.get(), **parameters)
+    if isinstance(antwoord, dict) and antwoord.get("geen_toegang"):
+        raise GeenToegang
+    return antwoord
 
 
 def _lokaal_laden() -> dict:
@@ -76,16 +91,14 @@ def _lokale_hash(wachtwoord: str, zout: str) -> str:
 def laden() -> dict:
     if not online():
         return _lokaal_laden()
-    antwoord = _rpc("lees", p_wachtwoord=_wachtwoord.get())
-    if antwoord.get("geen_toegang"):
-        raise GeenToegang
-    return antwoord.get("data") or json.loads(json.dumps(LEEG))
+    gegevens = _rpc_ik("mijn_gegevens").get("data") or {}
+    return {**json.loads(json.dumps(LEEG)), **gegevens}
 
 
 def opslaan(gegevens: dict) -> None:
     if not online():
         _lokaal_opslaan(gegevens)
-    elif not _rpc("bewaar", p_wachtwoord=_wachtwoord.get(), p_data=gegevens):
+    elif not _rpc_ik("mijn_gegevens_bewaren", p_data=gegevens):
         raise GeenToegang
 
 
@@ -111,12 +124,55 @@ def registreer(wachtwoord: str) -> bool:
 
 
 def wachtwoord_klopt(wachtwoord: str) -> bool:
+    return inloggen("", wachtwoord) is not None
+
+
+def inloggen(naam: str, wachtwoord: str) -> dict | None:
+    """Controleert naam en wachtwoord. Geeft de gebruiker (id, naam, weergavenaam, beheerder) of None."""
     if not online():
         inst = _lokaal_laden().get("instellingen", {})
-        return "wachtwoord_hash" in inst and hmac.compare_digest(
-            _lokale_hash(wachtwoord, inst["wachtwoord_zout"]), inst["wachtwoord_hash"]
-        )
-    return not _rpc("lees", p_wachtwoord=wachtwoord).get("geen_toegang")
+        klopt = not naam and "wachtwoord_hash" in inst and hmac.compare_digest(
+            _lokale_hash(wachtwoord, inst["wachtwoord_zout"]), inst["wachtwoord_hash"])
+        return {"id": 1, "naam": None, "weergavenaam": "Eigenaar", "beheerder": True} if klopt else None
+    antwoord = _rpc("mijn_gegevens", p_naam=naam, p_wachtwoord=wachtwoord)
+    return None if antwoord.get("geen_toegang") else antwoord["gebruiker"]
+
+
+# --- Account ---------------------------------------------------------------
+
+def account_maken(naam: str, weergavenaam: str, wachtwoord: str, akkoord: bool) -> str | None:
+    """Maakt een nieuw account. Geeft een foutmelding terug, of None als het gelukt is."""
+    if not online():
+        return "Accounts maken kan alleen in de online versie."
+    antwoord = _rpc("account_maken", p_naam=naam, p_weergavenaam=weergavenaam, p_wachtwoord=wachtwoord, p_akkoord=akkoord)
+    return antwoord.get("fout")
+
+
+def profiel_bijwerken(nieuwe_naam: str | None = None, weergavenaam: str | None = None,
+                      nieuw_wachtwoord: str | None = None) -> str | None:
+    """Past gebruikersnaam, weergavenaam of wachtwoord aan. Geeft een foutmelding, of None."""
+    if not online():
+        return "Kan alleen in de online versie."
+    antwoord = _rpc_ik("profiel_bijwerken", p_nieuwe_naam=nieuwe_naam, p_weergavenaam=weergavenaam,
+                       p_nieuw_wachtwoord=nieuw_wachtwoord)
+    return antwoord.get("fout")
+
+
+def account_verwijderen() -> bool:
+    """Wist alle gegevens en maakt het account onbruikbaar. Kan niet voor de eigenaar."""
+    return online() and bool(_rpc_ik("account_verwijderen"))
+
+
+GEHEIM = {"anthropic_sleutel", "strava_client_secret", "strava_tokens", "ticketmaster_sleutel"}
+
+
+def export() -> str:
+    """Al je eigen gegevens als JSON, zonder wachtwoorden en sleutels."""
+    g = laden()
+    inst = {k: v for k, v in g.get("instellingen", {}).items() if k not in GEHEIM}
+    if "mail" in inst:
+        inst["mail"] = {k: v for k, v in inst["mail"].items() if k != "wachtwoord"}
+    return json.dumps({**g, "instellingen": inst}, ensure_ascii=False, indent=2)
 
 
 def _nieuw_id(gegevens: dict) -> int:
