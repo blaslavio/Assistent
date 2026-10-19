@@ -397,6 +397,56 @@ def boodschappen_opruimen(alleen_gekocht: bool = True) -> None:
         opslaan(g)
 
 
+# --- Kooplijst, wenslijst, notities en DIY-projecten ----------------------
+# Kooplijst en wenslijst: dingen die je wilt kopen (geen supermarkt), met prijs, winkel en link.
+
+LIJSTEN = ("kooplijst", "wenslijst", "notities", "diy")
+
+
+def lijst(naam: str) -> list[dict]:
+    assert naam in LIJSTEN
+    return laden().get(naam, [])
+
+
+def lijst_toevoegen(naam: str, **velden) -> dict:
+    assert naam in LIJSTEN
+    with _slot:
+        g = laden()
+        item = {"id": _nieuw_id(g), "toegevoegd": date.today().isoformat(), **velden}
+        g.setdefault(naam, []).append(item)
+        opslaan(g)
+    return item
+
+
+def lijst_bijwerken(naam: str, item_id: int, **velden) -> dict | None:
+    assert naam in LIJSTEN
+    with _slot:
+        g = laden()
+        for item in g.get(naam, []):
+            if item["id"] == item_id:
+                item.update(velden)
+                opslaan(g)
+                return item
+    return None
+
+
+def lijst_weg(naam: str, item_id: int) -> dict | None:
+    """Haalt een item van een lijst en geeft het terug (handig om het naar een andere lijst te verplaatsen)."""
+    assert naam in LIJSTEN
+    with _slot:
+        g = laden()
+        weg = next((i for i in g.get(naam, []) if i["id"] == item_id), None)
+        if weg:
+            g[naam] = [i for i in g[naam] if i["id"] != item_id]
+            opslaan(g)
+    return weg
+
+
+def verplaatsen(van: str, naar: str, item_id: int) -> None:
+    if item := lijst_weg(van, item_id):
+        lijst_toevoegen(naar, **{k: v for k, v in item.items() if k not in ("id", "toegevoegd")})
+
+
 # --- Sportdoelen ----------------------------------------------------------
 # maatstaf: keer_per_week, minuten_per_week, km_per_week, langste_km (één keer zo
 # ver, bijvoorbeeld 10 km hardlopen) of totaal_km (bij elkaar vanaf de start).
@@ -472,6 +522,18 @@ def oefening_vastleggen(leerdoel_id: int, stap_nummer: int, score: int) -> dict 
                     opslaan(g)
                     return stap
     return None
+
+
+def toets_vastleggen(leerdoel_id: int, soort: str, goed: int, totaal: int) -> None:
+    """Bewaart de uitslag van een oefentoets of flitskaarten, om de voortgang te laten zien."""
+    with _slot:
+        g = laden()
+        for doel in g["leerdoelen"]:
+            if doel["id"] == leerdoel_id:
+                doel.setdefault("toetsen", []).append(
+                    {"datum": date.today().isoformat(), "soort": soort, "goed": goed, "totaal": totaal})
+                doel["toetsen"] = doel["toetsen"][-20:]
+                opslaan(g)
 
 
 def voortgang(doel: dict) -> int:

@@ -74,6 +74,8 @@ OpenStreetMap, OpenAlex, Crossref) en voor het plaatje van je assistent DiceBear
 plaats of een willekeurige code mee, niet je naam. Betaal of verkoop
 je via de app, dan verwerkt Stripe je betaal- en (als verkoper) identiteitsgegevens; zie de privacyverklaring van
 Stripe. Wij zien geen bank- of kaartgegevens. Koppel je je mail of Strava, dan haalt de app daar alleen gegevens op als jij erom vraagt.
+Scan je een foto, dan gaat die naar Anthropic om te bekijken en wordt hij niet bewaard. De app herkent geen
+gezichten en zegt nooit wie er op een foto staat.
 
 **Wie het ziet.** Alleen jij, behalve wat je zelf deelt, in een project zet of op de marktplaats plaatst.
 Aanbod, je weergavenaam en beoordelingen zijn zichtbaar voor andere gebruikers. Je mailadres niet. De beheerder kan meldingen en het gemelde aanbod

@@ -27,17 +27,19 @@ import planning
 import reizen
 import samen
 import samen_scherm
+import slim
 import spraak
 import strava
 import teksten
 import tijd
+import werk_scherm
 import weer
 import wetenschap
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
 for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
-                mail, samen, teksten, samen_scherm, avatar, agent, spraak):
+                mail, samen, teksten, samen_scherm, avatar, slim, werk_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -825,7 +827,9 @@ VOORPAGINA = {"weer": "Weer naast de datum", "afspraken": "Geplande afspraken (d
               "seintjes": "Korte seintjes (herhalen, sportresultaat)"}
 # Wat je in het menu aan of uit kunt zetten (de sleutels staan zo in je instellingen).
 ONDERDELEN = {"✉️ Mail": "✉️ Mail", "📚 Leren": "📚 Leren en schrijven", "🤝 Samen": "🤝 Projecten en delen",
-              "🛒 Boodschappen": "🛒 Boodschappen", "🏪 Marktplaats": "🏪 Marktplaats"}
+              "🔨 DIY": "🔨 DIY en hobby", "🧰 Hulpmiddelen": "🧰 Hulpmiddelen (notities, timer, rekenen)",
+              "📷 Scannen": "📷 Foto scannen", "🛒 Boodschappen": "🛒 Boodschappen",
+              "🛍️ Lijstjes": "🛍️ Kooplijst en wenslijst", "🏪 Marktplaats": "🏪 Marktplaats (kopen en verkopen bij elkaar)"}
 # De pagina's van deze beurt, op url; gevuld door paginas().
 PAGINA: dict = {}
 
@@ -1040,6 +1044,8 @@ def leren_tabblad() -> None:
 
 
 def leerdoelen_onderdeel() -> None:
+    if werk_scherm.oefenen_bezig():
+        return
     herhalingen = opslag.herhalingen_vandaag()
     if herhalingen:
         st.markdown(f"**Vandaag herhalen ({len(herhalingen)})**")
@@ -1056,6 +1062,7 @@ def leerdoelen_onderdeel() -> None:
                     st.rerun()
 
     doelen = opslag.leerdoelen()
+    werk_scherm.totaal_voortgang(doelen)
     if not doelen:
         st.caption("Nog geen leerdoelen. Start er hieronder een; de assistent maakt het leerplan en overhoort je.")
     for d in doelen:
@@ -1065,13 +1072,7 @@ def leerdoelen_onderdeel() -> None:
             if d.get("deadline"):
                 tekst += f" · klaar op {d['deadline']}"
             st.progress(opslag.voortgang(d) / 100, text=tekst)
-            kol1, kol2 = st.columns(2)
-            if kol1.button("🎯 Overhoor mij", key=f"overhoor_{d['id']}", width="stretch"):
-                vraag_assistent(f"Overhoor me over {d['onderwerp']} (leerdoel {d['id']}). Begin bij wat ik het "
-                                "minst goed beheers.")
-            if kol2.button("📖 Volgende stap uitleggen", key=f"uitleg_{d['id']}", width="stretch"):
-                vraag_assistent(f"Leg de volgende stap van mijn leerdoel {d['onderwerp']} (leerdoel {d['id']}) uit "
-                                "en stel daarna controlevragen.")
+            werk_scherm.oefenknoppen(d)
             with st.expander("Leerplan"):
                 for stap in d["stappen"]:
                     score = "" if stap["score"] is None else f" · score {stap['score']}/5"
@@ -1598,20 +1599,7 @@ def zelftest() -> None:
             st.write(f"❌ Claude: {foutmelding(fout)}")
 
 
-def foutmelding(fout: anthropic.APIError) -> str:
-    if isinstance(fout, anthropic.AuthenticationError):
-        return "De Anthropic-sleutel klopt niet. Vervang hem bij ⚙️ Instellingen."
-    if isinstance(fout, anthropic.RateLimitError):
-        return "Het is even te druk. Probeer het over een minuut opnieuw."
-    if isinstance(fout, anthropic.APIConnectionError):
-        return "Geen verbinding met Claude. Controleer je internet."
-    if isinstance(fout, anthropic.APIStatusError):
-        melding = str(fout.body.get("error", {}).get("message", "")) if isinstance(fout.body, dict) else ""
-        if "credit balance" in melding.lower():
-            return ("Je tegoed bij Anthropic is op of nog niet actief. Voeg tegoed toe onder Billing op "
-                    "console.anthropic.com. De rest van de app werkt gewoon.")
-        return f"Er ging iets mis bij Claude (code {fout.status_code}): {melding or fout.message}"
-    return "Er ging iets mis bij Claude."
+foutmelding = slim.foutmelding
 
 
 # --- Boodschappen ---------------------------------------------------------
@@ -1826,6 +1814,14 @@ def terug_van_stripe() -> None:
                  else "Stripe is nog bezig met je aanmelding.", icon="✅" if klaar else "ℹ️")
 
 
+def kooplijst() -> None:
+    werk_scherm.lijstje("kooplijst")
+
+
+def wenslijst() -> None:
+    werk_scherm.lijstje("wenslijst")
+
+
 def paginas() -> dict:
     """Het menu: een paar vaste pagina's, en de rest in twee uitklapmenu's. Wat je uitzet, staat er niet in."""
     PAGINA.clear()
@@ -1849,17 +1845,29 @@ def paginas() -> dict:
         werk.append(pagina(leren_tabblad, "Leren en schrijven", "📚", "leren"))
     if online and "🤝 Samen" not in uit:
         werk.append(pagina(samen_scherm.samen_tabblad, "Projecten en delen", "🤝", "samen", nieuw.get("gedeeld", 0)))
-    if "🛒 Boodschappen" not in uit:
-        werk.append(pagina(boodschappen_tabblad, "Boodschappen", "🛒", "boodschappen"))
+    if "🔨 DIY" not in uit:
+        werk.append(pagina(werk_scherm.diy, "DIY en hobby", "🔨", "diy"))
+    if "🧰 Hulpmiddelen" not in uit:
+        werk.append(pagina(werk_scherm.hulpmiddelen, "Hulpmiddelen", "🧰", "hulpmiddelen"))
+    if "📷 Scannen" not in uit:
+        werk.append(pagina(werk_scherm.scannen, "Foto scannen", "📷", "scannen"))
     if werk:
         menu["Werk en leren"] = werk
+    kopen = []
+    if "🛒 Boodschappen" not in uit:
+        kopen.append(pagina(boodschappen_tabblad, "Boodschappen", "🛒", "boodschappen"))
+    if "🛍️ Lijstjes" not in uit:
+        kopen.append(pagina(kooplijst, "Kooplijst", "🛍️", "kooplijst"))
+        kopen.append(pagina(wenslijst, "Wenslijst", "⭐", "wenslijst"))
     if online and "🏪 Marktplaats" not in uit:
-        menu["Marktplaats"] = [
-            pagina(samen_scherm.markt_zoeken, "Zoeken", "🔎", "zoeken"),
+        kopen += [
+            pagina(samen_scherm.markt_zoeken, "Marktplaats", "🔎", "zoeken"),
             pagina(samen_scherm.aanbieden, "Verkopen", "🏷️", "verkopen"),
             pagina(samen_scherm.markt_bestellingen, "Bestellingen", "🧾", "bestellingen", nieuw.get("bestellingen", 0)),
             pagina(samen_scherm.berichten, "Berichten", "💬", "berichten", nieuw.get("berichten", 0)),
         ]
+    if kopen:
+        menu["Kopen en verkopen"] = kopen
     return menu
 
 

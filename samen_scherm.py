@@ -263,7 +263,7 @@ def zoeken() -> None:
     resultaten = samen.aanbod_zoeken(zoekterm, soort)
     if not resultaten:
         st.caption("Nog niets gevonden op onze marktplaats." + (" Kijk hieronder ook bij de andere marktplaatsen."
-                                                               if zoekterm else " Wees de eerste: kies Marktplaats › 🏷️ Verkopen."))
+                                                               if zoekterm else " Wees de eerste: kies Kopen en verkopen › Verkopen."))
     for aanbod in resultaten:
         aanbod_kaart(aanbod)
     with st.expander("🌐 Ook kijken op andere marktplaatsen", expanded=bool(zoekterm) and not resultaten):

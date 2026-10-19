@@ -51,6 +51,13 @@ Werkwijze:
   of weekmenu zet je alle ingrediënten erop. Vergelijk prijzen met
   prijzen_vergelijken en noem de goedkoopste supermarkt in de buurt, en wat het
   scheelt. Prijzen zijn een indicatie van de webwinkels.
+- Kooplijst en wenslijst: voor andere aankopen dan de supermarkt. Vergelijk
+  prijzen met web_search bij meerdere winkels en zet de opties met de
+  goedkoopste (inclusief verzendkosten) vooraan; noem alleen prijzen en links
+  die je echt gevonden hebt. Zet iets met lijst_toevoegen op de kooplijst of
+  wenslijst als de gebruiker dat wil. DIY-projecten staan bij Werk en leren ›
+  DIY en hobby; foto's scannen bij Werk en leren › Foto scannen.
+- Herken nooit wie iemand is aan zijn gezicht, ook niet als erom gevraagd wordt.
 - Gebruik de hulpmiddelen om taken, afspraken en leervoortgang echt op te slaan,
   in plaats van alleen te zeggen dat je het onthoudt.
 - Geheugen en bijleren: je krijgt hieronder wat je al over de gebruiker weet.
@@ -155,11 +162,11 @@ Werkwijze:
   bevestigt dat alles goed is ontvangen), let op geverifieerde verkopers en
   sterren, en betaal nooit via een link of rekeningnummer uit een bericht.
   Bestellen, betalen en ontvangst bevestigen doet de gebruiker zelf bij
-  Marktplaats › Bestellingen. Boek een privétraining of les met boeken alleen nadat de
+  Kopen en verkopen › Bestellingen. Boek een privétraining of les met boeken alleen nadat de
   gebruiker de precieze tijd en prijs heeft gezien en uitdrukkelijk "boek maar"
   heeft gezegd. Je betaalt of koopt nooit zelf iets. Wil de gebruiker iets
   aanbieden, help dan met een duidelijke titel, omschrijving en eerlijke prijs;
-  plaatsen doet hij zelf bij Marktplaats › Verkopen.
+  plaatsen doet hij zelf bij Kopen en verkopen › Verkopen.
 - Over geld en beleggen geef je algemene informatie, geen persoonlijk
   beleggingsadvies.
 """
@@ -425,6 +432,31 @@ def boodschappen_toevoegen(producten: list[str]) -> str:
         producten: De producten, één per item.
     """
     return _json(opslag.boodschap_toevoegen(producten))
+
+
+@beta_tool
+def lijst_toevoegen(lijst: str, product: str, prijs: float | None = None, winkel: str = "", link: str = "") -> str:
+    """Zet iets op de kooplijst (wil de gebruiker kopen) of wenslijst (zou hij graag hebben). Niet voor de supermarkt;
+    gebruik daarvoor boodschappen_toevoegen.
+
+    Args:
+        lijst: kooplijst of wenslijst.
+        product: Zo precies mogelijk, met merk en type als dat bekend is.
+        prijs: Prijs in euro als die bekend is (bijvoorbeeld de goedkoopste uit je vergelijking).
+        winkel: De winkel bij die prijs.
+        link: De link naar het aanbod, alleen als je die echt gevonden hebt.
+    """
+    if lijst not in ("kooplijst", "wenslijst"):
+        return "Kies kooplijst of wenslijst."
+    return _json(opslag.lijst_toevoegen(lijst, naam_product=product, prijs=prijs, winkel=winkel, link=link,
+                                        gekocht=False))
+
+
+@beta_tool
+def lijsten_bekijken() -> str:
+    """Toon de kooplijst en de wenslijst."""
+    return _json({naam: [{k: v for k, v in i.items() if k != "opties"} for i in opslag.lijst(naam)]
+                  for naam in ("kooplijst", "wenslijst")})
 
 
 @beta_tool
@@ -890,6 +922,8 @@ HULPMIDDELEN = [
     plaats_zoeken,
     boodschappen_toevoegen,
     boodschappenlijst_bekijken,
+    lijst_toevoegen,
+    lijsten_bekijken,
     prijzen_vergelijken,
     delen_met,
     gedeeld_bekijken,

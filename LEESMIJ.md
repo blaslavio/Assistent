@@ -9,10 +9,12 @@ Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je 
 - ⚙️ **Instellingen**: naam en uiterlijk van de assistent, hoe hij praat, stem, wat hij over je weet, thuisadres, voorpagina en menu, contacten, koppelingen (mail, Strava, Ticketmaster, Anthropic), je account, beheer (alleen de eigenaar) en uitloggen.
 - **Werk en leren** (uitklapmenu):
   - ✉️ Mail: mails lezen, afspraken naar je agenda, antwoorden klaarzetten die jij verstuurt.
-  - 📚 Leren en schrijven: leerdoelen, overhoren, en hulp bij scripties en verslagen met echte wetenschappelijke bronnen.
+  - 📚 Leren en schrijven: leerdoelen met voortgangsbalk, oefentoetsen (meerkeuze, met uitleg), flitskaarten, mondeling overhoren, en hulp bij scripties en verslagen met echte wetenschappelijke bronnen. De app plant je herhalingen vanzelf.
   - 🤝 Projecten en delen: afspraken, taken, je boodschappenlijst en notities delen, en samen aan projecten werken.
-  - 🛒 Boodschappen: lijst en de goedkoopste supermarkt in de buurt.
-- **Marktplaats** (uitklapmenu): 🔎 Zoeken, 🏷️ Verkopen, 🧾 Bestellingen (ook je geboekte tijden) en 💬 Berichten. Betalen kan via de app (Stripe, met kopersbescherming: het geld gaat pas naar de verkoper als de koper bevestigt dat alles goed is ontvangen) of buiten de app (Tikkie, overmaken, contant).
+  - 🔨 DIY en hobby: een plan met stappen, veiligheidstips, materialen met geschatte kosten en links naar winkels (Gamma, Praxis, Karwei, Hornbach, Action, Bol); zet materialen met één tik op je kooplijst of wenslijst.
+  - 🧰 Hulpmiddelen: notities, een focustimer en een rekenhulp (ook btw, korting en procenten).
+  - 📷 Foto scannen: maak of kies een foto; de assistent herkent producten, leest de tekst en zet afspraken, taken of producten op de goede plek. Gezichten worden bewust niet herkend.
+- **Kopen en verkopen** (uitklapmenu): 🛒 Boodschappen (goedkoopste supermarkt), 🛍️ Kooplijst en ⭐ Wenslijst (prijzen vergelijken op internet, goedkoopste vooraan), en de marktplaats: 🔎 zoeken, 🏷️ verkopen, 🧾 bestellingen (ook je geboekte tijden) en 💬 berichten. Betalen kan via de app (Stripe, met kopersbescherming: het geld gaat pas naar de verkoper als de koper bevestigt dat alles goed is ontvangen) of buiten de app (Tikkie, overmaken, contant).
 
 Wat je niet gebruikt, zet je uit bij Instellingen › Voorpagina en menu; dan verdwijnt het uit het menu.
 
