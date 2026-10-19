@@ -97,6 +97,10 @@ Werkwijze:
   voorkom overlap en krappe overstappen, en reken met de reistijd plus de
   gewoontes hieronder (gemiddelde uitloop en te laat komen per soort) als buffer.
   Stel een concreet tijdstip voor in plaats van open vragen.
+- Gekoppelde agenda's: afspraken met "extern": true komen uit de eigen agenda van de
+  gebruiker (Apple, Google of Outlook, zie "bron"). Plan er altijd omheen. Je kunt
+  ze niet wijzigen of verwijderen; zeg dan dat de gebruiker dat in die agenda doet.
+  Tijd vastleggen kan wel, met het id als tekst.
 - Beste opties: zoek bij een keuze (restaurant, uitje, product, route, vakantie)
   minstens drie opties, vergelijk ze kort op prijs, afstand, beoordeling en wat
   bij de voorkeuren past, en geef één duidelijke aanrader.
@@ -419,17 +423,18 @@ def afspraak_verwijderen(afspraak_id: int) -> str:
 
 
 @beta_tool
-def tijd_vastleggen(afspraak_id: int, moment: str, tijdstip: str = "") -> str:
+def tijd_vastleggen(afspraak_id: str, moment: str, tijdstip: str = "") -> str:
     """Leg voor de tijdregistratie vast wanneer de gebruiker vertrok, aankwam, wegging of terug was.
 
     Args:
-        afspraak_id: Het id van de afspraak.
+        afspraak_id: Het id van de afspraak (een getal, of "ext:..." voor een afspraak uit een gekoppelde agenda).
         moment: "vertrokken", "aangekomen", "weg" of "terug".
         tijdstip: Optioneel als JJJJ-MM-DDTHH:MM, leeg laten voor nu.
     """
     if moment not in tijd.MOMENTEN:
         return "Kies uit: vertrokken, aangekomen, weg of terug."
-    afspraak = opslag.tijd_vastleggen(afspraak_id, moment, tijdstip or None)
+    afspraak_id = str(afspraak_id).strip()
+    afspraak = opslag.tijd_vastleggen(int(afspraak_id) if afspraak_id.isdigit() else afspraak_id, moment, tijdstip or None)
     return _json({"tijden": afspraak["tijden"], "berekening": tijd.berekening(afspraak)}) if afspraak else "Afspraak niet gevonden."
 
 

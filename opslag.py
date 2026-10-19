@@ -274,6 +274,8 @@ def export() -> str:
     inst = {k: v for k, v in g.get("instellingen", {}).items() if k not in GEHEIM}
     if "mail" in inst:
         inst["mail"] = {k: v for k, v in inst["mail"].items() if k != "wachtwoord"}
+    if "agendas" in inst:
+        inst["agendas"] = [{k: v for k, v in a.items() if k not in ("wachtwoord", "url")} for a in inst["agendas"]]
     return json.dumps({**g, "instellingen": inst}, ensure_ascii=False, indent=2)
 
 
@@ -369,15 +371,37 @@ def afspraak_verwijderen(afspraak_id: int) -> bool:
         return len(g["afspraken"]) < voor
 
 
-def afspraken_tussen(van: str, tot: str) -> list[dict]:
-    """Afspraken waarvan de start tussen twee datums (JJJJ-MM-DD, inclusief) valt."""
-    resultaat = [a for a in laden()["afspraken"] if van <= a["start"][:10] <= tot]
+def afspraken_tussen(van: str, tot: str, extern: bool = True) -> list[dict]:
+    """Afspraken waarvan de start tussen twee datums (JJJJ-MM-DD, inclusief) valt.
+
+    Met extern=True ook de afspraken uit je gekoppelde agenda's (Apple, Google, Outlook): die zijn alleen
+    te lezen en hebben een tekst-id dat met "ext:" begint.
+    """
+    g = laden()
+    resultaat = [a for a in g["afspraken"] if van <= a["start"][:10] <= tot]
+    if extern and g.get("instellingen", {}).get("agendas"):
+        try:
+            import agendas
+            eigen = {(a["titel"].lower(), a["start"][:16]) for a in resultaat}
+            tijden = g.get("extern_tijden", {})
+            for a in agendas.afspraken(van, tot):
+                if (a["titel"].lower(), a["start"][:16]) not in eigen:
+                    resultaat.append({**a, "tijden": tijden[a["id"]]} if a["id"] in tijden else a)
+        except Exception:
+            pass  # een agenda die even niet bereikbaar is mag de app niet stilleggen
     return sorted(resultaat, key=lambda a: a["start"])
 
 
-def tijd_vastleggen(afspraak_id: int, moment: str, tijdstip: str | None = None) -> dict | None:
+def tijd_vastleggen(afspraak_id: int | str, moment: str, tijdstip: str | None = None) -> dict | None:
     """Legt een moment vast (vertrokken, aangekomen, weg of terug), standaard nu."""
     tijdstip = tijdstip or datetime.now().isoformat(timespec="minutes")
+    if isinstance(afspraak_id, str) and afspraak_id.startswith("ext:"):
+        # Afspraak uit een gekoppelde agenda: de tijden bewaren we apart, de agenda zelf blijft onaangeroerd.
+        with _slot:
+            g = laden()
+            g.setdefault("extern_tijden", {}).setdefault(afspraak_id, {})[moment] = tijdstip
+            opslaan(g)
+        return next((a for a in afspraken_tussen("0000", "9999") if a["id"] == afspraak_id), None)
     with _slot:
         g = laden()
         for afspraak in g["afspraken"]:

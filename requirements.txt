@@ -7,3 +7,6 @@ python-docx
 qrcode
 pillow-heif
 fpdf2
+icalendar
+recurring-ical-events
+caldav

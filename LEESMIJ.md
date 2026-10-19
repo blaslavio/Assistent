@@ -89,3 +89,12 @@ Claude heeft de database ingericht. De app gebruikt alleen de openbare (publisha
 - **Rustige indeling**: bovenaan vier vaste knoppen (Vandaag, Agenda, assistent, Instellingen). Instellingen toont alle onderdelen als tegels in drie groepen (Kopen en verkopen, Leren en werk, Thuis en handig) en daaronder vier tegels voor de voorkeuren (Assistent, Weergave, Koppelingen, Account). Strakke iconen (Material) in plaats van emoji's. De agenda heeft één rij knoppen (Nieuw, Inplannen); ideeën, sport en tijd staan samen onder "Meer". `.streamlit/config.toml` zet een rustig kleurthema en verbergt de ontwikkelaarsknoppen.
 
 **Documenten** (tegel in Instellingen › Leren en werk): documenten maken en bewerken met opmaak (kopjes, vet, lijstjes, afvinklijstjes, links, foto's). Alles wordt vanzelf bewaard in de database, dus het werkt op elk apparaat met een browser (iPad, iPhone, Mac, Windows). Een open scherm haalt wijzigingen van een ander apparaat vanzelf op; bij gelijktijdige wijzigingen kies je de nieuwste, die van jou of allebei. Eerdere versies (30 per document), prullenbak, importeren (Word, PDF, tekst) en downloaden als Word, PDF of tekst. De assistent kan documenten maken, lezen en aanvullen. Editor: Quill 2 via jsDelivr (editor.py). SQL: sql/documenten.sql. PDF met fpdf2; packages.txt installeert DejaVu-lettertypen voor €-teken en schuine letters.
+
+## Je eigen agenda koppelen
+
+Instellingen › Koppelingen › Agenda's. De app leest je afspraken alleen (wijzigen doe je in je eigen agenda) en
+toont ze in Vandaag en Agenda; de assistent plant eromheen.
+- Apple: Apple ID plus een app-specifiek wachtwoord (account.apple.com › Inloggen en beveiliging).
+- Google: in Google Agenda › Instellingen › je agenda › Geheim adres in iCal-indeling.
+- Outlook: Instellingen › Agenda › Gedeelde agenda's › Een agenda publiceren › ICS-link.
+Afspraken worden 5 minuten onthouden (agendas.py); "Nu vernieuwen" haalt ze meteen opnieuw op.

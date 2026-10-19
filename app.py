@@ -15,6 +15,7 @@ import pydeck as pdk
 import streamlit as st
 
 import activiteiten
+import agendas
 import agent
 import avatar
 import boodschappen
@@ -48,7 +49,7 @@ import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
-for _module in (opslag, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
+for _module in (opslag, agendas, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
                 mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
@@ -643,6 +644,9 @@ def afspraak_kaart(regel: dict, afspraak: dict) -> None:
             st.caption(afspraak["notitie"])
         if afspraak.get("herinnering"):
             st.caption(f"{afspraak['herinnering']}")
+        if afspraak.get("extern"):
+            st.caption(f":material/event: Uit je {afspraak.get('bron', 'agenda')}. Wijzigen doe je in die agenda.")
+            return
         k1, k2, k3 = st.columns(3)
         k1.download_button("Naar agenda", ics.bestand([{**afspraak, **regel}]), file_name=f"afspraak-{afspraak['id']}.ics",
                            mime="text/calendar", key=f"ics_{afspraak['id']}", width="stretch",
@@ -814,7 +818,8 @@ def agenda_lijst(dagen: list[date], alle: dict, taken: list[dict] | None = None)
             taak_in_agenda(t)
         for regel in regels:
             afspraak_kaart(regel, alle[regel["id"]])
-            export.append({**alle[regel["id"]], **regel})
+            if not alle[regel["id"]].get("extern"):
+                export.append({**alle[regel["id"]], **regel})
     if len(export) > 1:
         st.download_button(f"Alle {len(export)} afspraken naar je agenda", ics.bestand(export),
                            file_name="afspraken.ics", mime="text/calendar", width="stretch")
@@ -1995,7 +2000,97 @@ def instellingen_weergave() -> None:
         contacten_beheren()
 
 
+def agendas_instellen() -> None:
+    """Je eigen agenda's (Apple, Google, Outlook) koppelen, alleen om te lezen."""
+    st.caption("Je afspraken uit je eigen agenda verschijnen in Vandaag en Agenda, en de assistent plant eromheen. "
+               "De app leest alleen mee: wijzigen doe je in je eigen agenda.")
+    gekoppeld = agendas.gekoppeld()
+    if gekoppeld:
+        fouten = agendas.fouten()
+        for k in gekoppeld:
+            with st.container(border=True):
+                kop = f'<span style="color:{k["kleur"]}">●</span> **{html.escape(k["naam"])}**'
+                if k["soort"] == "apple":
+                    kop += f'  \n:gray[{html.escape(k["gebruiker"])}]'
+                st.markdown(kop, unsafe_allow_html=True)
+                if fout := fouten.get(k["id"]):
+                    st.warning(fout)
+                for naam in k.get("agendas", []):
+                    aan = st.toggle(naam, value=naam not in k.get("uit", []), key=f"agz_{k['id']}_{naam}")
+                    if aan != (naam not in k.get("uit", [])):
+                        agendas.zichtbaar(k["id"], naam, aan)
+                        st.rerun()
+                if st.button("Ontkoppelen", key=f"agontkoppel_{k['id']}", icon=":material/link_off:"):
+                    agendas.ontkoppelen(k["id"])
+                    st.rerun()
+        if st.button("Nu vernieuwen", icon=":material/refresh:", help="Normaal elke 5 minuten vanzelf."):
+            agendas.vernieuwen()
+            st.rerun()
+        st.write("")
+
+    keuze = st.segmented_control("Agenda toevoegen", ["Apple", "Google", "Outlook", "Andere"], key="agenda_soort")
+    if keuze == "Apple":
+        st.markdown("1. Maak bij Apple een **app-specifiek wachtwoord** aan: log in, kies *Inloggen en beveiliging* "
+                    "› *App-specifieke wachtwoorden* en noem het Assistent.")
+        st.link_button("Open je Apple-account", "https://account.apple.com", icon=":material/open_in_new:")
+        st.markdown("2. Vul hieronder je Apple ID en dat wachtwoord in.")
+        m = mail.instellingen()
+        icloud_mail = m.get("imap") == mail.AANBIEDERS["iCloud"]["imap"] and m.get("wachtwoord")
+        with st.form("agenda_apple", border=False):
+            gebruiker = st.text_input("Apple ID (e-mailadres)", value=m.get("adres", "") if icloud_mail else "")
+            wachtwoord = st.text_input("App-specifiek wachtwoord", type="password", placeholder="xxxx-xxxx-xxxx-xxxx")
+            if icloud_mail:
+                st.caption("Leeg laten: dan gebruikt de app hetzelfde wachtwoord als voor je iCloud-mail.")
+            if st.form_submit_button("Koppelen", type="primary"):
+                with st.spinner("Verbinden met iCloud..."):
+                    try:
+                        k = agendas.koppel_apple(gebruiker, wachtwoord or (m["wachtwoord"] if icloud_mail else ""))
+                    except agendas.Fout as fout:
+                        st.error(str(fout))
+                    else:
+                        st.session_state.pop("agenda_soort", None)
+                        st.toast(f"Gekoppeld: {len(k['agendas'])} agenda's gevonden.", icon="✅")
+                        st.rerun()
+        return
+    if keuze in ("Google", "Outlook", "Andere"):
+        if keuze == "Google":
+            st.markdown("1. Open Google Agenda in Safari (op iPad of iPhone: kies *Desktopwebsite*).\n"
+                        "2. Ga naar *Instellingen* › klik links op je agenda › *Agenda integreren*.\n"
+                        "3. Kopieer het **Geheim adres in iCal-indeling** en plak het hieronder.")
+            st.link_button("Open Google Agenda", "https://calendar.google.com/calendar/r/settings",
+                           icon=":material/open_in_new:")
+        elif keuze == "Outlook":
+            st.markdown("1. Open Outlook op het web.\n"
+                        "2. Ga naar *Instellingen* › *Agenda* › *Gedeelde agenda's* › *Een agenda publiceren*.\n"
+                        "3. Kies je agenda en *Kan alle details bekijken*, tik op *Publiceren* en kopieer de "
+                        "**ICS-link**.")
+            st.link_button("Open Outlook", "https://outlook.live.com/calendar/0/options/calendar/SharedCalendars",
+                           icon=":material/open_in_new:")
+        else:
+            st.markdown("Plak de agendalink (iCal of ICS, begint met https:// of webcal://), bijvoorbeeld een "
+                        "rooster van school, werk of je sportclub.")
+        st.caption("Deze link is geheim: deel hem met niemand anders.")
+        with st.form("agenda_link", border=False):
+            naam = st.text_input("Naam", value={"Google": "Google-agenda", "Outlook": "Outlook-agenda"}.get(keuze, ""),
+                                 placeholder="Bijvoorbeeld Rooster")
+            url = st.text_input("Agendalink", placeholder="https://...")
+            if st.form_submit_button("Koppelen", type="primary"):
+                with st.spinner("Agenda ophalen..."):
+                    try:
+                        agendas.koppel_link(naam, url)
+                    except agendas.Fout as fout:
+                        st.error(str(fout))
+                    else:
+                        st.session_state.pop("agenda_soort", None)
+                        st.toast("Agenda gekoppeld.", icon="✅")
+                        st.rerun()
+
+
 def instellingen_koppelingen() -> None:
+    aantal = len(agendas.gekoppeld())
+    with st.expander("Agenda's (Apple, Google, Outlook)" + (f" ({aantal} gekoppeld)" if aantal else ""),
+                     expanded=not aantal and not mail.gekoppeld()):
+        agendas_instellen()
     with st.expander("Mail" + (" (gekoppeld)" if mail.gekoppeld() else "")):
         mail_instellen()
     with st.expander("Siri en Apple Woning" + (" (ingesteld)" if woning.scenes() else "")):
