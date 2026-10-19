@@ -72,7 +72,27 @@ def sport_icoon(sport: str) -> str:
 
 # Soorten afspraken in de agenda, met hun icoon.
 SOORTEN = {"afspraak": "📌", "sport": "🏃", "uitgaan": "🎉", "etentje": "🍽️", "werk": "💼",
-           "familie en vrienden": "👨‍👩‍👧", "gezondheid": "🩺", "reizen": "✈️", "overig": "🗓️"}
+           "familie en vrienden": "👨‍👩‍👧", "gezondheid": "🩺", "reizen": "✈️", "herinnering": "🔔",
+           "overig": "🗓️"}
+
+# Elke soort heeft een eigen kleur in de agenda; de gebruiker kan ze aanpassen (instellingen.kleuren).
+# "taak" is voor taken met een deadline, die als herinnering in de agenda staan.
+KLEUREN = {"afspraak": "#2563eb", "sport": "#16a34a", "uitgaan": "#9333ea", "etentje": "#ea580c",
+           "werk": "#475569", "familie en vrienden": "#db2777", "gezondheid": "#0891b2", "reizen": "#ca8a04",
+           "herinnering": "#dc2626", "overig": "#64748b", "taak": "#e11d48"}
+
+
+def kleur(soort: str) -> str:
+    eigen = opslag.instellingen().get("kleuren", {})
+    return eigen.get(soort) or KLEUREN.get(soort, KLEUREN["overig"])
+
+
+def label_html(soort: str, tekst: str = "") -> str:
+    """Een gekleurd labeltje, bijvoorbeeld "💼 Werk" in de kleur van werk."""
+    k = kleur(soort)
+    tekst = tekst or f"{SOORTEN.get(soort, '🔔')} {soort.capitalize()}"
+    return (f'<span style="background:{k}22;color:{k};border:1px solid {k}55;border-radius:10px;'
+            f'padding:1px 8px;font-size:13px;white-space:nowrap">{tekst}</span>')
 
 
 def soort_van(afspraak: dict) -> str:

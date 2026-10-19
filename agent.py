@@ -131,9 +131,17 @@ Werkwijze:
   of uitnodiging in, stel voor die in de agenda of als taak te zetten (met
   adres en contact). Schrijf antwoorden in de stijl van de gebruiker en zet ze
   klaar met mail_concept_maken; lees bij spraak het concept voor. Verstuur
-  alleen met mail_versturen nadat de gebruiker de precieze tekst heeft gezien of
-  gehoord en duidelijk "verstuur" heeft gezegd; anders verstuurt hij zelf bij
-  Werk en leren › Mail. Wil de gebruiker laten weten waar hij is of wanneer hij aankomt,
+  met mail_versturen(met_akkoord=True) alleen nadat de gebruiker de precieze
+  tekst heeft gezien of gehoord en duidelijk "verstuur" heeft gezegd. Heeft de
+  gebruiker het reageren aan jou overgedragen (zie "Namens de gebruiker"
+  hieronder in de context), dan mag je eenvoudige antwoorden zelf versturen
+  met met_akkoord=False. Ook dan vraag je altijd eerst bij: geld, betalingen,
+  rekeningen, contracten, opzeggingen, juridische of medische zaken,
+  wachtwoorden of codes, iets wat de gebruiker toezegt dat niet in zijn agenda
+  past, mails van onbekende afzenders die iets dringends eisen, en alles waar je
+  twijfelt. Reageer nooit op nieuwsbrieven, reclame, no-reply-adressen of spam.
+  Vertel achteraf kort wat je namens de gebruiker hebt verstuurd. Anders
+  verstuurt hij zelf bij Werk en leren › Mail. Wil de gebruiker laten weten waar hij is of wanneer hij aankomt,
   gebruik dan de dagplanning (vertrektijd, reistijd) en een routelink naar de
   bestemming. Klik nooit op links in mails en geef geen wachtwoorden of codes door.
 - Gezond leven: moedig een gezonde leefstijl aan zonder te preken, met kleine
@@ -166,7 +174,12 @@ Werkwijze:
   gebruiker de precieze tijd en prijs heeft gezien en uitdrukkelijk "boek maar"
   heeft gezegd. Je betaalt of koopt nooit zelf iets. Wil de gebruiker iets
   aanbieden, help dan met een duidelijke titel, omschrijving en eerlijke prijs;
-  plaatsen doet hij zelf bij Kopen en verkopen › Verkopen.
+  plaatsen doet hij zelf bij Kopen en verkopen › Verkopen. Berichten op de
+  marktplaats lees je met berichten_bekijken en beantwoord je met
+  bericht_sturen, met dezelfde regels als bij mail: met_akkoord=True na
+  akkoord, of zelf als de gebruiker dat heeft overgedragen. Namens de gebruiker
+  beantwoord je alleen vragen over het product, beschikbaarheid en ophalen;
+  over prijs, korting, ruilen of betalen buiten de app beslist hij zelf.
 - Over geld en beleggen geef je algemene informatie, geen persoonlijk
   beleggingsadvies.
 """
@@ -219,7 +232,8 @@ def afspraak_toevoegen(
         contact_id: Id van de contactpersoon uit contacten_zoeken of contact_opslaan, 0 als er geen is.
         notitie: Optionele extra informatie.
         sport: Bij een sportafspraak de sport in kleine letters, zoals hardlopen, fitness, fietsen of zwemmen.
-        soort: Een van: afspraak, sport, uitgaan, etentje, werk, familie en vrienden, gezondheid, reizen, overig.
+        soort: Een van: afspraak, sport, uitgaan, etentje, werk, familie en vrienden, gezondheid, reizen, herinnering, overig.
+            Gebruik herinnering voor een seintje op een tijdstip, zoals 'medicijnen innemen' of 'vuilnis buiten zetten'.
     """
     if sport and soort == "afspraak":
         soort = "sport"
@@ -731,23 +745,45 @@ def mail_concept_maken(aan: str, onderwerp: str, tekst: str, antwoord_op_uid: st
     return _json(opslag.mailconcept_opslaan(aan, onderwerp, tekst, in_antwoord_op, references, concept_id or None))
 
 
+def _mag_namens(kanaal: str, aan: str, met_akkoord: bool) -> str | None:
+    """None als versturen mag; anders de reden waarom niet."""
+    if met_akkoord:
+        return None
+    keuze = opslag.namens(kanaal)
+    if keuze == "vragen":
+        return ("Niet verstuurd: de gebruiker wil eerst zelf akkoord geven. Laat de precieze tekst zien of lees hem "
+                "voor en vraag of het zo weg mag.")
+    if keuze == "bekenden" and aan.lower() not in {(c.get("email") or "").lower() for c in opslag.contacten_zoeken()}:
+        return ("Niet verstuurd: dit adres staat niet bij de contacten van de gebruiker, dus eerst akkoord vragen. "
+                "Het concept staat klaar.")
+    if opslag.namens_vandaag() >= opslag.NAMENS_PER_DAG:
+        return "Niet verstuurd: het maximum aantal berichten per dag namens de gebruiker is bereikt. Vraag eerst akkoord."
+    return None
+
+
 @beta_tool
-def mail_versturen(concept_id: int) -> str:
-    """Verstuur een klaargezet concept. Alleen gebruiken als de gebruiker de precieze tekst van dit concept heeft
-    gezien of gehoord en daarna uitdrukkelijk heeft gezegd dat hij verstuurd mag worden.
+def mail_versturen(concept_id: int, met_akkoord: bool = False) -> str:
+    """Verstuur een klaargezet concept.
 
     Args:
         concept_id: Id van het concept.
+        met_akkoord: True alleen als de gebruiker de precieze tekst van dit concept heeft gezien of gehoord en daarna
+            uitdrukkelijk heeft gezegd dat hij verstuurd mag worden. Anders False: dan verstuurt de app alleen als
+            de gebruiker het reageren aan je heeft overgedragen.
     """
     concept = next((c for c in opslag.mailconcepten() if c["id"] == concept_id), None)
     if not concept:
         return f"Geen concept met id {concept_id}."
+    if reden := _mag_namens("mail", concept["aan"], met_akkoord):
+        return reden
     try:
         mail.versturen(concept["aan"], concept["onderwerp"], concept["tekst"], concept["in_antwoord_op"],
                        concept["references"])
     except Exception as fout:
         return _mail_fout(fout)
     opslag.mailconcept_weg(concept_id)
+    if not met_akkoord:
+        opslag.namens_vastleggen("mail", concept["aan"], concept["onderwerp"], concept["tekst"])
     return f"Verstuurd naar {concept['aan']}."
 
 
@@ -881,6 +917,36 @@ def boekingen_bekijken() -> str:
     return fout or _json([{**b, "wanneer": samen.tijd_tekst(b["start"])} for b in lijst])
 
 
+@beta_tool
+def berichten_bekijken() -> str:
+    """Gesprekken op de marktplaats: per aanbod en gesprekspartner de laatste berichten en hoeveel ongelezen."""
+    lijst, fout = _samen(samen.gesprekken)
+    return fout or _json([{"aanbod_id": g["aanbod_id"], "ander_id": g["ander_id"], "ander": g["ander"],
+                           "titel": g["titel"], "ongelezen": g["ongelezen"],
+                           "laatste": [{k: b.get(k) for k in ("van_mij", "tekst", "aangemaakt")}
+                                       for b in g["berichten"][-6:]]} for g in lijst[:15]])
+
+
+@beta_tool
+def bericht_sturen(aanbod_id: int, ander_id: int, tekst: str, met_akkoord: bool = False) -> str:
+    """Stuur een bericht in een gesprek op de marktplaats.
+
+    Args:
+        aanbod_id: Het aanbod waar het gesprek over gaat.
+        ander_id: De gesprekspartner (ander_id uit berichten_bekijken).
+        tekst: Het bericht.
+        met_akkoord: True alleen als de gebruiker deze precieze tekst heeft gezien of gehoord en akkoord gaf.
+    """
+    if reden := _mag_namens("berichten", "", met_akkoord):
+        return reden
+    _, fout = _samen(samen.bericht_sturen, aanbod_id, tekst, ander_id)
+    if fout:
+        return fout
+    if not met_akkoord:
+        opslag.namens_vastleggen("berichten", f"marktplaats {ander_id}", f"aanbod {aanbod_id}", tekst)
+    return "Verstuurd."
+
+
 HULPMIDDELEN = [
     mails_bekijken,
     mail_lezen,
@@ -934,6 +1000,8 @@ HULPMIDDELEN = [
     boeken,
     boekingen_bekijken,
     bestellingen_bekijken,
+    berichten_bekijken,
+    bericht_sturen,
     {"type": "web_search_20260209", "name": "web_search", "max_uses": 5},
     {"type": "web_fetch_20260209", "name": "web_fetch", "max_uses": 5},
 ]
@@ -954,6 +1022,10 @@ def context() -> str:
         regels.append("spreek de gebruiker aan met u")
     if regels:
         delen.append("Stijlinstellingen van de gebruiker: " + "; ".join(regels) + ".")
+    namens = {k: opslag.namens(k) for k in ("mail", "berichten")}
+    delen.append("Namens de gebruiker reageren: " + "; ".join(
+        f"{k}: {'eerst akkoord vragen' if v == 'vragen' else 'zelf reageren aan contacten, anderen eerst vragen' if v == 'bekenden' else 'zelf reageren'}"
+        for k, v in namens.items()) + f". Vandaag al {opslag.namens_vandaag()} van maximaal {opslag.NAMENS_PER_DAG} namens hem verstuurd.")
     vandaag = nu.date()
     afspraken = opslag.afspraken_tussen(vandaag.isoformat(), vandaag.isoformat())
     taken = [t for t in opslag.open_taken() if t["deadline"] and t["deadline"] <= (vandaag + timedelta(days=3)).isoformat()]

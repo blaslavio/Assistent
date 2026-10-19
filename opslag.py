@@ -748,6 +748,44 @@ def schrijfproject_archiveren(project_id: int) -> None:
 
 # --- Mailconcepten: antwoorden die klaarstaan om te versturen ---------------
 
+# --- Namens de gebruiker -----------------------------------------------------
+# Hoe zelfstandig de assistent mag reageren (instellingen.namens) en een logboek van wat hij namens je stuurde.
+
+NAMENS = {"vragen": "✋ Eerst aan mij vragen", "bekenden": "👥 Zelf reageren aan mijn contacten, de rest eerst vragen",
+          "zelf": "🤖 Zelf reageren, ik lees het overzicht"}
+NAMENS_PER_DAG = 25
+
+
+def namens(kanaal: str) -> str:
+    """'vragen', 'bekenden' of 'zelf' voor kanaal 'mail' of 'berichten'."""
+    keuze = instellingen().get("namens", {}).get(kanaal, "vragen")
+    return keuze if keuze in NAMENS else "vragen"
+
+
+def namens_instellen(kanaal: str, keuze: str) -> None:
+    assert keuze in NAMENS and kanaal in ("mail", "berichten")
+    instellingen_bijwerken(namens=instellingen().get("namens", {}) | {kanaal: keuze})
+
+
+def namens_log() -> list[dict]:
+    return laden().get("namens_log", [])
+
+
+def namens_vandaag() -> int:
+    vandaag = date.today().isoformat()
+    return sum(1 for r in namens_log() if r["moment"].startswith(vandaag))
+
+
+def namens_vastleggen(kanaal: str, aan: str, onderwerp: str, tekst: str) -> None:
+    with _slot:
+        g = laden()
+        log = g.setdefault("namens_log", [])
+        log.append({"moment": datetime.now().isoformat(timespec="minutes"), "kanaal": kanaal, "aan": aan,
+                    "onderwerp": onderwerp, "tekst": tekst})
+        g["namens_log"] = log[-200:]
+        opslaan(g)
+
+
 def mailconcepten() -> list[dict]:
     return laden().get("mailconcepten", [])
 

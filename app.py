@@ -601,6 +601,7 @@ def dagplanning_veilig(datum: str) -> list[dict]:
 def afspraak_kaart(regel: dict, afspraak: dict) -> None:
     """Eén afspraak in de agenda, met knoppen voor iPhone-agenda, wijzigen, verwijderen en herinneringen."""
     with st.container(border=True):
+        st.markdown(tijd.label_html(tijd.soort_van(afspraak)), unsafe_allow_html=True)
         st.markdown(afspraak_tekst(regel))
         if afspraak.get("notitie"):
             st.caption(afspraak["notitie"])
@@ -632,9 +633,10 @@ def agenda_tabblad() -> None:
     vanaf = kol2.date_input("Vanaf", value=date.today(), format="DD-MM-YYYY", label_visibility="collapsed")
     dagen = [vanaf + timedelta(days=i) for i in range(7 if weergave == "Week" else 1)]
     alle = {a["id"]: a for a in opslag.afspraken_tussen(dagen[0].isoformat(), dagen[-1].isoformat())}
-    if not alle:
+    taken = [t for t in opslag.open_taken() if t["deadline"] and dagen[0].isoformat() <= t["deadline"] <= dagen[-1].isoformat()]
+    if not alle and not taken:
         st.caption("Niets gepland in deze periode. Voeg iets toe met ➕ hierboven, of vraag het de assistent.")
-    agenda_lijst(dagen, alle)
+    agenda_lijst(dagen, alle, taken)
 
     # Extra's staan dicht, zodat de agenda rustig blijft.
     st.divider()
@@ -647,16 +649,39 @@ def agenda_tabblad() -> None:
             st.caption("Nog niets vastgelegd. Gebruik op ☀️ Vandaag de knoppen \"Ik vertrek nu\" en \"Ik ben er\".")
 
 
-def agenda_lijst(dagen: list[date], alle: dict) -> None:
-    if not alle:
+def kleurenuitleg(soorten: set[str]) -> None:
+    """Welke kleur bij welke soort hoort, alleen voor wat er in beeld is."""
+    if soorten:
+        st.markdown(" ".join(tijd.label_html(s, "🔔 Taak" if s == "taak" else "") for s in tijd.KLEUREN if s in soorten),
+                    unsafe_allow_html=True)
+
+
+def taak_in_agenda(t: dict) -> None:
+    k = tijd.kleur("taak")
+    kol1, kol2 = st.columns([6, 1], vertical_alignment="center")
+    kol1.markdown(f'<div style="border-left:4px solid {k};padding:2px 10px">🔔 <b>Taak:</b> {html.escape(t["titel"])}'
+                  f' <span style="opacity:.6">deadline</span></div>', unsafe_allow_html=True)
+    if kol2.button("✓", key=f"agenda_taak_{t['id']}", help="Afvinken"):
+        opslag.taak_afronden(t["id"])
+        st.toast(f"Goed gedaan: {t['titel']}", icon="🎉")
+        st.rerun()
+
+
+def agenda_lijst(dagen: list[date], alle: dict, taken: list[dict] | None = None) -> None:
+    taken = taken or []
+    if not alle and not taken:
         return
 
+    kleurenuitleg({tijd.soort_van(a) for a in alle.values()} | ({"taak"} if taken else set()))
     export = []
     for dag in dagen:
-        regels = [r for r in dagplanning_veilig(dag.isoformat()) if r.get("id") in alle]
-        if not regels:
+        regels = [r for r in dagplanning_veilig(dag.isoformat()) if r.get("id") in alle] if alle else []
+        deze_taken = [t for t in taken if t["deadline"] == dag.isoformat()]
+        if not regels and not deze_taken:
             continue
         st.markdown(f"#### {DAGEN[dag.weekday()].capitalize()} {dag.day} {MAANDEN[dag.month - 1]}")
+        for t in deze_taken:
+            taak_in_agenda(t)
         for regel in regels:
             afspraak_kaart(regel, alle[regel["id"]])
             export.append({**alle[regel["id"]], **regel})
@@ -960,6 +985,8 @@ def seintjes(nu: datetime) -> None:
         delen.append(f"📚 {len(herhalingen)} keer herhalen (Werk en leren › Leren)")
     if sport_zonder_resultaat(nu):
         delen.append("🏃 hoe ging je training? (Agenda)")
+    if namens := opslag.namens_vandaag():
+        delen.append(f"🤖 {namens} keer namens je gereageerd (Werk en leren › Mail)")
     if concepten := opslag.mailconcepten():
         delen.append(f"✉️ {len(concepten)} antwoord klaar om te versturen (Werk en leren › Mail)")
     if opslag.sportdoelen() and not tijd.sportoverzicht((nu.date() - timedelta(days=6)).isoformat(),
@@ -976,14 +1003,14 @@ def schema_html(regels: list[dict], nu: datetime) -> str:
     klok = nu.strftime("%H:%M")
     rijen, lijn_gezet = [], False
 
-    def rij(tijdstip: str, tekst: str, stijl: str = "") -> str:
-        return (f'<div style="display:flex;gap:12px;padding:5px 0;{stijl}">'
+    def rij(tijdstip: str, tekst: str, stijl: str = "", kleur: str = "transparent") -> str:
+        return (f'<div style="display:flex;gap:12px;padding:5px 0 5px 8px;border-left:4px solid {kleur};{stijl}">'
                 f'<div style="width:46px;flex-shrink:0;font-variant-numeric:tabular-nums">{tijdstip}</div>'
                 f'<div>{tekst}</div></div>')
 
     for r in regels:
         if "T" not in r["start"]:
-            rijen.append(rij("hele dag", f"{tijd.icoon(r)} {html.escape(r['titel'])}"))
+            rijen.append(rij("hele dag", f"{tijd.icoon(r)} {html.escape(r['titel'])}", kleur=tijd.kleur(tijd.soort_van(r))))
             continue
         begin = r["start"][11:16]
         eind = (r.get("einde") or "")[11:16]
@@ -1004,7 +1031,7 @@ def schema_html(regels: list[dict], nu: datetime) -> str:
                     tekst += f' <span style="opacity:.6">tot {eind}</span>'
                 if bezig:
                     tekst = f"<b>{tekst}</b> · nu bezig"
-                rijen.append(rij(moment, tekst, grijs))
+                rijen.append(rij(moment, tekst, grijs, tijd.kleur(tijd.soort_van(r))))
     if not lijn_gezet:
         rijen.append(f'<div style="border-top:2px solid {ROOD};margin:4px 0;font-size:12px;color:{ROOD}">nu {klok}</div>')
     return "".join(rijen)
@@ -1400,11 +1427,17 @@ def mail_tabblad() -> None:
         mail_instellen()
         return
     mail_concepten()
+    namens_overzicht()
     wachtwoord = st.session_state.get("wachtwoord", "")
     sleutel = mail.instellingen()["adres"]
     kol1, kol2 = st.columns([3, 1], vertical_alignment="center")
     if kol1.button("💬 Wat vraagt actie?", width="stretch"):
         vraag_assistent("Welke mails vragen actie? Vat ze kort samen en stel voor wat ik ermee doe.")
+    if opslag.namens("mail") != "vragen" and st.button(f"🤖 Laat {mijn_avatar()['naam']} je inbox afhandelen",
+                                                      width="stretch"):
+        vraag_assistent("Loop mijn ongelezen mails na. Beantwoord namens mij wat je volgens mijn instelling mag "
+                        "beantwoorden, zet de rest klaar als concept, zet afspraken en taken in mijn agenda en vertel "
+                        "kort wat je hebt gedaan en wat ik zelf moet beslissen.", label="🤖 Inbox afhandelen")
     if kol2.button("↻", width="stretch", help="Vernieuwen"):
         _mails.clear()
     try:
@@ -1423,6 +1456,50 @@ def mail_tabblad() -> None:
             st.rerun()
         if open_uid == m["uid"]:
             mail_openen(wachtwoord, sleutel, m["uid"])
+
+
+def namens_overzicht() -> None:
+    """Wat de assistent de afgelopen tijd namens je heeft verstuurd."""
+    if not (log := opslag.namens_log()):
+        return
+    with st.expander(f"🤖 Namens jou verstuurd ({len(log)})"):
+        for r in reversed(log[-30:]):
+            st.markdown(f"**{r['moment'][8:10]}-{r['moment'][5:7]} {r['moment'][11:16]}** · "
+                        f"{'✉️' if r['kanaal'] == 'mail' else '🏪'} aan {r['aan']} · {r['onderwerp']}")
+            st.caption(r["tekst"][:600])
+
+
+def namens_instellingen() -> None:
+    """Hoe zelfstandig de assistent namens je mag reageren."""
+    naam = mijn_avatar()["naam"]
+    st.caption(f"Standaard zet {naam} antwoorden klaar en verstuur jij ze. Je kunt het reageren ook aan {naam} "
+               "overdragen. Over geld, betalingen, contracten, opzeggingen, wachtwoorden en codes vraagt "
+               f"{naam} altijd eerst. Alles wat namens jou weggaat, zie je bij Werk en leren › Mail. "
+               f"Maximaal {opslag.NAMENS_PER_DAG} per dag. Dit gebeurt als de app open staat of als je het vraagt.")
+    keuzes = {"mail": ("✉️ Mail", list(opslag.NAMENS)), "berichten": ("🏪 Berichten op de marktplaats", ["vragen", "zelf"])}
+    for kanaal, (titel, opties) in keuzes.items():
+        nu = opslag.namens(kanaal) if opslag.namens(kanaal) in opties else "vragen"
+        keuze = st.radio(titel, opties, index=opties.index(nu), format_func=opslag.NAMENS.get, key=f"namens_{kanaal}")
+        if keuze != nu:
+            opslag.namens_instellen(kanaal, keuze)
+            st.toast("Opgeslagen.", icon="✅")
+
+
+def kleuren_instellingen() -> None:
+    """Een eigen kleur per soort in de agenda."""
+    eigen = dict(opslag.instellingen().get("kleuren", {}))
+    kolommen = st.columns(2)
+    for i, soort in enumerate(tijd.KLEUREN):
+        label = "🔔 Taak met deadline" if soort == "taak" else f"{tijd.SOORTEN[soort]} {soort.capitalize()}"
+        gekozen = kolommen[i % 2].color_picker(label, value=tijd.kleur(soort), key=f"kleur_{soort}")
+        if gekozen != tijd.kleur(soort):
+            eigen[soort] = gekozen
+            opslag.instellingen_bijwerken(kleuren=eigen)
+    if eigen and st.button("Standaardkleuren terug"):
+        opslag.instellingen_bijwerken(kleuren={})
+        for soort in tijd.KLEUREN:
+            st.session_state.pop(f"kleur_{soort}", None)
+        st.rerun()
 
 
 def mail_openen(wachtwoord: str, sleutel: str, uid: str) -> None:
@@ -1575,6 +1652,9 @@ def instellingen_tabblad() -> None:
         stijl_instellingen()
     with st.expander("🗣️ Stem"):
         stem_instellingen()
+    with st.expander("🤝 Namens jou reageren" + ("" if {opslag.namens(k) for k in ("mail", "berichten")} == {"vragen"}
+                                                 else " (aan)")):
+        namens_instellingen()
     with st.expander(f"🧠 Wat de assistent over je weet ({len(opslag.geheugen())})"):
         geheugen_instellingen()
 
@@ -1582,6 +1662,8 @@ def instellingen_tabblad() -> None:
     with st.expander("🏠 Thuisadres" + ("" if inst.get("thuisadres") else " (nog invullen)"),
                      expanded=not inst.get("thuisadres")):
         thuisadres_instellen()
+    with st.expander("🎨 Kleuren in de agenda"):
+        kleuren_instellingen()
     with st.expander("🧩 Voorpagina en menu"):
         voorpagina_instellingen()
     with st.expander(f"👤 Contacten ({len(opslag.contacten_zoeken())})"):

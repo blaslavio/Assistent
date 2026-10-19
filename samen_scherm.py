@@ -545,6 +545,13 @@ def berichten() -> None:
     sleutels = [(g["aanbod_id"], g["ander_id"]) for g in gesprekken]
     namen = {(g["aanbod_id"], g["ander_id"]): f"{g['ander']} · {g['titel']}" + (f" · {g['ongelezen']} nieuw" if g["ongelezen"] else "")
              for g in gesprekken}
+    if opslag.namens("berichten") != "vragen" and any(g["ongelezen"] for g in gesprekken):
+        if st.button("🤖 Laat de assistent nieuwe berichten beantwoorden", width="stretch"):
+            st.session_state.vooraf_vraag = ("Bekijk mijn nieuwe berichten op de marktplaats. Beantwoord namens mij wat "
+                                             "je mag beantwoorden en vertel kort wat je hebt gedaan en wat ik zelf moet beslissen.")
+            st.session_state.vooraf_label = "🤖 Nieuwe berichten beantwoorden"
+            st.session_state.ga_naar = "assistent"
+            st.rerun(scope="app")
     gekozen = st.selectbox("Gesprek", sleutels, format_func=namen.get, label_visibility="collapsed")
     gesprek = gesprekken[sleutels.index(gekozen)]
     for b in gesprek["berichten"][-30:]:
