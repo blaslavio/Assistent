@@ -1910,6 +1910,10 @@ def paginas() -> dict:
         kopen += [
             pagina(samen_scherm.markt_zoeken, "Marktplaats", "🔎", "zoeken"),
             pagina(samen_scherm.aanbieden, "Verkopen", "🏷️", "verkopen"),
+        ]
+        if ik().get("niveau") in ("verkoper", "ondernemer"):
+            kopen.append(pagina(samen_scherm.verkoopoverzicht, "Verkoopoverzicht", "📊", "verkoopoverzicht"))
+        kopen += [
             pagina(samen_scherm.markt_bestellingen, "Bestellingen", "🧾", "bestellingen", nieuw.get("bestellingen", 0)),
             pagina(samen_scherm.berichten, "Berichten", "💬", "berichten", nieuw.get("berichten", 0)),
         ]

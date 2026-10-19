@@ -281,6 +281,9 @@ def aanbod_kaart(aanbod: dict) -> None:
         st.caption(f"{aanbod['aanbieder']} · {samen.vertrouwen_tekst(aanbod.get('vertrouwen'))}  \n"
                    + " · ".join(samen.BETAALWIJZEN[b] for b in aanbod.get("betaalwijzen", []))
                    + "  \n" + " · ".join(samen.LEVERING[l] for l in aanbod.get("levering", [])))
+        if bedrijf := samen.zakelijk(aanbod.get("vertrouwen")):
+            st.caption("Je koopt bij een bedrijf. Koop je online of op afstand, dan heb je 14 dagen bedenktijd."
+                       + (f" Retour: {bedrijf['retour']}" if bedrijf.get("retour") else ""))
         if aanbod["omschrijving"]:
             st.caption(aanbod["omschrijving"][:400] + ("..." if len(aanbod["omschrijving"]) > 400 else ""))
         if aanbod["contact"]:
@@ -395,7 +398,8 @@ def aanbieden() -> None:
     mijn = samen.mijn_aanbod()
     st.session_state.markt_heeft_aanbod = bool(mijn)
     if mijn:
-        st.markdown("**Mijn aanbod**")
+        online = sum(a["actief"] for a in mijn)
+        st.markdown(f"**Mijn aanbod** · :gray[{online} van {ik().get('max_aanbod') or 10} online]")
     for aanbod in mijn:
         with st.container(border=True):
             st.markdown(f"**{aanbod['titel']}** · {samen.prijs_tekst(aanbod)}")
@@ -596,6 +600,9 @@ def account_instellingen() -> None:
                                                               st.session_state.wachtwoord)
                         st.success("Opgeslagen.")
     if samen.beschikbaar():
+        niveau = gebruiker.get("niveau") or "particulier"
+        with st.expander(f"Accounttype: {samen.NIVEAUS[niveau][0]}"):
+            accounttype(gebruiker)
         with st.expander("🔐 Beveiliging"):
             beveiliging()
     with st.expander("📄 Voorwaarden en privacy"):
@@ -618,6 +625,115 @@ def account_instellingen() -> None:
                 st.error("Dat lukte niet. Probeer het opnieuw.")
     if gebruiker.get("beheerder") and samen.beschikbaar():
         beheer()
+
+
+def accounttype(gebruiker: dict) -> None:
+    """Particulier, verkoper of ondernemer. Alle basisfuncties zijn voor iedereen hetzelfde."""
+    huidig = gebruiker.get("niveau") or "particulier"
+    keuze = st.radio("Accounttype", list(samen.NIVEAUS), index=list(samen.NIVEAUS).index(huidig),
+                     format_func=lambda n: samen.NIVEAUS[n][0], key="niveau_keuze", horizontal=True,
+                     label_visibility="collapsed")
+    st.caption(samen.NIVEAUS[keuze][1])
+    bedrijf = None
+    if keuze == "ondernemer":
+        oud = gebruiker.get("bedrijf") or {}
+        kol1, kol2 = st.columns(2)
+        bedrijf = {
+            "naam": kol1.text_input("Bedrijfsnaam", value=oud.get("naam", "")),
+            "kvk": kol2.text_input("KvK-nummer", value=oud.get("kvk", ""), max_chars=8),
+            "btw": kol1.text_input("Btw-nummer (leeg bij KOR)", value=oud.get("btw") or "", placeholder="NL123456789B01"),
+            "website": kol2.text_input("Website (optioneel)", value=oud.get("website", "")),
+            "adres": st.text_input("Vestigingsadres", value=oud.get("adres", ""),
+                                   help="Kopers hebben recht om te weten waar je bedrijf zit."),
+        }
+        bedrijf["btw_tarief"] = str(st.segmented_control("Btw-tarief op je facturen", [21, 9, 0],
+                                                         default=oud.get("btw_tarief", 21), key="btw_tarief_keuze")
+                                    or 21)
+        bedrijf["retour"] = st.text_input("Retourvoorwaarden (kort)", value=oud.get("retour", ""),
+                                          placeholder="Bijv. 14 dagen bedenktijd, retour op kosten van de koper")
+        st.caption("Je bedrijfsnaam en KvK-nummer staan bij je aanbod en op je facturen. Kopers hebben bij online "
+                   "kopen van een bedrijf 14 dagen bedenktijd; zorg dat je je daaraan houdt.")
+    if st.button("Opslaan", key="niveau_opslaan", type="primary") and (keuze != huidig or bedrijf):
+        if _fout(samen.niveau_instellen, keuze, bedrijf) is not None:
+            st.session_state.ik = opslag.inloggen(st.session_state.get("naam", ""), st.session_state.wachtwoord)
+            _vergeet_nieuw()
+            st.toast(f"Je bent nu {samen.NIVEAUS[keuze][0]}.", icon="✅")
+            st.rerun()
+
+
+def verkoopoverzicht() -> None:
+    """Pagina 📊 Verkoopoverzicht voor verkopers en ondernemers."""
+    o = samen.verkoop_overzicht()
+    ondernemer = ik().get("niveau") == "ondernemer"
+    deze_maand = date.today().strftime("%Y-%m")
+    nu = next((m for m in o["maanden"] if m["maand"] == deze_maand), {"omzet": 0, "aantal": 0})
+    kol1, kol2, kol3 = st.columns(3)
+    kol1.metric("Omzet deze maand", samen.euro(nu["omzet"]), f"{nu['aantal']} verkocht", delta_color="off")
+    kol2.metric("Open bestellingen", o["open"])
+    kol3.metric("Aanbod online", f"{o['actief_aanbod']} / {o['max_aanbod']}")
+    if v := samen.vertrouwen_tekst(o["beoordeling"]):
+        st.caption(v)
+    if o["maanden"]:
+        st.markdown("**Omzet per maand**")
+        st.bar_chart({m["maand"]: float(m["omzet"]) for m in o["maanden"]}, y_label="€", height=220)
+    if o["top"]:
+        st.markdown("**Best verkocht**")
+        for t in o["top"]:
+            st.markdown(f"{t['titel']} · {t['aantal']}× · {samen.euro(t['omzet'])}")
+    if not o["maanden"] and not o["open"]:
+        st.caption("Nog niets verkocht. Zet iets online bij 🏷️ Verkopen.")
+    if not ondernemer:
+        st.caption("Ben je een bedrijf of zzp'er? Kies Ondernemer bij Instellingen › Account voor facturen en een "
+                   "klantenoverzicht.")
+        return
+    bedrijf = ik().get("bedrijf") or {}
+    with st.expander(f"👥 Klanten ({len(o['klanten'])})"):
+        for k in o["klanten"]:
+            st.markdown(f"**{k['naam']}** · {k['aantal']}× · {samen.euro(k['totaal'])} · laatst "
+                        f"{datetime.fromisoformat(k['laatst']).astimezone():%d-%m-%Y}")
+        if not o["klanten"]:
+            st.caption("Nog geen klanten.")
+    with st.expander(f"🧾 Facturen ({len(o['facturen'])})"):
+        for f in o["facturen"]:
+            kol1, kol2 = st.columns([4, 1], vertical_alignment="center")
+            kol1.markdown(f"{factuurnummer(f)} · {f['titel']} · {samen.euro(f['bedrag'])} · {f['klant']}")
+            kol2.download_button("⬇️", factuur_html(f, bedrijf), file_name=f"factuur-{factuurnummer(f)}.html",
+                                 mime="text/html", key=f"factuur_{f['id']}", help="Factuur downloaden")
+        if not o["facturen"]:
+            st.caption("Facturen verschijnen hier zodra een bestelling betaald is.")
+        st.caption("Open de factuur en kies Deel › Afdrukken › Bewaar als pdf om hem als pdf te versturen.")
+
+
+def factuurnummer(f: dict) -> str:
+    return f"{f['datum'][:4]}-{f['id']:05d}"
+
+
+def factuur_html(f: dict, bedrijf: dict) -> str:
+    """Eenvoudige factuur als webpagina (af te drukken als pdf)."""
+    from html import escape
+
+    tarief = int(bedrijf.get("btw_tarief") or 21)
+    kor = not bedrijf.get("btw")
+    totaal = float(f["bedrag"])
+    excl = totaal if kor else totaal / (1 + tarief / 100)
+    btw = 0 if kor else totaal - excl
+    datum = datetime.fromisoformat(f["datum"]).astimezone().strftime("%d-%m-%Y")
+    regels_btw = ("<tr><td>Btw</td><td>Vrijgesteld (kleineondernemersregeling)</td></tr>" if kor else
+                  f"<tr><td>Bedrag excl. btw</td><td>{samen.euro(excl)}</td></tr>"
+                  f"<tr><td>Btw {tarief}%</td><td>{samen.euro(btw)}</td></tr>")
+    return f"""<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Factuur {factuurnummer(f)}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{{font-family:system-ui,sans-serif;max-width:640px;margin:32px auto;padding:0 16px;color:#222}}
+h1{{font-size:24px}}table{{width:100%;border-collapse:collapse;margin-top:16px}}td{{padding:6px 0;border-bottom:1px solid #ddd}}
+td:last-child{{text-align:right}}.totaal td{{font-weight:700;border-bottom:2px solid #222}}small{{color:#666}}</style></head>
+<body><h1>Factuur</h1>
+<p><b>{escape(bedrijf.get('naam', ''))}</b><br>{escape(bedrijf.get('adres', ''))}<br>KvK {escape(bedrijf.get('kvk', ''))}
+{('<br>Btw ' + escape(bedrijf['btw'])) if bedrijf.get('btw') else ''}</p>
+<p>Factuurnummer: <b>{factuurnummer(f)}</b><br>Datum: {datum}<br>Aan: {escape(f['klant'])}</p>
+<table><tr><td>{escape(f['titel'])}</td><td>{samen.euro(totaal)}</td></tr>{regels_btw}
+<tr class="totaal"><td>Totaal</td><td>{samen.euro(totaal)}</td></tr></table>
+<p><small>Betaald via {escape(samen.BETAALWIJZEN.get(f['betaalwijze'], f['betaalwijze']))}. Gemaakt met Mijn assistent.</small></p>
+</body></html>"""
 
 
 def _qr(tekst: str) -> bytes:

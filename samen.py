@@ -246,11 +246,35 @@ def euro(bedrag: float | None) -> str:
     return f"€ {float(bedrag):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+NIVEAUS = {
+    "particulier": ("🙂 Particulier", "Alle functies van de assistent. Op de marktplaats tot 10 dingen tegelijk."),
+    "verkoper": ("🏷️ Verkoper", "Voor wie vaker verkoopt: tot 100 dingen tegelijk en een verkoopoverzicht met omzet "
+                 "per maand, best verkochte producten en beoordelingen."),
+    "ondernemer": ("🏢 Ondernemer", "Voor bedrijven en zzp'ers: bedrijfsprofiel met KvK-nummer, label 'Zakelijk' bij "
+                   "je aanbod, tot 1000 dingen tegelijk, verkoopoverzicht, klantenoverzicht en facturen."),
+}
+
+
+def niveau_instellen(niveau: str, bedrijf: dict | None = None) -> dict:
+    return _ok(opslag._rpc_ik("niveau_instellen", p_niveau=niveau, p_bedrijf=bedrijf))
+
+
+def verkoop_overzicht() -> dict:
+    return opslag._rpc_ik("verkoop_overzicht")
+
+
+def zakelijk(v: dict | None) -> dict | None:
+    """Het bedrijf achter een aanbod of bestelling, of None bij een particulier."""
+    return (v or {}).get("bedrijf") if (v or {}).get("niveau") == "ondernemer" else None
+
+
 def vertrouwen_tekst(v: dict | None) -> str:
     """Korte regel waaruit blijkt hoe betrouwbaar iemand is."""
     if not v:
         return ""
     delen = []
+    if bedrijf := zakelijk(v):
+        delen.append(f"🏢 Zakelijk: {bedrijf['naam']} (KvK {bedrijf['kvk']})")
     if v.get("geverifieerd"):
         delen.append("✅ geverifieerd")
     if v.get("beoordelingen"):

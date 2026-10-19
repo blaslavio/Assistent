@@ -18,6 +18,8 @@ Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je 
 
 Wat je niet gebruikt, zet je uit bij Instellingen › Voorpagina en menu; dan verdwijnt het uit het menu.
 
+**Accounttypes** (Instellingen › Account › Accounttype, gratis): iedereen houdt alle basisfuncties (agenda, taken, assistent, leren, lijstjes, marktplaats). 🙂 Particulier: tot 10 advertenties. 🏷️ Verkoper: tot 100 advertenties en een 📊 Verkoopoverzicht. 🏢 Ondernemer: bedrijfsprofiel met KvK en btw, label 'Zakelijk' met 14 dagen bedenktijd voor kopers, tot 1000 advertenties, klantenoverzicht en facturen (bewaar als PDF via Delen › Afdrukken in Safari). SQL: sql/niveaus.sql.
+
 **Beveiliging** (Instellingen › Account › 🔐 Beveiliging): tweestapsverificatie met een code van 6 cijfers uit de app Wachtwoorden (iPhone/iPad) of een authenticator-app, met 8 herstelcodes voor als je telefoon kwijt is. Inloggen met Face ID gaat via Safari: laat Safari je wachtwoord bewaren. Je ziet op welke apparaten je bent ingelogd en recente inlogpogingen, en kunt overal anders uitloggen. Na inloggen gebruikt de app een tijdelijke sessiecode in plaats van je wachtwoord; een nieuw wachtwoord logt andere apparaten uit. Mislukte pogingen zie je bij de volgende keer inloggen.
 
 Iedereen kan een gratis account maken met een gebruikersnaam, mailadres en wachtwoord, en inloggen met naam of mailadres. Wie met de assistent wil praten, zet zijn eigen Anthropic-sleutel bij Instellingen.
