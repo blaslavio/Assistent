@@ -164,6 +164,22 @@ def lees(invoer: str, nu: datetime | None = None) -> dict:
     return resultaat
 
 
+_BEDRAG = r"(\d{1,6}(?:[.,]\d{1,2})?)"
+
+
+def uitgave(invoer: str) -> dict | None:
+    """'€12,50 lunch', 'lunch €12,50' of '12,50 euro lunch' -> {bedrag, omschrijving}; anders None."""
+    tekst = invoer.strip()
+    for patroon, bedrag_eerst in ((rf"^€\s*{_BEDRAG}\s+(.+)$", True), (rf"^{_BEDRAG}\s*(?:euro|eur)\b\s*(.+)$", True),
+                                   (rf"^(.+?)\s+€\s*{_BEDRAG}$", False), (rf"^(.+?)\s+{_BEDRAG}\s*(?:euro|eur)$", False)):
+        if m := re.match(patroon, tekst, re.I):
+            bedrag, omschrijving = (m.group(1), m.group(2)) if bedrag_eerst else (m.group(2), m.group(1))
+            omschrijving = re.sub(r"^(voor|aan)\s+", "", omschrijving.strip(" ,.-"), flags=re.I)
+            if omschrijving and "?" not in omschrijving and len(omschrijving) <= 80:
+                return {"bedrag": float(bedrag.replace(",", ".")), "omschrijving": omschrijving}
+    return None
+
+
 def lijkt_invoer(invoer: str) -> bool:
     """True als een zin uit het invoerveld eerder iets om toe te voegen is dan een vraag aan de assistent."""
     tekst = invoer.strip()

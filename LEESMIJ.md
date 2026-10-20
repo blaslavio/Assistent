@@ -98,3 +98,11 @@ toont ze in Vandaag en Agenda; de assistent plant eromheen.
 - Google: in Google Agenda › Instellingen › je agenda › Geheim adres in iCal-indeling.
 - Outlook: Instellingen › Agenda › Gedeelde agenda's › Een agenda publiceren › ICS-link.
 Afspraken worden 5 minuten onthouden (agendas.py); "Nu vernieuwen" haalt ze meteen opnieuw op.
+
+## Budget, beleggen en ochtendoverzicht
+
+- Budget (budget.py, geld_scherm.py, sql/budget.sql = migratie "budget"): bankafschrift (CSV van ING, Rabobank,
+  bunq, SNS/ASN/RegioBank; TXT van ABN AMRO) inlezen, categorieën herkennen, budgetten, vaste lasten, spaardoelen.
+  Typ onderaan "€12,50 lunch" om snel een uitgave toe te voegen.
+- Beleggen (beleggen.py): portefeuille en volglijst met koersen van Yahoo Finance. Alleen meekijken, nooit handelen.
+- Ochtendoverzicht op Vandaag ('s ochtends, of via ?ochtend=1 vanuit een iPhone-automatisering), met voorlezen.

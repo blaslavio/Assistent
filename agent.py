@@ -8,6 +8,8 @@ import anthropic
 from anthropic import beta_tool
 
 import avatar
+import beleggen
+import budget
 import documenten
 import opslag
 import inplannen
@@ -97,6 +99,13 @@ Werkwijze:
   voorkom overlap en krappe overstappen, en reken met de reistijd plus de
   gewoontes hieronder (gemiddelde uitloop en te laat komen per soort) als buffer.
   Stel een concreet tijdstip voor in plaats van open vragen.
+- Geld: met budget_bekijken zie je wat er binnenkomt, uitgaat en vrij te besteden is.
+  Zegt de gebruiker "12 euro uitgegeven aan lunch", zet het dan met uitgave_toevoegen
+  in het budget. Geef praktische, vriendelijke tips; nooit betuttelen.
+- Beleggen: je kijkt alleen mee en legt uit (spreiding, kosten, risico, lange termijn).
+  Je koopt of verkoopt nooit en geeft geen persoonlijk koop- of verkoopadvies over één
+  aandeel; zeg bij twijfel dat de gebruiker een erkend financieel adviseur kan vragen.
+  Rendementen uit het verleden zijn geen garantie. Noem koersen met hun datum of "nu".
 - Gekoppelde agenda's: afspraken met "extern": true komen uit de eigen agenda van de
   gebruiker (Apple, Google of Outlook, zie "bron"). Plan er altijd omheen. Je kunt
   ze niet wijzigen of verwijderen; zeg dan dat de gebruiker dat in die agenda doet.
@@ -571,6 +580,88 @@ def _document(functie, *args, **kwargs):
         return None, "Het document is net ergens anders gewijzigd. Probeer het nog eens."
     except documenten.Fout as fout:
         return None, str(fout)
+
+
+@beta_tool
+def budget_bekijken(maand: str = "") -> str:
+    """Het budget van een maand: inkomsten, uitgaven per categorie, budgetten, vaste lasten die nog komen en wat er
+    vrij te besteden is.
+
+    Args:
+        maand: JJJJ-MM, leeg voor deze maand.
+    """
+    if not budget.in_gebruik():
+        return "De gebruiker houdt nog geen budget bij. Dat kan bij Instellingen › Budget (bankafschrift inlezen)."
+    return _json(budget.overzicht(maand or None))
+
+
+@beta_tool
+def uitgaven_bekijken(van: str, tot: str, zoek: str = "") -> str:
+    """Losse uitgaven en inkomsten in een periode, nieuwste eerst (hooguit 100).
+
+    Args:
+        van: Begindatum JJJJ-MM-DD.
+        tot: Einddatum JJJJ-MM-DD (inclusief).
+        zoek: Optioneel: alleen regels waarin dit woord staat (naam, omschrijving of categorie).
+    """
+    regels = budget.lijst(van, tot)
+    if zoek.strip():
+        w = zoek.strip().lower()
+        regels = [r for r in regels if w in f"{r['tegenpartij']} {r['omschrijving']} {r['categorie']}".lower()]
+    return _json({"aantal": len(regels), "totaal": round(sum(r["bedrag"] for r in regels), 2),
+                  "regels": [{k: r[k] for k in ("datum", "bedrag", "tegenpartij", "omschrijving", "categorie")}
+                             for r in regels[:100]]})
+
+
+@beta_tool
+def uitgave_toevoegen(bedrag: float, omschrijving: str, categorie: str = "", datum: str = "",
+                      inkomsten: bool = False) -> str:
+    """Zet een uitgave (of met inkomsten=true iets wat binnenkwam) in het budget.
+
+    Args:
+        bedrag: Bedrag in euro's, positief getal.
+        omschrijving: Waarvoor, kort.
+        categorie: Optioneel, een van de budgetcategorieën; leeg = vanzelf herkennen.
+        datum: JJJJ-MM-DD, leeg voor vandaag.
+        inkomsten: true als het geld is dat binnenkwam.
+    """
+    regel = budget.toevoegen(bedrag, omschrijving, categorie, datum or None, uitgave=not inkomsten, bron="assistent")
+    return _json({k: regel[k] for k in ("datum", "bedrag", "omschrijving", "categorie")})
+
+
+@beta_tool
+def beleggingen_bekijken() -> str:
+    """De beleggingen van de gebruiker met actuele koersen: waarde, resultaat, spreiding en aandachtspunten.
+    Alleen om uit te leggen; de app koopt of verkoopt nooit iets."""
+    if not beleggen.instellingen()["posities"]:
+        return "De gebruiker heeft nog geen beleggingen ingevoerd (Instellingen › Beleggen)."
+    p = beleggen.portefeuille()
+    for r in p["posities"]:
+        r.pop("verloop", None)
+    return _json(p)
+
+
+@beta_tool
+def koers_opzoeken(zoekterm: str) -> str:
+    """Zoek een aandeel, ETF, index of crypto op naam of ticker, met de actuele koers en het verloop van de
+    afgelopen maand.
+
+    Args:
+        zoekterm: Bijvoorbeeld "ASML", "Vanguard All-World" of "bitcoin".
+    """
+    try:
+        gevonden = beleggen.zoeken(zoekterm)[:3]
+    except beleggen.Fout as fout:
+        return str(fout)
+    k = beleggen.koersen([g["symbool"] for g in gevonden])
+    return _json([{**g, **{x: (k.get(g["symbool"]) or {}).get(x) for x in ("prijs", "valuta", "vandaag_pct", "maand_pct")}}
+                  for g in gevonden] or "Niets gevonden.")
+
+
+@beta_tool
+def markt_bekijken() -> str:
+    """Hoe de markt er vandaag voor staat: AEX, wereldwijde aandelen, S&P 500, euro-dollar, goud en bitcoin."""
+    return _json([{k: m.get(k) for k in ("naam", "prijs", "valuta", "vandaag_pct", "maand_pct")} for m in beleggen.markt()])
 
 
 @beta_tool
@@ -1139,6 +1230,12 @@ HULPMIDDELEN = [
     lijsten_bekijken,
     documenten_zoeken,
     document_lezen,
+    budget_bekijken,
+    uitgaven_bekijken,
+    uitgave_toevoegen,
+    beleggingen_bekijken,
+    koers_opzoeken,
+    markt_bekijken,
     document_maken,
     document_aanvullen,
     prijzen_vergelijken,

@@ -18,11 +18,14 @@ import activiteiten
 import agendas
 import agent
 import avatar
+import beleggen
 import boodschappen
+import budget
 import documenten
 import documenten_scherm
 import editor
 import events
+import geld_scherm
 import ics
 import mail
 import media
@@ -49,8 +52,8 @@ import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
-for _module in (opslag, agendas, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, agent, spraak):
+for _module in (opslag, agendas, budget, beleggen, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -698,6 +701,17 @@ def blok_tekst(blok: dict) -> str:
     return f"{DAGEN[start.weekday()]} {start.day} {MAANDEN[start.month - 1]}, {start:%H:%M}–{einde:%H:%M}"
 
 
+def snel_uitgave(zin: str) -> bool:
+    """'€12,50 lunch' als uitgave in je budget. False als de zin geen uitgave is of het budget niet aan staat."""
+    if not (u := snelinvoer.uitgave(zin)) or "Budget" in onderdelen_uit() or not samen.beschikbaar():
+        return False
+    regel = budget.toevoegen(u["bedrag"], u["omschrijving"], bron="snel")
+    tekst = f"Uitgave: **{u['omschrijving']}**, € {budget.euro(u['bedrag'])} ({regel['categorie'].lower()})"
+    st.session_state.snel_toegevoegd = {"wat": "uitgave", "id": regel["sleutel"], "datum": regel["datum"],
+                                        "tekst": tekst, "zin": zin}
+    return True
+
+
 def snel_toevoegen(zin: str) -> dict:
     """Zet een zin in gewone taal als afspraak of taak weg en onthoudt wat er gebeurde (voor ongedaan maken)."""
     r = snelinvoer.lees(zin)
@@ -725,7 +739,12 @@ def snel_melding() -> None:
 
     def ongedaan(naar_assistent: bool) -> None:
         opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
-        (opslag.afspraak_verwijderen if laatst["wat"] == "afspraak" else opslag.taak_verwijderen)(laatst["id"])
+        if laatst["wat"] == "uitgave":
+            for r in budget.lijst(laatst["datum"], laatst["datum"]):
+                if r.get("sleutel") == laatst["id"]:
+                    budget.weg(r["id"])
+        else:
+            (opslag.afspraak_verwijderen if laatst["wat"] == "afspraak" else opslag.taak_verwijderen)(laatst["id"])
         if naar_assistent:
             st.session_state.vooraf_vraag = laatst["zin"]
             st.session_state.ga_naar = "assistent"
@@ -1027,10 +1046,11 @@ def events_overzicht() -> None:
                "en betaal je direct, bijvoorbeeld met Apple Pay of iDEAL.")
 
 
-VOORPAGINA = {"weer": "Weer naast de datum", "startpunt": "Snel aan de slag (verkopen, dienst aanbieden, leren, winkels)",
+VOORPAGINA = {"ochtend": "Ochtendoverzicht ('s ochtends, met voorlezen)", "weer": "Weer naast de datum", "startpunt": "Snel aan de slag (verkopen, dienst aanbieden, leren, winkels)",
               "afspraken": "Geplande afspraken (dagschema)",
               "meldingen": "Meldingen (verkocht, bestellingen, berichten, gedeeld)",
-              "saldo": "Saldo van de marktplaats", "taken": "Taken",
+              "saldo": "Saldo van de marktplaats", "budget": "Budget: wat je deze maand nog vrij kunt besteden",
+              "taken": "Taken",
               "seintjes": "Korte seintjes (herhalen, sportresultaat)",
               "woning": "Knoppen voor Apple Woning (als je scènes hebt ingesteld)"}
 # Wat je in het menu aan of uit kunt zetten (de sleutels staan zo in je instellingen).
@@ -1038,7 +1058,8 @@ ONDERDELEN = {"Documenten": "Documenten", "Mail": "Mail", "Leren": "Leren en sch
               "DIY": "DIY en hobby", "Hulpmiddelen": "Hulpmiddelen (notities, timer, rekenen)",
               "Scannen": "Foto scannen", "VR-ruimtes": "VR-ruimtes (projecten in 3D)",
               "Boodschappen": "Boodschappen",
-              "Lijstjes": "Kooplijst en wenslijst", "Marktplaats": "Marktplaats (kopen en verkopen bij elkaar)"}
+              "Lijstjes": "Kooplijst en wenslijst", "Marktplaats": "Marktplaats (kopen en verkopen bij elkaar)",
+              "Budget": "Budget (uitgaven, vaste lasten, sparen)", "Beleggen": "Beleggen (alleen meekijken)"}
 # De pagina's van deze beurt, op url; gevuld door paginas().
 PAGINA: dict = {}
 
@@ -1078,6 +1099,8 @@ def vandaag_overzicht() -> None:
                 f'<img src="{avatar.adres(mijn_avatar())}" width="56" height="56" style="border-radius:50%;flex-shrink:0">'
                 f'<div><b>{html.escape(groet(nu))}</b><br><span style="opacity:.6">{html.escape(regel)}</span></div></div>',
                 unsafe_allow_html=True)
+    if keuze["ochtend"]:
+        ochtendoverzicht(nu, keuze)
     if keuze["startpunt"]:
         startpunt()
     if keuze["afspraken"]:
@@ -1088,12 +1111,93 @@ def vandaag_overzicht() -> None:
             meldingen_blok(nieuw.get("meldingen", []))
         if keuze["saldo"] and "Marktplaats" not in onderdelen_uit():
             saldo_blok(nieuw.get("saldo"))
+    if keuze["budget"] and "Budget" not in onderdelen_uit() and samen.beschikbaar():
+        budget_blok()
     if keuze["taken"]:
         taken_blok()
     if keuze["woning"]:
         woning.knoppen(woning.scenes(), "vandaag")
     if keuze["seintjes"]:
         seintjes(nu)
+
+
+def budget_blok() -> None:
+    """Eén regel: wat je deze maand nog vrij kunt besteden. Alleen als je het budget gebruikt."""
+    try:
+        tekst = budget.kort(voorpagina=True)
+    except Exception:
+        return
+    if tekst and "budget" in PAGINA:
+        st.page_link(PAGINA["budget"], label=tekst, icon=":material/account_balance_wallet:")
+
+
+def ochtend_tekst(nu: datetime) -> list[str]:
+    """Het ochtendoverzicht in een paar korte zinnen, zonder Claude (snel en gratis)."""
+    zinnen = []
+    if w := weer_kort():
+        zinnen.append(f"Het weer: {w.split(' ', 1)[1] if ' ' in w else w}.")
+    regels = [r for r in dagplanning_veilig(nu.date().isoformat()) if "T" in r["start"]]
+    hele_dag = [r["titel"] for r in dagplanning_veilig(nu.date().isoformat()) if "T" not in r["start"]]
+    if regels:
+        eerste = next((r for r in regels if r["start"][11:16] >= nu.strftime("%H:%M")), regels[0])
+        zin = f"Je hebt vandaag {len(regels)} {'afspraak' if len(regels) == 1 else 'afspraken'}"
+        zin += f". De eerste is {eerste['titel']} om {eerste['start'][11:16]}"
+        if eerste.get("vertrek_om"):
+            zin += f"; vertrek om {eerste['vertrek_om']}"
+        zinnen.append(zin + ".")
+    else:
+        zinnen.append("Je agenda is vandaag leeg.")
+    if hele_dag:
+        zinnen.append(f"Vandaag ook: {', '.join(hele_dag)}.")
+    vandaag = nu.date().isoformat()
+    taken = [t for t in opslag.open_taken() if t["deadline"] and t["deadline"] <= vandaag]
+    if taken:
+        zinnen.append(f"{len(taken)} {'taak moet' if len(taken) == 1 else 'taken moeten'} vandaag af: "
+                      f"{', '.join(t['titel'] for t in taken[:3])}.")
+    if "Budget" not in onderdelen_uit() and samen.beschikbaar():
+        try:
+            if b := budget.kort():
+                zinnen.append(b)
+        except Exception:
+            pass
+    if "Beleggen" not in onderdelen_uit():
+        try:
+            if b := beleggen.kort():
+                zinnen.append(b)
+        except Exception:
+            pass
+    return zinnen
+
+
+def ochtendoverzicht(nu: datetime, keuze: dict) -> None:
+    """'s Ochtends (tot 12 uur, of als je via ?ochtend komt) een kort overzicht van je dag, met voorlezen."""
+    vandaag = nu.date().isoformat()
+    gevraagd = st.session_state.get("ochtend_gevraagd")
+    if st.session_state.get("ochtend_weg") == vandaag or not (gevraagd or 5 <= nu.hour < 12):
+        return
+    if opslag.instellingen().get("ochtend_gezien") == vandaag and not gevraagd:
+        return
+    zinnen = ochtend_tekst(nu)
+    with st.container(border=True):
+        kop = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
+        kop.markdown("**Je dag in het kort**")
+
+        def sluiten() -> None:
+            opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
+            st.session_state.ochtend_weg = vandaag
+            st.session_state.pop("ochtend_gevraagd", None)
+            opslag.instellingen_bijwerken(ochtend_gezien=vandaag)
+
+        kop.button("", icon=":material/close:", key="ochtend_sluit", on_click=sluiten, help="Voor vandaag sluiten",
+                   type="tertiary")
+        st.markdown("\n".join(f"- {z}" for z in zinnen))
+        spraak.knop(stem(), f"{groet(nu)}. " + " ".join(zinnen), antwoord_id=f"ochtend-{vandaag}", key="ochtend_spraak",
+                    alleen_voorlezen=True,
+                    automatisch=bool(gevraagd), gevoel="blij")
+        if st.button(f"Plan mijn dag met {avatar.aanspreken(mijn_avatar())}", key="ochtend_plan",
+                     icon=":material/auto_awesome:"):
+            vraag_assistent("Kijk naar mijn dag (agenda, taken, weer) en stel een strakke planning voor vandaag voor, "
+                            "met wat ik als eerste moet doen.", "Plan mijn dag")
 
 
 def startpunt() -> None:
@@ -1523,6 +1627,14 @@ def siri_en_woning() -> None:
     st.caption("Tip: log één keer in met \"Ingelogd blijven op dit apparaat\" aan. Dan opent Siri de app zonder "
                "inloggen. Je ziet je apparaten bij Account › Beveiliging.")
     st.divider()
+    st.markdown("**Ochtendoverzicht elke ochtend**")
+    st.markdown(
+        "Laat je iPhone of iPad elke ochtend je dag openen: weer, eerste afspraak met vertrektijd, taken en je budget.\n\n"
+        "1. Open **Opdrachten** › **Automatisering** › **+** › **Tijdstip**, bijvoorbeeld 7:00, elke dag.\n"
+        "2. Kies **Voer direct uit**.\n"
+        f"3. Voeg **Open URL's** toe met: `{adres}/?ochtend=1`\n"
+        "4. Klaar. Je kunt het overzicht ook laten voorlezen met de luidsprekerknop.")
+    st.divider()
     st.markdown("**Apple Woning**")
     st.markdown(
         "Maak in **Opdrachten** per scène een opdracht met de actie **Bedien woning** (bijvoorbeeld *Licht uit*). "
@@ -1936,7 +2048,7 @@ def contacten_beheren() -> None:
 INSTELLING_GROEPEN = {
     "Assistent": (":material/smart_toy:", "Naam, stem en wat hij mag"),
     "Weergave": (":material/palette:", "Voorpagina, onderdelen, kleuren"),
-    "Koppelingen": (":material/link:", "Mail, Siri, Woning, Strava"),
+    "Koppelingen": (":material/link:", "Agenda, mail, Siri, Woning, Strava"),
     "Account": (":material/person:", "Profiel, beveiliging, privacy"),
 }
 
@@ -2475,6 +2587,10 @@ def paginas() -> list:
           als(online and "Samen" not in uit, samen_scherm.samen_tabblad, "Samen", ":material/group:", "samen",
               nieuw.get("gedeeld", 0)),
           als(online and "VR-ruimtes" not in uit, ruimte_scherm.pagina, "VR-ruimtes", ":material/view_in_ar:", "ruimtes"))
+    groep("Geld",
+          als(online and "Budget" not in uit, geld_scherm.budget_pagina, "Budget", ":material/account_balance_wallet:",
+              "budget"),
+          als("Beleggen" not in uit, geld_scherm.beleggen_pagina, "Beleggen", ":material/trending_up:", "beleggen"))
     groep("Thuis en handig",
           als("Boodschappen" not in uit, boodschappen_tabblad, "Boodschappen", ":material/shopping_cart:", "boodschappen"),
           als("Lijstjes" not in uit, kooplijst, "Kooplijst", ":material/shopping_bag:", "kooplijst"),
@@ -2531,6 +2647,10 @@ def main() -> None:
     if zin := st.query_params.get("zeg", "").strip():
         st.session_state.siri_zeg = zin[:500]
         del st.query_params["zeg"]
+    if "ochtend" in st.query_params:
+        st.session_state.ochtend_gevraagd = True
+        st.session_state.pop("ochtend_weg", None)
+        del st.query_params["ochtend"]
     if (nummer := st.query_params.get("ruimte", "")).isdigit() and opslag.online():
         if not st.session_state.get("wachtwoord"):
             ruimte_bezoek(int(nummer))
@@ -2570,7 +2690,9 @@ def main() -> None:
     if sleutel := st.session_state.pop("apparaat_bewaar", None):
         onthouden.bewaren(sleutel)
     if zin := st.session_state.pop("siri_zeg", None):
-        if snelinvoer.lijkt_invoer(zin):
+        if snel_uitgave(zin):
+            pass
+        elif snelinvoer.lijkt_invoer(zin):
             snel_toevoegen(zin)
         else:
             st.session_state.vooraf_vraag = zin
@@ -2593,7 +2715,9 @@ def main() -> None:
     # Het invoerveld onderaan: "morgen 9u tandarts" komt meteen in de agenda (ook zonder Claude),
     # al het andere gaat naar het gesprek met de assistent.
     if vraag := st.chat_input(f"Vraag {avatar.aanspreken(mijn_avatar())} of typ \"morgen 9u tandarts\"..."):
-        if snelinvoer.lijkt_invoer(vraag):
+        if snel_uitgave(vraag):
+            pass
+        elif snelinvoer.lijkt_invoer(vraag):
             snel_toevoegen(vraag)
         else:
             st.session_state.vooraf_vraag = vraag

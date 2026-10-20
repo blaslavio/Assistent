@@ -38,6 +38,7 @@ SOORT_WOORDEN = {
 
 _cache: dict[str, tuple[float, list[dict], str | None]] = {}
 _slot = threading.Lock()
+_bezig: dict[str, threading.Thread] = {}
 
 
 class Fout(Exception):
@@ -49,8 +50,7 @@ def gekoppeld() -> list[dict]:
 
 
 def _bewaar(lijst: list[dict]) -> None:
-    opslag.instellingen_bijwerken(agendas=lijst)
-    _cache.clear()
+    opslag.instellingen_bijwerken(agendas=lijst)  # andere gegevens geven vanzelf een andere geheugensleutel
 
 
 # --- Koppelen -------------------------------------------------------------------------------------------------------
@@ -209,15 +209,11 @@ def _sleutel(koppeling: dict) -> str:
     return hashlib.sha256(geheim.encode()).hexdigest()
 
 
-def _venster(koppeling: dict) -> tuple[list[dict], str | None]:
-    """Alle afspraken van één koppeling in het venster, uit het geheugen als dat nog vers is."""
-    sleutel = _sleutel(koppeling)
-    nu = time.time()
+def _haal(sleutel: str, koppeling: dict) -> None:
+    """Haalt één koppeling op (in een achtergronddraad) en zet het resultaat in het geheugen."""
+    vandaag = date.today()
     with _slot:
         bewaard = _cache.get(sleutel)
-    if bewaard and nu - bewaard[0] < ONTHOUD_SECONDEN:
-        return bewaard[1], bewaard[2]
-    vandaag = date.today()
     try:
         lijst, fout = _ophalen(koppeling, vandaag - timedelta(days=VENSTER_TERUG),
                                vandaag + timedelta(days=VENSTER_VOORUIT)), None
@@ -227,8 +223,31 @@ def _venster(koppeling: dict) -> tuple[list[dict], str | None]:
         lijst, fout = (bewaard[1] if bewaard else []), "Je agenda is even niet bereikbaar."
     with _slot:
         # Na een fout over twee minuten opnieuw proberen in plaats van over vijf.
-        _cache[sleutel] = (nu - (ONTHOUD_SECONDEN - 120 if fout else 0), lijst, fout)
-    return lijst, fout
+        _cache[sleutel] = (time.time() - (ONTHOUD_SECONDEN - 120 if fout else 0), lijst, fout)
+        _bezig.pop(sleutel, None)
+
+
+def _venster(koppeling: dict, wachten: float = 1.5) -> tuple[list[dict], str | None]:
+    """Alle afspraken van één koppeling in het venster.
+
+    De app wacht nooit lang op een agenda: ophalen gebeurt op de achtergrond. Is er al iets bekend, dan krijg je
+    dat meteen (en wordt het daarna ververst); de allereerste keer wachten we hooguit `wachten` seconden.
+    """
+    sleutel = _sleutel(koppeling)
+    with _slot:
+        bewaard = _cache.get(sleutel)
+        vers = bewaard and time.time() - bewaard[0] < ONTHOUD_SECONDEN
+        draad = _bezig.get(sleutel)
+        if not vers and draad is None:
+            draad = _bezig[sleutel] = threading.Thread(target=_haal, args=(sleutel, dict(koppeling)), daemon=True)
+            draad.start()
+    if vers:
+        return bewaard[1], bewaard[2]
+    if bewaard is None and draad is not None:
+        draad.join(wachten)
+        with _slot:
+            bewaard = _cache.get(sleutel)
+    return (bewaard[1], bewaard[2]) if bewaard else ([], None)
 
 
 def afspraken(van: str, tot: str) -> list[dict]:
@@ -242,8 +261,12 @@ def afspraken(van: str, tot: str) -> list[dict]:
 
 def fouten() -> dict[str, str]:
     """Per koppeling de laatste foutmelding, voor in de instellingen."""
-    return {k["id"]: f for k in gekoppeld() if (f := _venster(k)[1])}
+    return {k["id"]: f for k in gekoppeld() if (f := _venster(k, wachten=12)[1])}
 
 
 def vernieuwen() -> None:
-    _cache.clear()
+    """Meteen opnieuw ophalen (wacht even op het resultaat)."""
+    for k in gekoppeld():
+        with _slot:
+            _cache.pop(_sleutel(k), None)
+        _venster(k, wachten=12)
