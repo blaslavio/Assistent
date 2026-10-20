@@ -5,11 +5,9 @@ import os
 import re
 import time
 
-import httpx
 
 import reizen
 
-OVERPASS_URL = os.environ.get("OVERPASS_URL", "https://overpass-api.de/api/interpreter")
 
 # OpenStreetMap-soort winkel: (omschrijving, icoon)
 SOORTEN = {
@@ -67,10 +65,9 @@ def osm_winkels(lat: float, lon: float, straal_km: float = 2) -> list[dict]:
     if sleutel in _cache and time.time() - _cache[sleutel][0] < 24 * 60 * 60:
         return _cache[sleutel][1]
     vraag = f"[out:json][timeout:25];nwr(around:{int(straal_km * 1000)},{lat},{lon})[shop][name];out center tags 600;"
-    r = httpx.post(OVERPASS_URL, data={"data": vraag}, headers={"User-Agent": reizen.USER_AGENT}, timeout=40)
-    r.raise_for_status()
+    antwoord = reizen.overpass(vraag)
     winkels = []
-    for e in r.json().get("elements", []):
+    for e in antwoord.get("elements", []):
         tags = e.get("tags", {})
         p = e.get("center") or e
         if "lat" not in p or tags.get("shop") in ("vacant", "no"):

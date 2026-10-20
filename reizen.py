@@ -30,6 +30,26 @@ class AdresNietGevonden(Exception):
     pass
 
 
+# Openbare Overpass-servers; de hoofdserver is vaak druk, dan proberen we een spiegel.
+OVERPASS_URLS = [u for u in [os.environ.get("OVERPASS_URL"),
+                             "https://overpass-api.de/api/interpreter",
+                             "https://overpass.private.coffee/api/interpreter",
+                             "https://maps.mail.ru/osm/tools/overpass/api/interpreter"] if u]
+
+
+def overpass(vraag: str, timeout: float = 30) -> dict:
+    """Stuurt een Overpass-vraag naar de eerste server die antwoordt."""
+    fout = None
+    for url in dict.fromkeys(OVERPASS_URLS):
+        try:
+            r = httpx.post(url, data={"data": vraag}, headers={"User-Agent": USER_AGENT}, timeout=timeout)
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            fout = e
+    raise fout
+
+
 @lru_cache(maxsize=256)
 def coordinaten(adres: str) -> tuple[float, float, str]:
     """Geeft (breedtegraad, lengtegraad, volledig adres) voor een adres."""

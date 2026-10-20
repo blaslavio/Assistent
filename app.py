@@ -1352,7 +1352,7 @@ def agenda_overzicht() -> None:
         st.session_state.agenda_dag = gekozen
         dagen = [gekozen]
     if not alle and not taken:
-        st.caption("Niets gepland. Tik op Nieuw, of typ onderaan bijvoorbeeld \"vrijdag 10u kapper\".")
+        st.caption("Niets gepland.")
     elif not agenda_lijst(dagen, alle, taken) and weergave != "Dag":
         st.caption(f"Niets op {DAGEN[dagen[0].weekday()]} {dagen[0].day} {MAANDEN[dagen[0].month - 1]}.")
 
@@ -1749,7 +1749,7 @@ def buurt_kaart(uitjes: list[dict], evenementen: list[dict], voorkeuren: list[st
 
 def voorkeuren_kiezen() -> list[str]:
     opgeslagen = opslag.instellingen().get("voorkeuren", [])
-    gekozen = st.pills("Waar heb je zin in?", activiteiten.VOORKEUREN, selection_mode="multi", default=opgeslagen,
+    gekozen = st.pills("Plan je activiteit", activiteiten.VOORKEUREN, selection_mode="multi", default=opgeslagen,
                        key="voorkeuren_keuze")
     if sorted(gekozen) != sorted(opgeslagen):
         opslag.instellingen_bijwerken(voorkeuren=gekozen)
@@ -1767,9 +1767,12 @@ def events_overzicht() -> None:
 
     try:
         uitjes = activiteiten.sorteren(activiteiten.in_de_buurt(thuis), voorkeuren, regen)
+    except reizen.AdresNietGevonden:
+        uitjes = []
+        st.caption("Je thuisadres is niet gevonden. Pas het aan bij Instellingen.")
     except Exception:
         uitjes = []
-        st.caption("De uitjes konden niet worden geladen. Probeer het later opnieuw.")
+        st.caption("Uitjes laden lukt nu even niet. Probeer het straks opnieuw.")
     evenementen, events_fout = [], False
     if events.sleutel():
         try:

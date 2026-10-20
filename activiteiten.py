@@ -4,12 +4,10 @@ import math
 import os
 import time
 
-import httpx
 
 import opslag
 import reizen
 
-OVERPASS_URL = os.environ.get("OVERPASS_URL", "https://overpass-api.de/api/interpreter")
 
 # Voorkeuren waarop de gebruiker kan sorteren.
 VOORKEUREN = ["Cultuur", "Muziek", "Film", "Natuur", "Dieren", "Actief", "Sport", "Familie", "Bezienswaardigheden"]
@@ -64,10 +62,14 @@ def in_de_buurt(adres: str = "", straal_km: int = 15) -> list[dict]:
   nwr{rond}[amenity=animal_farm][name];
 );
 out center tags 600;"""
-    r = httpx.post(OVERPASS_URL, data={"data": vraag}, headers={"User-Agent": reizen.USER_AGENT}, timeout=40)
-    r.raise_for_status()
+    try:
+        antwoord = reizen.overpass(vraag)
+    except Exception:
+        if sleutel in _cache:  # liever een oudere lijst dan niets
+            return _cache[sleutel][1]
+        raise
     resultaat, gezien = [], set()
-    for e in r.json().get("elements", []):
+    for e in antwoord.get("elements", []):
         tags = e.get("tags", {})
         soort = next((tags.get(k) for k in ("tourism", "amenity", "leisure", "historic") if tags.get(k) in SOORTEN), None)
         if tags.get("sport") == "climbing":

@@ -16,7 +16,6 @@ import opslag
 import reizen
 
 PRIJZEN_URL = os.environ.get("PRIJZEN_URL", "https://raw.githubusercontent.com/supermarkt/checkjebon/main/data/supermarkets.json")
-OVERPASS_URL = os.environ.get("OVERPASS_URL", "https://overpass-api.de/api/interpreter")
 
 # Merknaam in OpenStreetMap naar code in de prijsgegevens.
 MERKEN = {
@@ -130,10 +129,9 @@ def winkels_in_de_buurt(adres: str = "", straal_km: int = 5) -> dict[str, dict]:
     if sleutel in _buurt_cache and time.time() - _buurt_cache[sleutel][0] < 24 * 60 * 60:
         return _buurt_cache[sleutel][1]
     vraag = f"[out:json][timeout:25];nwr(around:{straal_km * 1000},{lat},{lon})[shop=supermarket];out center tags 300;"
-    r = httpx.post(OVERPASS_URL, data={"data": vraag}, headers={"User-Agent": reizen.USER_AGENT}, timeout=40)
-    r.raise_for_status()
+    antwoord = reizen.overpass(vraag)
     dichtst: dict[str, dict] = {}
-    for e in r.json().get("elements", []):
+    for e in antwoord.get("elements", []):
         tags = e.get("tags", {})
         merk = (tags.get("brand") or tags.get("name") or "").lower()
         code = MERKEN.get(merk) or next((c for m, c in MERKEN.items() if merk.startswith(m + " ")), None)
