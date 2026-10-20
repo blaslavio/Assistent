@@ -189,6 +189,26 @@ def mijn_uitnodigingen(van: str, tot: str) -> list[dict]:
     return opslag._rpc_ik("mijn_uitnodigingen", p_van=van, p_tot=tot)["uitnodigingen"]
 
 
+def aantallen_tekst(aantallen: dict) -> str:
+    """'3 ja, 1 misschien' (zonder namen)."""
+    return ", ".join(f"{aantallen[k]} {ANTWOORDEN[k].lower()}" for k in ("ja", "misschien") if aantallen.get(k))
+
+
+# Wat de eigenaar per afspraak instelt (afspraak["zichtbaar"]); de eerste keuze is steeds de standaard.
+ZICHTBAAR = {
+    "reageren": ("Wie mag reageren", {"iedereen": "Gasten en meekijkers", "gasten": "Alleen gasten",
+                                      "niemand": "Niemand"}),
+    "gastenlijst": ("Wie ziet wie er komt", {"ik": "Alleen ik", "gasten": "Alle gasten"}),
+    "reacties": ("Wie ziet de reacties", {"ik": "Alleen ik", "gasten": "Iedereen die mag kijken"}),
+}
+
+
+def zichtbaar(afspraak: dict) -> dict:
+    """De instellingen van een afspraak, aangevuld met de standaard."""
+    eigen = afspraak.get("zichtbaar") or {}
+    return {k: eigen.get(k) if eigen.get(k) in keuzes else next(iter(keuzes)) for k, (_, keuzes) in ZICHTBAAR.items()}
+
+
 def gasten_tekst(lijst: list[dict]) -> str:
     """'Sanne: ja, Jan: nog geen antwoord'."""
     return ", ".join(f"{g['naam']}: {ANTWOORDEN.get(g['antwoord'], 'nog geen antwoord').lower()}" for g in lijst)

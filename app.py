@@ -705,7 +705,7 @@ def afspraak_kaart(regel: dict, afspraak: dict) -> None:
             with st.popover("Wijzigen"):
                 afspraak_formulier(f"wijzig_{afspraak['id']}", afspraak)
             if samen.beschikbaar():
-                with st.popover("", icon=":material/person_add:", help="Iemand uitnodigen"):
+                with st.popover("", icon=":material/person_add:", help="Uitnodigen en wie wat ziet"):
                     gasten_beheer(afspraak, gasten)
             with st.popover("", icon=":material/delete:", help="Verwijderen"):
                 if afspraak.get("reeks"):
@@ -726,8 +726,9 @@ def afspraak_kaart(regel: dict, afspraak: dict) -> None:
 
 def uitnodiging_bediening(u: dict) -> None:
     """Bij een afspraak van iemand anders waarvoor je bent uitgenodigd: ja/misschien/nee en reageren."""
-    andere = [g for g in u["gasten"] if g["naam"] != u.get("gast")]
-    st.caption(f":material/mail: Uitnodiging van {u['van']}" + (f" · {samen.gasten_tekst(andere)}" if andere else ""))
+    andere = [g for g in u.get("gasten", []) if g["naam"] != u.get("gast")]
+    wie = samen.gasten_tekst(andere) if andere else samen.aantallen_tekst(u.get("aantallen") or {})
+    st.caption(f":material/mail: Uitnodiging van {u['van']}" + (f" · {wie}" if wie else ""))
 
     def kies() -> None:
         opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
@@ -746,7 +747,8 @@ def uitnodiging_bediening(u: dict) -> None:
         opslag.uitnodigingen(vers=True)
         st.rerun()
     if u["antwoord"] != "nee":
-        reacties_tonen(u.get("reacties", []), f"uit_{u['id']}", u["eigenaar"], u["afspraak"])
+        reacties_tonen(u.get("reacties", []), f"uit_{u['id']}", u["eigenaar"], u["afspraak"],
+                       u.get("mag_reageren", True))
 
 
 def gasten_beheer(afspraak: dict, gasten: list[dict]) -> None:
@@ -768,8 +770,23 @@ def gasten_beheer(afspraak: dict, gasten: list[dict]) -> None:
                 st.toast(f"{u['gast']} is uitgenodigd.", icon=":material/check:")
                 st.rerun()
     st.caption("Ze zien titel, tijd en plaats in hun agenda. Je notitie niet.")
+    wie_ziet_wat(afspraak)
     if "T" in afspraak["start"]:
         samen_moment(afspraak)
+
+
+def wie_ziet_wat(afspraak: dict) -> None:
+    """Per afspraak instellen wie mag reageren, wie ziet wie er komt en wie de reacties ziet."""
+    nu = samen.zichtbaar(afspraak)
+    with st.expander("Wie ziet wat", icon=":material/lock:"):
+        nieuw = {}
+        for sleutel, (label, keuzes) in samen.ZICHTBAAR.items():
+            nieuw[sleutel] = st.segmented_control(label, list(keuzes), default=nu[sleutel], format_func=keuzes.get,
+                                                  key=f"zicht_{sleutel}_{afspraak['id']}") or nu[sleutel]
+        if nieuw != nu:
+            opslag.afspraak_bijwerken(afspraak["id"], zichtbaar=nieuw)
+            st.toast("Opgeslagen.", icon=":material/lock:")
+        st.caption("Wie niet is uitgenodigd en je agenda niet mag zien, ziet niets van deze afspraak.")
 
 
 def samen_moment(afspraak: dict) -> None:
@@ -866,8 +883,9 @@ REACTIES_NU: dict = {}
 GASTEN_NU: dict = {}
 
 
-def reacties_tonen(reacties: list[dict], sleutel: str, eigenaar_id: int | None, afspraak_id) -> None:
-    """Reacties bij een afspraak (kort) en één knop om zelf te reageren."""
+def reacties_tonen(reacties: list[dict], sleutel: str, eigenaar_id: int | None, afspraak_id,
+                   mag_reageren: bool = True) -> None:
+    """Reacties bij een afspraak (kort) en één knop om zelf te reageren (als de eigenaar dat toestaat)."""
     rij = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
     status = {}
     for r in reacties:
@@ -875,9 +893,12 @@ def reacties_tonen(reacties: list[dict], sleutel: str, eigenaar_id: int | None, 
             status[r["door"]] = r
     opmerkingen = [r for r in reacties if r["soort"] == "opmerking"][-3:]
     regels = [samen.reactie_tekst(r) for r in status.values()] + [samen.reactie_tekst(r) for r in opmerkingen]
+    if not regels and not mag_reageren:
+        return
     rij.caption("  \n".join(regels) if regels else "Nog geen reacties", width="content")
-    with rij.popover("Reageer", icon=":material/chat_bubble:", width="content"):
-        reageren(sleutel, eigenaar_id, afspraak_id)
+    if mag_reageren:
+        with rij.popover("Reageer", icon=":material/chat_bubble:", width="content"):
+            reageren(sleutel, eigenaar_id, afspraak_id)
 
 
 def reageren(sleutel: str, eigenaar_id: int | None, afspraak_id) -> None:
@@ -965,7 +986,7 @@ def gedeelde_agendas() -> None:
         st.markdown(f"{tijdstip or 'hele dag'} · {a['titel']}"
                     + (f"  \n:gray[{a['locatie']}]" if a.get("locatie") else ""))
         if g["niveau"] == "details":
-            reacties_tonen(a["reacties"], f"ged_{wie}_{a['id']}", wie, a["id"])
+            reacties_tonen(a["reacties"], f"ged_{wie}_{a['id']}", wie, a["id"], a.get("mag_reageren", True))
 
 
 def _wanneer(datum: str) -> str:
