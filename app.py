@@ -2245,7 +2245,7 @@ STANDAARD_AAN = ["Mail", "Budget", "Boodschappen", "Documenten"]
 
 
 @st.dialog("Welkom! Wat wil je gebruiken?")
-def voorkeuren_kiezen() -> None:
+def welkom_voorkeuren() -> None:
     """Na het aanmelden: kies wat je gebruikt, dan blijft de app rustig. Later aan te passen in Instellingen."""
     # Een dialoog draait apart van de rest van de app; zonder dit weet hij niet wie er is ingelogd.
     opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
