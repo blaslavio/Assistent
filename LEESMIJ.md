@@ -114,3 +114,9 @@ Afspraken worden 5 minuten onthouden (agendas.py); "Nu vernieuwen" haalt ze mete
   worden meteen in vrije tijd in je agenda gezet. Nagekeken mails worden onthouden.
 - Inspreken: de microfoon zit in het invoerveld onderaan, naast het pijltje (spraak.microfoon). Onder het laatste
   antwoord staat een knop Voorlezen.
+
+## Facturen, verwacht en bankkoppeling
+
+- **Facturen**: de assistent haalt rekeningen uit je mail (bedrag, vervaldatum, rekeningnummer, betaallink). Ze staan in Budget › Facturen. Per factuur één knop *Betalen*: link uit de mail of rekeningnummer om te kopiëren, *Ik heb betaald* en *Later herinneren* (komt in je agenda). De app betaalt nooit zelf. Staat het bedrag later op je afschrift of komt het via de bank binnen, dan gaat de factuur vanzelf op betaald.
+- **Verwacht**: Budget › Verwacht laat zien wat er de komende 14 tot 90 dagen binnenkomt en afgaat (open facturen, vaste lasten, vaste inkomsten) en, als je saldo bekend is, wanneer je krap komt te zitten.
+- **Bank koppelen** (Enable Banking, alleen lezen): de eigenaar maakt één keer een applicatie aan op enablebanking.com, met als redirect-URL het adres van de app, en zet het application ID en de .pem-sleutel in Budget › Bank. De sleutel gaat naar de database en wordt alleen gelezen door de Edge Function `bank` (supabase/functions/bank). Daarna kiest iedere gebruiker zijn bank, logt daar in en komt terug in de app. Nieuwe regels komen elke paar uur vanzelf binnen zolang de app open is. SQL: sql/bank.sql.

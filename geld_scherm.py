@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 import pandas as pd
 import streamlit as st
 
+import bank
 import beleggen
 import budget
 import opslag
@@ -63,6 +64,90 @@ def afschrift_inlezen(sleutel: str = "afschrift") -> None:
         st.rerun()
 
 
+def bank_instellen(plek: str) -> None:
+    """Je bank koppelen (alleen lezen); daarna komen je uitgaven vanzelf binnen."""
+    s = bank.status()
+    if not s.get("aan"):
+        if opslag._naam.get() == "" or samen_eigenaar():
+            bank_platform_instellen(plek)
+        else:
+            st.caption("Rechtstreeks koppelen met je bank komt binnenkort. Lees zolang een afschrift in.")
+        return
+    for k in s["koppelingen"]:
+        rekeningen = ", ".join(r["iban"][-4:].rjust(8, "•") for r in k["rekeningen"]) or "geen rekeningen"
+        tekst = f"**{k['bank']}** · {rekeningen}"
+        if k["status"] == "verlopen":
+            tekst += "  \n:red[Toestemming verlopen]"
+        elif k.get("laatst_opgehaald"):
+            tekst += f"  \n:gray[bijgewerkt {datetime.fromisoformat(k['laatst_opgehaald']).astimezone():%d-%m %H:%M}]"
+        rij = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
+        rij.markdown(tekst, width="content")
+        knoppen = rij.container(horizontal=True, width="content", gap="small")
+        if k["status"] == "actief" and knoppen.button("", icon=":material/refresh:", key=f"{plek}_bank_ververs_{k['id']}",
+                                                      help="Nu bijwerken", type="tertiary"):
+            with st.spinner("Ophalen bij je bank..."):
+                try:
+                    r = bank.ophalen(k["id"])
+                except bank.Fout as fout:
+                    st.error(str(fout))
+                else:
+                    st.toast(f"{r['nieuw']} nieuwe regels.", icon=":material/check:")
+                    st.rerun()
+        if knoppen.button("", icon=":material/link_off:", key=f"{plek}_bank_weg_{k['id']}", help="Ontkoppelen",
+                          type="tertiary"):
+            bank.ontkoppelen(k["id"])
+            st.rerun()
+    try:
+        lijst = bank.banken()
+    except bank.Fout as fout:
+        st.caption(str(fout))
+        return
+    keuze = st.selectbox("Bank koppelen" if not s["koppelingen"] else "Nog een bank", [b["naam"] for b in lijst],
+                         index=None, placeholder="Kies je bank", key=f"{plek}_bank_keuze")
+    if keuze:
+        if st.button("Inloggen bij je bank", key=f"{plek}_bank_koppel", type="primary", width="stretch"):
+            try:
+                st.session_state[f"{plek}_bank_url"] = bank.koppelen(keuze)
+            except bank.Fout as fout:
+                st.error(str(fout))
+        if url := st.session_state.get(f"{plek}_bank_url"):
+            st.link_button(f"Naar {keuze}", url, icon=":material/open_in_new:", width="stretch")
+        st.caption("Alleen meelezen; overmaken kan niet.")
+
+
+def _app_adres() -> str:
+    """Het adres van deze app (zonder pad), bijvoorbeeld https://naam.streamlit.app."""
+    try:
+        url = urlparse(st.context.url)
+        return f"{url.scheme}://{url.netloc}"
+    except Exception:
+        return ""
+
+
+def samen_eigenaar() -> bool:
+    return (st.session_state.get("ik") or {}).get("id") == 1
+
+
+def bank_platform_instellen(plek: str) -> None:
+    """Alleen de eigenaar: de sleutel van Enable Banking. Gaat naar de database, nooit in de code of de chat."""
+    adres = _app_adres()
+    st.caption("1. Maak een gratis account bij Enable Banking en registreer een applicatie. Vul als "
+               "*redirect URL* dit adres in:")
+    st.code(adres + "/", language=None)
+    st.link_button("Enable Banking", "https://enablebanking.com/cp/applications", icon=":material/open_in_new:")
+    st.caption("2. Vul hier het application ID in en kies de .pem-sleutel die je browser downloadde.")
+    with st.form(f"{plek}_eb", border=False):
+        app_id = st.text_input("Application ID")
+        pem = st.file_uploader("Sleutel (.pem)", type=["pem"])
+        if st.form_submit_button("Opslaan", type="primary") and (app_id or pem):
+            try:
+                bank.instellen(app_id, pem.getvalue().decode() if pem else "", adres)
+            except bank.Fout as fout:
+                st.error(str(fout))
+            else:
+                st.rerun()
+
+
 def los_toevoegen() -> None:
     with st.form("budget_los", clear_on_submit=True, border=False):
         soort = st.segmented_control("Soort", ["Uitgave", "Inkomsten"], default="Uitgave", label_visibility="collapsed")
@@ -111,8 +196,10 @@ def budget_pagina() -> None:
                              width=190)
         with st.popover("Toevoegen", icon=":material/add:"):
             los_toevoegen()
-        with st.popover("Afschrift", icon=":material/upload_file:", help="Bankafschrift inlezen"):
-            afschrift_inlezen()
+        with st.popover("Bank", icon=":material/account_balance:", help="Je bank koppelen of een afschrift inlezen"):
+            bank_instellen("budget")
+            with st.expander("Afschrift inlezen"):
+                afschrift_inlezen()
 
     o = budget.overzicht(maand)
     if "over" in o:

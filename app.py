@@ -18,6 +18,7 @@ import activiteiten
 import agendas
 import agent
 import avatar
+import bank
 import beleggen
 import boodschappen
 import budget
@@ -53,7 +54,7 @@ import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
-for _module in (opslag, agendas, budget, beleggen, mailtaken, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
+for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
                 mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
@@ -2495,6 +2496,9 @@ def instellingen_koppelingen() -> None:
         agendas_instellen()
     with st.expander("Mail" + (" (gekoppeld)" if mail.gekoppeld() else "")):
         mail_instellen()
+    if "Budget" not in onderdelen_uit() and samen.beschikbaar():
+        with st.expander("Bank"):
+            geld_scherm.bank_instellen("instellingen")
     with st.expander("Siri en Apple Woning" + (" (ingesteld)" if woning.scenes() else "")):
         siri_en_woning()
     strava_instellingen()
@@ -2801,8 +2805,25 @@ def terug_van_stripe() -> None:
         if sleutel in st.query_params:
             st.session_state[f"terug_{sleutel}"] = st.query_params[sleutel]
             del st.query_params[sleutel]
+    # Terug van de bank (Enable Banking): ?code=...&state=... (of ?error=... als je annuleerde).
+    if "state" in st.query_params and ("code" in st.query_params or "error" in st.query_params):
+        st.session_state.terug_bank = (st.query_params.get("code", ""), st.query_params["state"])
+        for sleutel in ("code", "state", "error", "error_description"):
+            st.query_params.pop(sleutel, None)
     if not st.session_state.get("wachtwoord"):
         return
+    if terug_bank := st.session_state.pop("terug_bank", None):
+        st.session_state.ga_naar = "budget"
+        if not terug_bank[0]:
+            st.toast("Koppelen met je bank afgebroken.", icon=":material/info:")
+        else:
+            try:
+                with st.spinner("Je bank koppelen..."):
+                    k = bank.afmaken(*terug_bank)
+            except bank.Fout as fout:
+                st.toast(str(fout), icon=":material/error:")
+            else:
+                st.toast(f"{k['bank']} gekoppeld: {k['opgehaald']['nieuw']} regels opgehaald.", icon=":material/check:")
     betaald = st.session_state.pop("terug_betaald", None)
     stripe_terug = st.session_state.pop("terug_stripe", None)
     if betaald or stripe_terug:
@@ -2979,6 +3000,12 @@ def main() -> None:
         return
     if sleutel := st.session_state.pop("apparaat_bewaar", None):
         onthouden.bewaren(sleutel)
+    # Gekoppelde bank: elke paar uur nieuwe regels ophalen (op de achtergrond).
+    if "Budget" not in onderdelen_uit():
+        try:
+            bank.vanzelf()
+        except Exception:
+            pass
     # Elke paar uur vanzelf je mail nakijken op taken en afspraken (op de achtergrond, de app wacht er niet op).
     if "Mail" not in onderdelen_uit():
         try:
