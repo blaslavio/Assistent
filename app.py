@@ -20,6 +20,7 @@ import agendas
 import agent
 import avatar
 import bank
+import boekpagina
 import beleggen
 import boodschappen
 import budget
@@ -60,7 +61,7 @@ import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
-for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, reserveren, prikker, boodschappen, strava, wetenschap,
+for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
                 mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, plannen_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
@@ -3550,6 +3551,13 @@ def main() -> None:
         # Stemmen op een datum via een gedeelde link; ook zonder account.
         plannen_scherm.prik_pagina(code)
         return
+    if (adres := st.query_params.get("boek")) and opslag.online():
+        # Iemands boekingspagina; zonder account een vrij moment kiezen.
+        plannen_scherm.boek_pagina(adres)
+        return
+    if (code := st.query_params.get("boeking")) and opslag.online():
+        plannen_scherm.boeking_pagina(code)
+        return
     if (code := st.query_params.get("aanvraag")) and opslag.online():
         # Een restaurant opent de link uit een reserveringsaanvraag; daar is geen account voor nodig.
         plannen_scherm.aanvraag_pagina(code)
@@ -3608,6 +3616,13 @@ def main() -> None:
     # Herinneringen en vertrekwekkers voor de meldingen op je telefoon klaarzetten (op de achtergrond).
     try:
         meldingen.vanzelf()
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        pass
+    # Nieuwe boekingen via je boekingspagina in je agenda zetten.
+    try:
+        boekpagina.vanzelf()
     except opslag.GeenToegang:
         raise
     except Exception:

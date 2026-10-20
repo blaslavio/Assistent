@@ -5,6 +5,8 @@ from urllib.parse import quote, urlsplit
 
 import streamlit as st
 
+import boekpagina
+import ics
 import opslag
 import planning
 import prikker
@@ -43,11 +45,15 @@ def pagina() -> None:
     gelegenheid = st.pills("Waarvoor?", list(R.GELEGENHEDEN), default="Date", key="plannen_gelegenheid",
                            format_func=lambda g: f"{R.GELEGENHEDEN[g][1]} {g}", label_visibility="collapsed") or "Uitje"
     if online:
-        if st.button("Samen een datum kiezen", icon=":material/how_to_vote:", key="prik_nieuw"):
-            st.session_state.pop("prik_klaar", None)
-            st.session_state.prik_opties = []
-            prik_maken_dialoog(gelegenheid)
+        with st.container(horizontal=True, gap="small"):
+            if st.button("Samen een datum kiezen", icon=":material/how_to_vote:", key="prik_nieuw"):
+                st.session_state.pop("prik_klaar", None)
+                st.session_state.prik_opties = []
+                prik_maken_dialoog(gelegenheid)
+            if st.button("Boekingspagina", icon=":material/event_available:", key="boek_instellen"):
+                boek_dialoog()
         stemrondes()
+        geboekt_bij_mij()
         mijn_reserveringen()
         mijn_aanvragen()
         zoek = st.text_input("Zoek", placeholder="Zoek een zaak in de app", label_visibility="collapsed",
@@ -609,6 +615,219 @@ def prik_pagina(code: str) -> None:
             st.rerun()
     if p["stemmen"]:
         st.caption("Al gestemd: " + ", ".join(s["naam"] for s in p["stemmen"]))
+
+
+# --- Boekingspagina ---------------------------------------------------------------------------------------------------
+
+MINUTEN = [15, 20, 30, 45, 60, 90, 120]
+
+
+def _duur(m: int) -> str:
+    return f"{m // 60} uur" if m % 60 == 0 else (f"{m // 60} uur {m % 60} min" if m > 60 else f"{m} min")
+
+
+def geboekt_bij_mij() -> None:
+    """Afspraken die anderen via je boekingspagina maakten."""
+    if not opslag.instellingen().get("boekpagina"):
+        return
+    try:
+        m = boekpagina.mijn()
+        if any(not b["verwerkt"] for b in m["boekingen"]):
+            boekpagina.verwerken(m)
+            m = boekpagina.mijn()
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        return
+    lijst = [b for b in m["boekingen"] if b["status"] in ("aangevraagd", "bevestigd")
+             and datetime.fromisoformat(b["start"]) > datetime.now().astimezone() - timedelta(hours=2)]
+    if not lijst:
+        return
+    st.markdown("**Geboekt bij jou**")
+    for b in lijst:
+        with st.container(horizontal=True, vertical_alignment="center", key=f"boeking_{b['id']}"):
+            with st.container(gap=None):
+                st.markdown(f"**{_wanneer(b['start'])}** · {b['naam']}")
+                st.caption(" · ".join(filter(None, [b["soort"], boekpagina.STATUS[b["status"]], b["notitie"][:60]])))
+            with st.popover("", icon=":material/more_horiz:"):
+                st.caption(" · ".join(filter(None, [b["email"], b["telefoon"]])))
+                if b["status"] == "aangevraagd":
+                    if st.button("Bevestigen", key=f"boek_ja_{b['id']}", type="primary", width="stretch"):
+                        _boek_actie(b, "bevestigen", "Bevestigd en in je agenda gezet.")
+                    if st.button("Afwijzen", key=f"boek_nee_{b['id']}", width="stretch"):
+                        _boek_actie(b, "afwijzen", "Afgewezen. Laat het de ander even weten.")
+                elif st.button("Annuleren", key=f"boek_weg_{b['id']}", width="stretch"):
+                    _boek_actie(b, "annuleren", "Geannuleerd en uit je agenda gehaald. Laat het de ander even weten.")
+                if b["email"]:
+                    onderwerp = quote(f"{b['soort']} {_wanneer(b['start'])}")
+                    st.link_button("Mail sturen", f"mailto:{b['email']}?subject={onderwerp}", width="stretch")
+                if b["telefoon"]:
+                    st.link_button("Bellen", f"tel:{b['telefoon']}", width="stretch")
+
+
+def _boek_actie(b: dict, actie: str, melding: str) -> None:
+    try:
+        boekpagina.afhandelen(b["id"], actie)
+    except samen.Fout as fout:
+        st.error(str(fout))
+        return
+    st.session_state.plannen_melding = melding
+    st.rerun()
+
+
+@st.dialog("Je boekingspagina")
+def boek_dialoog() -> None:
+    _account()
+    p = boekpagina.mijn()["pagina"] or dict(boekpagina.STANDAARD, adres=boekpagina.voorstel_adres())
+    if p.get("adres") and p.get("aan") and opslag.instellingen().get("boekpagina"):
+        link = boekpagina.link(_basis(), p["adres"])
+        st.caption("Anderen kiezen via deze link een vrij moment. Ze zien alleen vrije tijden, nooit je afspraken.")
+        st.code(link, language=None)
+        st.link_button("Delen via WhatsApp", f"https://wa.me/?text={quote(f'Plan een afspraak met mij: {link}')}",
+                       icon=":material/share:", width="stretch")
+    else:
+        st.caption("Maak een link waarmee anderen zelf een afspraak met je inplannen, op momenten dat je vrij bent. "
+                   "Ze zien alleen vrije tijden, nooit je afspraken.")
+    aan = st.toggle("Pagina staat aan", value=p["aan"])
+    titel = st.text_input("Kop", value=p["titel"], placeholder="Plan een afspraak met mij", max_chars=80)
+    soorten = []
+    st.markdown("**Soort afspraak**")
+    for i in range(3):
+        oud = p["soorten"][i] if i < len(p["soorten"]) else {"naam": "", "minuten": 30}
+        with st.container(horizontal=True, vertical_alignment="bottom", gap="small", key=f"boeksoort_{i}"):
+            naam = st.text_input("Naam", value=oud["naam"], key=f"boeksoort_naam_{i}", label_visibility="collapsed",
+                                 placeholder="Bijvoorbeeld: Kennismaking" if i == 0 else "Nog een soort (optioneel)")
+            minuten = st.selectbox("Duur", MINUTEN, key=f"boeksoort_min_{i}", label_visibility="collapsed", width=120,
+                                   index=MINUTEN.index(oud["minuten"]) if oud["minuten"] in MINUTEN else 2,
+                                   format_func=_duur)
+        if naam.strip():
+            soorten.append({"naam": naam.strip(), "minuten": minuten})
+    dagen_nu = [int(d) for d, blokken in p["uren"].items() if blokken]
+    eerste = next((blokken[0] for blokken in p["uren"].values() if blokken), ["09:00", "17:00"])
+    dagen = st.pills("Op welke dagen?", range(1, 8), selection_mode="multi", default=sorted(dagen_nu),
+                     format_func=lambda d: DAGEN[d - 1])
+    with st.container(horizontal=True, gap="small"):
+        van = st.time_input("Van", value=time.fromisoformat(eerste[0].zfill(5)), step=1800, width=110)
+        tot = st.time_input("Tot", value=time.fromisoformat(eerste[1].zfill(5)), step=1800, width=110)
+    locatie = st.text_input("Waar", value=p["locatie"], placeholder="Adres, of: telefonisch / videobellen")
+    with st.expander("Meer"):
+        intro = st.text_area("Uitleg voor de bezoeker", value=p["intro"], max_chars=400, height=80)
+        bevestigen = st.toggle("Eerst zelf goedkeuren", value=p["bevestigen"],
+                               help="Uit: een boeking staat meteen in je agenda.")
+        k1, k2 = st.columns(2)
+        buffer = k1.selectbox("Pauze ertussen", [0, 5, 10, 15, 30, 60], format_func=lambda m: f"{m} min",
+                              index=[0, 5, 10, 15, 30, 60].index(p["buffer"]) if p["buffer"] in [0, 5, 10, 15, 30, 60] else 3)
+        max_per_dag = k2.number_input("Hoogstens per dag", 1, 20, value=p["max_per_dag"])
+        vooraf_keuzes = {1: "1 uur", 4: "4 uur", 12: "12 uur", 24: "1 dag", 48: "2 dagen"}
+        min_vooraf = k1.selectbox("Minstens vooraf", list(vooraf_keuzes), format_func=vooraf_keuzes.get,
+                                  index=list(vooraf_keuzes).index(p["min_vooraf"]) if p["min_vooraf"] in vooraf_keuzes else 2)
+        vooruit = k2.selectbox("Tot hoe ver vooruit", [7, 14, 30, 60, 90], format_func=lambda d: f"{d} dagen",
+                               index=[7, 14, 30, 60, 90].index(p["vooruit"]) if p["vooruit"] in [7, 14, 30, 60, 90] else 2)
+        adres = st.text_input("Linknaam", value=p["adres"], max_chars=40, help="Letters, cijfers en streepjes.")
+    if st.button("Opslaan", type="primary", width="stretch", disabled=not soorten or not dagen or van >= tot):
+        try:
+            boekpagina.instellen({"aan": aan, "adres": adres.strip().lower(), "titel": titel.strip(), "intro": intro.strip(),
+                                  "soorten": soorten, "locatie": locatie.strip(), "bevestigen": bevestigen,
+                                  "uren": {str(d): [[van.strftime("%H:%M"), tot.strftime("%H:%M")]] for d in dagen},
+                                  "buffer": buffer, "min_vooraf": min_vooraf, "vooruit": vooruit,
+                                  "max_per_dag": int(max_per_dag)})
+        except samen.Fout as fout:
+            st.error(str(fout))
+            return
+        st.rerun(scope="fragment")
+
+
+def boek_pagina(adres: str) -> None:
+    """De boekingspagina voor bezoekers, zonder account."""
+    if klaar := st.session_state.get("boek_klaar"):
+        _boek_bevestiging(klaar)
+        return
+    keuze = st.session_state.get("boek_soort", 0)
+    try:
+        p = boekpagina.bekijken(adres, keuze)
+    except samen.Fout as fout:
+        st.info(str(fout))
+        return
+    st.subheader(p["titel"] or f"Plan een afspraak met {p['naam']}")
+    st.caption(" · ".join(filter(None, [p["naam"] if p["titel"] else "", p["locatie"]])))
+    if p["intro"]:
+        st.markdown(p["intro"])
+    if len(p["soorten"]) > 1:
+        gekozen = st.pills("Soort", range(len(p["soorten"])), default=keuze, label_visibility="collapsed",
+                           format_func=lambda i: f"{p['soorten'][i]['naam']} · {_duur(p['soorten'][i]['minuten'])}")
+        if gekozen is not None and gekozen != keuze:
+            st.session_state.boek_soort = gekozen
+            st.rerun()
+    else:
+        st.caption(f"{p['soorten'][0]['naam']} · {_duur(p['soorten'][0]['minuten'])}")
+    if not p["dagen"]:
+        st.info("Er zijn op dit moment geen vrije momenten. Probeer het later nog eens.")
+        return
+    dagen = [date.fromisoformat(d) for d in p["dagen"][:12]]
+    dag = st.pills("Dag", dagen, default=dagen[0], key=f"boek_dag_{keuze}",
+                   format_func=lambda d: f"{DAGEN[d.weekday()]} {d.day} {MAANDEN[d.month - 1]}") or dagen[0]
+    tijden = boekpagina.tijden(adres, keuze, dag)
+    if not tijden:
+        st.caption("Op deze dag is niets meer vrij.")
+        return
+    om = st.pills("Tijd", tijden, key=f"boek_tijd_{keuze}_{dag}", format_func=lambda t: t.strftime("%H:%M"))
+    if om is None:
+        return
+    with st.form("boek_form"):
+        naam = st.text_input("Je naam", max_chars=60)
+        email = st.text_input("E-mail", max_chars=120)
+        telefoon = st.text_input("Telefoon (optioneel)", max_chars=30)
+        notitie = st.text_area("Waarover? (optioneel)", max_chars=500, height=80)
+        if st.form_submit_button("Bevestig afspraak" if not p["bevestigen"] else "Aanvragen", type="primary",
+                                 width="stretch"):
+            try:
+                b = boekpagina.boeken(adres, keuze, om, naam, email, telefoon, notitie)
+            except samen.Fout as fout:
+                st.error(str(fout))
+                return
+            st.session_state.boek_klaar = b
+            st.rerun()
+    st.caption("Je gegevens gaan alleen naar " + p["naam"] + ".")
+
+
+def _boek_bevestiging(b: dict) -> None:
+    start = datetime.fromisoformat(b["start"]).astimezone()
+    if b["status"] == "bevestigd":
+        st.success(f"Staat genoteerd: {_wanneer(b['start'])}, {b['soort'].lower()} met {b['naam']}.")
+    else:
+        st.success(f"Aangevraagd: {_wanneer(b['start'])}. {b['naam']} bevestigt het nog.")
+    st.download_button("In mijn agenda zetten", ics.bestand([{
+        "id": f"boeking-{b['code'][:10]}", "titel": f"{b['soort']} met {b['naam']}",
+        "start": start.strftime("%Y-%m-%dT%H:%M"),
+        "einde": (start + timedelta(minutes=b["minuten"])).strftime("%Y-%m-%dT%H:%M"), "locatie": b["locatie"]}]),
+        file_name="afspraak.ics", mime="text/calendar", icon=":material/calendar_add_on:", width="stretch")
+    st.caption("Bewaar deze link. Daarmee zie je of het bevestigd is, en kun je annuleren:")
+    st.code(f"{_basis()}/?boeking={b['code']}", language=None)
+
+
+def boeking_pagina(code: str) -> None:
+    """Je eigen boeking bekijken of annuleren, via de link."""
+    if melding := st.session_state.pop("boeking_melding", None):
+        st.success(melding)
+    try:
+        b = boekpagina.boeking_bekijken(code)
+    except samen.Fout as fout:
+        st.info(str(fout))
+        return
+    st.subheader(f"{b['soort']} met {b['naam']}")
+    st.markdown(f"**{_wanneer(b['start'])}** · {_duur(b['minuten'])}" + (f" · {b['locatie']}" if b["locatie"] else ""))
+    st.caption(boekpagina.STATUS[b["status"]].replace("Wacht op jou", f"Wacht op bevestiging van {b['naam']}"))
+    if b["status"] in ("aangevraagd", "bevestigd") and datetime.fromisoformat(b["start"]) > datetime.now().astimezone():
+        if st.button("Annuleren", icon=":material/event_busy:"):
+            try:
+                boekpagina.annuleren(code)
+            except samen.Fout as fout:
+                st.error(str(fout))
+            else:
+                st.session_state.boeking_melding = "Geannuleerd."
+                st.rerun()
+    if b.get("adres") and b["status"] in ("afgewezen", "geannuleerd"):
+        st.link_button("Nieuw moment kiezen", f"{_basis()}/?boek={b['adres']}")
 
 
 # --- Zaak -------------------------------------------------------------------------------------------------------------
