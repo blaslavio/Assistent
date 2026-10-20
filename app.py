@@ -730,52 +730,81 @@ def taak_rij(t: dict, gepland: str | None) -> None:
             st.rerun()
 
 
-def mail_taken_voorstel() -> None:
-    """Wat de assistent in je mail vond: aanvinken wat op je lijst moet, en meteen inplannen."""
-    v = st.session_state.get("mail_voorstel")
-    if not v:
+def mail_voorstel_inhoud(plek: str) -> None:
+    """Wat de assistent in je mail vond: taken en afspraken om aan te vinken. Niets komt erbij zonder jouw akkoord."""
+    v = mailtaken.wachtend()
+    if v.get("bezig") and not (v.get("taken") or v.get("afspraken")):
+        if plek == "taken":
+            st.caption("De assistent kijkt je nieuwe mail na...")
         return
+    if not (v.get("taken") or v.get("afspraken")):
+        if st.session_state.pop("mail_net_nagekeken", False):
+            st.toast("Geen nieuwe taken of afspraken in je mail.", icon=":material/mark_email_read:")
+        return
+    taken, afspraken = v.get("taken", []), v.get("afspraken", [])
+    delen = []
+    if taken:
+        delen.append(f"{len(taken)} {'taak' if len(taken) == 1 else 'taken'}")
+    if afspraken:
+        delen.append(f"{len(afspraken)} {'afspraak' if len(afspraken) == 1 else 'afspraken'}")
     with st.container(border=True):
-        if not v["taken"]:
-            st.markdown(f"Geen nieuwe taken gevonden in {v['mails']} {'mail' if v['mails'] == 1 else 'mails'}."
-                        if v["mails"] else "Geen nieuwe mail sinds de vorige keer.")
-            opslag.mail_gezien_bewaren(v["uids"])
-            if st.button("Oké", key="mailtaken_ok"):
-                st.session_state.pop("mail_voorstel")
-                st.rerun()
-            return
-        st.markdown(f"**{len(v['taken'])} {'taak' if len(v['taken']) == 1 else 'taken'} gevonden in je mail**")
-        gekozen = []
-        for i, t in enumerate(v["taken"]):
-            extra = [f"vóór {_wanneer(t['deadline'])}"] if t["deadline"] else []
-            extra.append(f"van {t['bron']['van']}")
-            label = (f"**{t['titel']}**" if t["prioriteit"] == "hoog" else t["titel"]) + f"  \n:gray[{' · '.join(extra)}]"
-            if st.checkbox(label, value=True, key=f"mailtaak_{i}", help=t["waarom"]):
-                gekozen.append(t)
-        plannen = st.toggle("Meteen inplannen in mijn agenda", value=True, key="mailtaken_plannen",
-                            help="In vrije tijd binnen je planuren, vóór de deadline.")
+        st.markdown(f"**Uit je mail: {' en '.join(delen)}**")
+        st.caption("Vink aan wat erbij moet. Spam en reclame zijn overgeslagen.")
+        gekozen_afspraken, gekozen_taken = [], []
+        for i, a in enumerate(afspraken):
+            wanneer = _wanneer(a["datum"]) + (f" {a['begin']}" if a.get("begin") else "")
+            extra = [wanneer] + ([a["locatie"]] if a.get("locatie") else []) + [f"van {a['bron']['van']}"]
+            if st.checkbox(f":material/event: {a['titel']}  \n:gray[{' · '.join(extra)}]", value=True,
+                           key=f"{plek}_mailafspraak_{i}", help=a.get("waarom")):
+                gekozen_afspraken.append(a)
+        for i, t in enumerate(taken):
+            extra = ([f"vóór {_wanneer(t['deadline'])}"] if t["deadline"] else []) + [f"van {t['bron']['van']}"]
+            titel = f"**{t['titel']}**" if t["prioriteit"] == "hoog" else t["titel"]
+            if st.checkbox(f":material/check_circle: {titel}  \n:gray[{' · '.join(extra)}]", value=True,
+                           key=f"{plek}_mailtaak_{i}", help=t.get("waarom")):
+                gekozen_taken.append(t)
+        plannen = st.toggle("Taken meteen inplannen in mijn agenda", value=True, key=f"{plek}_mail_plannen",
+                            help="In vrije tijd binnen je planuren, vóór de deadline.") if taken else False
         kol1, kol2 = st.columns(2)
-        if kol1.button("Toevoegen", type="primary", width="stretch", disabled=not gekozen, key="mailtaken_toe"):
-            r = mailtaken.toevoegen(gekozen, v["uids"], plannen)
-            st.session_state.pop("mail_voorstel")
-            st.toast(f"{r['taken']} {'taak' if r['taken'] == 1 else 'taken'} toegevoegd"
-                     + (f", {r['blokken']} {'blok' if r['blokken'] == 1 else 'blokken'} ingepland." if r["blokken"] else "."),
-                     icon="✅")
+        if kol1.button("Toevoegen", type="primary", width="stretch", key=f"{plek}_mail_toe",
+                       disabled=not (gekozen_taken or gekozen_afspraken)):
+            r = mailtaken.verwerken(gekozen_taken, gekozen_afspraken, plannen)
+            stukken = []
+            if r["afspraken"]:
+                stukken.append(f"{r['afspraken']} in je agenda")
+            if r["taken"]:
+                stukken.append(f"{r['taken']} op je takenlijst")
+            if r["blokken"]:
+                stukken.append(f"{r['blokken']} {'blok' if r['blokken'] == 1 else 'blokken'} ingepland")
+            st.toast("Gedaan: " + ", ".join(stukken) + ".", icon=":material/check:")
             st.rerun()
-        if kol2.button("Niets toevoegen", width="stretch", key="mailtaken_niets"):
-            opslag.mail_gezien_bewaren(v["uids"])
-            st.session_state.pop("mail_voorstel")
+        if kol2.button("Niet nodig", width="stretch", key=f"{plek}_mail_niet"):
+            mailtaken.verwerken([], [], False)
             st.rerun()
+
+
+def mail_voorstel(plek: str) -> None:
+    """Toont het voorstel; zolang de assistent op de achtergrond nakijkt, kijkt dit stukje af en toe of het klaar is."""
+    bezig = mailtaken.wachtend().get("bezig", False)
+
+    def stukje() -> None:
+        opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
+        mail_voorstel_inhoud(plek)
+        if bezig and not mailtaken.wachtend().get("bezig"):
+            st.rerun()  # klaar: één keer de hele pagina, zodat het voorstel niet meer ververst hoeft te worden
+
+    st.fragment(stukje, run_every=15 if bezig else None)()
 
 
 def mail_nakijken() -> None:
+    """Meteen nakijken, als de gebruiker erom vraagt."""
     try:
-        v = werk_scherm.met_claude("Je mail nakijken op taken...", mailtaken.voorstellen)
+        v = werk_scherm.met_claude("Je mail nakijken op taken en afspraken...", mailtaken.nu_nakijken)
     except Exception:
         st.error("Je mailbox is nu niet bereikbaar. Probeer het zo opnieuw.")
         return
     if v is not None:
-        st.session_state.mail_voorstel = v
+        st.session_state.mail_net_nagekeken = True
 
 
 def takenlijst() -> None:
@@ -794,11 +823,12 @@ def takenlijst() -> None:
                     st.rerun()
         if mail.gekoppeld() and "Mail" not in onderdelen_uit():
             if st.button("Uit mijn mail", icon=":material/mark_email_read:",
-                         help="De assistent leest je nieuwe mail en stelt taken voor. Jij kiest wat erop komt."):
+                         help="De assistent leest je nieuwe mail en stelt taken en afspraken voor. Jij kiest wat "
+                              "erbij komt. Dit gebeurt ook vanzelf, elke paar uur."):
                 mail_nakijken()
         with st.popover("Inplannen", icon=":material/auto_awesome:", help="Plan mijn taken in"):
             taken_inplannen()
-    mail_taken_voorstel()
+    mail_voorstel("taken")
 
     taken = opslag.open_taken()
     if not taken:
@@ -1275,6 +1305,8 @@ def vandaag_overzicht() -> None:
                 unsafe_allow_html=True)
     if keuze["ochtend"]:
         ochtendoverzicht(nu, keuze)
+    if mail.gekoppeld() and "Mail" not in onderdelen_uit():
+        mail_voorstel("vandaag")
     if keuze["startpunt"]:
         startpunt()
     if keuze["afspraken"]:
@@ -1328,6 +1360,10 @@ def ochtend_tekst(nu: datetime) -> list[str]:
     if taken:
         zinnen.append(f"{len(taken)} {'taak moet' if len(taken) == 1 else 'taken moeten'} vandaag af: "
                       f"{', '.join(t['titel'] for t in taken[:3])}.")
+    v = mailtaken.wachtend()
+    if n := len(v.get("taken", [])) + len(v.get("afspraken", [])):
+        zinnen.append(f"In je mail staan {n} nieuwe dingen voor je agenda of takenlijst; kijk of ze erbij moeten."
+                      if n > 1 else "In je mail staat iets nieuws voor je agenda of takenlijst; kijk of het erbij moet.")
     if "Budget" not in onderdelen_uit() and samen.beschikbaar():
         try:
             if b := budget.kort():
@@ -1369,11 +1405,11 @@ def ochtendoverzicht(nu: datetime, keuze: dict) -> None:
                     alleen_voorlezen=True,
                     automatisch=bool(gevraagd), gevoel="blij")
         if mail.gekoppeld() and "Mail" not in onderdelen_uit():
-            if st.button("Taken uit mijn mail halen", key="ochtend_mail", icon=":material/mark_email_read:"):
+            v = mailtaken.wachtend()
+            if not (v.get("taken") or v.get("afspraken")) and st.button(
+                    "Mail nakijken op taken en afspraken", key="ochtend_mail", icon=":material/mark_email_read:"):
                 mail_nakijken()
-                if st.session_state.get("mail_voorstel"):
-                    st.session_state.agenda_deel = "Taken"
-                    ga_naar("agenda")
+                st.rerun()
         if st.button(f"Plan mijn dag met {avatar.aanspreken(mijn_avatar())}", key="ochtend_plan",
                      icon=":material/auto_awesome:"):
             vraag_assistent("Kijk naar mijn dag (agenda, taken, weer) en stel een strakke planning voor vandaag voor, "
@@ -1967,6 +2003,13 @@ def mail_instellen() -> None:
                 return
             opslag.instellingen_bijwerken(mail=nieuw)
             st.success("Je mail is gekoppeld.")
+    if mail.gekoppeld():
+        aan = opslag.instellingen().get("mail_nakijken", True)
+        if st.toggle("Mail vanzelf nakijken op taken en afspraken", value=aan, key="mail_nakijken_aan",
+                     help="Hooguit elke twee uur, zolang de app open is. Spam en reclame tellen niet mee. "
+                          "Je krijgt een voorstel; er komt niets bij zonder dat jij het aanvinkt.") != aan:
+            opslag.instellingen_bijwerken(mail_nakijken=not aan)
+            st.rerun()
     st.caption("Outlook en Hotmail laten dit soort koppelingen niet meer toe. Stuur je Outlook-mail eventueel door "
                "naar een iCloud- of Gmail-adres.")
 
@@ -2022,12 +2065,12 @@ def mail_tabblad() -> None:
         vraag_assistent("Loop mijn ongelezen mails na. Beantwoord namens mij wat je volgens mijn instelling mag "
                         "beantwoorden, zet de rest klaar als concept, zet afspraken en taken in mijn agenda en vertel "
                         "kort wat je hebt gedaan en wat ik zelf moet beslissen.", label="Inbox afhandelen")
-    if st.button("Maak taken van mijn mail", width="stretch", icon=":material/checklist:",
-                 help="De assistent stelt taken voor; jij kiest wat op je lijst komt en ze worden ingepland."):
+    if st.button("Taken en afspraken uit mijn mail", width="stretch", icon=":material/checklist:",
+                 help="De assistent stelt taken en afspraken voor; jij kiest wat erbij komt. Dit gebeurt ook "
+                      "vanzelf, elke paar uur."):
         mail_nakijken()
-        if st.session_state.get("mail_voorstel"):
-            st.session_state.agenda_deel = "Taken"
-            ga_naar("agenda")
+        st.session_state.agenda_deel = "Taken"
+        ga_naar("agenda")
     if kol2.button("↻", width="stretch", help="Vernieuwen"):
         _mails.clear()
     try:
@@ -2875,6 +2918,12 @@ def main() -> None:
         return
     if sleutel := st.session_state.pop("apparaat_bewaar", None):
         onthouden.bewaren(sleutel)
+    # Elke paar uur vanzelf je mail nakijken op taken en afspraken (op de achtergrond, de app wacht er niet op).
+    if "Mail" not in onderdelen_uit():
+        try:
+            mailtaken.achtergrond(anthropic_sleutel())
+        except Exception:
+            pass
     if zin := st.session_state.pop("siri_zeg", None):
         if snel_uitgave(zin):
             pass

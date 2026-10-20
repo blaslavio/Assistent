@@ -155,6 +155,14 @@ def lezen(uid: str, max_tekens: int = 15000) -> dict:
         verbinding.logout()
 
 
+def _is_spam(bericht: email.message.Message) -> bool:
+    """Wat de mailserver zelf als spam heeft gemarkeerd (die hoort dan meestal al in de map Ongewenst)."""
+    vlag = _tekst(bericht.get("X-Spam-Flag")).strip().lower()
+    status = _tekst(bericht.get("X-Spam-Status")).strip().lower()
+    onderwerp = _tekst(bericht.get("Subject")).lower()
+    return vlag == "yes" or status.startswith("yes") or onderwerp.startswith(("[spam]", "***spam***", "spam:"))
+
+
 def lezen_veel(uids: list[str], max_tekens: int = 2500) -> list[dict]:
     """Meerdere mails in één verbinding (sneller), elk ingekort. Markeert niets als gelezen."""
     if not uids:
@@ -174,7 +182,9 @@ def lezen_veel(uids: list[str], max_tekens: int = 2500) -> list[dict]:
             bericht = email.message_from_bytes(deel[1])
             tekst = re.sub(r"\n\s*\n+", "\n", _platte_tekst(bericht))
             mails.append({**_kop(bericht, uid.group(1), "\\Seen" in info),
-                          "nieuwsbrief": bool(bericht.get("List-Unsubscribe")),
+                          "nieuwsbrief": bool(bericht.get("List-Unsubscribe")) or
+                                         _tekst(bericht.get("Precedence")).lower() in ("bulk", "list"),
+                          "spam": _is_spam(bericht),
                           "tekst": tekst[:max_tekens] + (" [...]" if len(tekst) > max_tekens else "")})
         return sorted(mails, key=lambda m: int(m["uid"]), reverse=True)
     finally:
