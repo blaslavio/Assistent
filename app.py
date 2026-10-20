@@ -733,24 +733,34 @@ def taak_rij(t: dict, gepland: str | None) -> None:
 def mail_voorstel_inhoud(plek: str) -> None:
     """Wat de assistent in je mail vond: taken en afspraken om aan te vinken. Niets komt erbij zonder jouw akkoord."""
     v = mailtaken.wachtend()
-    if v.get("bezig") and not (v.get("taken") or v.get("afspraken")):
-        if plek == "taken":
+    if v.get("bezig") and not (v.get("taken") or v.get("afspraken") or v.get("facturen")):
+        if plek in ("taken", "budget"):
             st.caption("De assistent kijkt je nieuwe mail na...")
         return
-    if not (v.get("taken") or v.get("afspraken")):
+    if not (v.get("taken") or v.get("afspraken") or v.get("facturen")):
         if st.session_state.pop("mail_net_nagekeken", False):
-            st.toast("Geen nieuwe taken of afspraken in je mail.", icon=":material/mark_email_read:")
+            st.toast("Niets nieuws voor je agenda, takenlijst of facturen in je mail.", icon=":material/mark_email_read:")
         return
-    taken, afspraken = v.get("taken", []), v.get("afspraken", [])
+    taken, afspraken, facturen = v.get("taken", []), v.get("afspraken", []), v.get("facturen", [])
     delen = []
     if taken:
         delen.append(f"{len(taken)} {'taak' if len(taken) == 1 else 'taken'}")
     if afspraken:
         delen.append(f"{len(afspraken)} {'afspraak' if len(afspraken) == 1 else 'afspraken'}")
+    if facturen:
+        delen.append(f"{len(facturen)} {'factuur' if len(facturen) == 1 else 'facturen'}")
     with st.container(border=True):
-        st.markdown(f"**Uit je mail: {' en '.join(delen)}**")
-        st.caption("Vink aan wat erbij moet. Spam en reclame zijn overgeslagen.")
-        gekozen_afspraken, gekozen_taken = [], []
+        st.markdown(f"**Uit je mail: {', '.join(delen[:-1]) + ' en ' + delen[-1] if len(delen) > 1 else delen[0]}**")
+        st.caption("Vink aan wat erbij moet.")
+        gekozen_afspraken, gekozen_taken, gekozen_facturen = [], [], []
+        for i, f in enumerate(facturen):
+            extra = ([f"betalen vóór {_wanneer(f['vervaldatum'])}"] if f["vervaldatum"] and f["soort"] == "uitgave"
+                     else [f"verwacht {_wanneer(f['vervaldatum'])}"] if f["vervaldatum"] else [])
+            extra += (["wordt afgeschreven"] if f["automatisch"] else []) + ([f["omschrijving"]] if f["omschrijving"] else [])
+            bedrag = f"€ {budget.euro(f['bedrag'])}" if f["soort"] == "uitgave" else f"+€ {budget.euro(f['bedrag'])}"
+            label = f":material/receipt_long: {f['van']} · {bedrag}" + (f"  \n:gray[{' · '.join(extra)}]" if extra else "")
+            if st.checkbox(label, value=True, key=f"{plek}_mailfactuur_{i}", help=f.get("waarom")):
+                gekozen_facturen.append(f)
         for i, a in enumerate(afspraken):
             wanneer = _wanneer(a["datum"]) + (f" {a['begin']}" if a.get("begin") else "")
             extra = [wanneer] + ([a["locatie"]] if a.get("locatie") else []) + [f"van {a['bron']['van']}"]
@@ -763,13 +773,18 @@ def mail_voorstel_inhoud(plek: str) -> None:
             if st.checkbox(f":material/check_circle: {titel}  \n:gray[{' · '.join(extra)}]", value=True,
                            key=f"{plek}_mailtaak_{i}", help=t.get("waarom")):
                 gekozen_taken.append(t)
+        herinneren = st.toggle("Betaalherinnering op mijn takenlijst", value=True, key=f"{plek}_mail_herinner",
+                               help="Voor facturen die je zelf moet betalen; niet bij automatische incasso.") \
+            if any(f["soort"] == "uitgave" and not f["automatisch"] for f in facturen) else False
         plannen = st.toggle("Taken meteen inplannen in mijn agenda", value=True, key=f"{plek}_mail_plannen",
-                            help="In vrije tijd binnen je planuren, vóór de deadline.") if taken else False
+                            help="In vrije tijd binnen je planuren, vóór de deadline.") if taken or herinneren else False
         kol1, kol2 = st.columns(2)
         if kol1.button("Toevoegen", type="primary", width="stretch", key=f"{plek}_mail_toe",
-                       disabled=not (gekozen_taken or gekozen_afspraken)):
-            r = mailtaken.verwerken(gekozen_taken, gekozen_afspraken, plannen)
+                       disabled=not (gekozen_taken or gekozen_afspraken or gekozen_facturen)):
+            r = mailtaken.verwerken(gekozen_taken, gekozen_afspraken, plannen, gekozen_facturen, herinneren)
             stukken = []
+            if r["facturen"]:
+                stukken.append(f"{r['facturen']} bij je facturen")
             if r["afspraken"]:
                 stukken.append(f"{r['afspraken']} in je agenda")
             if r["taken"]:
@@ -794,6 +809,20 @@ def mail_voorstel(plek: str) -> None:
             st.rerun()  # klaar: één keer de hele pagina, zodat het voorstel niet meer ververst hoeft te worden
 
     st.fragment(stukje, run_every=15 if bezig else None)()
+
+
+def mail_bij_budget() -> None:
+    """Knop en voorstel op de facturenpagina van Budget."""
+    if not mail.gekoppeld() or "Mail" in onderdelen_uit():
+        return
+    if st.button("Facturen uit mijn mail", icon=":material/mark_email_read:", key="budget_mail",
+                 help="De assistent leest je nieuwe mail en stelt facturen, taken en afspraken voor. Jij kiest wat "
+                      "erbij komt. Dit gebeurt ook vanzelf, elke paar uur."):
+        mail_nakijken()
+    mail_voorstel("budget")
+
+
+geld_scherm.mail_hulp = mail_bij_budget
 
 
 def mail_nakijken() -> None:
@@ -1360,10 +1389,16 @@ def ochtend_tekst(nu: datetime) -> list[str]:
     if taken:
         zinnen.append(f"{len(taken)} {'taak moet' if len(taken) == 1 else 'taken moeten'} vandaag af: "
                       f"{', '.join(t['titel'] for t in taken[:3])}.")
+    if "Budget" not in onderdelen_uit():
+        try:
+            if f := budget.facturen_kort():
+                zinnen.append(f)
+        except Exception:
+            pass
     v = mailtaken.wachtend()
-    if n := len(v.get("taken", [])) + len(v.get("afspraken", [])):
-        zinnen.append(f"In je mail staan {n} nieuwe dingen voor je agenda of takenlijst; kijk of ze erbij moeten."
-                      if n > 1 else "In je mail staat iets nieuws voor je agenda of takenlijst; kijk of het erbij moet.")
+    if n := len(v.get("taken", [])) + len(v.get("afspraken", [])) + len(v.get("facturen", [])):
+        zinnen.append(f"In je mail staan {n} nieuwe dingen voor je agenda, takenlijst of facturen; kijk of ze erbij moeten."
+                      if n > 1 else "In je mail staat iets nieuws voor je agenda, takenlijst of facturen; kijk of het erbij moet.")
     if "Budget" not in onderdelen_uit() and samen.beschikbaar():
         try:
             if b := budget.kort():
@@ -2005,7 +2040,7 @@ def mail_instellen() -> None:
             st.success("Je mail is gekoppeld.")
     if mail.gekoppeld():
         aan = opslag.instellingen().get("mail_nakijken", True)
-        if st.toggle("Mail vanzelf nakijken op taken en afspraken", value=aan, key="mail_nakijken_aan",
+        if st.toggle("Mail vanzelf nakijken op taken, afspraken en facturen", value=aan, key="mail_nakijken_aan",
                      help="Hooguit elke twee uur, zolang de app open is. Spam en reclame tellen niet mee. "
                           "Je krijgt een voorstel; er komt niets bij zonder dat jij het aanvinkt.") != aan:
             opslag.instellingen_bijwerken(mail_nakijken=not aan)
@@ -2196,6 +2231,29 @@ def voorpagina_instellingen() -> None:
         opslag.instellingen_bijwerken(onderdelen_uit=nieuw_uit)
         st.rerun()
     st.caption("Zet uit wat je niet gebruikt; de assistent kan het via het gesprek nog steeds voor je doen.")
+    st.markdown("**Bij de assistent**")
+    aan = opslag.instellingen().get("voorbeeldvragen", True)
+    if st.toggle("Voorbeeldvragen tonen", value=aan, key="vp_voorbeeldvragen") != aan:
+        opslag.instellingen_bijwerken(voorbeeldvragen=not aan)
+        st.rerun()
+
+
+# Wat een nieuwe gebruiker standaard aan heeft staan; de rest zet je zelf aan (bij het aanmelden of later).
+STANDAARD_AAN = ["Mail", "Budget", "Boodschappen", "Documenten"]
+
+
+@st.dialog("Welkom! Wat wil je gebruiken?")
+def voorkeuren_kiezen() -> None:
+    """Na het aanmelden: kies wat je gebruikt, dan blijft de app rustig. Later aan te passen in Instellingen."""
+    st.caption("Vandaag, Agenda, Taken en de assistent heb je altijd.")
+    gekozen = st.pills("Onderdelen", list(ONDERDELEN), selection_mode="multi", default=STANDAARD_AAN,
+                       label_visibility="collapsed", key="welkom_onderdelen")
+    voorbeelden = st.toggle("Voorbeeldvragen bij de assistent", value=True, key="welkom_voorbeelden")
+    if st.button("Klaar", type="primary", width="stretch"):
+        opslag.instellingen_bijwerken(onderdelen_uit=[o for o in ONDERDELEN if o not in (gekozen or [])],
+                                      voorbeeldvragen=voorbeelden)
+        st.rerun()
+    st.caption("Alles is later aan of uit te zetten bij Instellingen › Weergave.")
 
 
 def avatar_instellingen() -> None:
@@ -2604,9 +2662,10 @@ BEZIG = {
     "bronnen_zoeken": "Wetenschappelijke bronnen zoeken...", "bron_controleren": "Bron controleren...",
     "bron_opslaan": "Bron opslaan...", "oefening_vastleggen": "Score vastleggen...",
 }
-SUGGESTIES = ["Wat staat er vandaag op de planning?", "Welke mails vragen actie?",
-              "Stel een gezond weekmenu samen en zet de boodschappen op mijn lijst",
-              "Help me een nieuwe hobby of cursus te kiezen", "Wat is er dit weekend te doen bij mij in de buurt?"]
+# Korte knop -> de vraag die de assistent krijgt.
+SUGGESTIES = {"Mijn dag": "Wat staat er vandaag op de planning?", "Mail": "Welke mails vragen actie?",
+              "Weekmenu": "Stel een gezond weekmenu samen en zet de boodschappen op mijn lijst",
+              "Weekend": "Wat is er dit weekend te doen bij mij in de buurt?"}
 
 
 def vraag_assistent(vraag: str, label: str | None = None) -> None:
@@ -2630,10 +2689,12 @@ def gesprek() -> None:
     if melding := st.session_state.pop("stem_melding", None):
         st.caption(f"{melding}")
     if not st.session_state.chat:
-        st.caption("Typ je vraag onderaan, of tik op de microfoon en zeg het. Of kies:")
-        for i, suggestie in enumerate(SUGGESTIES):
-            if st.button(suggestie, key=f"suggestie_{i}"):
-                st.session_state.vooraf_vraag = suggestie
+        st.html('<p style="text-align:center;font-size:1.4rem;margin:12vh 0 1rem">Waarmee kan ik helpen?</p>')
+        if opslag.instellingen().get("voorbeeldvragen", True):
+            with st.container(horizontal=True, horizontal_alignment="center", gap="small"):
+                for i, (kort_, vraag_) in enumerate(SUGGESTIES.items()):
+                    if st.button(kort_, key=f"suggestie_{i}"):
+                        st.session_state.vooraf_vraag = vraag_
     gezicht = avatar.plaatje(mijn_avatar())
     for rol, tekst in st.session_state.chat:
         st.chat_message(rol, avatar=gezicht if rol == "assistant" else None).markdown(tekst)
@@ -2943,9 +3004,7 @@ def main() -> None:
                    "Was jij dat niet? Kies een nieuw wachtwoord en zet tweestapsverificatie aan bij "
                    "Instellingen › Account › Beveiliging.", icon="⚠️")
     if st.session_state.pop("welkom", False):
-        st.success(f"Welkom, {samen_scherm.ik().get('weergavenaam') or ''}! Je agenda, taken, Samen en de marktplaats "
-                   "werken meteen. Wil je ook met de assistent praten? Zet dan je eigen Anthropic-sleutel bij "
-                   "Instellingen › Assistent.")
+        voorkeuren_kiezen()
 
     # Het invoerveld onderaan: "morgen 9u tandarts" komt meteen in de agenda (ook zonder Claude),
     # al het andere gaat naar het gesprek met de assistent.

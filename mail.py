@@ -163,6 +163,28 @@ def _is_spam(bericht: email.message.Message) -> bool:
     return vlag == "yes" or status.startswith("yes") or onderwerp.startswith(("[spam]", "***spam***", "spam:"))
 
 
+BETAALWOORDEN = ("betaal", "betalen", "pay", "ideal", "tikkie", "wero", "voldoen")
+
+
+def betaallinks(bericht: email.message.Message) -> list[str]:
+    """Links in een mail die om betalen gaan (iDEAL, Tikkie, 'Nu betalen'), hooguit drie, alleen https."""
+    gevonden = []
+    for deel in bericht.walk() if bericht.is_multipart() else [bericht]:
+        if deel.get_content_type() not in ("text/html", "text/plain") or deel.get_filename():
+            continue
+        try:
+            inhoud = deel.get_payload(decode=True).decode(deel.get_content_charset() or "utf-8", errors="replace")
+        except Exception:
+            continue
+        for href, tekst in re.findall(r'(?is)<a[^>]+href=["\'](https://[^"\']+)["\'][^>]*>(.*?)</a>', inhoud):
+            if any(w in f"{href} {re.sub(r'<[^>]+>', '', tekst)}".lower() for w in BETAALWOORDEN):
+                gevonden.append(unescape(href))
+        for href in re.findall(r"https://[^\s<>\"')]+", re.sub(r"(?is)<[^>]+>", " ", inhoud)):
+            if any(w in href.lower() for w in BETAALWOORDEN):
+                gevonden.append(unescape(href).rstrip(".,"))
+    return list(dict.fromkeys(gevonden))[:3]
+
+
 def lezen_veel(uids: list[str], max_tekens: int = 2500) -> list[dict]:
     """Meerdere mails in één verbinding (sneller), elk ingekort. Markeert niets als gelezen."""
     if not uids:
@@ -184,7 +206,7 @@ def lezen_veel(uids: list[str], max_tekens: int = 2500) -> list[dict]:
             mails.append({**_kop(bericht, uid.group(1), "\\Seen" in info),
                           "nieuwsbrief": bool(bericht.get("List-Unsubscribe")) or
                                          _tekst(bericht.get("Precedence")).lower() in ("bulk", "list"),
-                          "spam": _is_spam(bericht),
+                          "spam": _is_spam(bericht), "betaallinks": betaallinks(bericht),
                           "tekst": tekst[:max_tekens] + (" [...]" if len(tekst) > max_tekens else "")})
         return sorted(mails, key=lambda m: int(m["uid"]), reverse=True)
     finally:

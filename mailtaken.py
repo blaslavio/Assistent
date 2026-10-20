@@ -1,8 +1,9 @@
-"""Je mail nakijken op taken en afspraken, ook als je zelf niet in je mail kijkt.
+"""Je mail nakijken op taken, afspraken en facturen, ook als je zelf niet in je mail kijkt.
 
 Zolang de app open is, kijkt de assistent hooguit elke twee uur op de achtergrond je nieuwe mail na (en meteen als
 je erom vraagt). Spam, phishing, reclame en nieuwsbrieven tellen niet mee. Wat hij vindt, wordt een voorstel op
-Vandaag en bij Taken: jij vinkt aan wat in je agenda of op je takenlijst komt. Er komt niets bij zonder jouw akkoord.
+Vandaag, bij Taken en bij Budget: jij vinkt aan wat in je agenda, op je takenlijst of bij je facturen komt.
+Er komt niets bij zonder jouw akkoord.
 
 Het voorstel staat in het geheugen van de server (per account); pas als je iets kiest, worden de nagekeken mails
 onthouden (opslag.mail_gezien), zodat dezelfde mail niet nog eens wordt voorgesteld.
@@ -10,12 +11,14 @@ onthouden (opslag.mail_gezien), zodat dezelfde mail niet nog eens wordt voorgest
 
 import contextvars
 import hashlib
+import re
 import threading
 import time
 from datetime import date, datetime, timedelta
 
 import anthropic
 
+import budget
 import inplannen
 import mail
 import opslag
@@ -64,10 +67,10 @@ def nieuwe_mails(dagen: int = 10, behalve: set[str] | None = None) -> list[dict]
 
 
 def voorstellen(client, dagen: int = 10, behalve: set[str] | None = None) -> dict:
-    """Leest nieuwe mails en geeft {mails, uids, taken, afspraken}. Slaat nog niets op."""
+    """Leest nieuwe mails en geeft {mails, uids, taken, afspraken, facturen, spam}. Slaat nog niets op."""
     koppen = nieuwe_mails(dagen, behalve)
     if not koppen:
-        return {"mails": 0, "uids": [], "taken": [], "afspraken": []}
+        return {"mails": 0, "uids": [], "taken": [], "afspraken": [], "facturen": [], "spam": 0}
     alle = mail.lezen_veel([m["uid"] for m in koppen])
     mails = [m for m in alle if not m["spam"]]
     for m in mails:
@@ -78,7 +81,7 @@ def voorstellen(client, dagen: int = 10, behalve: set[str] | None = None) -> dic
     bestaande_afspraken = [f"{a['titel']} ({a['start']})" for a in
                            opslag.afspraken_tussen(vandaag.isoformat(), (vandaag + timedelta(days=120)).isoformat())]
     gevonden = slim.mail_nakijken(client, mails, vandaag.isoformat(), bestaande_taken, bestaande_afspraken) \
-        if mails else {"taken": [], "afspraken": []}
+        if mails else {"taken": [], "afspraken": [], "facturen": []}
     per_uid = {m["uid"]: m for m in mails}
     taken = []
     for t in gevonden["taken"]:
@@ -96,8 +99,20 @@ def voorstellen(client, dagen: int = 10, behalve: set[str] | None = None) -> dic
         a["datum"] = dag
         a["bron"] = {"soort": "mail", "uid": m["uid"], "van": m["van"], "onderwerp": m["onderwerp"]}
         afspraken.append(a)
+    facturen = []
+    for f in gevonden.get("facturen", []):
+        if not (m := per_uid.get(f["uid"])) or not f["van"].strip() or not f["bedrag"] or f["bedrag"] <= 0:
+            continue
+        f["vervaldatum"] = _datum(f["vervaldatum"])
+        # Alleen een link die echt in de mail staat; nooit een verzonnen of aangepaste.
+        f["betaallink"] = f.get("betaallink", "") if f.get("betaallink") in m.get("betaallinks", []) else ""
+        iban = re.sub(r"\s", "", f.get("iban", "")).upper()
+        f["iban"] = iban if re.fullmatch(r"[A-Z]{2}\d{2}[A-Z0-9]{10,30}", iban) else ""
+        f["kenmerk"] = f.get("kenmerk", "").strip()[:40]
+        f["bron"] = {"soort": "mail", "uid": m["uid"], "van": m["van"], "onderwerp": m["onderwerp"]}
+        facturen.append(f)
     return {"mails": len(alle), "uids": [m["uid"] for m in alle], "taken": taken, "afspraken": afspraken,
-            "spam": len(alle) - len(mails)}
+            "facturen": facturen, "spam": len(alle) - len(mails)}
 
 
 def _datum(tekst: str) -> str:
@@ -119,6 +134,7 @@ def _samenvoegen(sleutel: str, nieuw: dict) -> None:
         oud = _wachtend.get(sleutel, {})
         _wachtend[sleutel] = {
             "taken": oud.get("taken", []) + nieuw["taken"], "afspraken": oud.get("afspraken", []) + nieuw["afspraken"],
+            "facturen": oud.get("facturen", []) + nieuw.get("facturen", []),
             "uids": list(dict.fromkeys(oud.get("uids", []) + nieuw["uids"])),
             "mails": oud.get("mails", 0) + nieuw["mails"], "spam": oud.get("spam", 0) + nieuw.get("spam", 0),
             "tijd": time.time(), "bezig": False, "fout": None, "gezien": False}
@@ -158,9 +174,23 @@ def achtergrond(api_sleutel: str) -> None:
     threading.Thread(target=contextvars.copy_context().run, args=(werk,), daemon=True).start()
 
 
-def verwerken(taken: list[dict], afspraken: list[dict], inplannen_ook: bool = True) -> dict:
-    """Zet de gekozen taken en afspraken erin, onthoudt de nagekeken mails en leegt het voorstel."""
+def verwerken(taken: list[dict], afspraken: list[dict], inplannen_ook: bool = True,
+              facturen: list[dict] | None = None, betaalherinnering: bool = True) -> dict:
+    """Zet de gekozen taken, afspraken en facturen erin, onthoudt de nagekeken mails en leegt het voorstel.
+
+    Bij een factuur die je zelf moet betalen (geen incasso) komt er met betaalherinnering=True een taak bij.
+    """
     stand = wachtend()
+    taken = list(taken)
+    for f in facturen or []:
+        budget.factuur_toevoegen(f["van"], f["bedrag"], f.get("vervaldatum") or None, f.get("omschrijving", ""),
+                                 f.get("soort", "uitgave"), f.get("automatisch", False), f.get("categorie", ""),
+                                 f.get("bron"), iban=f.get("iban", ""), kenmerk=f.get("kenmerk", ""),
+                                 betaallink=f.get("betaallink", ""))
+        if betaalherinnering and f.get("soort", "uitgave") == "uitgave" and not f.get("automatisch"):
+            taken.append({"titel": f"{f['van']} betalen (€{budget.euro(f['bedrag'])})",
+                          "deadline": f.get("vervaldatum") or "", "minuten": 5, "prioriteit": "hoog",
+                          "waarom": f.get("omschrijving") or f.get("waarom", ""), "bron": f.get("bron")})
     nieuw = [opslag.taak_toevoegen(t["titel"].strip(), t["deadline"] or None, t.get("minuten") or None,
                                    t.get("prioriteit", ""), t.get("waarom", ""), t.get("bron")) for t in taken]
     gezet = 0
@@ -182,5 +212,5 @@ def verwerken(taken: list[dict], afspraken: list[dict], inplannen_ook: bool = Tr
         blokken = inplannen.vastleggen([r for r in inplannen.voorstel(14) if r["taak_id"] in ids])
     with _slot:
         _wachtend[_sleutel()] = {"tijd": stand.get("tijd", time.time()), "bezig": False}
-    return {"taken": len(nieuw), "afspraken": gezet, "blokken": blokken}
+    return {"taken": len(nieuw), "afspraken": gezet, "facturen": len(facturen or []), "blokken": blokken}
 

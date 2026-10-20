@@ -1,6 +1,7 @@
 """Schermen voor geld: Budget (uitgaven, budgetten, vaste lasten, spaardoelen) en Beleggen (alleen meekijken)."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, time as kloktijd, timedelta
+from urllib.parse import urlparse
 
 import pandas as pd
 import streamlit as st
@@ -20,6 +21,10 @@ BANKEN = {
     "bunq": "In de bunq-app: je rekening › *Afschriften* › *Exporteren* › kies **CSV**.",
     "Andere bank": "Zoek in internetbankieren naar *Transacties downloaden* of *Exporteren* en kies **CSV**.",
 }
+
+
+# Wordt door app.py gezet: toont de knop "Facturen uit mijn mail" en het voorstel van de assistent.
+mail_hulp = None
 
 
 def euro(bedrag: float | None) -> str:
@@ -94,6 +99,8 @@ def budget_pagina() -> None:
         with rechts.container(border=True):
             st.markdown("**Met de hand**")
             los_toevoegen()
+        if mail_hulp:
+            mail_hulp()
         return
 
     maanden = _maanden()
@@ -112,10 +119,9 @@ def budget_pagina() -> None:
         st.metric("Vrij te besteden", euro(o["over"]), f"{euro(o['per_dag'])} per dag", delta_color="off",
                   delta_arrow="off", help="Wat er binnenkwam, min je uitgaven en de vaste lasten die deze maand nog "
                                           "komen. Zonder inkomsten: wat er over is van je budgetten.")
-    st.caption(f"Uitgegeven {euro(o['uitgegeven'])} · binnengekomen {euro(o['inkomsten'])}"
-               + (f" · gespaard {euro(o['gespaard'])}" if o["gespaard"] else ""))
-    if o["vaste_lasten_nog"]:
-        st.caption("Komt nog: " + ", ".join(f"{v['naam']} {euro(v['bedrag'])}" for v in o["vaste_lasten_nog"]))
+    st.caption(f"Uit {euro(o['uitgegeven'])} · in {euro(o['inkomsten'])}"
+               + (f" · gespaard {euro(o['gespaard'])}" if o["gespaard"] else "")
+               + (f" · komt nog {euro(o['nog_vast'])}" if o["nog_vast"] else ""))
 
     for c in o["per_categorie"]:
         if c["budget"]:
@@ -127,20 +133,32 @@ def budget_pagina() -> None:
         st.caption("Zonder budget: " + " · ".join(f"{c['categorie'].lower()} {euro(c['uitgegeven'])}" for c in zonder))
 
     st.write("")
-    deel = st.segmented_control("Onderdeel", ["Regels", "Budgetten", "Vaste lasten", "Sparen", "Verloop"],
-                                default="Regels", key="budget_deel", label_visibility="collapsed") or "Regels"
-    if deel == "Regels":
+    open_ = budget.facturen(alleen_open=True)
+    deel = st.segmented_control("Onderdeel", ["Uitgaven", "Facturen", "Verwacht", "Plannen"],
+                                default="Uitgaven", key="budget_deel", label_visibility="collapsed",
+                                format_func=lambda d: f"Facturen ({len(open_)})" if d == "Facturen" and open_ else d) \
+        or "Uitgaven"
+    if deel == "Uitgaven":
         regels_bewerken(maand)
-    elif deel == "Budgetten":
-        budgetten_instellen()
-    elif deel == "Vaste lasten":
-        vaste_lasten()
-    elif deel == "Sparen":
-        spaardoelen()
+        with st.expander("Afgelopen maanden"):
+            verloop()
+    elif deel == "Facturen":
+        facturen_overzicht()
+    elif deel == "Verwacht":
+        verwacht_overzicht()
     else:
-        verloop()
-    st.write("")
-    if st.button("Vraag de assistent om tips voor deze maand", icon=":material/chat_bubble:"):
+        with st.expander("Budget per categorie"):
+            budgetten_instellen()
+        with st.expander("Vaste lasten en inkomsten"):
+            st.markdown("**Inkomsten**")
+            vaste_inkomsten()
+            st.markdown("**Lasten**")
+            vaste_lasten()
+        with st.expander("Saldo nu"):
+            saldo_instellen()
+        with st.expander("Spaardoelen"):
+            spaardoelen()
+    if st.button("Tips van de assistent", icon=":material/chat_bubble:", type="tertiary"):
         vraag_assistent(f"Bekijk mijn budget van {maandnaam(maand)} en geef me drie concrete tips om geld over te "
                         f"houden, zonder te betuttelen.", "Tips voor mijn budget")
 
@@ -155,8 +173,7 @@ def regels_bewerken(maand: str) -> None:
                            "Wie of wat": r["tegenpartij"] or r["omschrijving"], "Bedrag": euro(r["bedrag"]),
                            "Categorie": r["categorie"] or "Overig", "Omschrijving": r["omschrijving"]}
                           for r in regels]).set_index("id")
-    st.caption("Klopt een categorie niet? Kies de goede: de app onthoudt het voor die winkel of naam. "
-               "Een regel weghalen: vink hem links aan en druk op het prullenbakje.")
+    st.caption("Categorie aanpassen? De app onthoudt het voor die naam.")
     nieuw = st.data_editor(
         tabel, key=f"budget_tabel_{maand}", hide_index=True, num_rows="delete", width="stretch",
         disabled=["Datum", "Wie of wat", "Bedrag", "Omschrijving"],
@@ -193,7 +210,6 @@ def _csv(jaar: str) -> str:
 
 def budgetten_instellen() -> None:
     b = budget.instellingen()["budgetten"]
-    st.caption("Een budget per maand per categorie. Laat 0 staan als je er geen wilt.")
     with st.form("budgetten", border=False):
         bedragen = {}
         kolommen = st.columns(2)
@@ -208,10 +224,181 @@ def budgetten_instellen() -> None:
             st.rerun()
 
 
+def facturen_overzicht() -> None:
+    """Facturen uit je mail of met de hand: wat nog betaald moet worden en wat je nog krijgt."""
+    if mail_hulp:
+        mail_hulp()
+    if n := budget.afstemmen():
+        st.toast(f"{n} {'factuur' if n == 1 else 'facturen'} op betaald gezet (gevonden op je afschrift).",
+                 icon=":material/check:")
+    alle = budget.facturen()
+    vandaag = date.today().isoformat()
+    open_ = [f for f in alle if f["status"] == "open"]
+    if not alle:
+        st.caption("Nog geen facturen.")
+    for f in open_:
+        factuur_rij(f, vandaag)
+    with st.popover("Toevoegen", icon=":material/add:"):
+        with st.form("factuur_nieuw", clear_on_submit=True, border=False):
+            soort = st.segmented_control("Soort", ["Betalen", "Krijgen"], default="Betalen",
+                                         label_visibility="collapsed")
+            van = st.text_input("Van wie?")
+            bedrag = st.number_input("Bedrag", min_value=0.0, step=1.0, format="%.2f")
+            vervaldatum = st.date_input("Uiterlijk op", value=None, format="DD-MM-YYYY")
+            automatisch = st.toggle("Automatische incasso")
+            if st.form_submit_button("Toevoegen", type="primary") and van.strip() and bedrag > 0:
+                budget.factuur_toevoegen(van, bedrag, vervaldatum.isoformat() if vervaldatum else None, "",
+                                         "inkomst" if soort == "Krijgen" else "uitgave", automatisch)
+                st.rerun()
+    betaald = [f for f in alle if f["status"] != "open"]
+    if betaald:
+        with st.expander(f"Betaald ({len(betaald)})"):
+            for f in sorted(betaald, key=lambda f: f.get("betaald_op") or "", reverse=True)[:50]:
+                rij = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
+                rij.markdown(f"{f['van']} · {euro(f['bedrag'])}", width="content")
+                if rij.button("", icon=":material/undo:", key=f"fact_open_{f['id']}", type="tertiary",
+                              help="Toch nog niet betaald"):
+                    budget.factuur_bijwerken(f["id"], status="open")
+                    st.rerun()
+
+
+def factuur_rij(f: dict, vandaag: str) -> None:
+    """Eén regel per factuur; alles wat je ermee kunt, zit achter één knop."""
+    uitgave = f["soort"] == "uitgave"
+    if f.get("vervaldatum") and f["vervaldatum"] < vandaag:
+        wanneer = ":red[te laat]"
+    elif f.get("vervaldatum"):
+        wanneer = f"{date.fromisoformat(f['vervaldatum']):%d-%m}"
+    else:
+        wanneer = ""
+    if f["automatisch"]:
+        wanneer = (wanneer + " · " if wanneer else "") + "incasso"
+    if h := f.get("herinnering"):
+        wanneer = (wanneer + " · " if wanneer else "") + f"herinnering {datetime.fromisoformat(h['wanneer']):%d-%m}"
+    rij = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
+    bedrag = euro(f["bedrag"]) if uitgave else f":green[+{euro(f['bedrag'])}]"
+    rij.markdown(f"**{f['van']}** {bedrag}" + (f"  \n:gray[{wanneer}]" if wanneer else ""), width="content")
+    if uitgave and not f["automatisch"]:
+        with rij.popover("Betalen", width="content"):
+            betalen(f)
+    else:
+        with rij.popover("", icon=":material/more_horiz:", width="content"):
+            if st.button("Ontvangen" if not uitgave else "Afgeschreven", key=f"fact_betaald_{f['id']}",
+                         icon=":material/check:", width="stretch"):
+                budget.factuur_bijwerken(f["id"], status="betaald")
+                st.rerun()
+            if st.button("Weghalen", key=f"fact_weg_{f['id']}", type="tertiary", icon=":material/delete:"):
+                budget.factuur_weg(f["id"])
+                st.rerun()
+
+
+def betalen(f: dict) -> None:
+    """Betalen doe je zelf, in je eigen bank-app; de app geeft je wat je nodig hebt."""
+    if f.get("betaallink"):
+        host = urlparse(f["betaallink"]).hostname or ""
+        st.link_button(f"Betalen via {host}", f["betaallink"], icon=":material/open_in_new:", width="stretch")
+        st.caption("Link uit de mail. Verwacht je deze rekening niet? Niet klikken.")
+    if f.get("iban"):
+        st.code(f["iban"], language=None)
+        st.code(f"{f['bedrag']:.2f}".replace(".", ","), language=None)
+        if f.get("kenmerk"):
+            st.code(f["kenmerk"], language=None)
+        st.caption("Rekening, bedrag" + (" en kenmerk" if f.get("kenmerk") else "") + ". Tik om te kopiëren.")
+    elif not f.get("betaallink"):
+        with st.form(f"fact_iban_{f['id']}", border=False):
+            iban = st.text_input("Rekeningnummer (IBAN)")
+            kenmerk = st.text_input("Kenmerk (optioneel)")
+            if st.form_submit_button("Bewaren") and iban.strip():
+                budget.factuur_bijwerken(f["id"], iban=iban.replace(" ", "").upper(), kenmerk=kenmerk.strip())
+                st.rerun()
+    if st.button("Ik heb betaald", key=f"fact_betaald_{f['id']}", icon=":material/check:", type="primary",
+                 width="stretch"):
+        budget.factuur_bijwerken(f["id"], status="betaald")
+        st.rerun()
+    if st.toggle("Later herinneren", key=f"herinner_aan_{f['id']}"):
+        later_herinneren(f)
+    if st.button("Weghalen", key=f"fact_weg_{f['id']}", type="tertiary", icon=":material/delete:"):
+        budget.factuur_weg(f["id"])
+        st.rerun()
+
+
+def later_herinneren(f: dict) -> None:
+    vandaag = date.today()
+    keuzes = {"Morgen": vandaag + timedelta(days=1), "Over 3 dagen": vandaag + timedelta(days=3),
+              "Volgende week": vandaag + timedelta(days=7)}
+    if f.get("vervaldatum") and f["vervaldatum"] > (vandaag + timedelta(days=2)).isoformat():
+        keuzes["2 dagen ervoor"] = date.fromisoformat(f["vervaldatum"]) - timedelta(days=2)
+    keuze = st.pills("Wanneer", list(keuzes), default="Morgen", key=f"herinner_keuze_{f['id']}",
+                     label_visibility="collapsed") or "Morgen"
+    tijd = st.time_input("Hoe laat", value=kloktijd(9, 0), key=f"herinner_tijd_{f['id']}", step=900)
+    if st.button("Herinner me", key=f"herinner_{f['id']}", width="stretch"):
+        dag = keuzes[keuze]
+        budget.herinneren(f["id"], datetime.combine(dag, tijd).isoformat(timespec="minutes"))
+        st.toast(f"Herinnering op {dag:%d-%m} om {tijd:%H:%M}.", icon=":material/alarm:")
+        st.rerun()
+
+
+def verwacht_overzicht() -> None:
+    """Wat er de komende tijd binnenkomt en afgaat, en (als je je saldo invult) hoe je saldo verloopt."""
+    dagen = st.segmented_control("Periode", [14, 30, 60, 90], default=30, key="verwacht_dagen",
+                                 format_func=lambda d: f"{d} dagen", label_visibility="collapsed") or 30
+    v = budget.verwacht(dagen)
+    st.caption(f"In :green[+{euro(v['in'])}] · uit {euro(-v['uit']) if v['uit'] else euro(0)}")
+    if "saldo" in v:
+        s_ = v["saldo"]
+        if s_["laagste"] < 0:
+            st.warning(f"Rond {date.fromisoformat(s_['laagste_op']):%d-%m} sta je rood ({euro(s_['laagste'])}).",
+                       icon=":material/warning:")
+        if len(v["posten"]) > 1:
+            punten = [{"Datum": pd.Timestamp(v["van"]), "Saldo": s_["start"]}] + \
+                     [{"Datum": pd.Timestamp(p["datum"]), "Saldo": p["saldo"]} for p in v["posten"]]
+            st.line_chart(pd.DataFrame(punten).groupby("Datum", as_index=False).last(), x="Datum", y="Saldo",
+                          height=160, color="#4f46e5", x_label="", y_label="")
+    elif v["posten"]:
+        st.caption("Vul bij Plannen je saldo in, dan zie je hoe het verloopt.")
+    if not v["posten"]:
+        st.caption("Nog niets verwacht. Zet je vaste lasten en inkomsten bij Plannen.")
+    regels = []
+    for p in v["posten"]:
+        bedrag = f":green[+{euro(p['bedrag'])}]" if p["bedrag"] > 0 else euro(p["bedrag"])
+        dag = ":red[te laat]" if p["te_laat"] else f"{date.fromisoformat(p['datum']):%d-%m}"
+        regels.append(f"{dag} · {p['naam']} {bedrag}")
+    if regels:
+        st.markdown("  \n".join(regels))
+
+
+def saldo_instellen() -> None:
+    saldo = budget.instellingen()["saldo"]
+    with st.container(horizontal=True, vertical_alignment="bottom"):
+        nieuw = st.number_input("Op je rekening", value=saldo["bedrag"] if saldo else None, step=10.0, format="%.2f",
+                                placeholder="Optioneel")
+        if st.button("Opslaan", key="saldo_opslaan"):
+            budget.saldo_instellen(nieuw)
+            st.rerun()
+    if saldo:
+        st.caption(f"Ingevuld op {date.fromisoformat(saldo['datum']):%d-%m}; ingelezen afschriften tellen erbij op.")
+
+
+def vaste_inkomsten() -> None:
+    inkomsten = budget.instellingen()["inkomsten"]
+    for i in sorted(inkomsten, key=lambda i: i["dag"]):
+        rij = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
+        rij.markdown(f"{i['naam']} · {euro(i['bedrag'])} · rond de {i['dag']}e", width="content")
+        if rij.button("", icon=":material/close:", key=f"ink_weg_{i['id']}", help="Weghalen", type="tertiary"):
+            budget.inkomst_weg(i["id"])
+            st.rerun()
+    with st.form("vaste_inkomst", clear_on_submit=True, border=False):
+        naam = st.text_input("Naam", placeholder="Bijvoorbeeld Salaris of Zorgtoeslag")
+        kol1, kol2 = st.columns(2)
+        bedrag = kol1.number_input("Bedrag per maand", min_value=0.0, step=10.0, format="%.2f")
+        dag = kol2.number_input("Rond welke dag?", min_value=1, max_value=28, value=25)
+        if st.form_submit_button("Toevoegen") and naam.strip() and bedrag > 0:
+            budget.inkomst_toevoegen(naam, bedrag, dag)
+            st.rerun()
+
+
 def vaste_lasten() -> None:
     lasten = budget.instellingen()["vaste_lasten"]
-    st.caption("Wat elke maand van je rekening gaat. De app rekent ze mee bij wat je nog vrij kunt besteden, "
-               "tot ze zijn afgeschreven.")
     for v in sorted(lasten, key=lambda v: v["dag"]):
         rij = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
         rij.markdown(f"**{v['naam']}** · {euro(v['bedrag'])} · rond de {v['dag']}e · {v['categorie'].lower()}",
@@ -221,8 +408,7 @@ def vaste_lasten() -> None:
             st.rerun()
     if lasten:
         st.caption(f"Samen {euro(sum(v['bedrag'] for v in lasten))} per maand.")
-    with st.form("vaste_last", clear_on_submit=True, border=True):
-        st.markdown("**Vaste last toevoegen**")
+    with st.form("vaste_last", clear_on_submit=True, border=False):
         naam = st.text_input("Naam", placeholder="Bijvoorbeeld Huur of Zorgverzekering")
         kol1, kol2 = st.columns(2)
         bedrag = kol1.number_input("Bedrag per maand", min_value=0.0, step=5.0, format="%.2f")

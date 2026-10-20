@@ -82,13 +82,14 @@ def instellingen() -> dict:
     """{budgetten: {categorie: bedrag}, vaste_lasten: [...], spaardoelen: [...], regels: {tegenpartij: categorie}}."""
     b = opslag.instellingen().get("budget", {})
     return {"budgetten": b.get("budgetten", {}), "vaste_lasten": b.get("vaste_lasten", []),
-            "spaardoelen": b.get("spaardoelen", []), "regels": b.get("regels", {}), "gebruikt": b.get("gebruikt", False)}
+            "spaardoelen": b.get("spaardoelen", []), "regels": b.get("regels", {}), "gebruikt": b.get("gebruikt", False),
+            "facturen": b.get("facturen", []), "inkomsten": b.get("inkomsten", []), "saldo": b.get("saldo")}
 
 
 def in_gebruik() -> bool:
     """Of de gebruiker het budget al gebruikt (alleen dan kost het een vraag aan de database)."""
     b = instellingen()
-    return bool(b["gebruikt"] or b["budgetten"] or b["vaste_lasten"] or b["spaardoelen"])
+    return bool(b["gebruikt"] or b["budgetten"] or b["vaste_lasten"] or b["spaardoelen"] or b["facturen"])
 
 
 def _bewaar(**velden) -> None:
@@ -313,6 +314,7 @@ def importeren(naam: str, inhoud: bytes) -> dict:
     _cache.clear()
     if not instellingen()["gebruikt"]:
         _bewaar()
+    afstemmen()
     datums = sorted(r["datum"] for r in regels)
     return {"gelezen": len(regels), "nieuw": nieuw, "van": datums[0], "tot": datums[-1]}
 
@@ -467,3 +469,246 @@ def kort(vandaag: date | None = None, voorpagina: bool = False) -> str | None:
 def euro(bedrag: float) -> str:
     """12345.6 -> '12.345,60'."""
     return f"{bedrag:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+# --- Facturen en wat er nog komt --------------------------------------------------------------------------------------
+# Facturen (uit je mail of met de hand) staan bij de instellingen: het zijn er hooguit een paar per maand. Een factuur
+# is 'open' tot hij betaald is; komt het bedrag langs op je bankafschrift, dan zet de app hem zelf op betaald.
+
+MAX_FACTUREN = 300
+
+
+def facturen(alleen_open: bool = False) -> list[dict]:
+    """Facturen, open eerst en dan op vervaldatum."""
+    lijst_ = instellingen()["facturen"]
+    if alleen_open:
+        lijst_ = [f for f in lijst_ if f["status"] == "open"]
+    return sorted(lijst_, key=lambda f: (f["status"] != "open", f.get("vervaldatum") or "9999", f["van"].lower()))
+
+
+def factuur_toevoegen(van: str, bedrag: float, vervaldatum: str | None = None, omschrijving: str = "",
+                      soort: str = "uitgave", automatisch: bool = False, categorie: str = "",
+                      bron: dict | None = None, iban: str = "", kenmerk: str = "", betaallink: str = "") -> dict:
+    """Eén factuur (uitgave) of een bedrag dat je nog krijgt (soort inkomst)."""
+    soort = "inkomst" if soort == "inkomst" else "uitgave"
+    if categorie not in CATEGORIEEN:
+        categorie = "Inkomen" if soort == "inkomst" else categorie_raden(van, omschrijving, -abs(float(bedrag)),
+                                                                          instellingen()["regels"])
+    f = {"id": secrets.token_hex(4), "van": van.strip()[:80] or "Onbekend", "omschrijving": omschrijving.strip()[:160],
+         "bedrag": round(abs(float(bedrag)), 2), "soort": soort, "vervaldatum": vervaldatum or None,
+         "automatisch": bool(automatisch), "categorie": categorie, "status": "open", "betaald_op": None,
+         "bron": bron, "toegevoegd": date.today().isoformat(), "iban": iban, "kenmerk": kenmerk,
+         "betaallink": betaallink if betaallink.startswith("https://") else "", "herinnering": None}
+    bestaand = instellingen()["facturen"]
+    # Dezelfde factuur twee keer (zelfde afzender, bedrag en vervaldatum) voegen we niet nog eens toe.
+    for oud in bestaand:
+        if (oud["van"].lower(), oud["bedrag"], oud.get("vervaldatum")) == (f["van"].lower(), f["bedrag"], f["vervaldatum"]):
+            return oud
+    _bewaar(facturen=_inkorten(bestaand + [f]))
+    return f
+
+
+def _inkorten(lijst_: list[dict]) -> list[dict]:
+    """Oude betaalde facturen vallen eraf als de lijst te lang wordt; open facturen blijven altijd."""
+    if len(lijst_) <= MAX_FACTUREN:
+        return lijst_
+    betaald = sorted((f for f in lijst_ if f["status"] != "open"), key=lambda f: f.get("betaald_op") or "")
+    weg_ids = {f["id"] for f in betaald[:len(lijst_) - MAX_FACTUREN]}
+    return [f for f in lijst_ if f["id"] not in weg_ids]
+
+
+def factuur_bijwerken(factuur_id: str, **velden) -> dict | None:
+    """Velden: status ('open'/'betaald'), vervaldatum, bedrag, van, omschrijving, automatisch, categorie, iban,
+    kenmerk, herinnering."""
+    toegestaan = {"status", "vervaldatum", "bedrag", "van", "omschrijving", "automatisch", "categorie", "iban",
+                  "kenmerk", "herinnering"}
+    gevonden, nieuw = None, []
+    for f in instellingen()["facturen"]:
+        if f["id"] == factuur_id:
+            f = {**f, **{k: v for k, v in velden.items() if k in toegestaan}}
+            if "status" in velden:
+                f["betaald_op"] = date.today().isoformat() if velden["status"] == "betaald" else None
+            gevonden = f
+        nieuw.append(f)
+    if gevonden:
+        _bewaar(facturen=nieuw)
+        if velden.get("status") == "betaald":
+            _opruimen(gevonden)
+    return gevonden
+
+
+def _opruimen(f: dict) -> None:
+    """Na betalen: de herinnering in je agenda en de betaaltaak zijn niet meer nodig."""
+    h = f.get("herinnering") or {}
+    if h.get("afspraak_id") and h.get("wanneer", "") > datetime.now().isoformat(timespec="minutes"):
+        opslag.afspraak_verwijderen(h["afspraak_id"])
+    for t in opslag.open_taken():
+        if t["titel"].startswith(f"{f['van']} betalen"):
+            opslag.taak_afronden(t["id"])
+
+
+def herinneren(factuur_id: str, wanneer: str) -> dict | None:
+    """Zet een herinnering (JJJJ-MM-DDTUU:MM) in je agenda om deze factuur te betalen; een oude herinnering gaat weg."""
+    f = next((f for f in instellingen()["facturen"] if f["id"] == factuur_id), None)
+    if not f:
+        return None
+    if f.get("herinnering", {}) and f["herinnering"].get("afspraak_id"):
+        opslag.afspraak_verwijderen(f["herinnering"]["afspraak_id"])
+    eind = (datetime.fromisoformat(wanneer) + timedelta(minutes=15)).isoformat(timespec="minutes")
+    notitie = f"€{euro(f['bedrag'])}" + (f" naar {f['iban']}" if f.get("iban") else "") + \
+        (f", kenmerk {f['kenmerk']}" if f.get("kenmerk") else "") + ". Open Budget › Facturen om te betalen."
+    a = opslag.afspraak_toevoegen(f"{f['van']} betalen", wanneer, eind, notitie=notitie, soort="herinnering")
+    return factuur_bijwerken(factuur_id, herinnering={"wanneer": wanneer, "afspraak_id": a["id"]})
+
+
+def factuur_weg(factuur_id: str) -> None:
+    _bewaar(facturen=[f for f in instellingen()["facturen"] if f["id"] != factuur_id])
+
+
+def _woorden(tekst: str) -> list[str]:
+    stop = {"b.v.", "bv", "nv", "n.v.", "nederland", "the", "van", "de", "het", "factuur", "nota"}
+    return [w for w in re.findall(r"[\w&]+", tekst.lower()) if len(w) > 2 and w not in stop]
+
+
+def _past(f: dict, r: dict) -> bool:
+    """Of een regel van je afschrift deze factuur is: hetzelfde bedrag (op de cent) en de naam komt overeen."""
+    if (r["bedrag"] < 0) != (f["soort"] == "uitgave") or abs(abs(r["bedrag"]) - f["bedrag"]) > 0.01:
+        return False
+    tekst = f"{r['tegenpartij']} {r['omschrijving']}".lower()
+    return any(w in tekst for w in _woorden(f["van"]))
+
+
+def afstemmen(regels: list[dict] | None = None) -> int:
+    """Zet open facturen op betaald als het bedrag op je afschrift staat. Geeft het aantal."""
+    open_ = [f for f in instellingen()["facturen"] if f["status"] == "open"]
+    if not open_:
+        return 0
+    if regels is None:
+        vroegste = min(f["toegevoegd"] for f in open_)
+        begin = (date.fromisoformat(vroegste) - timedelta(days=45)).isoformat()
+        regels = lijst(begin, date.today().isoformat())
+    gebruikt, betaald = set(), {}
+    for f in open_:
+        grens = (date.fromisoformat(f["toegevoegd"]) - timedelta(days=45)).isoformat()
+        for r in regels:
+            if r["id"] not in gebruikt and r["datum"] >= grens and _past(f, r):
+                gebruikt.add(r["id"])
+                betaald[f["id"]] = r["datum"]
+                break
+    if betaald:
+        _bewaar(facturen=[{**f, "status": "betaald", "betaald_op": betaald[f["id"]]} if f["id"] in betaald else f
+                          for f in instellingen()["facturen"]])
+        for f in open_:
+            if f["id"] in betaald:
+                _opruimen(f)
+    return len(betaald)
+
+
+def inkomst_toevoegen(naam: str, bedrag: float, dag: int) -> dict:
+    """Vaste inkomsten, zoals salaris of toeslag, rond een dag van de maand."""
+    i = {"id": secrets.token_hex(4), "naam": naam.strip(), "bedrag": round(abs(float(bedrag)), 2),
+         "dag": max(1, min(28, int(dag)))}
+    _bewaar(inkomsten=instellingen()["inkomsten"] + [i])
+    return i
+
+
+def inkomst_weg(inkomst_id: str) -> None:
+    _bewaar(inkomsten=[i for i in instellingen()["inkomsten"] if i["id"] != inkomst_id])
+
+
+def saldo_instellen(bedrag: float | None) -> None:
+    """Wat er nu op je rekening staat; daarmee rekent de app uit hoe je saldo verloopt."""
+    _bewaar(saldo=None if bedrag is None else {"bedrag": round(float(bedrag), 2), "datum": date.today().isoformat()})
+
+
+def _ontvangen(inkomst: dict, regels: list[dict]) -> bool:
+    woorden = _woorden(inkomst["naam"])
+    for r in regels:
+        if r["bedrag"] > 0 and abs(r["bedrag"] - inkomst["bedrag"]) <= max(1.0, inkomst["bedrag"] * 0.1):
+            tekst = f"{r['tegenpartij']} {r['omschrijving']}".lower()
+            if r["categorie"] == "Inkomen" or any(w in tekst for w in woorden):
+                return True
+    return False
+
+
+def _op_dag(jaar: int, maand: int, dag: int) -> date:
+    return date(jaar, maand, min(dag, calendar.monthrange(jaar, maand)[1]))
+
+
+def verwacht(dagen: int = 30, vandaag: date | None = None) -> dict:
+    """Wat er de komende dagen binnenkomt en afgaat: open facturen, vaste lasten en vaste inkomsten.
+
+    Geeft {van, tot, posten: [{datum, naam, bedrag (+ of -), soort, automatisch, te_laat, factuur_id}],
+    in, uit, netto, saldo (als je saldo kent): {start, laagste, laagste_op, eind}}.
+    """
+    vandaag = vandaag or date.today()
+    tot = vandaag + timedelta(days=dagen)
+    afstemmen()
+    b = instellingen()
+    begin_maand = vandaag.replace(day=1)
+    regels = lijst(begin_maand.isoformat(), vandaag.isoformat()) if b["vaste_lasten"] or b["inkomsten"] else []
+    posten = []
+    for f in b["facturen"]:
+        if f["status"] != "open":
+            continue
+        dag = date.fromisoformat(f["vervaldatum"]) if f.get("vervaldatum") else vandaag + timedelta(days=14)
+        if dag > tot:
+            continue
+        posten.append({"datum": max(dag, vandaag).isoformat(), "naam": f["van"] + (f" ({f['omschrijving']})" if f["omschrijving"] else ""),
+                       "bedrag": f["bedrag"] if f["soort"] == "inkomst" else -f["bedrag"], "soort": "factuur",
+                       "automatisch": f["automatisch"], "te_laat": dag < vandaag, "factuur_id": f["id"],
+                       "zonder_datum": not f.get("vervaldatum")})
+    # Vaste lasten en inkomsten per maand; deze maand alleen als ze nog niet langs zijn gekomen.
+    maand = begin_maand
+    while maand <= tot:
+        for soort, lijst_ in (("vaste last", b["vaste_lasten"]), ("inkomsten", b["inkomsten"])):
+            for v in lijst_:
+                dag = _op_dag(maand.year, maand.month, v["dag"])
+                if maand == begin_maand:
+                    al = _betaald(v, regels) if soort == "vaste last" else _ontvangen(v, regels)
+                    if al:
+                        continue
+                    dag = max(dag, vandaag)
+                if vandaag <= dag <= tot:
+                    posten.append({"datum": dag.isoformat(), "naam": v["naam"],
+                                   "bedrag": -v["bedrag"] if soort == "vaste last" else v["bedrag"], "soort": soort,
+                                   "automatisch": soort == "vaste last", "te_laat": False, "factuur_id": None,
+                                   "zonder_datum": False})
+        maand = (maand + timedelta(days=32)).replace(day=1)
+    posten.sort(key=lambda p: (p["datum"], p["bedrag"] < 0))
+    erin = round(sum(p["bedrag"] for p in posten if p["bedrag"] > 0), 2)
+    eruit = round(-sum(p["bedrag"] for p in posten if p["bedrag"] < 0), 2)
+    uitkomst = {"van": vandaag.isoformat(), "tot": tot.isoformat(), "posten": posten, "in": erin, "uit": eruit,
+                "netto": round(erin - eruit, 2)}
+    if b["saldo"]:
+        # Het saldo dat je invulde, plus wat er sindsdien op je afschrift staat.
+        sinds = [r for r in lijst(b["saldo"]["datum"], vandaag.isoformat()) if r.get("bron") == "import"
+                 and r["datum"] > b["saldo"]["datum"]] if b["saldo"]["datum"] < vandaag.isoformat() else []
+        stand = round(b["saldo"]["bedrag"] + sum(r["bedrag"] for r in sinds), 2)
+        laagste, laagste_op, verloop = stand, vandaag.isoformat(), []
+        for p in posten:
+            stand = round(stand + p["bedrag"], 2)
+            p["saldo"] = stand
+            if stand < laagste:
+                laagste, laagste_op = stand, p["datum"]
+        uitkomst["saldo"] = {"start": round(b["saldo"]["bedrag"] + sum(r["bedrag"] for r in sinds), 2),
+                             "laagste": laagste, "laagste_op": laagste_op, "eind": stand,
+                             "ingevuld_op": b["saldo"]["datum"]}
+    return uitkomst
+
+
+def facturen_kort(vandaag: date | None = None) -> str | None:
+    """Eén zin voor het ochtendoverzicht over facturen die (bijna) moeten worden betaald."""
+    vandaag = vandaag or date.today()
+    grens = (vandaag + timedelta(days=3)).isoformat()
+    open_ = [f for f in instellingen()["facturen"] if f["status"] == "open" and f["soort"] == "uitgave"
+             and not f["automatisch"] and f.get("vervaldatum") and f["vervaldatum"] <= grens]
+    if not open_:
+        return None
+    te_laat = [f for f in open_ if f["vervaldatum"] < vandaag.isoformat()]
+    totaal = sum(f["bedrag"] for f in open_)
+    tekst = (f"{len(open_)} {'factuur moet' if len(open_) == 1 else 'facturen moeten'} binnenkort betaald, samen "
+             f"€{euro(totaal)}: {', '.join(f['van'] for f in open_[:3])}.")
+    if te_laat:
+        tekst += f" {'Eén is' if len(te_laat) == 1 else f'{len(te_laat)} zijn'} al over de datum."
+    return tekst
