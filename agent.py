@@ -17,6 +17,7 @@ import inplannen
 import woning
 import planning
 import reizen
+import reserveren
 import samen
 import activiteiten
 import boodschappen
@@ -106,6 +107,12 @@ Werkwijze:
   ze er pas op na akkoord, tenzij de gebruiker vroeg om ze meteen toe te voegen.
 - Gedeelde agenda: zegt de gebruiker dat hij later is, op tijd is of niet kan ("ik ben 10 min
   later bij de tandarts"), gebruik agenda_laten_weten bij die afspraak; wie meekijkt ziet het.
+- Samen plannen (date, speelafspraak, uitje, etentje, verjaardag): denk mee over een
+  compleet plan (bijvoorbeeld eerst iets doen, dan eten), kijk naar weer en agenda, en
+  zoek met plekken_zoeken. Zaken met "in_app": true kun je echt reserveren
+  (reserveer_tijden, dan reservering_maken); noem eerst zaak, dag, tijd en personen en
+  reserveer pas na akkoord (met_akkoord=true). Andere plekken zet je met plan_maken in
+  de agenda. Nodig mensen alleen uit als de gebruiker dat vraagt.
 - Geld: met budget_bekijken zie je wat er binnenkomt, uitgaat en vrij te besteden is.
   Zegt de gebruiker "12 euro uitgegeven aan lunch", zet het dan met uitgave_toevoegen
   in het budget. Geef praktische, vriendelijke tips; nooit betuttelen.
@@ -241,6 +248,10 @@ Werkwijze:
 - Over geld en beleggen geef je algemene informatie, geen persoonlijk
   beleggingsadvies.
 """
+
+
+def _wanneer(iso: str) -> str:
+    return datetime.fromisoformat(iso).astimezone().strftime("%d-%m om %H:%M")
 
 
 def _json(data) -> str:
@@ -470,6 +481,110 @@ def overzicht_bekijken(periode: str = "week", terug: int = 0) -> str:
         terug: 0 is de huidige periode, 1 de vorige, enz.
     """
     return _json(overzicht.vergelijk(periode if periode in ("week", "maand", "jaar") else "week", -abs(terug)))
+
+
+@beta_tool
+def plekken_zoeken(gelegenheid: str = "Uitje", zoekterm: str = "") -> str:
+    """Plekken voor een date, speelafspraak, uitje, etentje enz.: eerst zaken in de app waar je direct kunt reserveren
+    (in_app: true, met adres), daarna plekken in de buurt uit OpenStreetMap (restaurants, cafés, speeltuinen, uitjes).
+
+    Args:
+        gelegenheid: Date, Speelafspraak, Uitje, Etentje, Verjaardag of Afspraak (kapper e.d.).
+        zoekterm: Optioneel, bijvoorbeeld "italiaans" of de naam van een zaak.
+    """
+    uit = [{"in_app": True, "naam": z["naam"], "adres": z["adres"], "plaats": z["winkeladres"],
+            "omschrijving": z["omschrijving"], "max_groep": z["max_groep"], "duur_minuten": z["duur"]}
+           for z in (reserveren.zaken(zoekterm) if samen.beschikbaar() else [])]
+    try:
+        plekken = reserveren.ideeen(gelegenheid)
+    except Exception:
+        plekken = []
+    if zoekterm:
+        plekken = [p for p in plekken if zoekterm.lower() in (p["naam"] + " " + p["soort"]).lower()]
+    uit += [{"in_app": False, **{k: p[k] for k in ("naam", "soort", "afstand_km", "adres", "website", "binnen")},
+             "telefoon": p.get("telefoon", ""), "reserveren_nodig": p.get("reserveren", False)} for p in plekken[:12]]
+    return _json(uit) if uit else "Niets gevonden. Vraag naar een andere plaats of zoekterm."
+
+
+@beta_tool
+def reserveer_tijden(adres: str, datum: str, personen: int = 2) -> str:
+    """Vrije aanvangstijden bij een zaak in de app op een dag.
+
+    Args:
+        adres: Het adres van de zaak in de app (uit plekken_zoeken).
+        datum: JJJJ-MM-DD.
+        personen: Aantal personen.
+    """
+    try:
+        t = reserveren.tijden(adres, datetime.fromisoformat(datum).date(), personen)
+    except samen.Fout as fout:
+        return str(fout)
+    return _json([{"start": x["start"], "tijd": datetime.fromisoformat(x["start"]).astimezone().strftime("%H:%M"),
+                   "vrij": x["vrij"]} for x in t]) if t else "Op die dag kun je daar niet reserveren."
+
+
+@beta_tool
+def reservering_maken(adres: str, start: str, personen: int, gelegenheid: str = "", opmerking: str = "",
+                      uitnodigen: list[str] | None = None, wachtlijst: bool = False, met_akkoord: bool = False) -> str:
+    """Reserveert bij een zaak in de app en zet het in de agenda. Alleen na akkoord van de gebruiker op zaak, dag, tijd
+    en aantal personen.
+
+    Args:
+        adres: Adres van de zaak in de app.
+        start: Starttijd precies zoals reserveer_tijden hem gaf.
+        personen: Aantal personen.
+        gelegenheid: Date, Speelafspraak, Uitje, Etentje, Verjaardag of Afspraak (kapper e.d.).
+        opmerking: Voor de zaak, bijvoorbeeld allergieën of een kinderstoel.
+        uitnodigen: Gebruikersnamen in de app om uit te nodigen (alleen als de gebruiker dat vroeg).
+        wachtlijst: True om bij vol op de wachtlijst te gaan.
+        met_akkoord: True als de gebruiker deze reservering net heeft goedgekeurd.
+    """
+    if not met_akkoord:
+        return "Nog niet gereserveerd. Noem zaak, dag, tijd en personen en vraag eerst akkoord."
+    try:
+        r = reserveren.reserveren(adres, start, personen, opmerking, gelegenheid, wachtlijst, uitnodigen)
+    except samen.Fout as fout:
+        return str(fout)
+    tekst = f"{reserveren.STATUS[r['status']]}: {r['zaak']} op {_wanneer(r['start'])} voor {r['personen']}."
+    if r["niet_uitgenodigd"]:
+        tekst += f" Niet gevonden om uit te nodigen: {', '.join(r['niet_uitgenodigd'])}."
+    return tekst
+
+
+@beta_tool
+def plan_maken(naam: str, start: str, minuten: int = 120, gelegenheid: str = "", adres: str = "",
+               website: str = "", telefoon: str = "", reserveren_nodig: bool = False,
+               uitnodigen: list[str] | None = None) -> str:
+    """Zet een plan bij een plek buiten de app in de agenda (bijvoorbeeld uit plekken_zoeken), met website of
+    telefoon in de notitie. Bij reserveren_nodig komt er een taak bij om zelf te reserveren.
+
+    Args:
+        naam: Naam van de plek.
+        start: JJJJ-MM-DDTHH:MM.
+        minuten: Hoe lang ongeveer.
+        gelegenheid: Date, Speelafspraak, Uitje, Etentje, Verjaardag of Afspraak (kapper e.d.).
+        adres: Adres van de plek.
+        website: Website van de plek.
+        telefoon: Telefoonnummer van de plek.
+        reserveren_nodig: True als je daar moet reserveren (restaurant).
+        uitnodigen: Gebruikersnamen om uit te nodigen (alleen als de gebruiker dat vroeg).
+    """
+    p = reserveren.als_plan({"naam": naam, "adres": adres, "website": website, "telefoon": telefoon,
+                             "reserveren": reserveren_nodig}, start, minuten, gelegenheid, uitnodigen)
+    tekst = f"In de agenda: {p['afspraak']['titel']} (id {p['afspraak']['id']})."
+    if reserveren_nodig:
+        tekst += " Taak gemaakt om te reserveren."
+    if p["niet_uitgenodigd"]:
+        tekst += f" Niet gevonden om uit te nodigen: {', '.join(p['niet_uitgenodigd'])}."
+    return tekst
+
+
+@beta_tool
+def reserveringen_bekijken() -> str:
+    """Je reserveringen bij zaken in de app (ook wachtlijst, en of je nog een review kunt schrijven)."""
+    lijst = reserveren.mijn()
+    return _json([{k: r[k] for k in ("id", "zaak", "start", "personen", "status", "gelegenheid", "plek_vrij", "review")}
+                  for r in lijst]) if lijst else "Geen reserveringen."
 
 
 @beta_tool
@@ -1284,6 +1399,11 @@ HULPMIDDELEN = [
     tijd_vastleggen,
     agenda_laten_weten,
     afspraak_uitnodigen,
+    plekken_zoeken,
+    reserveer_tijden,
+    reservering_maken,
+    plan_maken,
+    reserveringen_bekijken,
     overzicht_bekijken,
     tijdsbesteding_bekijken,
     weer_bekijken,

@@ -31,6 +31,9 @@ SOORTEN = {
     "attraction": ("Bezienswaardigheid", "📸", False, "Bezienswaardigheden"),
     "viewpoint": ("Uitzichtpunt", "🔭", False, "Bezienswaardigheden"),
     "castle": ("Kasteel", "🏰", False, "Bezienswaardigheden"), "monument": ("Monument", "🗿", False, "Bezienswaardigheden"),
+    "restaurant": ("Restaurant", "🍽️", True, "Eten"), "cafe": ("Café", "☕", True, "Eten"),
+    "bar": ("Bar", "🍸", True, "Eten"), "pub": ("Kroeg", "🍺", True, "Eten"), "ice_cream": ("IJssalon", "🍦", True, "Eten"),
+    "indoor_play": ("Binnenspeeltuin", "🧸", True, "Familie"),
 }
 
 _cache: dict[tuple, tuple[float, list]] = {}
@@ -87,6 +90,50 @@ out center tags 600;"""
             "afstand_km": round(_afstand_km(lat, lon, plek["lat"], plek["lon"]), 1),
             "adres": ", ".join(filter(None, adres_delen)), "lat": plek["lat"], "lon": plek["lon"],
             "website": tags.get("website") or tags.get("contact:website") or "",
+        })
+    resultaat.sort(key=lambda a: a["afstand_km"])
+    _cache[sleutel] = (time.time(), resultaat)
+    return resultaat
+
+
+def eten_en_spelen(adres: str = "", straal_km: int = 5) -> list[dict]:
+    """Restaurants, cafés, ijssalons en speeltuinen dichtbij (voor een date, etentje of speelafspraak). Een dag bewaard."""
+    lat, lon, _ = reizen.coordinaten(adres or opslag.instellingen().get("thuisadres", "") or "Amsterdam")
+    sleutel = ("eten", round(lat, 2), round(lon, 2), straal_km)
+    if sleutel in _cache and time.time() - _cache[sleutel][0] < 24 * 60 * 60:
+        return _cache[sleutel][1]
+    rond = f"(around:{straal_km * 1000},{lat},{lon})"
+    vraag = f"""[out:json][timeout:25];
+(
+  nwr{rond}[amenity~"^(restaurant|cafe|bar|pub|ice_cream)$"][name];
+  nwr{rond}[leisure~"^(playground|indoor_play)$"][name];
+);
+out center tags 400;"""
+    try:
+        antwoord = reizen.overpass(vraag)
+    except Exception:
+        if sleutel in _cache:
+            return _cache[sleutel][1]
+        raise
+    resultaat, gezien = [], set()
+    for e in antwoord.get("elements", []):
+        tags = e.get("tags", {})
+        soort = tags.get("amenity") if tags.get("amenity") in SOORTEN else tags.get("leisure")
+        plek = e.get("center") or e
+        if soort not in SOORTEN or "lat" not in plek or tags["name"] in gezien:
+            continue
+        gezien.add(tags["name"])
+        omschrijving, icoon, binnen, voorkeur = SOORTEN[soort]
+        if tags.get("cuisine"):
+            omschrijving += ", " + tags["cuisine"].replace(";", ", ").replace("_", " ")
+        adres_delen = [" ".join(filter(None, [tags.get("addr:street"), tags.get("addr:housenumber")])), tags.get("addr:city")]
+        resultaat.append({
+            "naam": tags["name"], "soort": omschrijving, "icoon": icoon, "binnen": binnen, "voorkeur": voorkeur,
+            "afstand_km": round(_afstand_km(lat, lon, plek["lat"], plek["lon"]), 1),
+            "adres": ", ".join(filter(None, adres_delen)), "lat": plek["lat"], "lon": plek["lon"],
+            "website": tags.get("website") or tags.get("contact:website") or "",
+            "telefoon": tags.get("phone") or tags.get("contact:phone") or "",
+            "reserveren": soort == "restaurant" or tags.get("reservation") in ("yes", "required", "recommended"),
         })
     resultaat.sort(key=lambda a: a["afstand_km"])
     _cache[sleutel] = (time.time(), resultaat)

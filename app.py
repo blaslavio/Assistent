@@ -35,7 +35,9 @@ import media
 import opslag
 import overzicht
 import planning
+import plannen_scherm
 import reizen
+import reserveren
 import ruimte
 import ruimte_scherm
 import samen
@@ -56,8 +58,8 @@ import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
-for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, agent, spraak):
+for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, reizen, weer, tijd, planning, ics, media, events, activiteiten, reserveren, boodschappen, strava, wetenschap,
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, plannen_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -878,7 +880,7 @@ def agenda_tabblad() -> None:
         raise
     except Exception:
         pass
-    opties = ["Agenda", "Taken", "Overzicht"] + (["Gedeeld"] if DEELSITUATIE_NU.get("met_mij") else [])
+    opties = ["Agenda", "Taken", "Plannen", "Overzicht"] + (["Gedeeld"] if DEELSITUATIE_NU.get("met_mij") else [])
     deel = st.segmented_control("Onderdeel", opties, default="Agenda", key="agenda_deel",
                                 format_func=lambda d: f"Taken ({aantal})" if d == "Taken" and aantal else d,
                                 label_visibility="collapsed") or "Agenda"
@@ -888,6 +890,8 @@ def agenda_tabblad() -> None:
         gedeelde_agendas()
     elif deel == "Overzicht":
         overzicht_scherm()
+    elif deel == "Plannen":
+        plannen_scherm.pagina()
     else:
         agenda_overzicht()
     if samen.beschikbaar():

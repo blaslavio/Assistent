@@ -9,6 +9,7 @@ from urllib.parse import quote
 import streamlit as st
 
 import opslag
+import plannen_scherm
 import ruimte
 import samen
 import teksten
@@ -682,8 +683,11 @@ def mijn_webshop() -> None:
         return
     w = m["winkel"]
     if w:
-        deel = st.segmented_control("Onderdeel", ["Winkel", "Marketing", "Reviews"], default="Winkel",
+        deel = st.segmented_control("Onderdeel", ["Winkel", "Reserveren", "Marketing", "Reviews"], default="Winkel",
                                     key="webshop_deel", label_visibility="collapsed") or "Winkel"
+        if deel == "Reserveren":
+            plannen_scherm.zaak_beheer()
+            return
         if deel == "Marketing":
             marketing(w)
             return
@@ -1185,7 +1189,7 @@ def reviews_blok(w: dict, adres: str, reviews: dict, ingelogd: bool) -> None:
     st.markdown(f"**Reviews** · {sterren(reviews.get('sterren'))} "
                 + (f"{str(reviews['sterren']).replace('.', ',')} uit {reviews['aantal']}" if reviews.get("aantal")
                    else "nog geen reviews"))
-    st.caption("Alleen echte klanten kunnen een review schrijven: na een afgeronde bestelling of met een bezoekcode "
+    st.caption("Alleen echte klanten kunnen een review schrijven: na een bestelling, een reservering of met een bezoekcode "
                "die je in de winkel krijgt. Zo blijft het eerlijk, voor klanten en voor de verkoper.")
     if ingelogd:
         for bezoek in [b for b in (_fout(samen.mijn_bezoeken) or []) if b["adres"] == adres]:
