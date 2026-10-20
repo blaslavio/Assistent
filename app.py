@@ -28,6 +28,7 @@ import documenten
 import documenten_scherm
 import editor
 import events
+import feestdagen
 import geld_scherm
 import ics
 import mail
@@ -61,7 +62,7 @@ import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
-for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
+for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
                 mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, plannen_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
@@ -2919,10 +2920,28 @@ def instellingen_weergave() -> None:
     with st.expander("Thuisadres" + ("" if inst.get("thuisadres") else " (nog invullen)"),
                      expanded=not inst.get("thuisadres")):
         thuisadres_instellen()
+    with st.expander("Feestdagen en schoolvakanties"):
+        feestdagen_instellen()
     with st.expander("Kleuren in de agenda"):
         kleuren_instellingen()
     with st.expander(f"Contacten ({len(opslag.contacten_zoeken())})"):
         contacten_beheren()
+
+
+def feestdagen_instellen() -> None:
+    i = feestdagen.instellingen()
+    land = st.segmented_control("Feestdagen", ["NL", "BE", ""], default=i["land"], key="fd_land",
+                                format_func=lambda l: feestdagen.LANDEN.get(l, "Uit")) or ""
+    extra = st.toggle("Ook Moederdag, Vaderdag, Sinterklaas en Oudejaarsavond", value=i["extra"], key="fd_extra",
+                      disabled=not land)
+    regio = i["regio"]
+    if land == "NL":
+        regio = st.segmented_control("Schoolvakanties", ["noord", "midden", "zuid", ""], default=i["regio"],
+                                     key="fd_regio", format_func=lambda r: feestdagen.REGIO_S.get(r, "Uit")) or ""
+        st.caption(f"Welke regio? [Zoek je gemeente op]({feestdagen.REGIO_UITLEG}).")
+    if (land, extra, regio) != (i["land"], i["extra"], i["regio"]):
+        opslag.instellingen_bijwerken(feestdagen={"land": land, "extra": extra, "regio": regio})
+        st.rerun()
 
 
 def agendas_instellen() -> None:

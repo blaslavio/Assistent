@@ -64,6 +64,8 @@ def lijst(dagen: int = DAGEN_VOORUIT) -> list[dict]:
         dag = (date.today() + timedelta(days=d)).isoformat()
         for r in planning.dagplanning(dag)["afspraken"]:
             titel, start = r["titel"], r["start"]
+            if r.get("soort") == "vrij" and r.get("extern"):
+                continue  # feestdagen en schoolvakanties: geen seintje
             if "T" not in start:  # hele dag: om 8 uur 's ochtends
                 wanneer = datetime.fromisoformat(f"{dag}T08:00")
                 tekst = f"{titel} is jarig" if r.get("soort") == "verjaardag" else titel
