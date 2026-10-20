@@ -1567,6 +1567,7 @@ def schema_html(regels: list[dict], nu: datetime) -> str:
 @st.fragment(run_every=60)
 def dagschema() -> None:
     """Het schema van vandaag. Werkt elke minuut vanzelf bij zolang de app open staat."""
+    opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
     nu = datetime.now()
     regels = dagplanning_veilig(nu.date().isoformat())
     if not regels:
@@ -2246,6 +2247,8 @@ STANDAARD_AAN = ["Mail", "Budget", "Boodschappen", "Documenten"]
 @st.dialog("Welkom! Wat wil je gebruiken?")
 def voorkeuren_kiezen() -> None:
     """Na het aanmelden: kies wat je gebruikt, dan blijft de app rustig. Later aan te passen in Instellingen."""
+    # Een dialoog draait apart van de rest van de app; zonder dit weet hij niet wie er is ingelogd.
+    opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
     st.caption("Vandaag, Agenda, Taken en de assistent heb je altijd.")
     gekozen = st.pills("Onderdelen", list(ONDERDELEN), selection_mode="multi", default=STANDAARD_AAN,
                        label_visibility="collapsed", key="welkom_onderdelen")
