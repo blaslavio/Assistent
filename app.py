@@ -754,16 +754,16 @@ def agenda_delen_beheer() -> None:
             st.rerun()
     with st.form("agenda_delen", clear_on_submit=True, border=False):
         naam = st.text_input("Gebruikersnaam", placeholder="bijvoorbeeld sanne.devries")
-        alleen_bezet = st.toggle("Alleen laten zien wanneer ik bezet ben")
+        details = st.toggle("Ook titel en plaats laten zien", help="Uit: ze zien alleen wanneer je bezet bent.")
         if st.form_submit_button("Delen", type="primary") and naam.strip():
             try:
-                wie = samen.agenda_delen(naam, "bezet" if alleen_bezet else "details")
+                wie = samen.agenda_delen(naam, "details" if details else "bezet")
             except samen.Fout as fout:
                 st.error(str(fout))
             else:
                 st.toast(f"{wie} kijkt nu mee.", icon=":material/check:")
                 st.rerun()
-    st.caption("Notities en privé-afspraken zien ze nooit.")
+    st.caption("Je agenda is privé. Alleen wie je hier toevoegt kijkt mee; notities en privé-afspraken zien ze nooit.")
 
 
 def gedeelde_agendas() -> None:

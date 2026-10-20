@@ -90,7 +90,7 @@ def tijd_tekst(start: str) -> str:
 REACTIES = {"op_tijd": "Op tijd", "later": "Later", "kan_niet": "Kan niet", "opmerking": "Opmerking"}
 
 
-def agenda_delen(met: str, niveau: str = "details") -> str:
+def agenda_delen(met: str, niveau: str = "bezet") -> str:
     """Deelt je agenda met een gebruiker (details of alleen 'bezet'). Geeft diens naam."""
     return _ok(opslag._rpc_ik("agenda_delen", p_met=met.strip().lstrip("@"), p_niveau=niveau))["met"]
 

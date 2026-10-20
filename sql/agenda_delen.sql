@@ -8,7 +8,7 @@ create table if not exists private.agenda_delen (
   id bigint generated always as identity primary key,
   eigenaar bigint not null references private.gebruikers(id),
   met bigint not null references private.gebruikers(id),
-  niveau text not null default 'details' check (niveau in ('details', 'bezet')),
+  niveau text not null default 'bezet' check (niveau in ('details', 'bezet')),
   actief boolean not null default true,
   aangemaakt timestamptz not null default now(),
   unique (eigenaar, met)
@@ -45,6 +45,14 @@ returns text language sql stable security definer set search_path to '' as $$
   where g.id = p_eigenaar and a->>'id' = p_afspraak limit 1
 $$;
 
+-- Is deze afspraak privé (of bestaat hij niet)? Dan mag alleen de eigenaar er iets mee.
+create or replace function private.afspraak_prive(p_eigenaar bigint, p_afspraak text)
+returns boolean language sql stable security definer set search_path to '' as $$
+  select coalesce((select coalesce(a->>'prive', 'false') = 'true'
+                   from public.gegevens g, jsonb_array_elements(coalesce(g.data->'afspraken', '[]'::jsonb)) a
+                   where g.id = p_eigenaar and a->>'id' = p_afspraak limit 1), true)
+$$;
+
 create or replace function private.reactie_json(r private.agenda_reacties)
 returns jsonb language sql stable security definer set search_path to '' as $$
   select jsonb_build_object('id', r.id, 'eigenaar', r.eigenaar, 'afspraak', r.afspraak, 'door', private.weergave(r.door),
@@ -52,7 +60,8 @@ returns jsonb language sql stable security definer set search_path to '' as $$
                             'aangemaakt', r.aangemaakt)
 $$;
 
--- Je agenda delen met een gebruikersnaam. Opnieuw delen met dezelfde persoon past het niveau aan.
+-- Je agenda delen met een gebruikersnaam. Standaard ziet diegene alleen wanneer je bezet bent (privacy voorop).
+-- Opnieuw delen met dezelfde persoon past het niveau aan.
 create or replace function public.agenda_delen(p_naam text, p_wachtwoord text, p_met text, p_niveau text)
 returns jsonb language plpgsql security definer set search_path to '' as $$
 declare v_id bigint := private.gebruiker_id(p_naam, p_wachtwoord); v_met bigint;
@@ -66,7 +75,7 @@ begin
     return jsonb_build_object('fout', 'Je deelt je agenda al met 50 mensen.');
   end if;
   insert into private.agenda_delen (eigenaar, met, niveau)
-  values (v_id, v_met, case when p_niveau = 'bezet' then 'bezet' else 'details' end)
+  values (v_id, v_met, case when p_niveau = 'details' then 'details' else 'bezet' end)
   on conflict (eigenaar, met) do update set niveau = excluded.niveau, actief = true;
   return jsonb_build_object('ok', true, 'met', private.weergave(v_met));
 end; $$;
@@ -133,7 +142,8 @@ begin
   if coalesce(private.agenda_toegang(v_id, v_eigenaar), 'bezet') = 'bezet' then
     return jsonb_build_object('fout', 'Je kunt hier niet reageren.');
   end if;
-  if private.afspraak_titel(v_eigenaar, p_afspraak) is null then
+  if private.afspraak_titel(v_eigenaar, p_afspraak) is null
+     or (v_eigenaar <> v_id and private.afspraak_prive(v_eigenaar, p_afspraak)) then
     return jsonb_build_object('fout', 'Deze afspraak bestaat niet meer.');
   end if;
   if p_soort not in ('opmerking', 'op_tijd', 'later', 'kan_niet') or (p_soort = 'opmerking' and trim(coalesce(p_tekst, '')) = '') then
@@ -188,6 +198,7 @@ begin
     from (select * from private.agenda_reacties r
           where not r.weg and r.door <> v_id and r.aangemaakt > greatest(p_sinds, now() - interval '14 days')
             and private.agenda_toegang(v_id, r.eigenaar) in ('eigen', 'details')
+            and (r.eigenaar = v_id or not private.afspraak_prive(r.eigenaar, r.afspraak))
           order by r.id desc limit 20) r), '[]'::jsonb));
 end; $$;
 
@@ -237,3 +248,6 @@ grant execute on function public.agenda_delen(text, text, text, text), public.ag
   public.agenda_reageren(text, text, bigint, text, text, integer, text), public.agenda_reactie_weg(text, text, bigint),
   public.mijn_agenda_reacties(text, text, text[]), public.agenda_nieuw(text, text, timestamptz),
   public.account_verwijderen(text, text) to anon, authenticated;
+
+-- Voor databases waar de tabel al bestond met de oude standaard.
+alter table private.agenda_delen alter column niveau set default 'bezet';
