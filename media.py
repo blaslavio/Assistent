@@ -1,4 +1,4 @@
-"""Foto's en geluidsfragmenten bij afspraken, als herinnering.
+"""Bijlagen bij afspraken: foto's, geluidsfragmenten en documenten (tickets, pdf's).
 
 Online staan ze in een aparte tabel in Supabase (niet in de gewone gegevens,
 want die worden bij elke wijziging helemaal opgeslagen). Ook hier is het
@@ -16,6 +16,18 @@ import opslag
 MAX_FOTO_PIXELS = 1600
 MAX_BYTES = 10_000_000
 MEDIA_MAP = opslag.DATA_BESTAND.parent / "media"
+FOTO = ("jpg", "jpeg", "png", "heic", "webp")
+GELUID = ("m4a", "mp3", "wav")
+DOCUMENT = ("pdf", "docx", "xlsx", "pptx", "txt", "pkpass")
+
+
+def soort_van(naam: str, mime: str) -> str:
+    extensie = naam.lower().rsplit(".", 1)[-1]
+    if mime.startswith("audio") or extensie in GELUID:
+        return "geluid"
+    if mime.startswith("image") or extensie in FOTO:
+        return "foto"
+    return "bijlage"
 
 
 class TeGroot(Exception):
@@ -32,7 +44,7 @@ def foto_verkleinen(inhoud: bytes) -> bytes:
 
 
 def toevoegen(afspraak_id: int, soort: str, naam: str, mime: str, inhoud: bytes) -> int:
-    """soort: "foto" of "geluid". Geeft het id van het bestand."""
+    """soort: "foto", "geluid" of "bijlage". Geeft het id van het bestand."""
     if soort == "foto":
         inhoud, mime = foto_verkleinen(inhoud), "image/jpeg"
     if len(inhoud) > MAX_BYTES:

@@ -537,10 +537,10 @@ def _media_inhoud(media_id: int, _wachtwoord: str) -> bytes:
 
 
 def herinneringen(afspraak: dict) -> None:
-    """Notitie, foto's en geluidsfragmenten bij een afspraak."""
+    """Notitie, bijlagen (tickets, pdf's), foto's en geluidsfragmenten bij een afspraak."""
     nummer = st.session_state.setdefault(f"upload_{afspraak['id']}", 0)
     bestaande = media.lijst(afspraak["id"])
-    with st.expander(f"Herinneringen ({len(bestaande)})" if bestaande else "Foto's, geluid of notitie toevoegen"):
+    with st.expander(f"Bijlagen en notities ({len(bestaande)})" if bestaande else "Bijlage, foto of notitie toevoegen"):
         notitie = st.text_area("Notitie", value=afspraak.get("herinnering", ""), key=f"notitie_{afspraak['id']}",
                                placeholder="Wat wil je onthouden?")
         if notitie != afspraak.get("herinnering", "") and st.button("Notitie opslaan", key=f"nopslaan_{afspraak['id']}"):
@@ -549,6 +549,14 @@ def herinneringen(afspraak: dict) -> None:
 
         for m in bestaande:
             inhoud = _media_inhoud(m["id"], st.session_state.get("wachtwoord", ""))
+            if m["soort"] == "bijlage":
+                with st.container(horizontal=True, vertical_alignment="center", key=f"bijlage_{m['id']}"):
+                    st.download_button(m["naam"], inhoud, file_name=m["naam"], mime=m.get("mime") or None,
+                                       icon=":material/description:", key=f"open_{m['id']}")
+                    if st.button("", icon=":material/delete:", key=f"weg_{m['id']}", type="tertiary", help="Weghalen"):
+                        media.weghalen(m["id"])
+                        st.rerun()
+                continue
             if m["soort"] == "foto":
                 st.image(inhoud, width="stretch")
             else:
@@ -557,8 +565,9 @@ def herinneringen(afspraak: dict) -> None:
                 media.weghalen(m["id"])
                 st.rerun()
 
-        fotos = st.file_uploader("Foto's of geluid toevoegen", type=["jpg", "jpeg", "png", "heic", "webp", "m4a", "mp3", "wav"],
-                                 accept_multiple_files=True, key=f"bestanden_{afspraak['id']}_{nummer}")
+        fotos = st.file_uploader("Bijlage toevoegen", type=[*media.DOCUMENT, *media.FOTO, *media.GELUID],
+                                 accept_multiple_files=True, key=f"bestanden_{afspraak['id']}_{nummer}",
+                                 help="Bijvoorbeeld een ticket, uitnodiging of foto. Hoogstens 10 MB per bestand.")
         opname = st.audio_input("Of spreek iets in", key=f"opname_{afspraak['id']}_{nummer}")
         nieuw = [(b.name, b.type or "", b.getvalue()) for b in fotos or []]
         if opname:
@@ -567,7 +576,7 @@ def herinneringen(afspraak: dict) -> None:
             fouten = []
             with st.spinner("Opslaan..."):
                 for naam, mime, inhoud in nieuw:
-                    soort = "geluid" if mime.startswith("audio") or naam.lower().endswith((".m4a", ".mp3", ".wav")) else "foto"
+                    soort = media.soort_van(naam, mime)
                     try:
                         media.toevoegen(afspraak["id"], soort, naam, mime, inhoud)
                     except media.TeGroot:

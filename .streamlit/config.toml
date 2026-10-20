@@ -5,3 +5,6 @@ toolbarMode = "viewer"
 base = "light"
 primaryColor = "#4f46e5"
 baseRadius = "large"
+
+[server]
+maxUploadSize = 10
