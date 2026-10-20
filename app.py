@@ -28,6 +28,7 @@ import events
 import geld_scherm
 import ics
 import mail
+import mailtaken
 import media
 import opslag
 import planning
@@ -52,7 +53,7 @@ import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
-for _module in (opslag, agendas, budget, beleggen, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
+for _module in (opslag, agendas, budget, beleggen, mailtaken, reizen, weer, tijd, planning, ics, media, events, activiteiten, boodschappen, strava, wetenschap,
                 mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
@@ -665,6 +666,179 @@ def afspraak_kaart(regel: dict, afspraak: dict) -> None:
 
 
 def agenda_tabblad() -> None:
+    """De agenda plant je dag: je afspraken en (in Taken) wat je moet doen, dat in vrije tijd wordt ingepland."""
+    aantal = len(opslag.open_taken())
+    deel = st.segmented_control("Onderdeel", ["Agenda", "Taken"], default="Agenda", key="agenda_deel",
+                                format_func=lambda d: f"Taken ({aantal})" if d == "Taken" and aantal else d,
+                                label_visibility="collapsed") or "Agenda"
+    if deel == "Taken":
+        takenlijst()
+    else:
+        agenda_overzicht()
+
+
+def _wanneer(datum: str) -> str:
+    d = date.fromisoformat(datum)
+    verschil = (d - date.today()).days
+    if verschil == 0:
+        return "vandaag"
+    if verschil == 1:
+        return "morgen"
+    return f"{DAGEN[d.weekday()]} {d.day} {MAANDEN[d.month - 1]}"
+
+
+def taak_rij(t: dict, gepland: str | None) -> None:
+    """Eén taak: afvinken, met wanneer hij moet of is ingepland, en een menu om hem aan te passen."""
+    delen = []
+    if t.get("deadline"):
+        delen.append(("te laat: " if t["deadline"] < date.today().isoformat() else "vóór ") + _wanneer(t["deadline"]))
+    if gepland:
+        delen.append(f"ingepland {_wanneer(gepland[:10])} {gepland[11:16]}")
+    if t.get("minuten"):
+        delen.append(f"{t['minuten']} min")
+    if (bron := t.get("bron")) and bron.get("soort") == "mail":
+        delen.append(f"mail van {bron.get('van', '')}")
+    titel = f"**{t['titel']}**" if t.get("prioriteit") == "hoog" else t["titel"]
+    rij = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
+    if rij.checkbox(titel + (f"  \n:gray[{' · '.join(delen)}]" if delen else ""), key=f"takenlijst_{t['id']}"):
+        opslag.taak_afronden(t["id"])
+        st.toast(f"Goed gedaan: {t['titel']}", icon="🎉")
+        st.rerun()
+    with rij.popover("", icon=":material/more_horiz:"):
+        with st.form(f"taak_wijzig_{t['id']}", border=False):
+            titel_nieuw = st.text_input("Taak", value=t["titel"])
+            deadline = st.date_input("Deadline", value=date.fromisoformat(t["deadline"]) if t.get("deadline") else None,
+                                     format="DD-MM-YYYY")
+            minuten = st.select_slider("Hoe lang ongeveer?", options=[5, 15, 30, 45, 60, 90, 120, 180, 240],
+                                       value=min([5, 15, 30, 45, 60, 90, 120, 180, 240],
+                                                 key=lambda m: abs(m - int(t.get("minuten") or 30))),
+                                       format_func=lambda m: f"{m} min" if m < 60 else f"{m / 60:g} uur")
+            belangrijk = st.toggle("Belangrijk", value=t.get("prioriteit") == "hoog")
+            if t.get("notitie"):
+                st.caption(t["notitie"])
+            if st.form_submit_button("Opslaan", type="primary"):
+                opslag.taak_bijwerken(t["id"], titel=titel_nieuw.strip() or t["titel"],
+                                      deadline=deadline.isoformat() if deadline else None, minuten=minuten,
+                                      prioriteit="hoog" if belangrijk else "")
+                st.rerun()
+        if (bron := t.get("bron")) and bron.get("soort") == "mail" and "mail" in PAGINA:
+            if st.button("Open de mail", key=f"taak_mail_{t['id']}", icon=":material/mail:"):
+                st.session_state.mail_open = bron["uid"]
+                ga_naar("mail")
+        if st.button("Verwijderen", key=f"taak_weg_{t['id']}", icon=":material/delete:"):
+            opslag.taak_verwijderen(t["id"])
+            st.rerun()
+
+
+def mail_taken_voorstel() -> None:
+    """Wat de assistent in je mail vond: aanvinken wat op je lijst moet, en meteen inplannen."""
+    v = st.session_state.get("mail_voorstel")
+    if not v:
+        return
+    with st.container(border=True):
+        if not v["taken"]:
+            st.markdown(f"Geen nieuwe taken gevonden in {v['mails']} {'mail' if v['mails'] == 1 else 'mails'}."
+                        if v["mails"] else "Geen nieuwe mail sinds de vorige keer.")
+            opslag.mail_gezien_bewaren(v["uids"])
+            if st.button("Oké", key="mailtaken_ok"):
+                st.session_state.pop("mail_voorstel")
+                st.rerun()
+            return
+        st.markdown(f"**{len(v['taken'])} {'taak' if len(v['taken']) == 1 else 'taken'} gevonden in je mail**")
+        gekozen = []
+        for i, t in enumerate(v["taken"]):
+            extra = [f"vóór {_wanneer(t['deadline'])}"] if t["deadline"] else []
+            extra.append(f"van {t['bron']['van']}")
+            label = (f"**{t['titel']}**" if t["prioriteit"] == "hoog" else t["titel"]) + f"  \n:gray[{' · '.join(extra)}]"
+            if st.checkbox(label, value=True, key=f"mailtaak_{i}", help=t["waarom"]):
+                gekozen.append(t)
+        plannen = st.toggle("Meteen inplannen in mijn agenda", value=True, key="mailtaken_plannen",
+                            help="In vrije tijd binnen je planuren, vóór de deadline.")
+        kol1, kol2 = st.columns(2)
+        if kol1.button("Toevoegen", type="primary", width="stretch", disabled=not gekozen, key="mailtaken_toe"):
+            r = mailtaken.toevoegen(gekozen, v["uids"], plannen)
+            st.session_state.pop("mail_voorstel")
+            st.toast(f"{r['taken']} {'taak' if r['taken'] == 1 else 'taken'} toegevoegd"
+                     + (f", {r['blokken']} {'blok' if r['blokken'] == 1 else 'blokken'} ingepland." if r["blokken"] else "."),
+                     icon="✅")
+            st.rerun()
+        if kol2.button("Niets toevoegen", width="stretch", key="mailtaken_niets"):
+            opslag.mail_gezien_bewaren(v["uids"])
+            st.session_state.pop("mail_voorstel")
+            st.rerun()
+
+
+def mail_nakijken() -> None:
+    try:
+        v = werk_scherm.met_claude("Je mail nakijken op taken...", mailtaken.voorstellen)
+    except Exception:
+        st.error("Je mailbox is nu niet bereikbaar. Probeer het zo opnieuw.")
+        return
+    if v is not None:
+        st.session_state.mail_voorstel = v
+
+
+def takenlijst() -> None:
+    """Alles wat je moet doen, gesorteerd op wanneer; de agenda plant het in je vrije tijd."""
+    with st.container(horizontal=True, vertical_alignment="center"):
+        with st.popover("Nieuw", icon=":material/add:"):
+            with st.form("takenlijst_nieuw", clear_on_submit=True, border=False):
+                titel = st.text_input("Nieuwe taak", placeholder="Wat moet er gebeuren?")
+                deadline = st.date_input("Deadline (optioneel)", value=None, format="DD-MM-YYYY")
+                minuten = st.select_slider("Hoe lang ongeveer?", options=[5, 15, 30, 45, 60, 90, 120, 180, 240],
+                                           value=30, format_func=lambda m: f"{m} min" if m < 60 else f"{m / 60:g} uur")
+                belangrijk = st.toggle("Belangrijk")
+                if st.form_submit_button("Toevoegen", type="primary") and titel.strip():
+                    opslag.taak_toevoegen(titel.strip(), deadline.isoformat() if deadline else None, minuten,
+                                          "hoog" if belangrijk else "")
+                    st.rerun()
+        if mail.gekoppeld() and "Mail" not in onderdelen_uit():
+            if st.button("Uit mijn mail", icon=":material/mark_email_read:",
+                         help="De assistent leest je nieuwe mail en stelt taken voor. Jij kiest wat erop komt."):
+                mail_nakijken()
+        with st.popover("Inplannen", icon=":material/auto_awesome:", help="Plan mijn taken in"):
+            taken_inplannen()
+    mail_taken_voorstel()
+
+    taken = opslag.open_taken()
+    if not taken:
+        st.caption("Geen open taken. Tik op Nieuw, typ onderaan \"vrijdag belasting, 1 uur\""
+                   + (", of laat de assistent je mail nakijken." if mail.gekoppeld() else "."))
+        if not mail.gekoppeld():
+            st.caption("Tip: koppel je mail bij Instellingen › Koppelingen, dan haalt de assistent taken uit je mail.")
+        return
+    vandaag = date.today()
+    nu = datetime.now().isoformat(timespec="minutes")
+    gepland: dict[int, str] = {}
+    for a in opslag.afspraken_tussen(vandaag.isoformat(), (vandaag + timedelta(days=60)).isoformat(), extern=False):
+        if a.get("taak_id") and a["start"] >= nu[:10] and (a.get("einde") or a["start"]) >= nu:
+            gepland[a["taak_id"]] = min(gepland.get(a["taak_id"], "9999"), a["start"])
+    week = (vandaag + timedelta(days=6)).isoformat()
+    groepen = {"Te laat": [], "Vandaag": [], "Deze week": [], "Later": [], "Zonder datum": []}
+    for t in taken:
+        wanneer = min(filter(None, [t.get("deadline"), (gepland.get(t["id"]) or "")[:10] or None]), default=None)
+        if t.get("deadline") and t["deadline"] < vandaag.isoformat():
+            groepen["Te laat"].append(t)
+        elif wanneer == vandaag.isoformat():
+            groepen["Vandaag"].append(t)
+        elif wanneer and wanneer <= week:
+            groepen["Deze week"].append(t)
+        elif wanneer:
+            groepen["Later"].append(t)
+        else:
+            groepen["Zonder datum"].append(t)
+    for naam, lijst in groepen.items():
+        if lijst:
+            st.markdown(f"**{naam}**" if naam != "Te laat" else f"**:red[{naam}]**")
+            for t in lijst:
+                taak_rij(t, gepland.get(t["id"]))
+    niet_gepland = [t for t in taken if t["id"] not in gepland]
+    if niet_gepland:
+        st.caption(f"{len(niet_gepland)} {'taak staat' if len(niet_gepland) == 1 else 'taken staan'} nog niet in je "
+                   "agenda. Tik op Inplannen om ze in je vrije tijd te zetten.")
+
+
+def agenda_overzicht() -> None:
     """Dag- of weekoverzicht met bovenaan één rij knoppen; de extra's samen onderaan."""
     sport_overzicht(datetime.now(), toon_week=False)
     with st.container(horizontal=True, vertical_alignment="center"):
@@ -1194,6 +1368,12 @@ def ochtendoverzicht(nu: datetime, keuze: dict) -> None:
         spraak.knop(stem(), f"{groet(nu)}. " + " ".join(zinnen), antwoord_id=f"ochtend-{vandaag}", key="ochtend_spraak",
                     alleen_voorlezen=True,
                     automatisch=bool(gevraagd), gevoel="blij")
+        if mail.gekoppeld() and "Mail" not in onderdelen_uit():
+            if st.button("Taken uit mijn mail halen", key="ochtend_mail", icon=":material/mark_email_read:"):
+                mail_nakijken()
+                if st.session_state.get("mail_voorstel"):
+                    st.session_state.agenda_deel = "Taken"
+                    ga_naar("agenda")
         if st.button(f"Plan mijn dag met {avatar.aanspreken(mijn_avatar())}", key="ochtend_plan",
                      icon=":material/auto_awesome:"):
             vraag_assistent("Kijk naar mijn dag (agenda, taken, weer) en stel een strakke planning voor vandaag voor, "
@@ -1378,10 +1558,13 @@ def taken_blok() -> None:
 
     for t in taken[:5]:
         afvinken(t)
-    if len(taken) > 5:
-        with st.expander(f"Nog {len(taken) - 5} taken"):
-            for t in taken[5:]:
-                afvinken(t)
+    if len(taken) > 5 or mail.gekoppeld():
+        def naar_taken() -> None:
+            st.session_state.agenda_deel = "Taken"
+            st.session_state.ga_naar = "agenda"
+
+        st.button(f"Alle {len(taken)} taken" if len(taken) > 5 else "Takenlijst", type="tertiary", on_click=naar_taken,
+                  icon=":material/checklist:", key="naar_takenlijst")
 
 
 def leren_tabblad() -> None:
@@ -1839,6 +2022,12 @@ def mail_tabblad() -> None:
         vraag_assistent("Loop mijn ongelezen mails na. Beantwoord namens mij wat je volgens mijn instelling mag "
                         "beantwoorden, zet de rest klaar als concept, zet afspraken en taken in mijn agenda en vertel "
                         "kort wat je hebt gedaan en wat ik zelf moet beslissen.", label="Inbox afhandelen")
+    if st.button("Maak taken van mijn mail", width="stretch", icon=":material/checklist:",
+                 help="De assistent stelt taken voor; jij kiest wat op je lijst komt en ze worden ingepland."):
+        mail_nakijken()
+        if st.session_state.get("mail_voorstel"):
+            st.session_state.agenda_deel = "Taken"
+            ga_naar("agenda")
     if kol2.button("↻", width="stretch", help="Vernieuwen"):
         _mails.clear()
     try:
@@ -2395,16 +2584,10 @@ def gesprek() -> None:
     stemkeuze = stem()
     laatste = next((t for r, t in reversed(st.session_state.chat) if r == "assistant"), "")
     voorlezen = st.session_state.get("voorlezen_id", "")
-    gezegd = spraak.knop(stemkeuze, laatste, voorlezen, automatisch=bool(voorlezen),
-                         gevoel=st.session_state.get("laatste_gevoel", "neutraal"),
-                         geluid=st.session_state.get("voorlezen_geluid"))
     if melding := st.session_state.pop("stem_melding", None):
         st.caption(f"{melding}")
-    if gezegd and not st.session_state.get("vooraf_vraag"):
-        st.session_state.vooraf_vraag = gezegd
-        st.session_state.ingesproken = True
     if not st.session_state.chat:
-        st.caption("Tik op Praat, of typ je vraag onderaan. Of kies:")
+        st.caption("Typ je vraag onderaan, of tik op de microfoon en zeg het. Of kies:")
         for i, suggestie in enumerate(SUGGESTIES):
             if st.button(suggestie, key=f"suggestie_{i}"):
                 st.session_state.vooraf_vraag = suggestie
@@ -2412,6 +2595,9 @@ def gesprek() -> None:
     for rol, tekst in st.session_state.chat:
         st.chat_message(rol, avatar=gezicht if rol == "assistant" else None).markdown(tekst)
     if st.session_state.chat and st.session_state.chat[-1][0] == "assistant":
+        spraak.knop(stemkeuze, laatste, voorlezen, automatisch=bool(voorlezen),
+                    gevoel=st.session_state.get("laatste_gevoel", "neutraal"),
+                    geluid=st.session_state.get("voorlezen_geluid"))
         woning.knoppen(st.session_state.get("woning_onder", []), "gesprek")
         feedback_vragen_antwoord()
 
@@ -2714,7 +2900,20 @@ def main() -> None:
 
     # Het invoerveld onderaan: "morgen 9u tandarts" komt meteen in de agenda (ook zonder Claude),
     # al het andere gaat naar het gesprek met de assistent.
-    if vraag := st.chat_input(f"Vraag {avatar.aanspreken(mijn_avatar())} of typ \"morgen 9u tandarts\"..."):
+    # De microfoon zit in het invoerveld (naast het pijltje); wat je zegt, gaat dezelfde weg als wat je typt.
+    with st.container(key="microfoon_houder"):
+        gezegd = spraak.microfoon(stem())
+    st.html("<style>.st-key-microfoon_houder{display:none}</style>")
+    if gezegd:
+        if snel_uitgave(gezegd):
+            pass
+        elif snelinvoer.lijkt_invoer(gezegd):
+            snel_toevoegen(gezegd)
+        else:
+            st.session_state.vooraf_vraag = gezegd
+            st.session_state.ingesproken = True
+            st.session_state.ga_naar = "assistent"
+    if vraag := st.chat_input(f"Vraag {avatar.aanspreken(mijn_avatar())} iets..."):
         if snel_uitgave(vraag):
             pass
         elif snelinvoer.lijkt_invoer(vraag):

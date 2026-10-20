@@ -155,6 +155,32 @@ def lezen(uid: str, max_tekens: int = 15000) -> dict:
         verbinding.logout()
 
 
+def lezen_veel(uids: list[str], max_tekens: int = 2500) -> list[dict]:
+    """Meerdere mails in één verbinding (sneller), elk ingekort. Markeert niets als gelezen."""
+    if not uids:
+        return []
+    verbinding = _imap()
+    try:
+        verbinding.select("INBOX", readonly=True)
+        _, antwoord = verbinding.uid("FETCH", ",".join(str(u) for u in uids), "(FLAGS BODY.PEEK[])")
+        mails = []
+        for deel in antwoord:
+            if not isinstance(deel, tuple):
+                continue
+            info = deel[0].decode(errors="replace")
+            uid = re.search(r"UID (\d+)", info)
+            if not uid:
+                continue
+            bericht = email.message_from_bytes(deel[1])
+            tekst = re.sub(r"\n\s*\n+", "\n", _platte_tekst(bericht))
+            mails.append({**_kop(bericht, uid.group(1), "\\Seen" in info),
+                          "nieuwsbrief": bool(bericht.get("List-Unsubscribe")),
+                          "tekst": tekst[:max_tekens] + (" [...]" if len(tekst) > max_tekens else "")})
+        return sorted(mails, key=lambda m: int(m["uid"]), reverse=True)
+    finally:
+        verbinding.logout()
+
+
 def versturen(aan: str, onderwerp: str, tekst: str, in_antwoord_op: str = "", references: str = "") -> None:
     m = instellingen()
     if not gekoppeld():

@@ -63,6 +63,7 @@ def voorstel(dagen: int = 7, nu: datetime | None = None) -> list[dict]:
                   if a.get("taak_id") and a["start"] >= nu.isoformat(timespec="minutes")}
     bezet = _bezet(eerste, laatste)
     resultaat = []
+    # open_taken staat al op deadline; belangrijke taken zonder deadline gaan voor de rest zonder deadline.
     for taak in opslag.open_taken():
         if taak["id"] in al_gepland:
             continue

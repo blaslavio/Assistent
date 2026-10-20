@@ -106,3 +106,11 @@ Afspraken worden 5 minuten onthouden (agendas.py); "Nu vernieuwen" haalt ze mete
   Typ onderaan "€12,50 lunch" om snel een uitgave toe te voegen.
 - Beleggen (beleggen.py): portefeuille en volglijst met koersen van Yahoo Finance. Alleen meekijken, nooit handelen.
 - Ochtendoverzicht op Vandaag ('s ochtends, of via ?ochtend=1 vanuit een iPhone-automatisering), met voorlezen.
+
+## Takenlijst en inspreken
+
+- Agenda › Taken: alle taken op volgorde (te laat, vandaag, deze week, later). "Uit mijn mail" laat de assistent
+  nieuwe mail lezen en taken voorstellen (mailtaken.py, slim.taken_uit_mail); jij vinkt aan wat erop komt en ze
+  worden meteen in vrije tijd in je agenda gezet. Nagekeken mails worden onthouden.
+- Inspreken: de microfoon zit in het invoerveld onderaan, naast het pijltje (spraak.microfoon). Onder het laatste
+  antwoord staat een knop Voorlezen.

@@ -287,16 +287,44 @@ def _nieuw_id(gegevens: dict) -> int:
 
 # --- Taken ---------------------------------------------------------------
 
-def taak_toevoegen(titel: str, deadline: str | None = None, minuten: int | None = None) -> dict:
-    """Nieuwe taak. Minuten: hoe lang hij ongeveer duurt (voor het slim inplannen)."""
+TAAK_VELDEN = {"titel", "deadline", "minuten", "prioriteit", "notitie", "bron"}
+
+
+def taak_toevoegen(titel: str, deadline: str | None = None, minuten: int | None = None, prioriteit: str = "",
+                   notitie: str = "", bron: dict | None = None) -> dict:
+    """Nieuwe taak. Minuten: hoe lang hij ongeveer duurt (voor het slim inplannen). Prioriteit: "hoog" of leeg.
+    Bron: waar de taak vandaan komt, bijvoorbeeld {"soort": "mail", "uid": ..., "van": ..., "onderwerp": ...}."""
     with _slot:
         g = laden()
         taak = {"id": _nieuw_id(g), "titel": titel, "deadline": deadline, "klaar": False}
         if minuten:
             taak["minuten"] = int(minuten)
+        if prioriteit == "hoog":
+            taak["prioriteit"] = "hoog"
+        if notitie:
+            taak["notitie"] = notitie
+        if bron:
+            taak["bron"] = bron
         g["taken"].append(taak)
         opslaan(g)
     return taak
+
+
+def taak_bijwerken(taak_id: int, **velden) -> dict | None:
+    with _slot:
+        g = laden()
+        for taak in g["taken"]:
+            if taak["id"] == taak_id:
+                for k, v in velden.items():
+                    if k not in TAAK_VELDEN:
+                        continue
+                    if v in (None, "", 0) and k != "titel":
+                        taak.pop(k, None)
+                    else:
+                        taak[k] = v
+                opslaan(g)
+                return taak
+    return None
 
 
 def taak_verwijderen(taak_id: int) -> bool:
@@ -323,8 +351,21 @@ def taak_afronden(taak_id: int) -> dict | None:
 
 
 def open_taken() -> list[dict]:
+    """Open taken: vroegste deadline eerst, bij gelijke deadline de belangrijke eerst."""
     taken = [t for t in laden()["taken"] if not t["klaar"]]
-    return sorted(taken, key=lambda t: t["deadline"] or "9999")
+    return sorted(taken, key=lambda t: (t["deadline"] or "9999", t.get("prioriteit") != "hoog"))
+
+
+def mail_gezien() -> list[str]:
+    """Mails (uid) die al op taken zijn nagekeken, zodat de assistent ze niet nog eens voorstelt."""
+    return laden().get("mail_gezien", [])
+
+
+def mail_gezien_bewaren(uids: list[str]) -> None:
+    with _slot:
+        g = laden()
+        g["mail_gezien"] = list(dict.fromkeys(g.get("mail_gezien", []) + [str(u) for u in uids]))[-1000:]
+        opslaan(g)
 
 
 # --- Agenda --------------------------------------------------------------

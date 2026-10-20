@@ -117,27 +117,39 @@ def natuurlijk_voorlezen(tekst: str, gevoel: str, stem: dict, sleutel: str) -> b
     cache[sleutel_cache] = geluid
     return geluid
 
-HTML = """
+LUIDSPREKER = ('<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M3 10v4c0 '
+               '.55.45 1 1 1h3l3.29 3.29c.63.63 1.71.18 1.71-.71V6.41c0-.89-1.08-1.34-1.71-.71L7 9H4c-.55 0-1 .45-1 1zm13.5 2A4.5 '
+               '4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 4.45v.2c0 .38.25.71.6.85C17.18 6.53 19 9.06 19 12s-1.82 '
+               '5.47-4.4 6.5c-.36.14-.6.47-.6.85v.2c0 .63.63 1.07 1.21.85C18.6 19.11 21 15.84 21 12s-2.4-7.11-5.79-8.4c-.58-.23'
+               '-1.21.22-1.21.85z"/></svg>')
+STOP = ('<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><rect x="6" y="6" '
+        'width="12" height="12" rx="2"/></svg>')
+MICROFOON = ('<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 14c1.66 0 '
+             '3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 '
+             '16 12 16s-4.52-1.8-4.93-4.15a.998.998 0 0 0-.98-.85c-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 '
+             '1 1 1s1-.45 1-1v-2.08a6.993 6.993 0 0 0 5.91-5.78c.1-.6-.39-1.14-1-1.14z"/></svg>')
+
+HTML = f"""
 <div class="spraak">
-  <button class="praat" type="button">Praat</button>
-  <button class="lees" type="button" title="Voorlezen">🔊</button>
-  <button class="stop" type="button" title="Stoppen">⏹️</button>
-  <div class="status"></div>
+  <button class="lees" type="button" title="Voorlezen" aria-label="Voorlezen">{LUIDSPREKER}<span>Voorlezen</span></button>
 </div>
 """
 
 CSS = """
-.spraak { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 8px; }
-button { font: inherit; border-radius: 999px; border: 1px solid var(--st-border-color, #ccc); padding: 10px 18px;
-         background: var(--st-secondary-background-color); color: var(--st-text-color); cursor: pointer; }
-button.praat { background: var(--st-primary-color); color: white; border: none; font-weight: 600; flex: 1; min-width: 140px; }
-button.praat.aan { background: #e0443e; }
-.status { width: 100%; font-size: 14px; opacity: .7; min-height: 1em; }
+.spraak { display: flex; align-items: center; margin: 0; }
+button.lees { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 14px; cursor: pointer;
+  border: 1px solid var(--st-border-color, rgba(128,128,128,.3)); border-radius: 999px; padding: 6px 12px;
+  background: transparent; color: var(--st-text-color); opacity: .8; }
+button.lees:hover { opacity: 1; border-color: var(--st-primary-color); color: var(--st-primary-color); }
+button.lees.bezig { opacity: 1; color: var(--st-primary-color); border-color: var(--st-primary-color); }
+button.lees:disabled { display: none; }
 """
 
 JS = """
 const VROUW = ["claire", "ellen", "fleur", "lotte", "sara", "anna", "colette", "femke", "lisa", "google nederlands"];
 const MAN = ["xander", "ari", "maarten", "bart", "frank", "guus", "daan", "ruben"];
+const LUIDSPREKER = `__LUIDSPREKER__`;
+const STOP = `__STOP__`;
 
 function kiesStem(taal, geslacht) {
   const alle = window.speechSynthesis ? speechSynthesis.getVoices() : [];
@@ -172,16 +184,11 @@ function ontgrendel() {
 }
 
 export default function (component) {
-  const { data, setTriggerValue, parentElement } = component;
+  const { data, parentElement } = component;
   const d = data || {};
-  const praat = parentElement.querySelector(".praat");
   const lees = parentElement.querySelector(".lees");
-  const stop = parentElement.querySelector(".stop");
-  const status = parentElement.querySelector(".status");
-  const Herkenning = window.SpeechRecognition || window.webkitSpeechRecognition;
   window.__assistentGesproken = window.__assistentGesproken || new Set();
 
-  if (d.alleen_voorlezen) praat.style.display = "none";
   // Eén tik ergens op de pagina ontgrendelt het geluid voor later (iPad en iPhone vragen daarom).
   if (!window.__assistentOntgrendeld) {
     window.__assistentOntgrendeld = true;
@@ -190,10 +197,22 @@ export default function (component) {
     document.addEventListener("click", eenmaal, { passive: true });
   }
 
+  function toon(bezig) {
+    lees.classList.toggle("bezig", bezig);
+    lees.innerHTML = bezig ? STOP + "<span>Stoppen</span>" : LUIDSPREKER + "<span>Voorlezen</span>";
+    lees.title = bezig ? "Stoppen" : "Voorlezen";
+  }
+
   function stopAlles() {
     if (window.speechSynthesis) speechSynthesis.cancel();
     if (window.__assistentBron) { try { window.__assistentBron.onended = null; window.__assistentBron.stop(); } catch (e) {} }
     window.__assistentBron = null;
+    toon(false);
+  }
+
+  function klaar(daarna) {
+    toon(false);
+    if (daarna) daarna();
   }
 
   function spreekApparaat(tekst, daarna) {
@@ -205,8 +224,8 @@ export default function (component) {
     u.pitch = d.toonhoogte || 1;
     const stem = kiesStem(u.lang, d.geslacht);
     if (stem) u.voice = stem;
-    u.onend = () => { status.textContent = ""; if (daarna) daarna(); };
-    status.textContent = "🔊 Aan het voorlezen...";
+    u.onend = () => klaar(daarna);
+    toon(true);
     speechSynthesis.speak(u);
   }
 
@@ -222,10 +241,10 @@ export default function (component) {
       const bron = c.createBufferSource();
       bron.buffer = buffer;
       bron.connect(c.destination);
-      bron.onended = () => { status.textContent = ""; window.__assistentBron = null; if (daarna) daarna(); };
+      bron.onended = () => { window.__assistentBron = null; klaar(daarna); };
       window.__assistentBron = bron;
       bron.start(0);
-      status.textContent = c.state === "running" ? "🔊 Aan het voorlezen..." : "Tik op 🔊 om te luisteren.";
+      toon(true);
       return true;
     } catch (e) {
       return false;
@@ -240,63 +259,18 @@ export default function (component) {
     }
   }
 
-  let luistert = false;
-  let herkenner = null;
-  function luister() {
-    if (!Herkenning) {
-      status.textContent = "Inspreken werkt hier niet. Tik in het tekstvak onderaan op 🎤 van je toetsenbord.";
-      return;
-    }
-    stopAlles();
-    herkenner = new Herkenning();
-    herkenner.lang = d.taal || "nl-NL";
-    herkenner.interimResults = true;
-    herkenner.continuous = false;
-    let tekst = "";
-    herkenner.onresult = e => {
-      tekst = Array.from(e.results).map(r => r[0].transcript).join(" ");
-      status.textContent = "🎤 " + tekst;
-    };
-    herkenner.onerror = e => {
-      status.textContent = e.error === "not-allowed"
-        ? "Geef Safari toegang tot de microfoon (Instellingen > Safari > Microfoon) en zet Dicteren aan."
-        : "Ik heb niets gehoord. Tik nog eens op Praat.";
-    };
-    herkenner.onend = () => {
-      luistert = false;
-      praat.classList.remove("aan");
-      praat.textContent = "Praat";
-      if (tekst.trim()) {
-        status.textContent = "✓ " + tekst;
-        setTriggerValue("gezegd", tekst.trim());
-      }
-    };
-    luistert = true;
-    praat.classList.add("aan");
-    praat.textContent = "● Ik luister... (tik om te stoppen)";
-    status.textContent = "";
-    herkenner.start();
-  }
-
-  praat.onclick = () => {
-    // Een lege uitspraak tijdens de tik ontgrendelt voorlezen op de iPad.
-    if (window.speechSynthesis) speechSynthesis.speak(new SpeechSynthesisUtterance(""));
+  lees.onclick = () => {
     ontgrendel();
-    if (luistert && herkenner) { herkenner.stop(); return; }
-    luister();
-  };
-  lees.onclick = () => { ontgrendel(); spreek(d.tekst); };
-  stop.onclick = () => {
-    stopAlles();
-    if (herkenner) herkenner.abort();
-    status.textContent = "";
+    if (lees.classList.contains("bezig")) { stopAlles(); return; }
+    spreek(d.tekst);
   };
   lees.disabled = !d.tekst;
 
-  // Nieuw antwoord: één keer automatisch voorlezen, en bij doorpraten daarna weer luisteren.
+  // Nieuw antwoord: één keer automatisch voorlezen, en bij doorpraten daarna weer luisteren (via de microfoon).
   if (d.automatisch && d.id && d.tekst && !window.__assistentGesproken.has(d.id)) {
     window.__assistentGesproken.add(d.id);
-    const start = () => spreek(d.tekst, d.doorpraten ? luister : null);
+    const verder = d.doorpraten ? () => { if (window.__assistentLuister) window.__assistentLuister(); } : null;
+    const start = () => spreek(d.tekst, verder);
     if (!d.geluid && window.speechSynthesis && speechSynthesis.getVoices().length === 0) {
       speechSynthesis.onvoiceschanged = () => { speechSynthesis.onvoiceschanged = null; start(); };
       setTimeout(start, 600);
@@ -304,12 +278,143 @@ export default function (component) {
       start();
     }
   }
-
-  return () => {
-    if (herkenner) herkenner.abort();
-  };
 }
+""".replace("__LUIDSPREKER__", LUIDSPREKER).replace("__STOP__", STOP)
+
+# De microfoon zit in het invoerveld onderaan, naast het pijltje omhoog, zoals in de Claude-app.
+# Het onderdeel zelf is onzichtbaar; het zet een knop in de invoerbalk van Streamlit en houdt die daar.
+MIC_CSS = """
+[data-testid="stChatInput"] .assistent-mic { display: flex; align-items: center; justify-content: center;
+  width: 2.25rem; height: 2.25rem; border-radius: 999px; border: none; background: transparent; cursor: pointer;
+  color: var(--st-text-color, #31333f); opacity: .75; padding: 0; margin-right: 2px; flex-shrink: 0; align-self: end; }
+[data-testid="stChatInput"] .assistent-mic:hover { opacity: 1; background: rgba(128,128,128,.12); }
+[data-testid="stChatInput"] .assistent-mic.aan { opacity: 1; color: #fff; background: #e0443e;
+  animation: assistent-puls 1.4s ease-in-out infinite; }
+@keyframes assistent-puls { 0%, 100% { box-shadow: 0 0 0 0 rgba(224,68,62,.45); } 50% { box-shadow: 0 0 0 7px rgba(224,68,62,0); } }
 """
+
+MIC_JS = """
+const MICROFOON = `__MICROFOON__`;
+const CSS = `__CSS__`;
+
+export default function (component) {
+  const { data, setTriggerValue } = component;
+  const d = data || {};
+  const Herkenning = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!document.getElementById("assistent-mic-stijl")) {
+    const stijl = document.createElement("style");
+    stijl.id = "assistent-mic-stijl";
+    stijl.textContent = CSS;
+    document.head.appendChild(stijl);
+  }
+  const st = window.__assistentMic = window.__assistentMic || { luistert: false, herkenner: null };
+  st.setTriggerValue = setTriggerValue;
+  st.taal = d.taal || "nl-NL";
+
+  function veld() { return document.querySelector('[data-testid="stChatInputTextArea"]'); }
+
+  function zetTekst(tekst) {
+    // Het tekstvak is van React: via de echte setter en een input-gebeurtenis ziet Streamlit de nieuwe tekst.
+    const v = veld();
+    if (!v) return;
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set.call(v, tekst);
+    v.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function knopStand() {
+    if (!st.knop) return;
+    st.knop.classList.toggle("aan", st.luistert);
+    st.knop.title = st.luistert ? "Stoppen met luisteren" : "Inspreken";
+    st.knop.setAttribute("aria-label", st.knop.title);
+  }
+
+  function luister() {
+    const v = veld();
+    if (!Herkenning) {
+      if (v) { v.placeholder = "Inspreken: tik in dit vak en gebruik de microfoon van je toetsenbord"; v.focus(); }
+      return;
+    }
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    if (window.__assistentBron) { try { window.__assistentBron.stop(); } catch (e) {} }
+    const h = st.herkenner = new Herkenning();
+    h.lang = st.taal;
+    h.interimResults = true;
+    h.continuous = false;
+    let tekst = "";
+    const oud = v ? v.placeholder : "";
+    h.onresult = e => {
+      tekst = Array.from(e.results).map(r => r[0].transcript).join(" ");
+      zetTekst(tekst);
+    };
+    h.onerror = e => {
+      const w = veld();
+      if (w && e.error === "not-allowed") w.placeholder = "Geef Safari toegang tot de microfoon (Instellingen › Safari)";
+    };
+    h.onend = () => {
+      st.luistert = false;
+      knopStand();
+      const w = veld();
+      if (w && w.placeholder.startsWith("Ik luister")) w.placeholder = oud;
+      if (tekst.trim()) {
+        zetTekst("");
+        st.setTriggerValue("gezegd", tekst.trim());
+      }
+    };
+    st.luistert = true;
+    knopStand();
+    if (v) v.placeholder = "Ik luister...";
+    h.start();
+  }
+  window.__assistentLuister = luister;
+
+  function maakKnop() {
+    const k = document.createElement("button");
+    k.type = "button";
+    k.className = "assistent-mic";
+    k.innerHTML = MICROFOON;
+    k.onclick = (e) => {
+      e.preventDefault();
+      // Een lege uitspraak tijdens de tik ontgrendelt voorlezen op de iPad.
+      if (window.speechSynthesis) speechSynthesis.speak(new SpeechSynthesisUtterance(""));
+      if (st.luistert && st.herkenner) { st.herkenner.stop(); return; }
+      luister();
+    };
+    return k;
+  }
+
+  function plaats() {
+    const balk = document.querySelector('[data-testid="stChatInput"]');
+    const verzend = balk && balk.querySelector('[data-testid="stChatInputSubmitButton"]');
+    if (!verzend) return;
+    if (!st.knop) st.knop = maakKnop();
+    const plek = verzend.parentElement;
+    if (st.knop.nextSibling !== plek || st.knop.parentElement !== plek.parentElement) {
+      plek.parentElement.insertBefore(st.knop, plek);
+    }
+    knopStand();
+  }
+  plaats();
+  // Streamlit tekent de invoerbalk soms opnieuw; zet de knop er dan weer in (hooguit één keer per beeldje).
+  if (!st.waker) {
+    let gepland = false;
+    st.waker = new MutationObserver(() => {
+      if (gepland) return;
+      gepland = true;
+      requestAnimationFrame(() => { gepland = false; plaats(); });
+    });
+    st.waker.observe(document.body, { childList: true, subtree: true });
+  }
+}
+""".replace("__MICROFOON__", MICROFOON).replace("__CSS__", MIC_CSS)
+
+_microfoon = st.components.v2.component("microfoon", html="<span></span>", js=MIC_JS)
+
+
+def microfoon(stem: dict, key: str = "microfoon") -> str | None:
+    """De microfoonknop in het invoerveld onderaan. Geeft terug wat er is ingesproken, of None."""
+    resultaat = _microfoon(key=key, data={"taal": REGIO.get(stem["regio"], "nl-NL")}, on_gezegd_change=lambda: None)
+    return getattr(resultaat, "gezegd", None) if resultaat is not None else None
+
 
 _component = st.components.v2.component("spraak", html=HTML, css=CSS, js=JS)
 
@@ -332,7 +437,7 @@ def voor_voorlezen(tekst: str) -> str:
 
 def knop(stem: dict, tekst: str = "", antwoord_id: str = "", automatisch: bool = False, key: str = "spraak",
          alleen_voorlezen: bool = False, gevoel: str = "neutraal", geluid: bytes | None = None) -> str | None:
-    """Toont de spraakknoppen. Geeft terug wat er is ingesproken, of None.
+    """Een knop Voorlezen (wordt Stoppen tijdens het voorlezen). Inspreken gaat via microfoon() in het invoerveld.
 
     `gevoel` kleurt de stem van het apparaat; `geluid` (mp3 van de natuurlijke stem) gaat daar voor.
     """

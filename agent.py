@@ -99,6 +99,10 @@ Werkwijze:
   voorkom overlap en krappe overstappen, en reken met de reistijd plus de
   gewoontes hieronder (gemiddelde uitloop en te laat komen per soort) als buffer.
   Stel een concreet tijdstip voor in plaats van open vragen.
+- Taken en agenda: de agenda plant de dag. Zet wat de gebruiker moet doen als taak (met
+  deadline, minuten en belangrijk) en plan het met taken_inplannen in vrije tijd. Haal je
+  een taak uit een mail, geef dan mail_uid mee. Taken uit mail stel je eerst voor; zet
+  ze er pas op na akkoord, tenzij de gebruiker vroeg om ze meteen toe te voegen.
 - Geld: met budget_bekijken zie je wat er binnenkomt, uitgaat en vrij te besteden is.
   Zegt de gebruiker "12 euro uitgegeven aan lunch", zet het dan met uitgave_toevoegen
   in het budget. Geef praktische, vriendelijke tips; nooit betuttelen.
@@ -241,15 +245,29 @@ def _json(data) -> str:
 
 
 @beta_tool
-def taak_toevoegen(titel: str, deadline: str = "", minuten: int = 0) -> str:
+def taak_toevoegen(titel: str, deadline: str = "", minuten: int = 0, belangrijk: bool = False,
+                   notitie: str = "", mail_uid: str = "") -> str:
     """Voeg een taak toe aan de takenlijst.
 
     Args:
-        titel: Korte omschrijving van de taak.
+        titel: Korte omschrijving van de taak, beginnend met een werkwoord.
         deadline: Optionele datum als JJJJ-MM-DD, leeg laten als er geen deadline is.
         minuten: Hoe lang de taak ongeveer duurt (schat het in als de gebruiker niets zegt), 0 als onbekend.
+        belangrijk: true bij geld, boetes, werk of school, of een deadline binnen 3 dagen.
+        notitie: Optioneel, bijvoorbeeld wat er in de mail stond.
+        mail_uid: Als de taak uit een mail komt: de uid van die mail (dan kan de gebruiker hem openen).
     """
-    return _json(opslag.taak_toevoegen(titel, deadline or None, minuten or None))
+    bron = None
+    if mail_uid:
+        bron = {"soort": "mail", "uid": str(mail_uid)}
+        try:
+            m = mail.lezen(str(mail_uid), max_tekens=10)
+            bron |= {"van": m["van"], "onderwerp": m["onderwerp"]}
+        except Exception:
+            pass
+        opslag.mail_gezien_bewaren([str(mail_uid)])
+    return _json(opslag.taak_toevoegen(titel, deadline or None, minuten or None, "hoog" if belangrijk else "",
+                                       notitie, bron))
 
 
 @beta_tool
