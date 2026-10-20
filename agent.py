@@ -349,7 +349,8 @@ def afspraak_toevoegen(
         contact_id: Id van de contactpersoon uit contacten_zoeken of contact_opslaan, 0 als er geen is.
         notitie: Optionele extra informatie.
         sport: Bij een sportafspraak de sport in kleine letters, zoals hardlopen, fitness, fietsen of zwemmen.
-        soort: Een van: afspraak, sport, uitgaan, etentje, werk, familie en vrienden, gezondheid, reizen, herinnering, overig.
+        soort: Een van: afspraak, sport, uitgaan, etentje, werk, familie en vrienden, gezondheid, reizen, verjaardag, herinnering, overig.
+            Een verjaardag zet je als hele dag (start JJJJ-MM-DD) met herhaal='jaar', titel bijvoorbeeld 'Sanne jarig'.
             Gebruik herinnering voor een seintje op een tijdstip, zoals 'medicijnen innemen' of 'vuilnis buiten zetten'.
         herhaal: Leeg, of hoe vaak de afspraak terugkomt: dag, werkdag, week, twee_weken, maand of jaar
             (bijvoorbeeld 'elke dinsdag voetbal' = week met de eerstvolgende dinsdag als start).

@@ -189,6 +189,11 @@ def mijn_uitnodigingen(van: str, tot: str) -> list[dict]:
     return opslag._rpc_ik("mijn_uitnodigingen", p_van=van, p_tot=tot)["uitnodigingen"]
 
 
+def aantallen_tekst(aantallen: dict) -> str:
+    """'3 ja, 1 misschien' (zonder namen: wie er nog meer komt, deelt alleen de uitnodiger)."""
+    return ", ".join(f"{aantallen[k]} {ANTWOORDEN[k].lower()}" for k in ("ja", "misschien") if aantallen.get(k))
+
+
 def gasten_tekst(lijst: list[dict]) -> str:
     """'Sanne: ja, Jan: nog geen antwoord'."""
     return ", ".join(f"{g['naam']}: {ANTWOORDEN.get(g['antwoord'], 'nog geen antwoord').lower()}" for g in lijst)

@@ -590,11 +590,18 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
         soort = st.pills("Soort", list(tijd.SOORTEN), default=tijd.soort_van(a), key=f"{sleutel}_soort",
                          format_func=lambda s: f"{tijd.SOORTEN[s]} {s.capitalize()}") or "afspraak"
         kol1, kol2, kol3 = st.columns(3)
-        dag = kol1.date_input("Datum", value=start.date() if start else date.today(), format="DD-MM-YYYY")
+        dag = kol1.date_input("Datum", value=date.fromisoformat(a["start"][:10]) if a.get("start") else date.today(),
+                              format="DD-MM-YYYY")
         begin = kol2.time_input("Begin", value=start.time() if start else datetime.now().replace(minute=0).time(), step=900)
         eind = kol3.time_input("Einde", value=einde.time() if einde else None, step=900)
+        hele_dag = st.checkbox("Hele dag", value=bool(a.get("start")) and "T" not in a["start"],
+                               help="Bijvoorbeeld een verjaardag; begin en einde tellen dan niet.")
         locatie = st.text_input("Adres (straat, huisnummer, plaats)", value=a.get("locatie", ""),
                                 help="Met een adres berekent de app je reistijd en vertrektijd.")
+        gasten = ""
+        if not afspraak and samen.beschikbaar():
+            gasten = st.text_input("Uitnodigen", placeholder="Gebruikersnamen, met komma's ertussen",
+                                   help="Zij zien titel, tijd en plaats in hun agenda en zeggen ja, nee of misschien.")
         meer = st.expander("Meer: met wie, welke sport, notitie", expanded=bool(afspraak))
         opties = [0, *contacten, -1]
         namen = {0: "Geen", -1: "Nieuw contact", **contacten}
@@ -627,10 +634,12 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
                 sport = "sport"
             if contact_id == -1:
                 contact_id = opslag.contact_opslaan(nieuw_naam.strip(), telefoon=nieuw_tel.strip())["id"] if nieuw_naam.strip() else 0
+            if soort == "verjaardag" and hele_dag and not herhaal and not afspraak:
+                herhaal = "jaar"  # een verjaardag komt elk jaar terug
             velden = {
                 "titel": titel.strip(),
-                "start": f"{dag.isoformat()}T{begin.strftime('%H:%M')}",
-                "einde": f"{dag.isoformat()}T{eind.strftime('%H:%M')}" if eind else None,
+                "start": dag.isoformat() if hele_dag else f"{dag.isoformat()}T{begin.strftime('%H:%M')}",
+                "einde": None if hele_dag else f"{dag.isoformat()}T{eind.strftime('%H:%M')}" if eind else None,
                 "locatie": locatie.strip(), "contact_id": contact_id or None, "notitie": notitie.strip(),
             }
             velden |= {"sport": sport if soort == "sport" else "", "soort": soort, "prive": prive}
@@ -659,6 +668,14 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
                     opslag.afspraak_bijwerken(nieuw["id"], prive=True)
                 if herhaal:
                     opslag.afspraak_herhalen(nieuw["id"], herhaal, tot)
+                niet_gevonden = []
+                for naam in [n.strip() for n in gasten.replace(";", ",").split(",") if n.strip()][:30]:
+                    try:
+                        samen.uitnodigen(nieuw["id"], naam)
+                    except samen.Fout:
+                        niet_gevonden.append(naam)
+                if niet_gevonden:
+                    st.session_state.agenda_fout = f"Niet uitgenodigd (onbekende gebruikersnaam): {', '.join(niet_gevonden)}"
             st.toast("Afspraak opgeslagen.", icon="✅")
             st.rerun()
 
@@ -726,8 +743,8 @@ def afspraak_kaart(regel: dict, afspraak: dict) -> None:
 
 def uitnodiging_bediening(u: dict) -> None:
     """Bij een afspraak van iemand anders waarvoor je bent uitgenodigd: ja/misschien/nee en reageren."""
-    andere = [g for g in u["gasten"] if g["naam"] != u.get("gast")]
-    st.caption(f":material/mail: Uitnodiging van {u['van']}" + (f" · {samen.gasten_tekst(andere)}" if andere else ""))
+    aantallen = samen.aantallen_tekst(u.get("aantallen") or {})
+    st.caption(f":material/mail: Uitnodiging van {u['van']}" + (f" · {aantallen}" if aantallen else ""))
 
     def kies() -> None:
         opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
@@ -1281,8 +1298,10 @@ def snel_toevoegen(zin: str) -> dict:
     r = snelinvoer.lees(zin)
     if r["wat"] == "afspraak":
         item = opslag.afspraak_toevoegen(r["titel"], r["start"], r["einde"], locatie=r["locatie"], soort=r["soort_agenda"])
-        start, einde = datetime.fromisoformat(r["start"]), datetime.fromisoformat(r["einde"])
-        wanneer = f"{DAGEN[start.weekday()]} {start.day} {MAANDEN[start.month - 1]}, {start:%H:%M}–{einde:%H:%M}"
+        start = datetime.fromisoformat(r["start"])
+        wanneer = f"{DAGEN[start.weekday()]} {start.day} {MAANDEN[start.month - 1]}"
+        if r["einde"]:
+            wanneer += f", {start:%H:%M}–{datetime.fromisoformat(r['einde']):%H:%M}"
         if r.get("herhaal"):
             wanneer += f" ({opslag.herhaal_tekst(opslag.afspraak_herhalen(item['id'], r['herhaal'])).lower()})"
         tekst = f"{tijd.SOORTEN.get(r['soort_agenda'], '📅')} In je agenda: **{r['titel']}**, {wanneer}"
