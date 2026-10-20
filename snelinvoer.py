@@ -61,7 +61,20 @@ def lees(invoer: str, nu: datetime | None = None) -> dict:
 
     # Datum.
     middag = bool(re.search(r"'s middags|'s avonds|avond\b|middag\b|vanavond", laag))
-    if zoek(r"\s(vandaag|vanavond|vanmiddag|vanochtend|vanmorgen)\s"):
+    # Herhaling: "elke dinsdag", "elke werkdag", "om de week", "maandelijks".
+    herhaal = ""
+    if m := zoek(r"\s(?:elke|iedere) (maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|zondag)(?:avond|middag|ochtend)?\s"):
+        herhaal, dag = "week", _volgende_dag(vandaag, DAGEN[m.group(1)], False)
+    elif m := zoek(r"\s(elke dag|iedere dag|dagelijks|elke werkdag|iedere werkdag|doordeweeks|om de week|om de twee "
+                   r"weken|elke twee weken|elke week|iedere week|wekelijks|elke maand|iedere maand|maandelijks|elk jaar|"
+                   r"ieder jaar|jaarlijks)\s"):
+        w = m.group(1)
+        herhaal = ("werkdag" if "werkdag" in w or w == "doordeweeks" else "twee_weken" if "twee" in w or "om de" in w
+                   else "dag" if "dag" in w else "week" if "week" in w or "wekelijks" in w
+                   else "maand" if "maand" in w else "jaar")
+    if dag:
+        pass
+    elif zoek(r"\s(vandaag|vanavond|vanmiddag|vanochtend|vanmorgen)\s"):
         dag = vandaag
     elif m := zoek(r"\s(overmorgen|morgen)(?:avond|middag|ochtend)?\s"):
         dag = vandaag + timedelta(days=2 if m.group(1) == "overmorgen" else 1)
@@ -147,7 +160,7 @@ def lees(invoer: str, nu: datetime | None = None) -> dict:
     if re.search(r"herinner|niet vergeten", invoer, re.I):
         soort = "herinnering"
 
-    resultaat = {"titel": titel, "soort_agenda": soort, "locatie": locatie}
+    resultaat = {"titel": titel, "soort_agenda": soort, "locatie": locatie, "herhaal": herhaal}
     if begin_tijd and not deadline_woord:
         dag = dag or (vandaag if begin_tijd >= (nu.hour, nu.minute) else vandaag + timedelta(days=1))
         start = datetime.combine(dag, datetime.min.time()).replace(hour=begin_tijd[0], minute=begin_tijd[1])
@@ -160,7 +173,9 @@ def lees(invoer: str, nu: datetime | None = None) -> dict:
                       "einde": einde.isoformat(timespec="minutes")}
     else:
         resultaat |= {"wat": "taak", "deadline": dag.isoformat() if dag else None, "minuten": minuten}
-    resultaat["herkend"] = bool(dag or begin_tijd or minuten or locatie)
+    if resultaat["wat"] != "afspraak":
+        resultaat["herhaal"] = ""  # taken herhalen (nog) niet
+    resultaat["herkend"] = bool(dag or begin_tijd or minuten or locatie or herhaal)
     return resultaat
 
 

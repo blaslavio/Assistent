@@ -85,6 +85,15 @@ def tijd_tekst(start: str) -> str:
     return f"{['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'][dag.weekday()]} {dag:%d-%m} om {dag:%H:%M}"
 
 
+def tijd_kort(start: str) -> str:
+    """'2026-10-21T19:00' -> 'wo 21-10 19:00' (agendatijd, al in je eigen tijdzone)."""
+    try:
+        d = datetime.fromisoformat(start)
+    except ValueError:
+        return start
+    return f"{['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'][d.weekday()]} {d:%d-%m}" + (f" {d:%H:%M}" if "T" in start else "")
+
+
 # --- Agenda delen -------------------------------------------------------------
 
 REACTIES = {"op_tijd": "Op tijd", "later": "Later", "kan_niet": "Kan niet", "opmerking": "Opmerking"}
@@ -134,7 +143,55 @@ def mijn_agenda_reacties(afspraak_ids: list) -> dict[str, list[dict]]:
 
 def agenda_nieuw(sinds: str) -> list[dict]:
     """Reacties van anderen sinds een tijdstip (ISO), nieuwste eerst."""
-    return opslag._rpc_ik("agenda_nieuw", p_sinds=sinds)["reacties"]
+    return agenda_nieuws(sinds)["reacties"]
+
+
+def agenda_nieuws(sinds: str) -> dict:
+    """{reacties, uitnodigingen (nieuw voor jou), antwoorden (op jouw uitnodigingen)} sinds een tijdstip."""
+    antwoord = opslag._rpc_ik("agenda_nieuw", p_sinds=sinds)
+    return {"reacties": antwoord.get("reacties", []), "uitnodigingen": antwoord.get("uitnodigingen", []),
+            "antwoorden": antwoord.get("antwoorden", [])}
+
+
+# --- Uitnodigen voor een afspraak ----------------------------------------------------
+
+ANTWOORDEN = {"ja": "Ja", "misschien": "Misschien", "nee": "Nee"}
+
+
+def uitnodigen(afspraak_id, gast: str) -> dict:
+    """Nodigt een gebruiker uit voor één van je afspraken. Diegene ziet hem in zijn eigen agenda."""
+    return _ok(opslag._rpc_ik("agenda_uitnodigen", p_afspraak=str(afspraak_id), p_gast=gast.strip().lstrip("@")))
+
+
+def uitnodiging_weg(uitnodiging_id: int) -> None:
+    opslag._rpc_ik("agenda_uitnodiging_weg", p_id=uitnodiging_id)
+
+
+def antwoorden(uitnodiging_id: int, antwoord: str) -> dict:
+    """ja, nee of misschien op een uitnodiging."""
+    return _ok(opslag._rpc_ik("agenda_antwoorden", p_id=uitnodiging_id, p_antwoord=antwoord))
+
+
+def gasten(afspraak_ids: list) -> dict[str, list[dict]]:
+    """Wie je per afspraak hebt uitgenodigd: {afspraak-id: [{id, naam, antwoord}]}."""
+    if not afspraak_ids or not beschikbaar():
+        return {}
+    per: dict[str, list[dict]] = {}
+    for g in opslag._rpc_ik("agenda_gasten", p_afspraken=[str(a) for a in afspraak_ids])["gasten"]:
+        per.setdefault(g["afspraak"], []).append(g)
+    return per
+
+
+def mijn_uitnodigingen(van: str, tot: str) -> list[dict]:
+    """Afspraken van anderen waarvoor je bent uitgenodigd (behalve als je nee zei blijven ze zichtbaar)."""
+    if not beschikbaar():
+        return []
+    return opslag._rpc_ik("mijn_uitnodigingen", p_van=van, p_tot=tot)["uitnodigingen"]
+
+
+def gasten_tekst(lijst: list[dict]) -> str:
+    """'Sanne: ja, Jan: nog geen antwoord'."""
+    return ", ".join(f"{g['naam']}: {ANTWOORDEN.get(g['antwoord'], 'nog geen antwoord').lower()}" for g in lijst)
 
 
 def reactie_tekst(r: dict, met_naam: bool = True) -> str:
@@ -604,7 +661,12 @@ def nieuw() -> dict:
         meldingen.append(("samen", f"🤝 {gedeeld} nieuw met je gedeeld"))
     try:
         sinds = opslag.instellingen().get("agenda_gezien") or (datetime.now() - timedelta(days=2)).isoformat()
-        for r in agenda_nieuw(sinds)[:3]:
+        nieuws = agenda_nieuws(sinds)
+        for u in nieuws["uitnodigingen"][:3]:
+            meldingen.append(("agenda", f"🗓️ {u['van']} nodigt je uit: **{u['titel']}** · {tijd_kort(u['start'])}"))
+        for u in nieuws["antwoorden"][:3]:
+            meldingen.append(("agenda", f"🗓️ {u['gast']}: {ANTWOORDEN[u['antwoord']].lower()} · {u['titel']}"))
+        for r in nieuws["reacties"][:3]:
             meldingen.append(("agenda", f"🗓️ {reactie_tekst(r)} · {r.get('titel') or 'afspraak'}"))
     except opslag.GeenToegang:
         raise

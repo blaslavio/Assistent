@@ -337,7 +337,7 @@ def taak_afronden(taak_id: int) -> str:
 @beta_tool
 def afspraak_toevoegen(
     titel: str, start: str, einde: str = "", locatie: str = "", contact_id: int = 0, notitie: str = "", sport: str = "",
-    soort: str = "afspraak",
+    soort: str = "afspraak", herhaal: str = "", herhalen_tot: str = "",
 ) -> str:
     """Zet een afspraak in de agenda. Sport, uitjes, etentjes en alle andere activiteiten gaan ook in de agenda.
 
@@ -351,11 +351,18 @@ def afspraak_toevoegen(
         sport: Bij een sportafspraak de sport in kleine letters, zoals hardlopen, fitness, fietsen of zwemmen.
         soort: Een van: afspraak, sport, uitgaan, etentje, werk, familie en vrienden, gezondheid, reizen, herinnering, overig.
             Gebruik herinnering voor een seintje op een tijdstip, zoals 'medicijnen innemen' of 'vuilnis buiten zetten'.
+        herhaal: Leeg, of hoe vaak de afspraak terugkomt: dag, werkdag, week, twee_weken, maand of jaar
+            (bijvoorbeeld 'elke dinsdag voetbal' = week met de eerstvolgende dinsdag als start).
+        herhalen_tot: Optionele laatste datum van de herhaling (JJJJ-MM-DD).
     """
     if sport and soort == "afspraak":
         soort = "sport"
-    return _json(opslag.afspraak_toevoegen(titel, start, einde or None, notitie, locatie, contact_id or None, sport,
-                                           soort if soort in tijd.SOORTEN else "overig"))
+    afspraak = opslag.afspraak_toevoegen(titel, start, einde or None, notitie, locatie, contact_id or None, sport,
+                                         soort if soort in tijd.SOORTEN else "overig")
+    if herhaal in opslag.HERHAAL:
+        afspraak["herhaling"] = opslag.herhaal_tekst(opslag.afspraak_herhalen(afspraak["id"], herhaal,
+                                                                              herhalen_tot or None))
+    return _json(afspraak)
 
 
 @beta_tool
@@ -449,6 +456,22 @@ def afspraak_verwijderen(afspraak_id: int) -> str:
         afspraak_id: Het id van de afspraak.
     """
     return "Verwijderd." if opslag.afspraak_verwijderen(afspraak_id) else "Afspraak niet gevonden."
+
+
+@beta_tool
+def afspraak_uitnodigen(afspraak_id: int, gebruikersnaam: str) -> str:
+    """Nodig iemand die de app ook gebruikt uit voor een afspraak (op gebruikersnaam). Diegene ziet de afspraak in
+    zijn agenda (zonder notitie) en kan ja, nee of misschien zeggen. Alleen doen als de gebruiker dat vraagt.
+
+    Args:
+        afspraak_id: Id van een eigen afspraak.
+        gebruikersnaam: Gebruikersnaam in de app van degene die je uitnodigt.
+    """
+    try:
+        u = samen.uitnodigen(afspraak_id, gebruikersnaam)
+    except samen.Fout as fout:
+        return str(fout)
+    return f"{u['gast']} is uitgenodigd voor {u['titel']}."
 
 
 @beta_tool
@@ -1246,6 +1269,7 @@ HULPMIDDELEN = [
     afspraak_verwijderen,
     tijd_vastleggen,
     agenda_laten_weten,
+    afspraak_uitnodigen,
     tijdsbesteding_bekijken,
     weer_bekijken,
     events_zoeken,

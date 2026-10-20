@@ -17,6 +17,7 @@ import json
 import os
 import secrets
 import threading
+import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -420,6 +421,8 @@ def afspraken_tussen(van: str, tot: str, extern: bool = True) -> list[dict]:
     """
     g = laden()
     resultaat = [a for a in g["afspraken"] if van <= a["start"][:10] <= tot]
+    if extern:
+        resultaat += [u for u in uitnodigingen() if van <= u["start"][:10] <= tot and u["uitnodiging"]["antwoord"] != "nee"]
     if extern and g.get("instellingen", {}).get("agendas"):
         try:
             import agendas
@@ -431,6 +434,36 @@ def afspraken_tussen(van: str, tot: str, extern: bool = True) -> list[dict]:
         except Exception:
             pass  # een agenda die even niet bereikbaar is mag de app niet stilleggen
     return sorted(resultaat, key=lambda a: a["start"])
+
+
+_uitnodigingen: dict[str, tuple[float, list[dict]]] = {}
+
+
+def uitnodigingen(vers: bool = False) -> list[dict]:
+    """Afspraken van anderen waarvoor je bent uitgenodigd, als (alleen te lezen) afspraken met id "ext:uit:<id>".
+    Een minuut onthouden; vers=True haalt ze opnieuw op."""
+    if not online() or not _wachtwoord.get():
+        return []
+    sleutel = hashlib.sha256(f"{_naam.get()}|{_wachtwoord.get()}".encode()).hexdigest()
+    bewaard = _uitnodigingen.get(sleutel)
+    if bewaard and not vers and time.time() - bewaard[0] < 60:
+        return bewaard[1]
+    try:
+        lijst = _rpc_ik("mijn_uitnodigingen", p_van=(date.today() - timedelta(days=60)).isoformat(),
+                        p_tot=(date.today() + timedelta(days=730)).isoformat())["uitnodigingen"]
+    except GeenToegang:
+        raise
+    except Exception:
+        return bewaard[1] if bewaard else []
+    tijden = laden().get("extern_tijden", {})
+    afspraken = []
+    for u in lijst:
+        a = {"id": f"ext:uit:{u['id']}", "titel": u["titel"], "start": u["start"], "einde": u["einde"],
+             "locatie": u["locatie"], "soort": u["soort"], "notitie": "", "extern": True,
+             "bron": f"uitnodiging van {u['van']}", "uitnodiging": u}
+        afspraken.append({**a, "tijden": tijden[a["id"]]} if a["id"] in tijden else a)
+    _uitnodigingen[sleutel] = (time.time(), afspraken)
+    return afspraken
 
 
 def tijd_vastleggen(afspraak_id: int | str, moment: str, tijdstip: str | None = None) -> dict | None:
@@ -503,6 +536,180 @@ def afspraak_bijwerken(afspraak_id: int, **velden) -> dict | None:
                 opslaan(g)
                 return afspraak
     return None
+
+
+# --- Herhalende afspraken -------------------------------------------------
+# Een reeks (g["reeksen"]) beschrijft hoe vaak iets terugkomt. De afspraken zelf staan als gewone afspraken in de
+# agenda (met "reeks": id), steeds tot een eindje vooruit; reeksen_aanvullen() vult ze later aan. Zo werkt alles wat
+# met afspraken kan (wijzigen, reistijd, delen, reageren) ook voor elke keer apart.
+
+HERHAAL = {"dag": "Elke dag", "werkdag": "Elke werkdag", "week": "Elke week", "twee_weken": "Om de week",
+           "maand": "Elke maand", "jaar": "Elk jaar"}
+_VOORUIT = {"dag": 60, "werkdag": 60, "week": 365, "twee_weken": 365, "maand": 730, "jaar": 1830}
+
+
+def _volgende_datums(reeks: dict, na: date, tot: date) -> list[date]:
+    """De datums van een reeks na `na` tot en met `tot` (en niet na de einddatum van de reeks)."""
+    eerste = date.fromisoformat(reeks["eerste"])
+    if reeks.get("tot"):
+        tot = min(tot, date.fromisoformat(reeks["tot"]))
+    elke, uit = reeks["elke"], []
+    if elke in ("dag", "werkdag", "week", "twee_weken"):
+        stap = {"dag": 1, "werkdag": 1, "week": 7, "twee_weken": 14}[elke]
+        d = eerste + timedelta(days=max(0, -(-((na - eerste).days + 1) // stap)) * stap)
+        while d <= tot:
+            if d > na and (elke != "werkdag" or d.weekday() < 5):
+                uit.append(d)
+            d += timedelta(days=stap)
+        return uit
+    import calendar
+    n = 1
+    while True:
+        jaar, maand = (eerste.year + n, eerste.month) if elke == "jaar" else \
+            (eerste.year + (eerste.month - 1 + n) // 12, (eerste.month - 1 + n) % 12 + 1)
+        d = date(jaar, maand, min(eerste.day, calendar.monthrange(jaar, maand)[1]))
+        if d > tot:
+            return uit
+        if d > na:
+            uit.append(d)
+        n += 1
+
+
+def _reeks_maken(g: dict, reeks: dict, tot: date) -> int:
+    """Zet de afspraken van een reeks in de agenda tot en met `tot`. Geeft het aantal nieuwe."""
+    s = reeks["sjabloon"]
+    aantal = 0
+    for d in _volgende_datums(reeks, date.fromisoformat(reeks["gemaakt_tot"]), tot):
+        start = f"{d.isoformat()}T{s['tijd']}" if s.get("tijd") else d.isoformat()
+        einde = None
+        if s.get("duur") is not None and s.get("tijd"):
+            einde = (datetime.fromisoformat(start) + timedelta(minutes=s["duur"])).isoformat(timespec="minutes")
+        g["afspraken"].append({"id": _nieuw_id(g), **{k: v for k, v in s.items() if k not in ("tijd", "duur")},
+                               "start": start, "einde": einde, "reeks": reeks["id"]})
+        aantal += 1
+    reeks["gemaakt_tot"] = max(reeks["gemaakt_tot"], tot.isoformat())
+    return aantal
+
+
+_SJABLOON_VELDEN = ("titel", "notitie", "locatie", "contact_id", "soort", "sport", "prive")
+
+
+def _sjabloon(afspraak: dict) -> dict:
+    s = {k: afspraak[k] for k in _SJABLOON_VELDEN if k in afspraak}
+    if "T" in afspraak["start"]:
+        s["tijd"] = afspraak["start"][11:16]
+        if afspraak.get("einde") and "T" in afspraak["einde"]:
+            s["duur"] = int((datetime.fromisoformat(afspraak["einde"])
+                             - datetime.fromisoformat(afspraak["start"])).total_seconds() // 60)
+    return s
+
+
+def afspraak_herhalen(afspraak_id: int, elke: str, tot: str | None = None) -> dict | None:
+    """Laat een afspraak terugkomen (elke dag, werkdag, week, twee_weken, maand of jaar), eventueel tot een datum."""
+    if elke not in HERHAAL:
+        raise ValueError(f"Kies uit: {', '.join(HERHAAL)}")
+    with _slot:
+        g = laden()
+        a = next((a for a in g["afspraken"] if a["id"] == afspraak_id), None)
+        if not a:
+            return None
+        if a.get("reeks"):  # al een reeks: eerst de volgende keren weghalen, dan opnieuw
+            _reeks_afkappen(g, a["reeks"], a["start"][:10], ook_deze=False)
+        reeks = {"id": _nieuw_id(g), "elke": elke, "tot": tot or None, "eerste": a["start"][:10],
+                 "gemaakt_tot": a["start"][:10], "sjabloon": _sjabloon(a)}
+        a["reeks"] = reeks["id"]
+        g.setdefault("reeksen", []).append(reeks)
+        _reeks_maken(g, reeks, date.today() + timedelta(days=_VOORUIT[elke]))
+        opslaan(g)
+        return reeks
+
+
+def reeks(reeks_id: int | None) -> dict | None:
+    return next((r for r in laden().get("reeksen", []) if r["id"] == reeks_id), None) if reeks_id else None
+
+
+def _reeks_afkappen(g: dict, reeks_id: int, vanaf: str, ook_deze: bool = True) -> None:
+    """Haalt de afspraken van een reeks vanaf een datum weg en laat de reeks daar eindigen."""
+    g["afspraken"] = [a for a in g["afspraken"] if a.get("reeks") != reeks_id
+                      or (a["start"][:10] < vanaf if ook_deze else a["start"][:10] <= vanaf)]
+    for r in g.get("reeksen", []):
+        if r["id"] == reeks_id:
+            laatste = date.fromisoformat(vanaf) - timedelta(days=1) if ook_deze else date.fromisoformat(vanaf)
+            r["tot"] = min(r["tot"] or "9999", laatste.isoformat())
+            r["gemaakt_tot"] = min(r["gemaakt_tot"], r["tot"])
+
+
+def reeks_stoppen(reeks_id: int, vanaf: str) -> int:
+    """Deze en alle volgende keren weghalen. Geeft hoeveel afspraken er weg zijn."""
+    with _slot:
+        g = laden()
+        voor = len(g["afspraken"])
+        _reeks_afkappen(g, reeks_id, vanaf[:10])
+        opslaan(g)
+        return voor - len(g["afspraken"])
+
+
+def reeks_bijwerken(afspraak_id: int, **velden) -> int:
+    """Wijzigt deze en alle volgende keren van een reeks (titel, plek, tijd enz.). Geeft het aantal gewijzigde."""
+    with _slot:
+        g = laden()
+        a = next((a for a in g["afspraken"] if a["id"] == afspraak_id), None)
+        if not a or not a.get("reeks"):
+            return 0
+        vanaf = a["start"][:10]
+        nieuw = {**a, **velden}
+        verschuif = timedelta(0)
+        if "T" in a["start"] and "T" in nieuw["start"]:  # alleen de kloktijd verschuift mee, niet de datum
+            verschuif = (datetime.fromisoformat(f"{vanaf}T{nieuw['start'][11:16]}")
+                         - datetime.fromisoformat(a["start"]))
+        aantal = 0
+        for b in g["afspraken"]:
+            if b.get("reeks") == a["reeks"] and b["start"][:10] >= vanaf:
+                for k in _SJABLOON_VELDEN:
+                    if k in velden:
+                        b[k] = velden[k]
+                if "T" in b["start"]:
+                    b["start"] = (datetime.fromisoformat(b["start"]) + verschuif).isoformat(timespec="minutes")
+                    s = _sjabloon(nieuw)
+                    b["einde"] = ((datetime.fromisoformat(b["start"]) + timedelta(minutes=s["duur"]))
+                                  .isoformat(timespec="minutes") if s.get("duur") is not None else None)
+                aantal += 1
+        for r in g.get("reeksen", []):
+            if r["id"] == a["reeks"]:
+                r["sjabloon"] = _sjabloon(nieuw)
+        opslaan(g)
+        return aantal
+
+
+def reeksen_aanvullen() -> int:
+    """Vult reeksen aan zodat ze steeds een eindje vooruit in de agenda staan. Doet niets als dat al zo is."""
+    vandaag = date.today()
+    nodig = [r for r in laden().get("reeksen", [])
+             if r["gemaakt_tot"] < (vandaag + timedelta(days=_VOORUIT[r["elke"]] - 7)).isoformat()
+             and (not r.get("tot") or r["gemaakt_tot"] < r["tot"])]
+    if not nodig:
+        return 0
+    with _slot:
+        g = laden()
+        aantal = sum(_reeks_maken(g, r, vandaag + timedelta(days=_VOORUIT[r["elke"]]))
+                     for r in g.get("reeksen", []) if r["id"] in {n["id"] for n in nodig})
+        opslaan(g)
+        return aantal
+
+
+def herhaal_tekst(reeks_of_id) -> str:
+    """'Elke week tot 1 juni' en dergelijke; leeg als het geen reeks is."""
+    r = reeks_of_id if isinstance(reeks_of_id, dict) else reeks(reeks_of_id)
+    if not r:
+        return ""
+    tekst = HERHAAL[r["elke"]]
+    if r["elke"] == "week" or r["elke"] == "twee_weken":
+        tekst += " op " + ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag",
+                           "zondag"][date.fromisoformat(r["eerste"]).weekday()]
+    if r.get("tot"):
+        t = date.fromisoformat(r["tot"])
+        tekst += f" tot {t.day}-{t.month}-{t.year}"
+    return tekst
 
 
 # --- Contacten -----------------------------------------------------------
