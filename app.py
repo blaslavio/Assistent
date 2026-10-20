@@ -30,6 +30,8 @@ import editor
 import events
 import feestdagen
 import geld_scherm
+import gezin
+import gezin_scherm
 import ics
 import mail
 import mailtaken
@@ -62,8 +64,8 @@ import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
-for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, plannen_scherm, agent, spraak):
+for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
@@ -851,14 +853,17 @@ def agenda_tabblad() -> None:
         raise
     except Exception:
         pass
-    opties = ["Agenda", "Taken", "Plannen", "Overzicht"] + (["Gedeeld"] if DEELSITUATIE_NU.get("met_mij") else [])
+    opties = ["Agenda", "Taken", "Plannen", "Overzicht"] + (["Samen"] if samen.beschikbaar() else [])
+    if st.session_state.get("agenda_deel") == "Gedeeld":
+        st.session_state.agenda_deel = "Samen"
     deel = st.segmented_control("Onderdeel", opties, default="Agenda", key="agenda_deel",
-                                format_func=lambda d: f"Taken ({aantal})" if d == "Taken" and aantal else d,
+                                format_func=lambda d: f"Taken ({aantal})" if d == "Taken" and aantal
+                                else (":material/insights:" if d == "Overzicht" else d),
                                 label_visibility="collapsed") or "Agenda"
     if deel == "Taken":
         takenlijst()
-    elif deel == "Gedeeld":
-        gedeelde_agendas()
+    elif deel == "Samen":
+        samen_agendas()
     elif deel == "Overzicht":
         overzicht_scherm()
     elif deel == "Plannen":
@@ -1019,6 +1024,17 @@ def agenda_delen_beheer() -> None:
                 st.toast(f"{wie} kijkt nu mee.", icon=":material/check:")
                 st.rerun()
     st.caption("Je agenda is privé. Alleen wie je hier toevoegt kijkt mee; notities en privé-afspraken zien ze nooit.")
+
+
+def samen_agendas() -> None:
+    """De gezinsagenda, en agenda's die anderen met je delen."""
+    if DEELSITUATIE_NU.get("met_mij"):
+        keuze = st.segmented_control("Samen", ["Gezin", "Gedeeld met mij"], default="Gezin", key="samen_deel",
+                                     label_visibility="collapsed") or "Gezin"
+        if keuze != "Gezin":
+            gedeelde_agendas()
+            return
+    gezin_scherm.pagina()
 
 
 def gedeelde_agendas() -> None:

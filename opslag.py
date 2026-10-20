@@ -423,6 +423,14 @@ def afspraken_tussen(van: str, tot: str, extern: bool = True) -> list[dict]:
     resultaat = [a for a in g["afspraken"] if van <= a["start"][:10] <= tot]
     if extern:
         resultaat += [u for u in uitnodigingen() if van <= u["start"][:10] <= tot and u["uitnodiging"]["antwoord"] != "nee"]
+    if extern and g.get("instellingen", {}).get("gezin"):
+        try:
+            import gezin
+            resultaat += [a for a in gezin.mijn_afspraken() if van <= a["start"][:10] <= tot]
+        except GeenToegang:
+            raise
+        except Exception:
+            pass
     if extern:
         try:
             import feestdagen
