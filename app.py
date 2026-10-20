@@ -3071,6 +3071,39 @@ def meldingen_instellen() -> None:
             st.rerun()
 
 
+def agenda_feed_instellen() -> None:
+    """Je afspraken uit de app in de agenda van je iPhone, Google of Outlook (abonnement, alleen lezen)."""
+    st.caption("Je afspraken uit de app verschijnen ook in de agenda van je telefoon of computer en blijven "
+               "vanzelf bijgewerkt. Wijzigen doe je hier in de app.")
+    status = agendas.feed_status()
+    token = opslag.instellingen().get("agenda_feed_token", "")
+    if not status["aan"] or not token:
+        bezet = st.toggle("Alleen 'bezet' laten zien", help="Zonder titel, plaats en notitie. Handig voor een werkagenda.")
+        if st.button("Link maken", type="primary", icon=":material/link:"):
+            agendas.feed_maken(not bezet)
+            st.rerun()
+        return
+    https, webcal = agendas.feed_link(token), agendas.feed_link(token, webcal=True)
+    st.link_button("Toevoegen aan iPhone of iPad", webcal, icon=":material/phone_iphone:", width="stretch")
+    st.link_button("Toevoegen aan Google Agenda", f"https://calendar.google.com/calendar/render?cid={quote(webcal, safe='')}",
+                   icon=":material/open_in_new:", width="stretch")
+    st.link_button("Toevoegen aan Outlook",
+                   f"https://outlook.live.com/calendar/0/addfromweb?url={quote(https, safe='')}&name=Mijn%20assistent",
+                   icon=":material/open_in_new:", width="stretch")
+    st.caption("Of kopieer de link. Hij is geheim: deel hem met niemand.")
+    st.code(https, language=None)
+    if status.get("opgehaald"):
+        st.caption("Laatst opgehaald: " + datetime.fromisoformat(status["opgehaald"]).astimezone().strftime("%d-%m %H:%M")
+                   + (" · alleen bezet" if not status["details"] else ""))
+    with st.container(horizontal=True):
+        if st.button("Nieuwe link", help="De oude link werkt dan niet meer"):
+            agendas.feed_maken(status["details"])
+            st.rerun()
+        if st.button("Uitzetten"):
+            agendas.feed_uit()
+            st.rerun()
+
+
 def instellingen_koppelingen() -> None:
     if samen.beschikbaar():
         with st.expander("Meldingen op je telefoon" + (" (aan)" if opslag.instellingen().get("meldingen_aan") else "")):
@@ -3079,6 +3112,9 @@ def instellingen_koppelingen() -> None:
     with st.expander("Agenda's (Apple, Google, Outlook)" + (f" ({aantal} gekoppeld)" if aantal else ""),
                      expanded=not aantal and not mail.gekoppeld()):
         agendas_instellen()
+    if samen.beschikbaar():
+        with st.expander("Je agenda op je telefoon of computer"):
+            agenda_feed_instellen()
     with st.expander("Mail" + (" (gekoppeld)" if mail.gekoppeld() else "")):
         mail_instellen()
     if "Budget" not in onderdelen_uit() and samen.beschikbaar():

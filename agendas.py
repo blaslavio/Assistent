@@ -270,3 +270,26 @@ def vernieuwen() -> None:
         with _slot:
             _cache.pop(_sleutel(k), None)
         _venster(k, wachten=12)
+
+
+# --- Andersom: je agenda uit de app in Apple, Google of Outlook -------------------------------------------------------
+# Een geheime link (edge function `agenda`, zie sql/agenda_feed.sql). Alleen lezen; een nieuwe link zet de oude uit.
+
+def feed_status() -> dict:
+    return opslag._rpc_ik("agenda_feed_status")
+
+
+def feed_maken(details: bool = True) -> str:
+    token = opslag._rpc_ik("agenda_feed_maken", p_details=details)["token"]
+    opslag.instellingen_bijwerken(agenda_feed_token=token)
+    return token
+
+
+def feed_uit() -> None:
+    opslag._rpc_ik("agenda_feed_uit")
+    opslag.instellingen_bijwerken(agenda_feed_token="")
+
+
+def feed_link(token: str, webcal: bool = False) -> str:
+    basis = opslag.SUPABASE_URL.replace("https://", "webcal://" if webcal else "https://")
+    return f"{basis}/functions/v1/agenda?t={token}"
