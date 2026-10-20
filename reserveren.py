@@ -145,6 +145,119 @@ def als_plan(plek: dict, start: str, minuten: int, gelegenheid: str, uitnodigen:
     return {"afspraak": a, "niet_uitgenodigd": niet}
 
 
+# --- Aanvragen bij plekken buiten de app -------------------------------------------------------------------------
+# De gast vraagt aan via zijn eigen mail (of belt, of de website). In de mail staat een link waarmee het restaurant
+# zonder account bevestigt, een ander moment voorstelt of afzegt. De agenda loopt mee.
+
+AANVRAAG_STATUS = {"aangevraagd": "Wacht op antwoord", "bevestigd": "Bevestigd", "afgewezen": "Kan niet",
+                   "voorstel": "Ander tijdstip voorgesteld", "geannuleerd": "Geannuleerd"}
+_WACHT = " (aangevraagd)"
+
+
+def aanvraag_maken(plek: dict, start: str, personen: int = 2, opmerking: str = "", gelegenheid: str = "",
+                   kanaal: str = "mail", minuten: int = 120) -> dict:
+    """Maakt de aanvraag en zet hem (als aangevraagd) in je agenda. Geeft ook de code voor de link terug."""
+    begin = datetime.fromisoformat(start).astimezone()
+    a = samen._ok(opslag._rpc_ik("aanvraag_maken", p_plek={k: plek.get(k, "") for k in
+                                                           ("naam", "adres", "email", "telefoon", "website")},
+                                 p_start=begin.isoformat(), p_minuten=minuten, p_personen=personen,
+                                 p_opmerking=opmerking, p_gelegenheid=gelegenheid, p_kanaal=kanaal))
+    soort = GELEGENHEDEN.get(gelegenheid, GELEGENHEDEN["Afspraak"])[0]
+    titel = (f"{gelegenheid}: {plek['naam']}" if gelegenheid and gelegenheid != "Afspraak" else plek["naam"]) + _WACHT
+    notitie = "\n".join(filter(None, [f"Reservering aangevraagd, {personen} {'persoon' if personen == 1 else 'personen'}.",
+                                      opmerking, plek.get("telefoon", ""), plek.get("website", "")]))
+    afspraak = opslag.afspraak_toevoegen(titel, begin.strftime("%Y-%m-%dT%H:%M"),
+                                         (begin + timedelta(minutes=minuten)).strftime("%Y-%m-%dT%H:%M"), notitie,
+                                         plek.get("adres") or plek["naam"], soort=soort)
+    opslag.afspraak_bijwerken(afspraak["id"], aanvraag=a["id"])
+    return a | {"afspraak_id": afspraak["id"]}
+
+
+def aanvraag_link(basis: str, code: str) -> str:
+    return f"{basis.rstrip('/')}/?aanvraag={code}"
+
+
+def aanvraag_mail(plek: dict, start: str, personen: int, opmerking: str, gast: str, link: str) -> tuple[str, str]:
+    """Onderwerp en tekst voor de mail aan het restaurant."""
+    t = datetime.fromisoformat(start).astimezone()
+    dag = f"{WEEKDAGEN[t.weekday()]} {t.day}-{t.month}-{t.year}"
+    onderwerp = f"Reserveringsaanvraag {dag} om {t:%H:%M}, {personen} {'persoon' if personen == 1 else 'personen'}"
+    tekst = (f"Goedendag,\n\nGraag reserveer ik bij {plek['naam']} voor {personen} "
+             f"{'persoon' if personen == 1 else 'personen'} op {dag} om {t:%H:%M}."
+             + (f"\n\nOpmerking: {opmerking}" if opmerking else "")
+             + f"\n\nWilt u dit bevestigen of een ander tijdstip voorstellen? Dat kan met één klik, zonder account:"
+               f"\n{link}\n\nAntwoorden op deze mail mag natuurlijk ook.\n\nMet vriendelijke groet,\n{gast}"
+               "\n\n--\nVerstuurd met de app Mijn assistent. Liever geen aanvragen via de app? "
+               "Dat kunt u via dezelfde link aangeven.")
+    return onderwerp, tekst
+
+
+def aanvraag_versturen(aanvraag: dict, plek: dict, start: str, personen: int, opmerking: str, link: str) -> None:
+    """Verstuurt de aanvraag vanuit de eigen gekoppelde mailbox van de gebruiker."""
+    import mail
+    onderwerp, tekst = aanvraag_mail(plek, start, personen, opmerking, aanvraag["gast"], link)
+    mail.versturen(plek["email"], onderwerp, tekst)
+
+
+def mijn_aanvragen() -> list[dict]:
+    """Je aanvragen; houdt de agenda gelijk met de antwoorden van restaurants."""
+    lijst = opslag._rpc_ik("mijn_aanvragen")["aanvragen"]
+    per_id = {a["id"]: a for a in lijst}
+    for afspraak in list(opslag.laden()["afspraken"]):
+        a = per_id.get(afspraak.get("aanvraag"))
+        if not a:
+            continue
+        if a["status"] in ("afgewezen", "geannuleerd"):
+            opslag.afspraak_verwijderen(afspraak["id"])
+        elif a["status"] == "bevestigd":
+            start = datetime.fromisoformat(a["start"]).astimezone()
+            nieuw = {"titel": afspraak["titel"].replace(_WACHT, ""), "start": start.strftime("%Y-%m-%dT%H:%M"),
+                     "einde": (start + timedelta(minutes=a["minuten"])).strftime("%Y-%m-%dT%H:%M")}
+            if any(afspraak.get(k) != v for k, v in nieuw.items()):
+                opslag.afspraak_bijwerken(afspraak["id"], **nieuw)
+    return lijst
+
+
+def aanvraag_bijwerken(aanvraag_id: int, status: str) -> dict:
+    """status: bevestigd (zelf geregeld), geannuleerd, of voorstel_aannemen."""
+    a = samen._ok(opslag._rpc_ik("aanvraag_bijwerken", p_id=aanvraag_id, p_status=status))["aanvraag"]
+    mijn_aanvragen()
+    return a
+
+
+# Voor het restaurant (zonder account), via de code in de link.
+
+def aanvraag_bekijken(code: str) -> dict:
+    return samen._ok(opslag._rpc("aanvraag_bekijken", p_code=code))
+
+
+def aanvraag_beantwoorden(code: str, antwoord: str, voorstel: str | None = None, tekst: str = "") -> None:
+    samen._ok(opslag._rpc("aanvraag_beantwoorden", p_code=code, p_antwoord=antwoord, p_voorstel=voorstel,
+                          p_tekst=tekst))
+
+
+def aanvraag_interesse(code: str) -> None:
+    samen._ok(opslag._rpc("aanvraag_interesse", p_code=code))
+
+
+def aanvraag_stoppen(code: str, reden: str = "") -> None:
+    samen._ok(opslag._rpc("aanvraag_stoppen", p_code=code, p_reden=reden))
+
+
+def aanvraag_melden(code: str, reden: str) -> None:
+    samen._ok(opslag._rpc("aanvraag_melden", p_code=code, p_reden=reden))
+
+
+# Voor de beheerder.
+
+def beheer_aanvragen() -> dict:
+    return opslag._rpc_ik("beheer_aanvragen")
+
+
+def beheer_aanvraag_afhandelen(aanvraag_id: int, gast_blokkeren: bool = False) -> None:
+    opslag._rpc_ik("beheer_aanvraag_afhandelen", p_id=aanvraag_id, p_gast_blokkeren=gast_blokkeren)
+
+
 # --- Als zaak ------------------------------------------------------------------------------------------------------
 
 STANDAARD = {"aan": False, "soort": "tafel", "uren": {str(d): [["17:00", "21:00"]] for d in (3, 4, 5, 6, 7)},

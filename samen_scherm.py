@@ -1638,6 +1638,7 @@ def beheer() -> None:
                 if kol3.button("Verbergen", key=f"roff_{m['id']}", width="stretch"):
                     ruimte.beheer_afhandelen(m["ruimte_id"], True)
                     st.rerun()
+        plannen_scherm.beheer_aanvragen()
         for r in samen.beheer_reviews():
             with st.container(border=True):
                 st.markdown(f"Review van {r['door']} over **{r['over']}** ({r['sterren']} sterren)  \n"

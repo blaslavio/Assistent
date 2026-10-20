@@ -133,6 +133,7 @@ out center tags 400;"""
             "adres": ", ".join(filter(None, adres_delen)), "lat": plek["lat"], "lon": plek["lon"],
             "website": tags.get("website") or tags.get("contact:website") or "",
             "telefoon": tags.get("phone") or tags.get("contact:phone") or "",
+            "email": tags.get("email") or tags.get("contact:email") or "",
             "reserveren": soort == "restaurant" or tags.get("reservation") in ("yes", "required", "recommended"),
         })
     resultaat.sort(key=lambda a: a["afstand_km"])

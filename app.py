@@ -3514,6 +3514,10 @@ def main() -> None:
         st.session_state.ochtend_gevraagd = True
         st.session_state.pop("ochtend_weg", None)
         del st.query_params["ochtend"]
+    if (code := st.query_params.get("aanvraag")) and opslag.online():
+        # Een restaurant opent de link uit een reserveringsaanvraag; daar is geen account voor nodig.
+        plannen_scherm.aanvraag_pagina(code)
+        return
     if (nummer := st.query_params.get("ruimte", "")).isdigit() and opslag.online():
         if not st.session_state.get("wachtwoord"):
             ruimte_bezoek(int(nummer))

@@ -112,7 +112,8 @@ Werkwijze:
   zoek met plekken_zoeken. Zaken met "in_app": true kun je echt reserveren
   (reserveer_tijden, dan reservering_maken); noem eerst zaak, dag, tijd en personen en
   reserveer pas na akkoord (met_akkoord=true). Andere plekken zet je met plan_maken in
-  de agenda. Nodig mensen alleen uit als de gebruiker dat vraagt.
+  de agenda, of vraag je met reservering_aanvragen aan (na akkoord). Nodig mensen alleen
+  uit als de gebruiker dat vraagt.
 - Geld: met budget_bekijken zie je wat er binnenkomt, uitgaat en vrij te besteden is.
   Zegt de gebruiker "12 euro uitgegeven aan lunch", zet het dan met uitgave_toevoegen
   in het budget. Geef praktische, vriendelijke tips; nooit betuttelen.
@@ -580,11 +581,60 @@ def plan_maken(naam: str, start: str, minuten: int = 120, gelegenheid: str = "",
 
 
 @beta_tool
+def reservering_aanvragen(naam: str, start: str, personen: int = 2, adres: str = "", email: str = "",
+                          telefoon: str = "", website: str = "", opmerking: str = "", gelegenheid: str = "",
+                          met_akkoord: bool = False) -> str:
+    """Vraagt een reservering aan bij een plek die niet in de app zit (bijvoorbeeld een restaurant uit
+    plekken_zoeken). Met een mailadres en een gekoppelde mailbox gaat er een mail uit vanuit de mail van de gebruiker,
+    met een link waarmee het restaurant zonder account bevestigt. Anders geef je telefoon of website door. Het staat
+    als 'aangevraagd' in de agenda. Alleen na akkoord van de gebruiker op plek, dag, tijd en personen.
+
+    Args:
+        naam: Naam van de plek.
+        start: JJJJ-MM-DDTHH:MM.
+        personen: Aantal personen.
+        adres: Adres van de plek.
+        email: Mailadres van de plek, als bekend.
+        telefoon: Telefoonnummer van de plek.
+        website: Website van de plek.
+        opmerking: Voor de plek, bijvoorbeeld allergieën.
+        gelegenheid: Date, Speelafspraak, Uitje, Etentje, Verjaardag of Afspraak.
+        met_akkoord: True als de gebruiker deze aanvraag (en het versturen) net heeft goedgekeurd.
+    """
+    if not met_akkoord:
+        return "Nog niet aangevraagd. Noem plek, dag, tijd en personen en vraag eerst akkoord."
+    plek = {"naam": naam, "adres": adres, "email": email.strip(), "telefoon": telefoon, "website": website}
+    kanaal = "mail" if plek["email"] else "telefoon" if telefoon else "website" if website else "anders"
+    try:
+        a = reserveren.aanvraag_maken(plek, start, personen, opmerking, gelegenheid, kanaal)
+    except samen.Fout as fout:
+        return str(fout)
+    try:
+        import plannen_scherm
+        basis = plannen_scherm._basis()
+    except Exception:
+        basis = ""
+    if plek["email"] and mail.gekoppeld() and basis:
+        try:
+            reserveren.aanvraag_versturen(a, plek, start, personen, opmerking, reserveren.aanvraag_link(basis, a["code"]))
+            return f"Aanvraag verstuurd naar {naam} en als aangevraagd in de agenda gezet."
+        except Exception:
+            pass
+    hoe = (f"bellen ({telefoon})" if telefoon else f"via de website ({website})" if website
+           else "in Agenda › Plannen versturen")
+    return (f"Aanvraag staat als aangevraagd in de agenda. Versturen kon niet automatisch; laat de gebruiker {hoe} "
+            "en daarna bij Plannen op Geregeld tikken.")
+
+
+@beta_tool
 def reserveringen_bekijken() -> str:
-    """Je reserveringen bij zaken in de app (ook wachtlijst, en of je nog een review kunt schrijven)."""
-    lijst = reserveren.mijn()
-    return _json([{k: r[k] for k in ("id", "zaak", "start", "personen", "status", "gelegenheid", "plek_vrij", "review")}
-                  for r in lijst]) if lijst else "Geen reserveringen."
+    """Je reserveringen bij zaken in de app (ook wachtlijst en reviews) en je aanvragen bij plekken buiten de app."""
+    lijst = [{k: r[k] for k in ("id", "zaak", "start", "personen", "status", "gelegenheid", "plek_vrij", "review")}
+             for r in reserveren.mijn()]
+    lijst += [{"aanvraag": a["id"], "plek": a["plek"], "start": a["start"], "personen": a["personen"],
+               "status": reserveren.AANVRAAG_STATUS[a["status"]], "voorstel": a["voorstel"], "antwoord": a["antwoord"]}
+              for a in reserveren.mijn_aanvragen()]
+    return _json(lijst) if lijst else "Geen reserveringen of aanvragen."
 
 
 @beta_tool
@@ -1402,6 +1452,7 @@ HULPMIDDELEN = [
     plekken_zoeken,
     reserveer_tijden,
     reservering_maken,
+    reservering_aanvragen,
     plan_maken,
     reserveringen_bekijken,
     overzicht_bekijken,

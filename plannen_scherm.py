@@ -1,6 +1,7 @@
 """Agenda › Plannen: samen iets plannen en reserveren. En voor zaken: reserveringen aannemen (Mijn webshop)."""
 
 from datetime import date, datetime, time, timedelta
+from urllib.parse import quote, urlsplit
 
 import streamlit as st
 
@@ -41,6 +42,7 @@ def pagina() -> None:
                            format_func=lambda g: f"{R.GELEGENHEDEN[g][1]} {g}", label_visibility="collapsed") or "Uitje"
     if online:
         mijn_reserveringen()
+        mijn_aanvragen()
         zoek = st.text_input("Zoek", placeholder="Zoek een zaak in de app", label_visibility="collapsed",
                              key="plannen_zoek")
         try:
@@ -193,30 +195,235 @@ def reserveer_dialoog(z: dict, gelegenheid: str) -> None:
         st.rerun()
 
 
-@st.dialog("In je agenda zetten")
+@st.dialog("Plannen")
 def plan_dialoog(p: dict, gelegenheid: str) -> None:
+    """Een plek buiten de app: een reservering aanvragen (mail, bellen, website) of alleen in je agenda zetten."""
     _account()
     st.markdown(f"{p['icoon']} **{p['naam']}**")
     st.caption(" · ".join(filter(None, [p["soort"], p.get("adres"), p.get("telefoon")])))
+    klaar = st.session_state.get("aanvraag_klaar")
+    if klaar and klaar["plek"]["naam"] == p["naam"]:
+        aanvraag_versturen_stap(klaar)
+        return
+    st.session_state.pop("aanvraag_klaar", None)
+    hoe = st.segmented_control("Hoe", ["Reservering aanvragen", "Alleen in agenda"],
+                               default="Reservering aanvragen" if p.get("reserveren") else "Alleen in agenda",
+                               label_visibility="collapsed") or "Alleen in agenda"
     k1, k2 = st.columns(2)
     dag = k1.date_input("Dag", value=date.today() + timedelta(days=1), min_value=date.today(), format="DD-MM-YYYY")
-    standaard = time(14, 0) if gelegenheid in ("Speelafspraak", "Familie", "Uitje") else time(19, 0)
+    standaard = time(14, 0) if gelegenheid in ("Speelafspraak", "Uitje") else time(19, 0)
     om = k2.time_input("Tijd", value=standaard, step=900)
+    begin = datetime.combine(dag, om).isoformat(timespec="minutes")
+    if hoe == "Reservering aanvragen":
+        k1, k2 = st.columns(2)
+        personen = int(k1.number_input("Personen", 1, 100, 2))
+        email = k2.text_input("Mailadres van de zaak", value=p.get("email", ""), placeholder="Als je het weet")
+        opmerking = st.text_input("Opmerking", placeholder="Allergieën, kinderstoel, iets te vieren?", max_chars=500)
+        st.caption("Het restaurant bevestigt met één klik, zonder account. Het staat alvast in je agenda als aangevraagd.")
+        if st.button("Aanvraag maken", type="primary", width="stretch"):
+            plek = dict(p, email=email.strip())
+            kanaal = "mail" if plek["email"] else "telefoon" if p.get("telefoon") else "website" if p.get("website") else "anders"
+            try:
+                a = R.aanvraag_maken(plek, begin, personen, opmerking.strip(), gelegenheid, kanaal)
+            except samen.Fout as fout:
+                st.error(str(fout))
+                return
+            st.session_state.aanvraag_klaar = {"aanvraag": a, "plek": plek, "start": begin, "personen": personen,
+                                               "opmerking": opmerking.strip()}
+            st.rerun(scope="fragment")
+        return
     duur = st.segmented_control("Hoe lang", [60, 120, 180, 240], default=120,
                                 format_func=lambda m: f"{m // 60} uur")
     uitnodigen = st.text_input("Uitnodigen", placeholder="Gebruikersnamen, met komma's (optioneel)")
-    taak = st.checkbox("Herinner me om te reserveren", value=bool(p.get("reserveren")))
     if st.button("In agenda", type="primary", width="stretch"):
-        plek = dict(p, reserveren=taak)
-        uit = R.als_plan(plek, datetime.combine(dag, om).isoformat(timespec="minutes"), duur or 120, gelegenheid,
-                         _namen(uitnodigen))
+        uit = R.als_plan(dict(p, reserveren=False), begin, duur or 120, gelegenheid, _namen(uitnodigen))
         tekst = f"{p['naam']} staat in je agenda."
-        if taak:
-            tekst += " Je hebt een taak om te reserveren."
         if uit["niet_uitgenodigd"]:
             tekst += f" Niet gevonden: {', '.join(uit['niet_uitgenodigd'])}."
         st.session_state.plannen_melding = tekst
         st.rerun()
+
+
+def _basis() -> str:
+    """Het webadres van de app, voor de link in de aanvraag."""
+    deel = urlsplit(st.context.url or "")
+    return f"{deel.scheme}://{deel.netloc}" if deel.netloc else samen.betalen_status().get("app_adres", "")
+
+
+def aanvraag_versturen_stap(k: dict) -> None:
+    """Na het maken: versturen via je eigen mail, of bellen of de website. Daarna kun je het venster sluiten."""
+    import mail
+    a, plek = k["aanvraag"], k["plek"]
+    link = R.aanvraag_link(_basis(), a["code"])
+    onderwerp, tekst = R.aanvraag_mail(plek, k["start"], k["personen"], k["opmerking"], a["gast"], link)
+    st.success("Aanvraag staat klaar en in je agenda. Stuur hem nu naar de zaak:")
+    if plek["email"] and mail.gekoppeld():
+        if st.button("Versturen vanuit mijn mail", type="primary", width="stretch", icon=":material/send:"):
+            try:
+                R.aanvraag_versturen(a, plek, k["start"], k["personen"], k["opmerking"], link)
+            except Exception:
+                st.error("Versturen lukte niet. Probeer 'Open in Mail'.")
+            else:
+                st.session_state.pop("aanvraag_klaar", None)
+                st.session_state.plannen_melding = f"Aanvraag verstuurd naar {plek['naam']}. Je ziet hier het antwoord."
+                st.rerun()
+    with st.container(horizontal=True, gap="small"):
+        if plek["email"]:
+            st.link_button("Open in Mail", f"mailto:{plek['email']}?subject={quote(onderwerp)}&body={quote(tekst)}",
+                           icon=":material/mail:")
+        if plek.get("telefoon"):
+            st.link_button("Bellen", "tel:" + "".join(c for c in plek["telefoon"] if c.isdigit() or c == "+"),
+                           icon=":material/call:")
+        if plek.get("website"):
+            st.link_button("Website", plek["website"], icon=":material/open_in_new:")
+    if not plek["email"]:
+        st.caption("Geen mailadres bekend. Bel of reserveer via de website en tik daarna bij Mijn reserveringen "
+                   "op Geregeld.")
+    if st.button("Klaar", width="stretch"):
+        st.session_state.pop("aanvraag_klaar", None)
+        st.session_state.plannen_melding = f"Aanvraag bij {plek['naam']} staat in je agenda."
+        st.rerun()
+
+
+def mijn_aanvragen() -> None:
+    """Aanvragen bij plekken buiten de app, met het antwoord van het restaurant."""
+    try:
+        lijst = R.mijn_aanvragen()
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        return
+    nu = datetime.now().astimezone()
+    zichtbaar = [a for a in lijst if datetime.fromisoformat(a["start"]) > nu and (
+        a["status"] in ("aangevraagd", "voorstel", "bevestigd")
+        or (a["status"] == "afgewezen" and a["beantwoord"]
+            and datetime.fromisoformat(a["beantwoord"]) > nu - timedelta(days=3)))]
+    if zichtbaar:
+        st.markdown("**Aanvragen**")
+    for a in zichtbaar:
+        with st.container(horizontal=True, vertical_alignment="center", key=f"aanvraag_{a['id']}"):
+            with st.container(gap=None):
+                st.markdown(f"**{a['plek']}** · {_wanneer(a['start'])}")
+                regel = R.AANVRAAG_STATUS[a["status"]]
+                if a["status"] == "voorstel" and a["voorstel"]:
+                    regel = f"Voorstel: {_wanneer(a['voorstel'])}"
+                elif a["status"] == "bevestigd" and not a["door_plek"]:
+                    regel = "Zelf geregeld"
+                st.caption(" · ".join(filter(None, [f"{a['personen']} pers.", regel, a["antwoord"]])))
+            if a["status"] == "voorstel" and st.button("Aannemen", key=f"vaan_{a['id']}", type="primary"):
+                R.aanvraag_bijwerken(a["id"], "voorstel_aannemen")
+                st.session_state.plannen_melding = "Nieuw tijdstip staat in je agenda."
+                st.rerun()
+            if a["status"] == "aangevraagd" and st.button("Geregeld", key=f"zelf_{a['id']}",
+                                                          help="Telefonisch of via de website gereserveerd"):
+                R.aanvraag_bijwerken(a["id"], "bevestigd")
+                st.rerun()
+            if a["status"] != "afgewezen":
+                with st.popover("", icon=":material/close:", help="Annuleren"):
+                    st.caption("Laat het de zaak ook even weten als je al bevestiging had.")
+                    if st.button("Annuleren", key=f"aann_{a['id']}", type="primary"):
+                        R.aanvraag_bijwerken(a["id"], "geannuleerd")
+                        st.session_state.plannen_melding = "Geannuleerd en uit je agenda gehaald."
+                        st.rerun()
+
+
+def aanvraag_pagina(code: str) -> None:
+    """Voor het restaurant, zonder account: de aanvraag bevestigen, iets anders voorstellen of afzeggen."""
+    st.subheader("Reserveringsaanvraag")
+    try:
+        a = R.aanvraag_bekijken(code)
+    except samen.Fout as fout:
+        st.info(str(fout))
+        return
+    if melding := st.session_state.pop("aanvraag_melding", None):
+        st.success(melding)
+    st.markdown(f"**{a['gast']}** wil graag reserveren bij **{a['plek']}**")
+    st.markdown(f"{_wanneer(a['start']).capitalize()} · {a['personen']} "
+                f"{'persoon' if a['personen'] == 1 else 'personen'}" + (f" · {a['gelegenheid']}" if a["gelegenheid"] else ""))
+    if a["opmerking"]:
+        st.caption(f"Opmerking: {a['opmerking']}")
+    if a["status"] == "geannuleerd":
+        st.info("De gast heeft deze aanvraag geannuleerd.")
+        return
+    if a["status"] != "aangevraagd":
+        st.caption("Uw antwoord: " + {"bevestigd": "bevestigd", "afgewezen": "kan niet",
+                                      "voorstel": f"ander tijdstip ({_wanneer(a['voorstel'])})"
+                                      if a["voorstel"] else "ander tijdstip"}[a["status"]]
+                   + ". U kunt het hieronder nog wijzigen.")
+    tekst = st.text_input("Bericht aan de gast (optioneel)", max_chars=500, key="aanvraag_tekst")
+    with st.container(horizontal=True, gap="small"):
+        if st.button("Bevestigen", type="primary", icon=":material/check:"):
+            _antwoord(code, "ja", None, tekst, "Bevestigd. De gast ziet het meteen in de agenda.")
+        if st.button("Kan niet", icon=":material/close:"):
+            _antwoord(code, "nee", None, tekst, "Doorgegeven aan de gast.")
+    with st.expander("Ander tijdstip voorstellen"):
+        oud = datetime.fromisoformat(a["start"]).astimezone()
+        k1, k2 = st.columns(2)
+        dag = k1.date_input("Dag", value=oud.date(), min_value=date.today(), format="DD-MM-YYYY", key="aanvraag_dag")
+        om = k2.time_input("Tijd", value=oud.time().replace(tzinfo=None), step=900, key="aanvraag_om")
+        if st.button("Voorstellen"):
+            _antwoord(code, "voorstel", datetime.combine(dag, om).astimezone().isoformat(), tekst,
+                      "Voorstel verstuurd. De gast kan het met één tik aannemen.")
+    st.divider()
+    if not a["interesse"] and not a["gestopt"]:
+        st.markdown("**Reserveringen voortaan direct in uw agenda?**")
+        st.caption("Sluit u gratis aan: gasten reserveren dan zelf op uw vrije tijden, met wachtlijst en reviews. "
+                   "Geen abonnement en geen kosten per gast.")
+        if st.button("Ja, neem contact met mij op"):
+            R.aanvraag_interesse(code)
+            st.session_state.aanvraag_melding = "Dank u! We nemen contact met u op."
+            st.rerun()
+    with st.expander("Geen aanvragen meer of misbruik melden"):
+        if a["gestopt"]:
+            st.caption("U ontvangt geen aanvragen meer via deze app.")
+        elif st.button("Geen aanvragen meer via deze app"):
+            R.aanvraag_stoppen(code)
+            st.session_state.aanvraag_melding = "Afgemeld. Gasten zien voortaan dat ze u moeten bellen of mailen."
+            st.rerun()
+        reden = st.text_input("Iets niet in orde? Bijvoorbeeld een nepreservering", max_chars=500, key="aanvraag_reden")
+        if st.button("Melden", disabled=not reden.strip()):
+            R.aanvraag_melden(code, reden)
+            st.session_state.aanvraag_melding = "Gemeld. We kijken ernaar."
+            st.rerun()
+
+
+def _antwoord(code: str, antwoord: str, voorstel: str | None, tekst: str, melding: str) -> None:
+    try:
+        R.aanvraag_beantwoorden(code, antwoord, voorstel, tekst.strip())
+    except samen.Fout as fout:
+        st.error(str(fout))
+        return
+    st.session_state.aanvraag_melding = melding
+    st.rerun()
+
+
+def beheer_aanvragen() -> None:
+    """Beheerder: hoe aanvragen lopen, welke plekken we kunnen uitnodigen, en meldingen van restaurants."""
+    b = R.beheer_aanvragen()
+    if b.get("geen_toegang"):
+        return
+    s = b["per_status"]
+    totaal = sum(s.values())
+    st.markdown("**Reserveringsaanvragen**")
+    st.caption(f"Laatste 30 dagen: {totaal} aanvragen, {s.get('bevestigd', 0)} bevestigd, "
+               f"{s.get('afgewezen', 0)} kan niet, {s.get('aangevraagd', 0)} zonder antwoord. "
+               f"{b['gestopt']} plekken afgemeld.")
+    for m in b["meldingen"]:
+        with st.container(border=True):
+            st.markdown(f"Melding van **{m['plek']}** over {m['gast']} ({m['aanvragen_gast']} aanvragen)  \n{m['reden']}")
+            k1, k2 = st.columns(2)
+            if k1.button("Is in orde", key=f"aok_{m['id']}", width="stretch"):
+                R.beheer_aanvraag_afhandelen(m["id"])
+                st.rerun()
+            if k2.button("Gast blokkeren", key=f"ablok_{m['id']}", width="stretch"):
+                R.beheer_aanvraag_afhandelen(m["id"], True)
+                st.rerun()
+    if b["plekken"]:
+        with st.expander("Veelgevraagde plekken (om uit te nodigen)"):
+            for p in b["plekken"]:
+                st.markdown(f"**{p['plek']}** · {p['aantal']}× gevraagd, {p['bevestigd']}× bevestigd"
+                            + (" · wil aansluiten" if p["interesse"] else "") + (" · afgemeld" if p["gestopt"] else ""))
+                st.caption(" · ".join(filter(None, [p["adres"], p["email"], p["telefoon"]])))
 
 
 # --- Zaak -------------------------------------------------------------------------------------------------------------
