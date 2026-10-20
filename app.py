@@ -37,6 +37,7 @@ import opslag
 import overzicht
 import planning
 import plannen_scherm
+import prikker
 import reizen
 import reserveren
 import ruimte
@@ -59,7 +60,7 @@ import winkelkaart
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
-for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, reserveren, boodschappen, strava, wetenschap,
+for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, reserveren, prikker, boodschappen, strava, wetenschap,
                 mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, plannen_scherm, agent, spraak):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
@@ -823,7 +824,7 @@ def samen_moment(afspraak: dict) -> None:
     duur = (datetime.fromisoformat(afspraak["einde"]) - start) if afspraak.get("einde") and "T" in afspraak["einde"] \
         else timedelta(hours=1)
     try:
-        momenten = vrije_momenten(wie, duur, afspraak["id"])
+        momenten = planning.vrije_momenten(wie, duur, afspraak["id"])
     except samen.Fout as fout:
         st.caption(str(fout))
         return
@@ -836,39 +837,6 @@ def samen_moment(afspraak: dict) -> None:
         opslag.afspraak_bijwerken(afspraak["id"], start=keuze.isoformat(timespec="minutes"),
                                   einde=(keuze + duur).isoformat(timespec="minutes"))
         st.rerun()
-
-
-def vrije_momenten(personen: list[int], duur: timedelta, behalve=None, dagen: int = 7) -> list[datetime]:
-    """Hooguit zes momenten (per half uur, 8:00-22:00) waarop jij en deze personen geen afspraak hebben."""
-    van = date.today()
-    tot = van + timedelta(days=dagen)
-    bezet: list[tuple[datetime, datetime]] = []
-
-    def erbij(lijst: list[dict]) -> None:
-        for a in lijst:
-            if a.get("id") == behalve or "T" not in a["start"]:
-                continue
-            b = datetime.fromisoformat(a["start"][:16])
-            e = datetime.fromisoformat(a["einde"][:16]) if a.get("einde") and "T" in a["einde"] else b + timedelta(hours=1)
-            bezet.append((b, e))
-
-    erbij(opslag.afspraken_tussen(van.isoformat(), tot.isoformat()))
-    for p in personen:
-        erbij(samen.gedeelde_agenda(p, van.isoformat(), tot.isoformat())["afspraken"])
-    nu = datetime.now()
-    moment = max(nu.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1),
-                 datetime.combine(van, kloktijd(8)))
-    gevonden = []
-    while moment.date() < tot and len(gevonden) < 6:
-        if moment.hour < 8 or moment + duur > datetime.combine(moment.date(), kloktijd(22)):
-            moment = datetime.combine(moment.date() + timedelta(days=1), kloktijd(8))
-            continue
-        if not any(b < moment + duur and moment < e for b, e in bezet):
-            gevonden.append(moment)
-            moment += timedelta(hours=3)  # niet zes keer hetzelfde middagje
-        else:
-            moment += timedelta(minutes=30)
-    return gevonden
 
 
 def agenda_tabblad() -> None:
@@ -3578,6 +3546,10 @@ def main() -> None:
         st.session_state.ochtend_gevraagd = True
         st.session_state.pop("ochtend_weg", None)
         del st.query_params["ochtend"]
+    if (code := st.query_params.get("prik")) and opslag.online():
+        # Stemmen op een datum via een gedeelde link; ook zonder account.
+        plannen_scherm.prik_pagina(code)
+        return
     if (code := st.query_params.get("aanvraag")) and opslag.online():
         # Een restaurant opent de link uit een reserveringsaanvraag; daar is geen account voor nodig.
         plannen_scherm.aanvraag_pagina(code)

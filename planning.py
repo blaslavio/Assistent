@@ -1,6 +1,6 @@
 """Dagplanning: afspraken op een dag met reistijd en vertrektijd ertussen."""
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 import httpx
 
@@ -69,3 +69,38 @@ def dagplanning(datum: str, vervoer: str = "auto") -> dict:
     if not thuis:
         resultaat["tip"] = "Er is nog geen thuisadres ingesteld; de reis naar de eerste afspraak ontbreekt."
     return resultaat
+
+
+def vrije_momenten(personen: list[int], duur: timedelta, behalve=None, dagen: int = 7, aantal: int = 6) -> list[datetime]:
+    """Momenten (per half uur, 8:00-22:00) waarop jij en deze personen (die hun agenda met je delen) vrij zijn."""
+    import samen
+
+    van = date.today()
+    tot = van + timedelta(days=dagen)
+    bezet: list[tuple[datetime, datetime]] = []
+
+    def erbij(lijst: list[dict]) -> None:
+        for a in lijst:
+            if a.get("id") == behalve or "T" not in a["start"]:
+                continue
+            b = datetime.fromisoformat(a["start"][:16])
+            e = datetime.fromisoformat(a["einde"][:16]) if a.get("einde") and "T" in a["einde"] else b + timedelta(hours=1)
+            bezet.append((b, e))
+
+    erbij(opslag.afspraken_tussen(van.isoformat(), tot.isoformat()))
+    for p in personen:
+        erbij(samen.gedeelde_agenda(p, van.isoformat(), tot.isoformat())["afspraken"])
+    nu = datetime.now()
+    moment = max(nu.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1),
+                 datetime.combine(van, time(8)))
+    gevonden = []
+    while moment.date() < tot and len(gevonden) < aantal:
+        if moment.hour < 8 or moment + duur > datetime.combine(moment.date(), time(22)):
+            moment = datetime.combine(moment.date() + timedelta(days=1), time(8))
+            continue
+        if not any(b < moment + duur and moment < e for b, e in bezet):
+            gevonden.append(moment)
+            moment += timedelta(hours=3)  # niet zes keer hetzelfde middagje
+        else:
+            moment += timedelta(minutes=30)
+    return gevonden

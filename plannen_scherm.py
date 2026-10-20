@@ -6,6 +6,8 @@ from urllib.parse import quote, urlsplit
 import streamlit as st
 
 import opslag
+import planning
+import prikker
 import reserveren as R
 import samen
 
@@ -41,6 +43,11 @@ def pagina() -> None:
     gelegenheid = st.pills("Waarvoor?", list(R.GELEGENHEDEN), default="Date", key="plannen_gelegenheid",
                            format_func=lambda g: f"{R.GELEGENHEDEN[g][1]} {g}", label_visibility="collapsed") or "Uitje"
     if online:
+        if st.button("Samen een datum kiezen", icon=":material/how_to_vote:", key="prik_nieuw"):
+            st.session_state.pop("prik_klaar", None)
+            st.session_state.prik_opties = []
+            prik_maken_dialoog(gelegenheid)
+        stemrondes()
         mijn_reserveringen()
         mijn_aanvragen()
         zoek = st.text_input("Zoek", placeholder="Zoek een zaak in de app", label_visibility="collapsed",
@@ -424,6 +431,184 @@ def beheer_aanvragen() -> None:
                 st.markdown(f"**{p['plek']}** · {p['aantal']}× gevraagd, {p['bevestigd']}× bevestigd"
                             + (" · wil aansluiten" if p["interesse"] else "") + (" · afgemeld" if p["gestopt"] else ""))
                 st.caption(" · ".join(filter(None, [p["adres"], p["email"], p["telefoon"]])))
+
+
+# --- Samen een datum kiezen (stemrondes) ----------------------------------------------------------------------
+
+def _stand(o: dict) -> str:
+    return f"{o['ja']}× ja" + (f", {o['misschien']}× misschien" if o["misschien"] else "")
+
+
+def stemrondes() -> None:
+    try:
+        lijst = prikker.mijn()
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        return
+    if not lijst:
+        return
+    st.markdown("**Stemrondes**")
+    for p in lijst:
+        with st.container(horizontal=True, vertical_alignment="center", key=f"prik_{p['id']}"):
+            with st.container(gap=None):
+                st.markdown(f"**{p['titel']}**" + ("" if p["van_mij"] else f" · van {p['maker']}"))
+                if p["gekozen"]:
+                    st.caption(f"Gekozen: {_wanneer(p['gekozen'])}")
+                else:
+                    beste = prikker.beste(p)
+                    st.caption(f"{len(p['stemmen'])} gestemd" + (f" · beste: {_wanneer(beste['start'])}" if beste else ""))
+            if st.button("Open" if p["open"] else "Bekijk", key=f"prik_open_{p['id']}", width=80):
+                prik_dialoog(p)
+
+
+@st.dialog("Samen een datum kiezen")
+def prik_maken_dialoog(gelegenheid: str) -> None:
+    _account()
+    if klaar := st.session_state.get("prik_klaar"):
+        _prik_delen(klaar["code"], klaar["titel"])
+        if klaar.get("niet_gevonden"):
+            st.caption(f"Niet gevonden in de app: {', '.join(klaar['niet_gevonden'])}. Stuur hen de link.")
+        if st.button("Klaar", width="stretch"):
+            st.session_state.pop("prik_klaar", None)
+            st.rerun()
+        return
+    titel = st.text_input("Waarvoor?", value="" if gelegenheid == "Afspraak" else gelegenheid,
+                          placeholder="Bijvoorbeeld: etentje met vrienden")
+    k1, k2 = st.columns(2)
+    plaats = k1.text_input("Waar (optioneel)")
+    duur = k2.selectbox("Hoe lang", [30, 60, 90, 120, 180, 240, 480], index=3,
+                        format_func=lambda m: f"{m // 60} uur" if m % 60 == 0 else f"{m} min")
+    opties: list[datetime] = st.session_state.setdefault("prik_opties", [])
+    st.markdown("**Momenten om uit te kiezen**")
+    for i, o in enumerate(list(opties)):
+        with st.container(horizontal=True, vertical_alignment="center", key=f"prik_optie_{i}"):
+            st.markdown(_wanneer(o.astimezone().isoformat()))
+            if st.button("", icon=":material/close:", key=f"prik_optie_weg_{i}", type="tertiary"):
+                opties.pop(i)
+                st.rerun(scope="fragment")
+    with st.container(horizontal=True, vertical_alignment="bottom", gap="small"):
+        dag = st.date_input("Dag", value=date.today() + timedelta(days=2), min_value=date.today(),
+                            format="DD-MM-YYYY", width=150)
+        om = st.time_input("Tijd", value=time(19, 0), step=900, width=110)
+        if st.button("Toevoegen", icon=":material/add:"):
+            moment = datetime.combine(dag, om)
+            if moment > datetime.now() and moment not in opties and len(opties) < 12:
+                opties.append(moment)
+                opties.sort()
+            st.rerun(scope="fragment")
+    mensen = {d["id"]: d["naam"] for d in samen.agenda_deelsituatie().get("met_mij", [])}
+    if mensen:
+        wie = st.multiselect("Of laat de app tijden zoeken waarop iedereen vrij is", list(mensen),
+                             format_func=mensen.get, placeholder="Kies wie hun agenda met je delen")
+        if wie and st.button("Vrije tijden zoeken", icon=":material/search:"):
+            try:
+                gevonden = planning.vrije_momenten(wie, timedelta(minutes=duur), dagen=14, aantal=5)
+            except samen.Fout as fout:
+                st.error(str(fout))
+            else:
+                opties.extend(m for m in gevonden if m not in opties)
+                opties.sort()
+                st.rerun(scope="fragment")
+    genodigden = st.text_input("Uitnodigen in de app", placeholder="Gebruikersnamen, met komma's (optioneel)")
+    st.caption("Iedereen met de link kan ook stemmen, zonder account.")
+    if st.button("Stemronde maken", type="primary", width="stretch", disabled=len(opties) < 2 or not titel.strip()):
+        try:
+            p = prikker.maken(titel.strip(), opties, plaats.strip(), "", duur, _namen(genodigden))
+        except samen.Fout as fout:
+            st.error(str(fout))
+            return
+        st.session_state.prik_opties = []
+        st.session_state.prik_klaar = {"code": p["code"], "titel": titel.strip(), "niet_gevonden": p["niet_gevonden"]}
+        st.rerun(scope="fragment")
+
+
+def _prik_delen(code: str, titel: str) -> None:
+    link = prikker.link(_basis(), code)
+    st.success("Stemronde staat klaar. Deel de link:")
+    st.code(link, language=None)
+    st.link_button("Delen via WhatsApp", f"https://wa.me/?text={quote(f'Wanneer kun jij? {titel}: {link}')}",
+                   icon=":material/share:", width="stretch")
+
+
+@st.dialog("Stemronde")
+def prik_dialoog(p: dict) -> None:
+    _account()
+    st.markdown(f"**{p['titel']}**" + (f" · {p['plaats']}" if p["plaats"] else ""))
+    if p["gekozen"]:
+        st.success(f"Gekozen: {_wanneer(p['gekozen'])}")
+    eigen = next((s["stemmen"] for s in p["stemmen"] if s["ik"]), {})
+    keuzes = {}
+    for o in p["opties"]:
+        st.markdown(f"{_wanneer(o['start'])} · " + _stand(o))
+        namen = [s["naam"] for s in p["stemmen"] if s["stemmen"].get(str(o["id"])) == "ja"]
+        if namen:
+            st.caption("Ja: " + ", ".join(namen))
+        if p["open"]:
+            keuzes[o["id"]] = st.segmented_control("Jouw antwoord", list(prikker.ANTWOORDEN), key=f"prikstem_{o['id']}",
+                                                   default=eigen.get(str(o["id"])), format_func=prikker.ANTWOORDEN.get,
+                                                   label_visibility="collapsed")
+    if p["open"] and st.button("Mijn stem opslaan", width="stretch"):
+        try:
+            prikker.stem_ik(p["id"], {k: v for k, v in keuzes.items() if v})
+        except samen.Fout as fout:
+            st.error(str(fout))
+        else:
+            st.session_state.plannen_melding = "Je stem is opgeslagen."
+            st.rerun()
+    if p["van_mij"] and p["open"]:
+        st.divider()
+        if code := prikker.code(p["id"]):
+            _prik_delen(code, p["titel"])
+        beste = prikker.beste(p)
+        gekozen = st.selectbox("Moment kiezen", [o["id"] for o in p["opties"]],
+                               index=[o["id"] for o in p["opties"]].index(beste["id"]) if beste else 0,
+                               format_func=lambda i: next(_wanneer(o["start"]) + " · " + _stand(o)
+                                                          for o in p["opties"] if o["id"] == i))
+        if st.button("Dit wordt het", type="primary", width="stretch"):
+            prikker.kiezen(p["id"], gekozen)
+            st.session_state.plannen_melding = "Gekozen en in je agenda gezet. Wie meedeed in de app is uitgenodigd."
+            st.rerun()
+        if st.button("Stemronde verwijderen", type="tertiary"):
+            prikker.weg(p["id"])
+            st.rerun()
+
+
+def prik_pagina(code: str) -> None:
+    """Stemmen via de link, zonder account."""
+    import secrets
+    try:
+        p = prikker.bekijken(code)
+    except samen.Fout as fout:
+        st.info(str(fout))
+        return
+    st.subheader(p["titel"])
+    st.caption(" · ".join(filter(None, [f"Van {p['maker']}", p["plaats"]])))
+    if melding := st.session_state.pop("prik_melding", None):
+        st.success(melding)
+    if p["gekozen"]:
+        st.success(f"Het wordt {_wanneer(p['gekozen'])}.")
+        return
+    if not p["open"]:
+        st.info("Deze stemronde is gesloten.")
+        return
+    sleutel = st.session_state.setdefault("prik_sleutel", secrets.token_hex(16))
+    naam = st.text_input("Je naam", max_chars=40, key="prik_naam")
+    keuzes = {}
+    for o in p["opties"]:
+        st.markdown(f"**{_wanneer(o['start'])}** · " + _stand(o))
+        keuzes[o["id"]] = st.segmented_control("Kun je?", list(prikker.ANTWOORDEN), key=f"prikpub_{o['id']}",
+                                               format_func=prikker.ANTWOORDEN.get, label_visibility="collapsed")
+    if st.button("Opslaan", type="primary", disabled=not naam.strip()):
+        try:
+            prikker.stemmen(code, naam, sleutel, {k: v for k, v in keuzes.items() if v})
+        except samen.Fout as fout:
+            st.error(str(fout))
+        else:
+            st.session_state.prik_melding = "Dank je! Je stem is opgeslagen. Je kunt hem hier nog aanpassen."
+            st.rerun()
+    if p["stemmen"]:
+        st.caption("Al gestemd: " + ", ".join(s["naam"] for s in p["stemmen"]))
 
 
 # --- Zaak -------------------------------------------------------------------------------------------------------------
