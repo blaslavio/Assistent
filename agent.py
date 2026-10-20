@@ -103,6 +103,8 @@ Werkwijze:
   deadline, minuten en belangrijk) en plan het met taken_inplannen in vrije tijd. Haal je
   een taak uit een mail, geef dan mail_uid mee. Taken uit mail stel je eerst voor; zet
   ze er pas op na akkoord, tenzij de gebruiker vroeg om ze meteen toe te voegen.
+- Gedeelde agenda: zegt de gebruiker dat hij later is, op tijd is of niet kan ("ik ben 10 min
+  later bij de tandarts"), gebruik agenda_laten_weten bij die afspraak; wie meekijkt ziet het.
 - Geld: met budget_bekijken zie je wat er binnenkomt, uitgaat en vrij te besteden is.
   Zegt de gebruiker "12 euro uitgegeven aan lunch", zet het dan met uitgave_toevoegen
   in het budget. Geef praktische, vriendelijke tips; nooit betuttelen.
@@ -463,6 +465,26 @@ def tijd_vastleggen(afspraak_id: str, moment: str, tijdstip: str = "") -> str:
     afspraak_id = str(afspraak_id).strip()
     afspraak = opslag.tijd_vastleggen(int(afspraak_id) if afspraak_id.isdigit() else afspraak_id, moment, tijdstip or None)
     return _json({"tijden": afspraak["tijden"], "berekening": tijd.berekening(afspraak)}) if afspraak else "Afspraak niet gevonden."
+
+
+@beta_tool
+def agenda_laten_weten(afspraak_id: int, wat: str, minuten: int = 0, tekst: str = "") -> str:
+    """Laat iedereen die meekijkt in de agenda van de gebruiker iets weten bij een afspraak: dat hij op tijd is,
+    later komt, niet kan, of een opmerking. Alleen als de gebruiker dat vraagt.
+
+    Args:
+        afspraak_id: Het id van de afspraak in de eigen agenda.
+        wat: "op_tijd", "later", "kan_niet" of "opmerking".
+        minuten: Bij "later": hoeveel minuten later.
+        tekst: Bij "opmerking" de tekst; anders optioneel een korte toelichting.
+    """
+    if wat not in samen.REACTIES:
+        return "Kies uit: op_tijd, later, kan_niet of opmerking."
+    try:
+        r = samen.agenda_reageren(None, afspraak_id, wat, minuten or None, tekst)
+    except samen.Fout as fout:
+        return str(fout)
+    return _json({"gedaan": samen.reactie_tekst(r, met_naam=False)})
 
 
 @beta_tool
@@ -1223,6 +1245,7 @@ HULPMIDDELEN = [
     contacten_zoeken,
     afspraak_verwijderen,
     tijd_vastleggen,
+    agenda_laten_weten,
     tijdsbesteding_bekijken,
     weer_bekijken,
     events_zoeken,

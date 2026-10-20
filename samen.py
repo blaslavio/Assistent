@@ -85,6 +85,73 @@ def tijd_tekst(start: str) -> str:
     return f"{['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'][dag.weekday()]} {dag:%d-%m} om {dag:%H:%M}"
 
 
+# --- Agenda delen -------------------------------------------------------------
+
+REACTIES = {"op_tijd": "Op tijd", "later": "Later", "kan_niet": "Kan niet", "opmerking": "Opmerking"}
+
+
+def agenda_delen(met: str, niveau: str = "details") -> str:
+    """Deelt je agenda met een gebruiker (details of alleen 'bezet'). Geeft diens naam."""
+    return _ok(opslag._rpc_ik("agenda_delen", p_met=met.strip().lstrip("@"), p_niveau=niveau))["met"]
+
+
+def agenda_delen_stoppen(ander_id: int) -> None:
+    opslag._rpc_ik("agenda_delen_stoppen", p_ander=ander_id)
+
+
+def agenda_deelsituatie() -> dict:
+    """{ik_deel_met: [{id, naam, niveau}], met_mij: [{id, naam, niveau}]}; leeg als je niet online bent."""
+    if not beschikbaar():
+        return {"ik_deel_met": [], "met_mij": []}
+    return opslag._rpc_ik("agenda_deelsituatie")
+
+
+def gedeelde_agenda(eigenaar_id: int, van: str, tot: str) -> dict:
+    return _ok(opslag._rpc_ik("gedeelde_agenda", p_eigenaar=eigenaar_id, p_van=van, p_tot=tot))
+
+
+def agenda_reageren(eigenaar_id: int | None, afspraak_id, soort: str, minuten: int | None = None,
+                    tekst: str = "") -> dict:
+    """Reageren bij een afspraak: op_tijd, later (met minuten), kan_niet of opmerking (met tekst).
+    eigenaar_id None is je eigen agenda."""
+    return _ok(opslag._rpc_ik("agenda_reageren", p_eigenaar=eigenaar_id, p_afspraak=str(afspraak_id), p_soort=soort,
+                              p_minuten=minuten, p_tekst=tekst))
+
+
+def agenda_reactie_weg(reactie_id: int) -> None:
+    opslag._rpc_ik("agenda_reactie_weg", p_id=reactie_id)
+
+
+def mijn_agenda_reacties(afspraak_ids: list) -> dict[str, list[dict]]:
+    """Reacties bij je eigen afspraken, per afspraak-id (als tekst)."""
+    if not afspraak_ids or not beschikbaar():
+        return {}
+    per: dict[str, list[dict]] = {}
+    for r in opslag._rpc_ik("mijn_agenda_reacties", p_afspraken=[str(a) for a in afspraak_ids])["reacties"]:
+        per.setdefault(r["afspraak"], []).append(r)
+    return per
+
+
+def agenda_nieuw(sinds: str) -> list[dict]:
+    """Reacties van anderen sinds een tijdstip (ISO), nieuwste eerst."""
+    return opslag._rpc_ik("agenda_nieuw", p_sinds=sinds)["reacties"]
+
+
+def reactie_tekst(r: dict, met_naam: bool = True) -> str:
+    """'Sanne: 10 min later', 'Jan: op tijd', 'Piet: kan niet', 'Sanne: "neem jij wijn mee?"'."""
+    if r["soort"] == "later":
+        wat = f"{r['minuten']} min later"
+    elif r["soort"] == "op_tijd":
+        wat = "op tijd"
+    elif r["soort"] == "kan_niet":
+        wat = "kan niet"
+    else:
+        wat = f"\"{r['tekst']}\""
+    if r["soort"] != "opmerking" and r.get("tekst"):
+        wat += f" ({r['tekst']})"
+    return f"{r['door']}: {wat}" if met_naam else wat
+
+
 # --- Delen -------------------------------------------------------------------
 
 def delen(aan: str, soort: str, inhoud: dict) -> str:
@@ -535,6 +602,14 @@ def nieuw() -> dict:
         meldingen.append(("berichten", f"💬 {ongelezen} nieuw bericht" + ("en" if ongelezen > 1 else "")))
     if gedeeld:
         meldingen.append(("samen", f"🤝 {gedeeld} nieuw met je gedeeld"))
+    try:
+        sinds = opslag.instellingen().get("agenda_gezien") or (datetime.now() - timedelta(days=2)).isoformat()
+        for r in agenda_nieuw(sinds)[:3]:
+            meldingen.append(("agenda", f"🗓️ {reactie_tekst(r)} · {r.get('titel') or 'afspraak'}"))
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        pass
     try:
         for n in mijn_winkelnieuws().get("nieuws", [])[:2]:
             if n["datum"][:10] >= (date.today() - timedelta(days=2)).isoformat():

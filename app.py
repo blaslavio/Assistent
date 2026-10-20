@@ -604,6 +604,7 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
         sport = meer.selectbox("Welke sport (bij soort Sport)", SPORTEN, index=SPORTEN.index(a.get("sport", "")) if a.get("sport", "") in SPORTEN else 0,
                              format_func=lambda s: s.capitalize() if s else "Geen sport")
         notitie = meer.text_area("Notitie", value=a.get("notitie", ""), height=68)
+        prive = meer.toggle("Privé (niet zichtbaar voor wie meekijkt)", value=bool(a.get("prive")))
         if st.form_submit_button("Opslaan", type="primary"):
             if not titel.strip():
                 st.error("Vul in wat de afspraak is.")
@@ -621,10 +622,14 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
                 "locatie": locatie.strip(), "contact_id": contact_id or None, "notitie": notitie.strip(),
             }
             if afspraak:
-                opslag.afspraak_bijwerken(afspraak["id"], **velden, sport=sport if soort == "sport" else "", soort=soort)
+                opslag.afspraak_bijwerken(afspraak["id"], **velden, sport=sport if soort == "sport" else "", soort=soort,
+                                          prive=prive)
             else:
-                opslag.afspraak_toevoegen(velden["titel"], velden["start"], velden["einde"], velden["notitie"],
-                                          velden["locatie"], velden["contact_id"], sport if soort == "sport" else "", soort)
+                nieuw = opslag.afspraak_toevoegen(velden["titel"], velden["start"], velden["einde"], velden["notitie"],
+                                                  velden["locatie"], velden["contact_id"],
+                                                  sport if soort == "sport" else "", soort)
+                if prive:
+                    opslag.afspraak_bijwerken(nieuw["id"], prive=True)
             st.toast("Afspraak opgeslagen.", icon="✅")
             st.rerun()
 
@@ -652,6 +657,9 @@ def afspraak_kaart(regel: dict, afspraak: dict) -> None:
         if afspraak.get("extern"):
             st.caption(f":material/event: Uit je {afspraak.get('bron', 'agenda')}. Wijzigen doe je in die agenda.")
             return
+        reacties = REACTIES_NU.get(str(afspraak["id"]), [])
+        if reacties or (DEELSITUATIE_NU.get("ik_deel_met") and not afspraak.get("prive")):
+            reacties_tonen(reacties, f"eigen_{afspraak['id']}", None, afspraak["id"])
         k1, k2, k3 = st.columns(3)
         k1.download_button("Naar agenda", ics.bestand([{**afspraak, **regel}]), file_name=f"afspraak-{afspraak['id']}.ics",
                            mime="text/calendar", key=f"ics_{afspraak['id']}", width="stretch",
@@ -669,13 +677,124 @@ def afspraak_kaart(regel: dict, afspraak: dict) -> None:
 def agenda_tabblad() -> None:
     """De agenda plant je dag: je afspraken en (in Taken) wat je moet doen, dat in vrije tijd wordt ingepland."""
     aantal = len(opslag.open_taken())
-    deel = st.segmented_control("Onderdeel", ["Agenda", "Taken"], default="Agenda", key="agenda_deel",
+    DEELSITUATIE_NU.clear()
+    try:
+        DEELSITUATIE_NU.update(samen.agenda_deelsituatie())
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        pass
+    opties = ["Agenda", "Taken"] + (["Gedeeld"] if DEELSITUATIE_NU.get("met_mij") else [])
+    deel = st.segmented_control("Onderdeel", opties, default="Agenda", key="agenda_deel",
                                 format_func=lambda d: f"Taken ({aantal})" if d == "Taken" and aantal else d,
                                 label_visibility="collapsed") or "Agenda"
     if deel == "Taken":
         takenlijst()
+    elif deel == "Gedeeld":
+        gedeelde_agendas()
     else:
         agenda_overzicht()
+    if DEELSITUATIE_NU.get("met_mij") or DEELSITUATIE_NU.get("ik_deel_met"):
+        # Reacties die je nu hebt gezien, tellen niet meer mee bij de meldingen op Vandaag.
+        gezien = opslag.instellingen().get("agenda_gezien", "")
+        if gezien < (datetime.now() - timedelta(minutes=5)).isoformat():
+            opslag.instellingen_bijwerken(agenda_gezien=datetime.now().isoformat(timespec="seconds"))
+
+
+# Per paginabezoek: met wie je agenda gedeeld is en de reacties bij je afspraken (één keer opgehaald).
+DEELSITUATIE_NU: dict = {}
+REACTIES_NU: dict = {}
+
+
+def reacties_tonen(reacties: list[dict], sleutel: str, eigenaar_id: int | None, afspraak_id) -> None:
+    """Reacties bij een afspraak (kort) en één knop om zelf te reageren."""
+    rij = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
+    status = {}
+    for r in reacties:
+        if r["soort"] != "opmerking":
+            status[r["door"]] = r
+    opmerkingen = [r for r in reacties if r["soort"] == "opmerking"][-3:]
+    regels = [samen.reactie_tekst(r) for r in status.values()] + [samen.reactie_tekst(r) for r in opmerkingen]
+    rij.caption("  \n".join(regels) if regels else "Nog geen reacties", width="content")
+    with rij.popover("Reageer", icon=":material/chat_bubble:", width="content"):
+        reageren(sleutel, eigenaar_id, afspraak_id)
+
+
+def reageren(sleutel: str, eigenaar_id: int | None, afspraak_id) -> None:
+    def stuur(soort: str, minuten: int | None = None, tekst: str = "") -> None:
+        try:
+            samen.agenda_reageren(eigenaar_id, afspraak_id, soort, minuten, tekst)
+        except samen.Fout as fout:
+            st.error(str(fout))
+        else:
+            st.rerun()
+
+    with st.container(horizontal=True, gap="small"):
+        if st.button("Op tijd", key=f"{sleutel}_optijd", icon=":material/check:"):
+            stuur("op_tijd")
+        if st.button("Kan niet", key=f"{sleutel}_kanniet", icon=":material/close:"):
+            stuur("kan_niet")
+    minuten = st.pills("Later", [5, 10, 15, 30, 60], key=f"{sleutel}_later", format_func=lambda m: f"+{m} min")
+    if minuten:
+        stuur("later", minuten)
+    with st.form(f"{sleutel}_opmerking", clear_on_submit=True, border=False):
+        tekst = st.text_input("Opmerking", placeholder="Bijvoorbeeld: ik neem taart mee", label_visibility="collapsed")
+        if st.form_submit_button("Stuur") and tekst.strip():
+            stuur("opmerking", tekst=tekst.strip())
+
+
+def agenda_delen_beheer() -> None:
+    """Met wie je je agenda deelt; zij kunnen meekijken en reageren."""
+    for d in DEELSITUATIE_NU.get("ik_deel_met", []):
+        rij = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
+        rij.markdown(f"{d['naam']}" + ("  \n:gray[alleen bezet/vrij]" if d["niveau"] == "bezet" else ""),
+                     width="content")
+        if rij.button("", icon=":material/close:", key=f"agdeel_stop_{d['id']}", type="tertiary", help="Stoppen"):
+            samen.agenda_delen_stoppen(d["id"])
+            st.rerun()
+    with st.form("agenda_delen", clear_on_submit=True, border=False):
+        naam = st.text_input("Gebruikersnaam", placeholder="bijvoorbeeld sanne.devries")
+        alleen_bezet = st.toggle("Alleen laten zien wanneer ik bezet ben")
+        if st.form_submit_button("Delen", type="primary") and naam.strip():
+            try:
+                wie = samen.agenda_delen(naam, "bezet" if alleen_bezet else "details")
+            except samen.Fout as fout:
+                st.error(str(fout))
+            else:
+                st.toast(f"{wie} kijkt nu mee.", icon=":material/check:")
+                st.rerun()
+    st.caption("Notities en privé-afspraken zien ze nooit.")
+
+
+def gedeelde_agendas() -> None:
+    """Agenda's die anderen met jou delen: meekijken en reageren."""
+    mensen = {d["id"]: d for d in DEELSITUATIE_NU.get("met_mij", [])}
+    with st.container(horizontal=True, vertical_alignment="center"):
+        wie = st.pills("Wie", list(mensen), default=next(iter(mensen)), key="gedeeld_wie",
+                       format_func=lambda i: mensen[i]["naam"], label_visibility="collapsed") or next(iter(mensen))
+        if st.button("", icon=":material/logout:", key="gedeeld_verlaten", type="tertiary",
+                     help=f"Niet meer meekijken bij {mensen[wie]['naam']}"):
+            samen.agenda_delen_stoppen(wie)
+            st.rerun()
+    vandaag = date.today()
+    try:
+        g = samen.gedeelde_agenda(wie, vandaag.isoformat(), (vandaag + timedelta(days=13)).isoformat())
+    except samen.Fout as fout:
+        st.caption(str(fout))
+        return
+    if not g["afspraken"]:
+        st.caption("Niets gepland in de komende twee weken.")
+    vorige = ""
+    for a in g["afspraken"]:
+        dag = a["start"][:10]
+        if dag != vorige:
+            st.markdown(f"**{_wanneer(dag).capitalize()}**")
+            vorige = dag
+        tijdstip = a["start"][11:16] + (f"–{a['einde'][11:16]}" if a.get("einde") and "T" in a["einde"] else "")
+        st.markdown(f"{tijdstip or 'hele dag'} · {a['titel']}"
+                    + (f"  \n:gray[{a['locatie']}]" if a.get("locatie") else ""))
+        if g["niveau"] == "details":
+            reacties_tonen(a["reacties"], f"ged_{wie}_{a['id']}", wie, a["id"])
 
 
 def _wanneer(datum: str) -> str:
@@ -910,8 +1029,19 @@ def agenda_overzicht() -> None:
             afspraak_formulier("nieuwe_afspraak")
         with st.popover("Inplannen", icon=":material/auto_awesome:", help="Plan mijn taken in"):
             taken_inplannen()
+        if samen.beschikbaar():
+            with st.popover("", icon=":material/share:", help="Agenda delen"):
+                agenda_delen_beheer()
     dagen = [vanaf + timedelta(days=i) for i in range(7 if weergave == "Week" else 1)]
     alle = {a["id"]: a for a in opslag.afspraken_tussen(dagen[0].isoformat(), dagen[-1].isoformat())}
+    REACTIES_NU.clear()
+    if DEELSITUATIE_NU.get("ik_deel_met"):
+        try:
+            REACTIES_NU.update(samen.mijn_agenda_reacties([i for i in alle if not str(i).startswith("ext:")]))
+        except opslag.GeenToegang:
+            raise
+        except Exception:
+            pass
     taken = [t for t in opslag.open_taken() if t["deadline"] and dagen[0].isoformat() <= t["deadline"] <= dagen[-1].isoformat()]
     if not alle and not taken:
         st.caption("Niets gepland. Tik op Nieuw, of typ onderaan bijvoorbeeld \"vrijdag 10u kapper\".")
