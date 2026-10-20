@@ -3034,7 +3034,7 @@ def main() -> None:
                    "Was jij dat niet? Kies een nieuw wachtwoord en zet tweestapsverificatie aan bij "
                    "Instellingen › Account › Beveiliging.", icon="⚠️")
     if st.session_state.pop("welkom", False):
-        voorkeuren_kiezen()
+        welkom_voorkeuren()
 
     # Het invoerveld onderaan: "morgen 9u tandarts" komt meteen in de agenda (ook zonder Claude),
     # al het andere gaat naar het gesprek met de assistent.
