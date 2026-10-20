@@ -21,7 +21,8 @@ SOORT_WOORDEN = {
     "gezondheid": ["tandarts", "huisarts", "dokter", "fysio", "fysiotherapeut", "ziekenhuis", "kapper", "apotheek",
                    "psycholoog", "orthodontist", "opticien"],
     "uitgaan": ["feest", "feestje", "concert", "bioscoop", "film", "festival", "café", "uitgaan", "theater", "museum"],
-    "familie en vrienden": ["oma", "opa", "mama", "papa", "moeder", "vader", "verjaardag", "jarig", "familie",
+    "verjaardag": ["verjaardag", "jarig", "verjaardagsfeest", "birthday"],
+    "familie en vrienden": ["oma", "opa", "mama", "papa", "moeder", "vader", "familie",
                             "vrienden", "zus", "broer"],
     "reizen": ["vlucht", "vliegtuig", "vakantie", "trein", "reis", "hotel"],
 }
@@ -161,7 +162,10 @@ def lees(invoer: str, nu: datetime | None = None) -> dict:
         soort = "herinnering"
 
     resultaat = {"titel": titel, "soort_agenda": soort, "locatie": locatie, "herhaal": herhaal}
-    if begin_tijd and not deadline_woord:
+    if soort == "verjaardag" and dag and not begin_tijd:
+        # "Sanne jarig 12 mei": een hele dag, elk jaar.
+        resultaat |= {"wat": "afspraak", "start": dag.isoformat(), "einde": None, "herhaal": herhaal or "jaar"}
+    elif begin_tijd and not deadline_woord:
         dag = dag or (vandaag if begin_tijd >= (nu.hour, nu.minute) else vandaag + timedelta(days=1))
         start = datetime.combine(dag, datetime.min.time()).replace(hour=begin_tijd[0], minute=begin_tijd[1])
         if einde_tijd:

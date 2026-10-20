@@ -12,6 +12,7 @@ import beleggen
 import budget
 import documenten
 import opslag
+import overzicht
 import inplannen
 import woning
 import planning
@@ -349,7 +350,8 @@ def afspraak_toevoegen(
         contact_id: Id van de contactpersoon uit contacten_zoeken of contact_opslaan, 0 als er geen is.
         notitie: Optionele extra informatie.
         sport: Bij een sportafspraak de sport in kleine letters, zoals hardlopen, fitness, fietsen of zwemmen.
-        soort: Een van: afspraak, sport, uitgaan, etentje, werk, familie en vrienden, gezondheid, reizen, herinnering, overig.
+        soort: Een van: afspraak, sport, uitgaan, etentje, werk, familie en vrienden, gezondheid, reizen, verjaardag, herinnering, overig.
+            Een verjaardag zet je als hele dag (start JJJJ-MM-DD) met herhaal='jaar', titel bijvoorbeeld 'Sanne jarig'.
             Gebruik herinnering voor een seintje op een tijdstip, zoals 'medicijnen innemen' of 'vuilnis buiten zetten'.
         herhaal: Leeg, of hoe vaak de afspraak terugkomt: dag, werkdag, week, twee_weken, maand of jaar
             (bijvoorbeeld 'elke dinsdag voetbal' = week met de eerstvolgende dinsdag als start).
@@ -456,6 +458,18 @@ def afspraak_verwijderen(afspraak_id: int) -> str:
         afspraak_id: Het id van de afspraak.
     """
     return "Verwijderd." if opslag.afspraak_verwijderen(afspraak_id) else "Afspraak niet gevonden."
+
+
+@beta_tool
+def overzicht_bekijken(periode: str = "week", terug: int = 0) -> str:
+    """Samenvatting van een week, maand of jaar: afspraken, tijd per soort, sport (met de Beweegrichtlijn van 150 minuten
+    per week), afspraken voor de gezondheid en verjaardagen, plus de vorige periode om te vergelijken.
+
+    Args:
+        periode: week, maand of jaar.
+        terug: 0 is de huidige periode, 1 de vorige, enz.
+    """
+    return _json(overzicht.vergelijk(periode if periode in ("week", "maand", "jaar") else "week", -abs(terug)))
 
 
 @beta_tool
@@ -1270,6 +1284,7 @@ HULPMIDDELEN = [
     tijd_vastleggen,
     agenda_laten_weten,
     afspraak_uitnodigen,
+    overzicht_bekijken,
     tijdsbesteding_bekijken,
     weer_bekijken,
     events_zoeken,

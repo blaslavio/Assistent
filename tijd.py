@@ -72,7 +72,7 @@ def sport_icoon(sport: str) -> str:
 
 # Soorten afspraken in de agenda, met hun icoon.
 SOORTEN = {"afspraak": "📌", "sport": "🏃", "uitgaan": "🎉", "etentje": "🍽️", "werk": "💼",
-           "familie en vrienden": "👨‍👩‍👧", "gezondheid": "🩺", "reizen": "✈️", "herinnering": "🔔",
+           "familie en vrienden": "👨‍👩‍👧", "gezondheid": "🩺", "reizen": "✈️", "verjaardag": "🎂", "herinnering": "🔔",
            "focus": "🎯",
            "overig": "🗓️"}
 
@@ -80,7 +80,7 @@ SOORTEN = {"afspraak": "📌", "sport": "🏃", "uitgaan": "🎉", "etentje": "�
 # "taak" is voor taken met een deadline, die als herinnering in de agenda staan.
 KLEUREN = {"afspraak": "#2563eb", "sport": "#16a34a", "uitgaan": "#9333ea", "etentje": "#ea580c",
            "werk": "#475569", "familie en vrienden": "#db2777", "gezondheid": "#0891b2", "reizen": "#ca8a04",
-           "herinnering": "#dc2626", "focus": "#0d9488", "overig": "#64748b", "taak": "#e11d48"}
+           "verjaardag": "#f59e0b", "herinnering": "#dc2626", "focus": "#0d9488", "overig": "#64748b", "taak": "#e11d48"}
 
 
 def kleur(soort: str) -> str:

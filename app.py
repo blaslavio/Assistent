@@ -33,6 +33,7 @@ import mail
 import mailtaken
 import media
 import opslag
+import overzicht
 import planning
 import reizen
 import ruimte
@@ -590,11 +591,18 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
         soort = st.pills("Soort", list(tijd.SOORTEN), default=tijd.soort_van(a), key=f"{sleutel}_soort",
                          format_func=lambda s: f"{tijd.SOORTEN[s]} {s.capitalize()}") or "afspraak"
         kol1, kol2, kol3 = st.columns(3)
-        dag = kol1.date_input("Datum", value=start.date() if start else date.today(), format="DD-MM-YYYY")
+        dag = kol1.date_input("Datum", value=date.fromisoformat(a["start"][:10]) if a.get("start") else date.today(),
+                              format="DD-MM-YYYY")
         begin = kol2.time_input("Begin", value=start.time() if start else datetime.now().replace(minute=0).time(), step=900)
         eind = kol3.time_input("Einde", value=einde.time() if einde else None, step=900)
+        hele_dag = st.checkbox("Hele dag", value=bool(a.get("start")) and "T" not in a["start"],
+                               help="Bijvoorbeeld een verjaardag; begin en einde tellen dan niet.")
         locatie = st.text_input("Adres (straat, huisnummer, plaats)", value=a.get("locatie", ""),
                                 help="Met een adres berekent de app je reistijd en vertrektijd.")
+        gasten = ""
+        if not afspraak and samen.beschikbaar():
+            gasten = st.text_input("Uitnodigen", placeholder="Gebruikersnamen, met komma's ertussen",
+                                   help="Zij zien titel, tijd en plaats in hun agenda en zeggen ja, nee of misschien.")
         meer = st.expander("Meer: met wie, welke sport, notitie", expanded=bool(afspraak))
         opties = [0, *contacten, -1]
         namen = {0: "Geen", -1: "Nieuw contact", **contacten}
@@ -627,10 +635,12 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
                 sport = "sport"
             if contact_id == -1:
                 contact_id = opslag.contact_opslaan(nieuw_naam.strip(), telefoon=nieuw_tel.strip())["id"] if nieuw_naam.strip() else 0
+            if soort == "verjaardag" and hele_dag and not herhaal and not afspraak:
+                herhaal = "jaar"  # een verjaardag komt elk jaar terug
             velden = {
                 "titel": titel.strip(),
-                "start": f"{dag.isoformat()}T{begin.strftime('%H:%M')}",
-                "einde": f"{dag.isoformat()}T{eind.strftime('%H:%M')}" if eind else None,
+                "start": dag.isoformat() if hele_dag else f"{dag.isoformat()}T{begin.strftime('%H:%M')}",
+                "einde": None if hele_dag else f"{dag.isoformat()}T{eind.strftime('%H:%M')}" if eind else None,
                 "locatie": locatie.strip(), "contact_id": contact_id or None, "notitie": notitie.strip(),
             }
             velden |= {"sport": sport if soort == "sport" else "", "soort": soort, "prive": prive}
@@ -659,6 +669,14 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
                     opslag.afspraak_bijwerken(nieuw["id"], prive=True)
                 if herhaal:
                     opslag.afspraak_herhalen(nieuw["id"], herhaal, tot)
+                niet_gevonden = []
+                for naam in [n.strip() for n in gasten.replace(";", ",").split(",") if n.strip()][:30]:
+                    try:
+                        samen.uitnodigen(nieuw["id"], naam)
+                    except samen.Fout:
+                        niet_gevonden.append(naam)
+                if niet_gevonden:
+                    st.session_state.agenda_fout = f"Niet uitgenodigd (onbekende gebruikersnaam): {', '.join(niet_gevonden)}"
             st.toast("Afspraak opgeslagen.", icon="✅")
             st.rerun()
 
@@ -860,7 +878,7 @@ def agenda_tabblad() -> None:
         raise
     except Exception:
         pass
-    opties = ["Agenda", "Taken"] + (["Gedeeld"] if DEELSITUATIE_NU.get("met_mij") else [])
+    opties = ["Agenda", "Taken", "Overzicht"] + (["Gedeeld"] if DEELSITUATIE_NU.get("met_mij") else [])
     deel = st.segmented_control("Onderdeel", opties, default="Agenda", key="agenda_deel",
                                 format_func=lambda d: f"Taken ({aantal})" if d == "Taken" and aantal else d,
                                 label_visibility="collapsed") or "Agenda"
@@ -868,6 +886,8 @@ def agenda_tabblad() -> None:
         takenlijst()
     elif deel == "Gedeeld":
         gedeelde_agendas()
+    elif deel == "Overzicht":
+        overzicht_scherm()
     else:
         agenda_overzicht()
     if samen.beschikbaar():
@@ -875,6 +895,74 @@ def agenda_tabblad() -> None:
         gezien = opslag.instellingen().get("agenda_gezien", "")
         if gezien < (datetime.now() - timedelta(minutes=5)).isoformat():
             opslag.instellingen_bijwerken(agenda_gezien=datetime.now().isoformat(timespec="seconds"))
+
+
+def overzicht_scherm() -> None:
+    """Je week, maand of jaar in het kort: agenda, sport en gezondheid samen. Alleen voor jezelf."""
+    with st.container(horizontal=True, vertical_alignment="center"):
+        soort = st.segmented_control("Periode", ["week", "maand", "jaar"], default="week", key="overzicht_soort",
+                                     format_func=str.capitalize, label_visibility="collapsed") or "week"
+        stap = st.session_state.setdefault("overzicht_stap", 0)
+        if st.button("", icon=":material/chevron_left:", key="overzicht_terug", help="Vorige"):
+            st.session_state.overzicht_stap = stap = stap - 1
+        if st.button("", icon=":material/chevron_right:", key="overzicht_verder", help="Volgende", disabled=stap >= 0):
+            st.session_state.overzicht_stap = stap = min(0, stap + 1)
+    if st.session_state.get("overzicht_laatste_soort") != soort:
+        st.session_state.overzicht_laatste_soort = soort
+        st.session_state.overzicht_stap = stap = 0
+    s = overzicht.vergelijk(soort, stap)
+    st.markdown(f"**{s['naam'].capitalize()}**")
+    sp, v = s["sport"], s["vorige"]
+    verschil = sp["minuten"] - v["sport_minuten"]
+    tegels = [("Afspraken", str(s["afspraken"]), f"nog {s['nog_gepland']} gepland" if s["nog_gepland"]
+               else f"{s['uren_gepland']} uur"),
+              ("Gesport", _uren(sp["minuten"]), (f"{verschil:+} min dan ervoor" if verschil else "zelfde als ervoor")),
+              ("Bewogen per week", f"{sp['per_week_minuten']} min",
+               "richtlijn gehaald" if s["beweegrichtlijn"]["gehaald"] else "richtlijn: 150 min")]
+    st.html('<div style="display:flex;gap:8px">' + "".join(
+        f'<div style="flex:1;border:1px solid rgba(128,128,128,.25);border-radius:10px;padding:8px 10px;min-width:0">'
+        f'<div style="font-size:12px;opacity:.7">{titel}</div><div style="font-size:20px;font-weight:600">{waarde}</div>'
+        f'<div style="font-size:11px;opacity:.6">{onder}</div></div>' for titel, waarde, onder in tegels) + "</div>")
+    if s["per_soort"]:
+        st.caption("Tijd per soort (tot en met vandaag)" if s["nog_gepland"] else "Tijd per soort")
+        totaal = sum(x["minuten"] for x in s["per_soort"].values()) or 1
+        regels = []
+        for naam, x in s["per_soort"].items():
+            if not x["minuten"]:
+                continue
+            k = tijd.kleur(naam)
+            regels.append(f'<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:14px">'
+                          f'<div style="width:118px;flex:none">{tijd.SOORTEN.get(naam, "")} {naam.capitalize()}</div>'
+                          f'<div style="flex:1;background:rgba(128,128,128,.12);border-radius:4px;height:10px">'
+                          f'<div style="width:{max(2, x["minuten"] * 100 // totaal)}%;background:{k};height:10px;'
+                          f'border-radius:4px"></div></div><div style="width:52px;text-align:right;opacity:.7">'
+                          f'{_uren(x["minuten"])}</div></div>')
+        st.html("".join(regels))
+    delen = []
+    if sp["aantal"]:
+        delen.append(f"{sp['aantal']} keer gesport" + (f", {sp['afstand_km']} km" if sp["afstand_km"] else "")
+                     + " (" + ", ".join(f"{tijd.sport_icoon(n)} {a}" for n, a in sp["per_sport"].items()) + ")")
+    if sp["rustdagen"] and soort == "week":
+        delen.append(f"{sp['rustdagen']} {'rustdag' if sp['rustdagen'] == 1 else 'rustdagen'}")
+    if s["gezondheid"]:
+        delen.append("gezondheid: " + ", ".join(g["titel"] for g in s["gezondheid"][:4]))
+    if s["laat_op_pad"]:
+        delen.append(f"{s['laat_op_pad']} keer laat op pad (na 22:30)")
+    if s["verjaardagen"]:
+        delen.append("jarig: " + ", ".join(g["titel"] for g in s["verjaardagen"][:5]))
+    if s["reistijd_minuten"]:
+        delen.append(f"{_uren(s['reistijd_minuten'])} onderweg")
+    for d in delen:
+        st.caption(d)
+    if stap == 0:
+        if (volgende := overzicht.volgende_gezondheid()) and volgende["start"][:10] > s["tot"]:
+            d = date.fromisoformat(volgende["start"][:10])
+            st.caption(f"Volgende afspraak voor je gezondheid: {volgende['titel']}, {d.day} {MAANDEN[d.month - 1]}")
+        doelen = opslag.sportdoelen()
+        for doel in doelen[:3]:
+            vg = tijd.doel_voortgang(doel)
+            st.progress(min(1.0, vg["procent"] / 100), text=f"{doel['omschrijving']}: {vg['tekst']}")
+    st.caption("Alleen jij ziet dit overzicht.")
 
 
 # Per paginabezoek: met wie je agenda gedeeld is en de reacties bij je afspraken (één keer opgehaald).
@@ -1302,8 +1390,10 @@ def snel_toevoegen(zin: str) -> dict:
     r = snelinvoer.lees(zin)
     if r["wat"] == "afspraak":
         item = opslag.afspraak_toevoegen(r["titel"], r["start"], r["einde"], locatie=r["locatie"], soort=r["soort_agenda"])
-        start, einde = datetime.fromisoformat(r["start"]), datetime.fromisoformat(r["einde"])
-        wanneer = f"{DAGEN[start.weekday()]} {start.day} {MAANDEN[start.month - 1]}, {start:%H:%M}–{einde:%H:%M}"
+        start = datetime.fromisoformat(r["start"])
+        wanneer = f"{DAGEN[start.weekday()]} {start.day} {MAANDEN[start.month - 1]}"
+        if r["einde"]:
+            wanneer += f", {start:%H:%M}–{datetime.fromisoformat(r['einde']):%H:%M}"
         if r.get("herhaal"):
             wanneer += f" ({opslag.herhaal_tekst(opslag.afspraak_herhalen(item['id'], r['herhaal'])).lower()})"
         tekst = f"{tijd.SOORTEN.get(r['soort_agenda'], '📅')} In je agenda: **{r['titel']}**, {wanneer}"
@@ -1967,6 +2057,10 @@ def seintjes(nu: datetime) -> None:
     if opslag.sportdoelen() and not tijd.sportoverzicht((nu.date() - timedelta(days=6)).isoformat(),
                                                          nu.date().isoformat())["aantal"]:
         delen.append("deze week nog niet bewogen, even een rondje?")
+    for a in overzicht.verjaardagen_binnenkort(3)[:2]:
+        d = date.fromisoformat(a["start"][:10])
+        wanneer = "vandaag" if d == nu.date() else "morgen" if d == nu.date() + timedelta(days=1) else DAGEN[d.weekday()]
+        delen.append(f"🎂 {a['titel']} ({wanneer})")
     if not opslag.instellingen().get("thuisadres"):
         delen.append("vul je thuisadres in voor vertrektijden (Instellingen)")
     if delen:
