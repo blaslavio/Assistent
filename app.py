@@ -64,11 +64,12 @@ import winkelkaart
 import verbeteren
 import ander_brein
 import chat
+import taal
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, ander_brein, spraak, verbeteren, chat):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, ander_brein, spraak, verbeteren, chat, taal):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -81,6 +82,7 @@ os.environ["TZ"] = "Europe/Amsterdam"
 time.tzset()
 
 st.set_page_config(page_title="Mijn assistent", page_icon="✨", layout="centered")
+taal.installeren()
 
 # Elke run van het script gebruikt de naam en het wachtwoord van deze sessie voor de database.
 opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
@@ -260,6 +262,68 @@ def account_maken_formulier() -> None:
         st.markdown(teksten.privacy())
 
 
+def taal_bepalen() -> None:
+    """Jouw taal: uit je instellingen, anders wat je net koos, anders de taal van je telefoon of computer."""
+    code = st.session_state.get("taal")
+    if st.session_state.get("wachtwoord"):
+        try:
+            code = opslag.instellingen().get("taal") or code
+        except Exception:
+            pass
+    taal.zet(code or taal.uit_browser())
+
+
+def taalkeuze(key: str) -> None:
+    """Kleine taalkeuze. Ingelogd wordt hij bewaard bij je instellingen."""
+    def gekozen():
+        if code := st.session_state.get(key):
+            st.session_state.taal = code
+            if st.session_state.get("wachtwoord"):
+                opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.wachtwoord)
+                opslag.instellingen_bijwerken(taal=code)
+    st.segmented_control("Taal", list(taal.TALEN), default=taal.huidig(), key=key, format_func=taal.TALEN.get,
+                         label_visibility="collapsed", on_change=gekozen)
+
+
+TEKSTGROOTTE = {"Normaal": 16, "Groot": 19, "Extra groot": 22}
+
+
+def toegankelijkheid_css() -> None:
+    """Grotere tekst, meer contrast en minder beweging, zoals ingesteld bij Weergave."""
+    try:
+        t = opslag.instellingen().get("toegankelijk") or {}
+    except Exception:
+        return
+    css = []
+    if (px := TEKSTGROOTTE.get(t.get("tekst"), 16)) != 16:
+        css.append(f"html{{font-size:{px}px}} .stApp p,.stApp li,.stApp label,.stApp input,.stApp textarea,"
+                   f".stApp button{{font-size:{px}px}}")
+    if t.get("contrast"):
+        css.append("[data-testid=stCaptionContainer],.stApp small{opacity:1!important;color:inherit!important}"
+                   ".stApp a{text-decoration:underline!important}"
+                   ".stApp button,.stApp input,.stApp textarea,.stApp [data-baseweb=select]>div"
+                   "{border-width:2px!important;border-color:currentColor!important}"
+                   "*:focus-visible{outline:3px solid #f5a300!important;outline-offset:2px}")
+    if t.get("minder_beweging"):
+        css.append("*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}")
+    if css:
+        st.html("<style>" + "".join(css) + "</style>")
+
+
+def toegankelijkheid_instellingen() -> None:
+    t = {"tekst": "Normaal", "contrast": False, "minder_beweging": False} | (opslag.instellingen().get("toegankelijk") or {})
+    nieuw = {
+        "tekst": st.segmented_control("Tekstgrootte", list(TEKSTGROOTTE), default=t["tekst"], key="tg_tekst") or t["tekst"],
+        "contrast": st.toggle("Meer contrast", value=t["contrast"], key="tg_contrast",
+                              help="Duidelijkere randen, onderstreepte links en een goed zichtbare focus."),
+        "minder_beweging": st.toggle("Minder beweging", value=t["minder_beweging"], key="tg_beweging"),
+    }
+    if nieuw != t:
+        opslag.instellingen_bijwerken(toegankelijk=nieuw)
+        st.rerun()
+    st.caption("Voorlezen kan bij elk antwoord van de assistent, en praten via de microfoon in het invoerveld.")
+
+
 def wachtwoord_ok() -> bool:
     """Toegangscontrole: zonder de juiste naam en het juiste wachtwoord kan niemand bij de gegevens."""
     if st.session_state.get("wachtwoord"):
@@ -277,6 +341,7 @@ def wachtwoord_ok() -> bool:
         return False
     if apparaat_herkennen():
         return True
+    taalkeuze("taal_inlog")
     keuze = st.segmented_control("Account", ["Inloggen", "Account maken"], default="Inloggen",
                                  label_visibility="collapsed", key="inlogkeuze")
     if keuze == "Account maken":
@@ -3101,6 +3166,11 @@ def instellingen_assistent() -> None:
 
 def instellingen_weergave() -> None:
     inst = opslag.instellingen()
+    with st.expander("Taal"):
+        taalkeuze("taal_instelling")
+        st.caption("De assistent antwoordt ook in deze taal. Wat nog niet vertaald is, blijft Nederlands.")
+    with st.expander("Toegankelijkheid"):
+        toegankelijkheid_instellingen()
     with st.expander("Voorpagina en menu"):
         voorpagina_instellingen()
     with st.expander("Thuisadres" + ("" if inst.get("thuisadres") else " (nog invullen)"),
@@ -3857,6 +3927,7 @@ def assistent_invoer() -> None:
 
 
 def main() -> None:
+    taal_bepalen()
     if not opslag.online():
         st.caption("Lokale testmodus: gegevens staan in data/gegevens.json.")
     # Siri (app Opdrachten) opent de app met ?zeg=wat je zei. Dat bewaren we tot je ingelogd bent.
@@ -3918,6 +3989,8 @@ def main() -> None:
     terug_van_stripe()
     if not wachtwoord_ok():
         return
+    taal_bepalen()
+    toegankelijkheid_css()
     if sleutel := st.session_state.pop("apparaat_bewaar", None):
         onthouden.bewaren(sleutel)
     # Herhalende afspraken steeds een eindje vooruit in de agenda zetten (doet meestal niets).

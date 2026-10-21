@@ -11,6 +11,8 @@ from urllib.parse import quote_plus
 
 import anthropic
 
+import taal
+
 MODEL = "claude-opus-5-5"
 
 
@@ -35,6 +37,8 @@ def _vraag(client: anthropic.Anthropic, inhoud, schema: dict, systeem: str, zoek
            inspanning: str = "low") -> dict:
     """Stelt een vraag aan Claude en geeft het JSON-antwoord terug. Met zoeken mag Claude op internet zoeken."""
     berichten = [{"role": "user", "content": inhoud}]
+    if regel := taal.taalregel():
+        systeem = f"{systeem}\n\n{regel}"
     extra = {"tools": [{"type": "web_search_20260209", "name": "web_search", "max_uses": 6}]} if zoeken else {}
     for _ in range(4):
         antwoord = client.messages.create(

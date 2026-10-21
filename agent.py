@@ -12,6 +12,7 @@ import beleggen
 import budget
 import documenten
 import opslag
+import taal
 import overzicht
 import inplannen
 import woning
@@ -1524,6 +1525,8 @@ def context() -> str:
     """Wat de assistent bij elk gesprek over de gebruiker weet: geheugen en geleerde gewoontes."""
     nu = datetime.now()
     delen = [f"Nu is het {DAGEN[nu.weekday()]} {nu.strftime('%Y-%m-%d %H:%M')}."]
+    if regel := taal.taalregel():
+        delen.append(regel)
     naam = avatar.instellingen(opslag.instellingen())["naam"]
     delen.append("Je hebt geen eigen naam: je bent gewoon de assistent. Verzin zelf geen naam."
                  if naam == avatar.STANDAARD["naam"] else f"Je naam is {naam}.")
