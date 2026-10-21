@@ -3124,6 +3124,10 @@ def instellingen_tabblad() -> None:
                 f'<div><b>{html.escape(gebruiker.get("weergavenaam") or "Mijn instellingen")}</b><br>'
                 f'<span style="opacity:.6">{html.escape(gebruiker.get("email") or "")}</span></div></div>',
                 unsafe_allow_html=True)
+    # Taal bovenaan, met een wereldbol die je in elke taal herkent.
+    with st.container(horizontal=True, vertical_alignment="center", gap="small"):
+        st.markdown(":material/language:", width="content")
+        taalkeuze("taal_bovenaan")
     onderdelen_tegels()
     st.markdown("**Voorkeuren**")
     with st.container(horizontal=True, gap="small"):
