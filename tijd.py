@@ -7,7 +7,7 @@ Daaruit volgt per afspraak:
 - uitloop: langer gebleven dan gepland (rood).
 """
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import opslag
 
@@ -207,3 +207,20 @@ def gewoontes(dagen: int = 90) -> dict:
                     "gem_te_laat_min": round(s["te_laat"] / s["aantal"]),
                     "gem_op_locatie_min": round(s["op_locatie"] / s["aantal"])}
             for soort, s in per_soort.items()}
+
+
+def plan_inplannen(sport: str, plan: dict, weekdagen: list[int], tijdstip) -> int:
+    """Zet de sessies van een trainingsplan op de gekozen weekdagen (0 = maandag), vanaf volgende week maandag."""
+    vandaag = date.today()
+    maandag = vandaag + timedelta(days=7 - vandaag.weekday())
+    nummers = sorted(set(weekdagen))
+    aantal = 0
+    for w in plan["weken"]:
+        for i, sessie in enumerate(w["sessies"]):
+            dag = maandag + timedelta(weeks=w["week"] - 1, days=nummers[i % len(nummers)])
+            start = datetime.combine(dag, tijdstip)
+            opslag.afspraak_toevoegen(f"{sport.capitalize()}: {sessie['titel']}", start.isoformat(timespec="minutes"),
+                                      (start + timedelta(minutes=sessie["minuten"] or 60)).isoformat(timespec="minutes"),
+                                      notitie=sessie["inhoud"], sport=sport, soort="sport")
+            aantal += 1
+    return aantal

@@ -168,6 +168,47 @@ def vergelijken(client, product: str) -> list[dict]:
     return sorted(opties, key=lambda o: o["prijs"] + (o["verzendkosten"] or 0))
 
 
+# --- Sport: regels en trainingsplan --------------------------------------------------------
+
+def sport_info(client, sport: str) -> dict:
+    """Zoekt op internet hoe een sport werkt: regels, wat je nodig hebt, veiligheid en hoe je begint."""
+    schema = _object({"sport": TEKST, "samenvatting": TEKST, "regels": _lijst(TEKST), "benodigdheden": _lijst(TEKST),
+                      "veiligheid": _lijst(TEKST), "beginnen": _lijst(TEKST),
+                      "bronnen": _lijst(_object({"titel": TEKST, "link": TEKST}))})
+    systeem = ("Je legt een sport uit aan iemand in Nederland die er (nog) weinig van weet. Zoek met web_search naar "
+               "betrouwbare bronnen (de sportbond, de officiële spelregels, of een erkende sportorganisatie). Geef: "
+               "samenvatting (2 zinnen: wat het is en hoe je wint of scoort), regels (de belangrijkste spel- of "
+               "wedstrijdregels, 5 tot 10 korte punten), benodigdheden (kleding, materiaal), veiligheid (blessures "
+               "voorkomen, bescherming, wanneer niet), beginnen (hoe en waar je in Nederland start, bijvoorbeeld "
+               "proefles bij een vereniging). Bronnen: alleen pagina's die je echt hebt gezien, met link. Verzin "
+               "niets. Bestaat de sport niet of is het geen sport, zeg dat in de samenvatting en laat de lijsten leeg. "
+               "Geen medisch advies; verwijs bij klachten naar een huisarts of fysiotherapeut. Alles in het Nederlands.")
+    info = _vraag(client, f"Leg deze sport uit: {sport}", schema, systeem, zoeken=True, inspanning="medium")
+    info["bronnen"] = [b for b in info["bronnen"] if b["link"].startswith("http")]
+    return info
+
+
+def trainingsplan(client, sport: str, doel: str, niveau: str, keer_per_week: int, weken: int,
+                  info: dict | None = None) -> dict:
+    """Een opbouwend trainingsplan per week, haalbaar en veilig, met rust tussen zware trainingen."""
+    sessie = _object({"titel": TEKST, "minuten": {"type": "integer"}, "inhoud": TEKST})
+    schema = _object({"titel": TEKST, "uitleg": TEKST,
+                      "weken": _lijst(_object({"week": {"type": "integer"}, "focus": TEKST,
+                                                "sessies": _lijst(sessie)})),
+                      "tips": _lijst(TEKST)})
+    systeem = ("Je bent een nuchtere, ervaren trainer. Maak een realistisch en veilig trainingsplan dat geleidelijk "
+               "opbouwt (niet meer dan ongeveer 10 procent zwaarder per week), met een warming-up, een kern en een "
+               "cooling-down in elke sessie, en genoeg rust. Is het doel niet haalbaar in de gekozen tijd, zeg dat in "
+               "de uitleg en maak een plan met een haalbaar tussendoel. Elke week precies het gevraagde aantal sessies. "
+               "Inhoud: concreet (oefeningen, rondes, tijden), kort. Geen medisch advies. Alles in het Nederlands.")
+    vraag = (f"Sport: {sport}\nDoel: {doel or 'fitter worden en de sport goed leren'}\nNiveau: {niveau}\n"
+             f"Keer per week: {keer_per_week}\nAantal weken: {weken}"
+             + (f"\nOver de sport: {json.dumps(info, ensure_ascii=False)[:3000]}" if info else ""))
+    plan = _vraag(client, vraag, schema, systeem, inspanning="medium")
+    plan["weken"] = plan["weken"][:weken]
+    return plan
+
+
 # --- Foto's lezen ----------------------------------------------------------------------
 
 def verkleinen(data: bytes, grootste: int = 1568) -> tuple[str, str]:

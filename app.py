@@ -1678,10 +1678,71 @@ def sport_tabblad(nu: datetime) -> None:
                 else:
                     opslag.sportdoel_stellen(omschrijving.strip(), maatstaf, float(waarde), sport.strip(),
                                              deadline.isoformat() if met_deadline else "", eenheid.strip())
+                    # Zelf ingevulde sport: meteen opzoeken hoe hij werkt.
+                    if sport.strip() and sport.strip().lower() not in tijd.SPORTEN \
+                            and not opslag.sportinfo(sport).get("info"):
+                        if info := werk_scherm.met_claude(f"Regels van {sport.strip()} opzoeken...", slim.sport_info,
+                                                          sport.strip()):
+                            opslag.sportinfo_bewaren(sport, info=info)
                     st.rerun()
+    for sport in dict.fromkeys(d["sport"] for d in doelen if d["sport"]):
+        sport_uitleg(sport, next((d["omschrijving"] for d in doelen if d["sport"] == sport), ""))
     st.divider()
     # De vraag "hoe ging het" staat al bovenaan de agenda; hier alleen het weekoverzicht.
     sport_overzicht(nu, vragen=False)
+
+
+DAGNAMEN = ["ma", "di", "wo", "do", "vr", "za", "zo"]
+
+
+def sport_uitleg(sport: str, doel: str = "") -> None:
+    """Regels van een sport (opgezocht met bronnen) en, als je wilt, een trainingsplan dat in je agenda kan."""
+    bewaard = opslag.sportinfo(sport)
+    info, plan = bewaard.get("info"), bewaard.get("plan")
+    with st.expander(f"{tijd.sport_icoon(sport)} {sport.capitalize()}: regels en training"):
+        if not info:
+            if st.button("Regels en uitleg opzoeken", key=f"info_{sport}"):
+                if info := werk_scherm.met_claude("Opzoeken...", slim.sport_info, sport):
+                    opslag.sportinfo_bewaren(sport, info=info)
+                    st.rerun()
+        else:
+            st.markdown(info["samenvatting"])
+            for kop, sleutel in (("Regels", "regels"), ("Wat heb je nodig", "benodigdheden"),
+                                 ("Veilig sporten", "veiligheid"), ("Zo begin je", "beginnen")):
+                if info.get(sleutel):
+                    st.markdown(f"**{kop}**\n" + "\n".join(f"- {r}" for r in info[sleutel]))
+            if info.get("bronnen"):
+                st.caption("Bronnen: " + " · ".join(f"[{b['titel'][:40]}]({b['link']})" for b in info["bronnen"][:4]))
+        if plan:
+            st.markdown(f"**{plan['titel']}**")
+            if plan.get("uitleg"):
+                st.caption(plan["uitleg"])
+            for w in plan["weken"]:
+                st.markdown(f"Week {w['week']}: {w['focus']}  \n" + "  \n".join(
+                    f"· {x['titel']} ({x['minuten']} min): {x['inhoud']}" for x in w["sessies"]))
+            if plan.get("tips"):
+                st.caption(" · ".join(plan["tips"]))
+        with st.popover("Trainingsplan maken" if not plan else "Nieuw plan of in agenda zetten"):
+            niveau = st.segmented_control("Niveau", ["Beginner", "Gemiddeld", "Gevorderd"], default="Beginner",
+                                          key=f"niveau_{sport}") or "Beginner"
+            keer = st.slider("Keer per week", 1, 6, 3, key=f"keer_{sport}")
+            weken = st.slider("Aantal weken", 2, 16, 8, key=f"weken_{sport}")
+            if st.button("Plan maken", key=f"plan_{sport}", type="primary"):
+                if nieuw := werk_scherm.met_claude("Plan maken...", slim.trainingsplan, sport, doel, niveau, keer, weken,
+                                                   info):
+                    opslag.sportinfo_bewaren(sport, plan=nieuw | {"keer": keer})
+                    st.rerun()
+            if plan:
+                st.divider()
+                dagen = st.pills("Op welke dagen", DAGNAMEN, selection_mode="multi", key=f"dagen_{sport}",
+                                 default=DAGNAMEN[: plan.get("keer", 3) * 2: 2][: plan.get("keer", 3)])
+                tijdstip = st.time_input("Hoe laat", value=kloktijd(19, 0), key=f"tijd_{sport}", step=900)
+                if st.button("Zet alle trainingen in mijn agenda", key=f"agenda_{sport}"):
+                    if not dagen:
+                        st.error("Kies eerst de dagen.")
+                    else:
+                        st.success(f"{tijd.plan_inplannen(sport, plan, [DAGNAMEN.index(d) for d in dagen], tijdstip)} "
+                                   "trainingen staan in je agenda.")
 
 
 def events_instellen() -> None:

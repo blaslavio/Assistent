@@ -935,6 +935,20 @@ def sportdoel_stoppen(doel_id: int) -> bool:
     return False
 
 
+def sportinfo(sport: str) -> dict:
+    """Wat de assistent over een sport heeft opgezocht (regels) en het trainingsplan, als dat er is."""
+    return laden().get("sportinfo", {}).get(sport.strip().lower(), {})
+
+
+def sportinfo_bewaren(sport: str, **waarden) -> dict:
+    with _slot:
+        g = laden()
+        item = g.setdefault("sportinfo", {}).setdefault(sport.strip().lower(), {})
+        item.update(waarden, bijgewerkt=date.today().isoformat())
+        opslaan(g)
+        return item
+
+
 def sportdoelen() -> list[dict]:
     return [d for d in laden().get("sportdoelen", []) if d.get("actief", True)]
 
