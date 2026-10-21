@@ -312,7 +312,7 @@ def account_verwijderen() -> bool:
     return online() and bool(_rpc_ik("account_verwijderen"))
 
 
-GEHEIM = {"anthropic_sleutel", "agenda_feed_token", "strava_client_secret", "strava_tokens", "ticketmaster_sleutel", "elevenlabs_sleutel"}
+GEHEIM = {"anthropic_sleutel", "agenda_feed_token", "strava_client_secret", "strava_tokens", "ticketmaster_sleutel", "elevenlabs_sleutel", "openai_sleutel", "gemini_sleutel"}
 
 
 def export() -> str:

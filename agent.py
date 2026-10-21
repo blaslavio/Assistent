@@ -36,6 +36,12 @@ Je helpt met dagelijkse taken, de agenda, vakanties plannen, leren en schrijven
 (scripties en verslagen). Je antwoorden zijn feitelijk en waar nodig wetenschappelijk onderbouwd.
 
 Werkwijze:
+- Wees slim en nuchter. Denk eerst na over wat de gebruiker echt nodig heeft en geef dat. Is een plan
+  onrealistisch, onveilig of niet haalbaar (te weinig tijd, te veel geld, te weinig rust, een belofte die niemand
+  kan waarmaken), zeg dat vriendelijk en eerlijk en geef een haalbaar alternatief. Ga niet mee in verzonnen of
+  onrealistische situaties, complotten of luchtkastelen, en praat niemand naar de mond: geen vleierij, geen
+  overdreven lof. Blijf bij de vraag en ga niet in op zijpaden die niets opleveren. Scheid feiten van
+  aannames, en zeg het gewoon als je iets niet weet in plaats van te gokken.
 - Houd antwoorden kort en praktisch; gebruik lijstjes als dat helpt. De gebruiker
   leest vaak op een iPad of spreekt in via dicteren: begin met het antwoord, geen
   inleiding, en vraag maximaal één ding tegelijk.
@@ -96,7 +102,8 @@ Werkwijze:
   empathie: meelevend bij tegenslag of verdriet, enthousiast en trots bij goed
   nieuws of een behaalde prestatie, rustig bij stress, bemoedigend bij twijfel.
   Laat dat ook in je woorden merken, zonder te overdrijven of toneel te spelen.
-  Gewone praktische vragen krijgen neutraal of blij.
+  Gewone praktische vragen krijgen neutraal of blij. Hoe sterk je gevoel en humor laat
+  merken, staat in de gevoelsinstellingen hieronder.
 - Strak plannen: kijk eerst in de agenda (dagplanning) voordat je iets inplant,
   voorkom overlap en krappe overstappen, en reken met de reistijd plus de
   gewoontes hieronder (gemiddelde uitloop en te laat komen per soort) als buffer.
@@ -1523,6 +1530,8 @@ def context() -> str:
         regels.append("spreek de gebruiker aan met u")
     if regels:
         delen.append("Stijlinstellingen van de gebruiker: " + "; ".join(regels) + ".")
+    delen.append("Gevoelsinstellingen: " + GEVOEL_REGELS["gevoel"][stijl.get("gevoel", "Normaal")] + " "
+                 + GEVOEL_REGELS["humor"][stijl.get("humor", "Af en toe")])
     namens = {k: opslag.namens(k) for k in ("mail", "berichten")}
     delen.append("Namens de gebruiker reageren: " + "; ".join(
         f"{k}: {'eerst akkoord vragen' if v == 'vragen' else 'zelf reageren aan contacten, anderen eerst vragen' if v == 'bekenden' else 'zelf reageren'}"
@@ -1557,6 +1566,18 @@ def context() -> str:
     return "\n\n".join(delen)
 
 
+GEVOEL_REGELS = {
+    "gevoel": {"Uit": "Laat geen gevoel merken: zet altijd [gevoel: neutraal] en antwoord zakelijk.",
+               "Rustig": "Laat gevoel licht en ingetogen merken; kies vaak neutraal of rustig.",
+               "Normaal": "Laat gevoel gewoon merken waar het past.",
+               "Sterk": "Laat gevoel duidelijk merken: warm, betrokken en uitgesproken, maar blijf echt."},
+    "humor": {"Geen": "Gebruik geen humor.",
+              "Af en toe": "Een luchtige opmerking mag af en toe, als het past.",
+              "Veel": "Wees vaak luchtig en grappig, behalve bij serieuze of verdrietige onderwerpen."},
+}
+NADENKEN = {"Snel": "low", "Normaal": "medium", "Grondig": "high"}
+
+
 SPRAAK = ("De gebruiker praat nu via spraak en je antwoord wordt voorgelezen. Antwoord in gewone spreektaal "
           "in hooguit drie korte zinnen, zonder opsommingen, opmaak, emoji of links. Zet wel het gevoelslabel "
           "vooraan. Je mag hooguit één klank gebruiken als die echt past, met dubbele haken: [[lacht]], "
@@ -1589,7 +1610,7 @@ def antwoord(client: anthropic.Anthropic, berichten: list, bij_tekst=None, bij_h
             system=systeem,
             tools=HULPMIDDELEN,
             messages=berichten,
-            output_config={"effort": "medium"},
+            output_config={"effort": NADENKEN.get(opslag.instellingen().get("stijl", {}).get("nadenken"), "high")},
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
             stream=True,

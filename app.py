@@ -62,12 +62,13 @@ import snelinvoer
 import woning
 import winkelkaart
 import verbeteren
+import ander_brein
 import chat
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, spraak, verbeteren, chat):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, ander_brein, spraak, verbeteren, chat):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -2763,10 +2764,50 @@ def stijl_instellingen() -> None:
     aanspreken = st.segmented_control("Aanspreken met", STIJL["aanspreken"], default=huidig["aanspreken"],
                                       key="stijl_aanspreken") or huidig["aanspreken"]
     nieuw = {"toon": toon, "lengte": lengte, "aanspreken": aanspreken}
-    if nieuw != huidig:
-        opslag.instellingen_bijwerken(stijl=nieuw)
+    if any(nieuw[k] != huidig[k] for k in nieuw):
+        opslag.instellingen_bijwerken(stijl=opslag.instellingen().get("stijl", {}) | nieuw)
     st.caption("Bij Automatisch past de assistent zich aan jou aan: aan je toon, hoe lang jouw berichten zijn en hoe "
                "je werkt. Wat hij leert, zie je bij Wat de assistent over je weet.")
+
+
+GEVOEL_KEUZES = {"gevoel": ["Uit", "Rustig", "Normaal", "Sterk"], "humor": ["Geen", "Af en toe", "Veel"],
+                 "nadenken": ["Snel", "Normaal", "Grondig"]}
+
+
+def gevoel_instellingen() -> None:
+    """Hoeveel gevoel en humor de assistent laat merken, en hoe lang hij nadenkt (Claude)."""
+    stijl = opslag.instellingen().get("stijl", {})
+    huidig = {"gevoel": "Normaal", "humor": "Af en toe", "nadenken": "Grondig"} | stijl
+    nieuw = {k: st.segmented_control(k.capitalize(), opties, default=huidig[k], key=f"stijl_{k}") or huidig[k]
+             for k, opties in GEVOEL_KEUZES.items()}
+    if any(nieuw[k] != huidig[k] for k in nieuw):
+        opslag.instellingen_bijwerken(stijl=stijl | nieuw)
+    st.caption("Grondig nadenken geeft slimmere antwoorden, maar duurt iets langer en kost wat meer tegoed.")
+
+
+def brein_instellingen() -> None:
+    """Claude is het standaardbrein. Wie liever ChatGPT of Gemini gebruikt, vult daarvoor een eigen sleutel in."""
+    inst = opslag.instellingen()
+    brein = st.segmented_control("Brein", ["Claude", *ander_brein.AANBIEDERS], default=ander_brein.keuze(),
+                                 key="brein_keuze") or "Claude"
+    if brein != inst.get("brein", "Claude"):
+        opslag.instellingen_bijwerken(brein=brein)
+    if brein == "Claude":
+        st.caption("Claude van Anthropic. De sleutel staat hieronder bij Anthropic-sleutel.")
+        return
+    a = ander_brein.AANBIEDERS[brein]
+    st.caption(("Sleutel ingesteld. " if ander_brein.sleutel(brein) else "") + f"Een sleutel maak je bij {a['waar']}.")
+    with st.form(f"sleutel_{brein}", border=False):
+        nieuw = st.text_input(f"{brein}-sleutel", type="password", placeholder="Plak hier je sleutel")
+        model = st.text_input("Model", value=ander_brein.model(brein), help="Laat staan als je het niet weet.")
+        if st.form_submit_button("Opslaan"):
+            bijwerken = {"brein_modellen": (inst.get("brein_modellen") or {}) | {brein: model.strip()}}
+            if nieuw.strip():
+                bijwerken[a["sleutel"]] = nieuw.strip()
+            opslag.instellingen_bijwerken(**bijwerken)
+            st.success("Opgeslagen.")
+    st.caption("Met een ander brein zoekt de assistent niet zelf op internet. Mail nakijken en oefentoetsen "
+               "gebruiken altijd Claude. Siri werkt met elk brein via de opdracht bij Koppelingen.")
 
 
 def onderdelen_uit() -> list[str]:
@@ -2968,6 +3009,10 @@ def instellingen_assistent() -> None:
         avatar_instellingen()
     with st.expander("Hoe de assistent praat"):
         stijl_instellingen()
+    with st.expander("Gevoel, humor en nadenken"):
+        gevoel_instellingen()
+    with st.expander(f"Brein ({ander_brein.keuze()})"):
+        brein_instellingen()
     with st.expander("Stem"):
         stem_instellingen()
     with st.expander("Namens jou reageren" + ("" if {opslag.namens(k) for k in ("mail", "berichten")} == {"vragen"}
@@ -3431,10 +3476,12 @@ def gesprek() -> None:
     zichtbaar = st.session_state.pop("vooraf_label", None) or vraag
     st.chat_message("user").markdown(zichtbaar)
     st.session_state.chat.append(("user", zichtbaar))
-    sleutel = anthropic_sleutel()
+    brein = ander_brein.keuze()
+    sleutel = anthropic_sleutel() if brein == "Claude" else ander_brein.sleutel(brein)
     with st.chat_message("assistant", avatar=gezicht):
         if not sleutel:
-            tekst = "Er is nog geen Anthropic-sleutel ingesteld. Dat doe je bij Instellingen."
+            tekst = (f"Er is nog geen sleutel voor {brein} ingesteld. Dat doe je bij Instellingen › Assistent."
+                     if brein != "Claude" else "Er is nog geen Anthropic-sleutel ingesteld. Dat doe je bij Instellingen.")
         else:
             status, vak, delen = st.empty(), st.empty(), []
             status.caption("Even denken...")
@@ -3452,8 +3499,15 @@ def gesprek() -> None:
             lengte_voor = len(st.session_state.berichten)
             st.session_state.berichten.append({"role": "user", "content": vraag})
             try:
-                tekst = agent.antwoord(anthropic.Anthropic(api_key=sleutel), st.session_state.berichten,
-                                       bij_tekst, bij_hulpmiddel, spraak=ingesproken)
+                if brein == "Claude":
+                    tekst = agent.antwoord(anthropic.Anthropic(api_key=sleutel), st.session_state.berichten,
+                                           bij_tekst, bij_hulpmiddel, spraak=ingesproken)
+                else:
+                    tekst = ander_brein.antwoord(brein, st.session_state.berichten, bij_tekst, bij_hulpmiddel,
+                                                 spraak=ingesproken)
+            except ander_brein.Fout as fout:
+                del st.session_state.berichten[lengte_voor:]
+                tekst = str(fout)
             except anthropic.APIError as fout:
                 # Gesprek terugzetten zodat een half afgemaakte beurt niet blijft hangen.
                 del st.session_state.berichten[lengte_voor:]
