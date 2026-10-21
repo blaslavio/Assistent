@@ -406,11 +406,11 @@ def sport_zonder_resultaat(nu: datetime) -> list[dict]:
             and ("weg" in a.get("tijden", {}) or (a.get("einde") or a["start"]) <= nu.isoformat(timespec="minutes"))]
 
 
-def sport_overzicht(nu: datetime, toon_week: bool = True) -> None:
+def sport_overzicht(nu: datetime, toon_week: bool = True, vragen: bool = True) -> None:
     """Resultaat invullen na een sportafspraak, en wat je deze week gesport hebt."""
     vandaag = nu.date().isoformat()
     week = tijd.sportoverzicht((nu.date() - timedelta(days=6)).isoformat(), vandaag)
-    klaar = sport_zonder_resultaat(nu)
+    klaar = sport_zonder_resultaat(nu) if vragen else []
     if not klaar and not (toon_week and week["aantal"]):
         return
     st.markdown("**Sport**")
@@ -694,7 +694,7 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
                     except samen.Fout:
                         niet_gevonden.append(naam)
                 if niet_gevonden:
-                    st.session_state.agenda_fout = f"Niet uitgenodigd (onbekende gebruikersnaam): {', '.join(niet_gevonden)}"
+                    st.session_state.agenda_melding = f"Niet uitgenodigd (onbekende gebruikersnaam): {', '.join(niet_gevonden)}"
             st.toast("Afspraak opgeslagen.", icon="✅")
             st.rerun()
 
@@ -772,7 +772,7 @@ def uitnodiging_bediening(u: dict) -> None:
             try:
                 samen.antwoorden(u["id"], antwoord)
             except samen.Fout as fout:
-                st.session_state.agenda_fout = str(fout)
+                st.session_state.agenda_melding = str(fout)
             opslag.uitnodigingen(vers=True)
 
     rij = st.container(horizontal=True, vertical_alignment="center", gap="small")
@@ -870,6 +870,8 @@ def agenda_tabblad() -> None:
                                 format_func=lambda d: f"Taken ({aantal})" if d == "Taken" and aantal
                                 else (":material/insights:" if d == "Overzicht" else d),
                                 label_visibility="collapsed") or "Agenda"
+    if melding := st.session_state.pop("agenda_melding", None):
+        st.warning(melding)
     if deel == "Taken":
         takenlijst()
     elif deel == "Samen":
@@ -878,6 +880,9 @@ def agenda_tabblad() -> None:
         overzicht_scherm()
     elif deel == "Plannen":
         plannen_scherm.pagina()
+        # Uitgaanstips (concerten, voorstellingen) horen bij plannen, niet tussen je afspraken.
+        with st.expander("Evenementen in de buurt"):
+            events_overzicht()
     else:
         agenda_overzicht()
     if samen.beschikbaar():
@@ -1237,20 +1242,25 @@ def mail_nakijken() -> None:
         st.session_state.mail_net_nagekeken = True
 
 
+def taak_formulier(sleutel: str) -> None:
+    """Eén formulier voor een nieuwe taak, zowel op Vandaag als in de takenlijst."""
+    with st.form(sleutel, clear_on_submit=True, border=False):
+        titel = st.text_input("Nieuwe taak", placeholder="Wat moet er gebeuren?")
+        deadline = st.date_input("Deadline (optioneel)", value=None, format="DD-MM-YYYY")
+        minuten = st.select_slider("Hoe lang ongeveer?", options=[5, 15, 30, 45, 60, 90, 120, 180, 240],
+                                   value=30, format_func=lambda m: f"{m} min" if m < 60 else f"{m / 60:g} uur")
+        belangrijk = st.toggle("Belangrijk")
+        if st.form_submit_button("Toevoegen", type="primary") and titel.strip():
+            opslag.taak_toevoegen(titel.strip(), deadline.isoformat() if deadline else None, minuten,
+                                  "hoog" if belangrijk else "")
+            st.rerun()
+
+
 def takenlijst() -> None:
     """Alles wat je moet doen, gesorteerd op wanneer; de agenda plant het in je vrije tijd."""
     with st.container(horizontal=True, vertical_alignment="center"):
         with st.popover("Nieuw", icon=":material/add:"):
-            with st.form("takenlijst_nieuw", clear_on_submit=True, border=False):
-                titel = st.text_input("Nieuwe taak", placeholder="Wat moet er gebeuren?")
-                deadline = st.date_input("Deadline (optioneel)", value=None, format="DD-MM-YYYY")
-                minuten = st.select_slider("Hoe lang ongeveer?", options=[5, 15, 30, 45, 60, 90, 120, 180, 240],
-                                           value=30, format_func=lambda m: f"{m} min" if m < 60 else f"{m / 60:g} uur")
-                belangrijk = st.toggle("Belangrijk")
-                if st.form_submit_button("Toevoegen", type="primary") and titel.strip():
-                    opslag.taak_toevoegen(titel.strip(), deadline.isoformat() if deadline else None, minuten,
-                                          "hoog" if belangrijk else "")
-                    st.rerun()
+            taak_formulier("takenlijst_nieuw")
         if mail.gekoppeld() and "Mail" not in onderdelen_uit():
             if st.button("Uit mijn mail", icon=":material/mark_email_read:",
                          help="De assistent leest je nieuwe mail en stelt taken en afspraken voor. Jij kiest wat "
@@ -1262,10 +1272,7 @@ def takenlijst() -> None:
 
     taken = opslag.open_taken()
     if not taken:
-        st.caption("Geen open taken. Tik op Nieuw, typ onderaan \"vrijdag belasting, 1 uur\""
-                   + (", of laat de assistent je mail nakijken." if mail.gekoppeld() else "."))
-        if not mail.gekoppeld():
-            st.caption("Tip: koppel je mail bij Instellingen › Koppelingen, dan haalt de assistent taken uit je mail.")
+        st.caption("Geen open taken. Tik op Nieuw of typ onderaan \"vrijdag belasting, 1 uur\".")
         return
     vandaag = date.today()
     nu = datetime.now().isoformat(timespec="minutes")
@@ -1360,10 +1367,8 @@ def agenda_overzicht() -> None:
 
     # Extra's in één blok, zodat de agenda rustig blijft.
     st.write("")
-    with st.expander("Meer: ideeën, sport en tijd"):
-        ideeen, sport, tijdblok = st.tabs(["Ideeën", "Sport", "Tijd"])
-        with ideeen:
-            events_overzicht()
+    with st.expander("Meer: sport en tijd"):
+        sport, tijdblok = st.tabs(["Sport", "Tijd"])
         with sport:
             sport_tabblad(datetime.now())
         with tijdblok:
@@ -1460,7 +1465,7 @@ def taken_inplannen() -> None:
     if plan is None:
         return
     if not plan:
-        st.info("Alle open taken staan al in je agenda, of je hebt geen open taken. Voeg een taak toe op Vandaag.")
+        st.info("Alle open taken staan al in je agenda, of je hebt geen open taken. Voeg een taak toe met Nieuw.")
         return
     for regel in plan:
         tekst = f"**{regel['titel']}** · {regel['minuten']} min"
@@ -1659,7 +1664,8 @@ def sport_tabblad(nu: datetime) -> None:
                                              deadline.isoformat() if met_deadline else "")
                     st.rerun()
     st.divider()
-    sport_overzicht(nu)
+    # De vraag "hoe ging het" staat al bovenaan de agenda; hier alleen het weekoverzicht.
+    sport_overzicht(nu, vragen=False)
 
 
 def events_instellen() -> None:
@@ -1837,6 +1843,11 @@ ONDERDELEN = {"Chat": "Chat (end-to-end versleuteld)", "Documenten": "Documenten
               "Boodschappen": "Boodschappen",
               "Lijstjes": "Kooplijst en wenslijst", "Marktplaats": "Marktplaats (kopen en verkopen bij elkaar)",
               "Budget": "Budget (uitgaven, vaste lasten, sparen)", "Beleggen": "Beleggen (alleen meekijken)"}
+VOORPAGINA_KORT = {"ochtend": "Ochtendoverzicht", "weer": "Weer", "startpunt": "Snel aan de slag", "afspraken": "Dagschema",
+                   "meldingen": "Meldingen", "saldo": "Saldo marktplaats", "budget": "Budget", "taken": "Taken",
+                   "seintjes": "Seintjes", "woning": "Apple Woning"}
+# Korte namen voor de knoppen in Instellingen › Weergave.
+KORT = {"Samen": "Projecten", "Lijstjes": "Kooplijst en wenslijst", "DIY": "DIY en hobby", "Scannen": "Foto scannen"}
 # De pagina's van deze beurt, op url; gevuld door paginas().
 PAGINA: dict = {}
 
@@ -1876,6 +1887,7 @@ def vandaag_overzicht() -> None:
                 f'<img src="{avatar.adres(mijn_avatar())}" width="56" height="56" style="border-radius:50%;flex-shrink:0">'
                 f'<div><b>{html.escape(groet(nu))}</b><br><span style="opacity:.6">{html.escape(regel)}</span></div></div>',
                 unsafe_allow_html=True)
+    st.session_state._ochtend_getoond = False
     if keuze["ochtend"]:
         ochtendoverzicht(nu, keuze)
     if mail.gekoppeld() and "Mail" not in onderdelen_uit():
@@ -1967,6 +1979,7 @@ def ochtendoverzicht(nu: datetime, keuze: dict) -> None:
     if opslag.instellingen().get("ochtend_gezien") == vandaag and not gevraagd:
         return
     zinnen = ochtend_tekst(nu)
+    st.session_state._ochtend_getoond = True
     with st.container(border=True):
         kop = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
         kop.markdown("**Je dag in het kort**")
@@ -2049,15 +2062,16 @@ def saldo_blok(saldo: dict | None) -> None:
 def seintjes(nu: datetime) -> None:
     """Hooguit één regel met wat aandacht vraagt; de rest staat op de plek zelf."""
     delen = []
-    if herhalingen := opslag.herhalingen_vandaag():
+    uit = onderdelen_uit()
+    if "Leren" not in uit and (herhalingen := opslag.herhalingen_vandaag()):
         delen.append(f"{len(herhalingen)} keer herhalen (Leren)")
-    if (reeks := opslag.leerreeks())["reeks"] and not reeks["vandaag_gehaald"] and nu.hour >= 17:
+    if "Leren" not in uit and (reeks := opslag.leerreeks())["reeks"] and not reeks["vandaag_gehaald"] and nu.hour >= 17:
         delen.append(f"oefen vandaag even, dan blijft je reeks van {reeks['reeks']} dagen staan")
     if sport_zonder_resultaat(nu):
         delen.append("hoe ging je training? (Agenda)")
-    if namens := opslag.namens_vandaag():
+    if "Mail" not in uit and (namens := opslag.namens_vandaag()):
         delen.append(f"{namens} keer namens je gereageerd (Mail)")
-    if concepten := opslag.mailconcepten():
+    if "Mail" not in uit and (concepten := opslag.mailconcepten()):
         delen.append(f"{len(concepten)} antwoord klaar om te versturen (Mail)")
     if opslag.sportdoelen() and not tijd.sportoverzicht((nu.date() - timedelta(days=6)).isoformat(),
                                                          nu.date().isoformat())["aantal"]:
@@ -2118,7 +2132,9 @@ def dagschema() -> None:
     nu = datetime.now()
     regels = dagplanning_veilig(nu.date().isoformat())
     if not regels:
-        st.caption("Vandaag niets gepland.")
+        # Het ochtendoverzicht zegt het al; anders één korte regel.
+        if not st.session_state.get("_ochtend_getoond"):
+            st.caption("Vandaag niets gepland.")
         return
     st.markdown(schema_html(regels, nu), unsafe_allow_html=True)
 
@@ -2160,15 +2176,7 @@ def taken_blok() -> None:
     kol1, kol2 = st.columns([5, 1], vertical_alignment="center")
     kol1.markdown("**Taken**" if taken else ":gray[Geen open taken]")
     with kol2.popover("", icon=":material/add:", help="Nieuwe taak"):
-        with st.form("nieuwe_taak", clear_on_submit=True, border=False):
-            titel = st.text_input("Nieuwe taak", placeholder="Wat moet er gebeuren?")
-            deadline = st.date_input("Deadline (optioneel)", value=None, format="DD-MM-YYYY")
-            minuten = st.select_slider("Hoe lang duurt het ongeveer?", options=[15, 30, 45, 60, 90, 120, 180, 240],
-                                       value=30, format_func=lambda m: f"{m} min" if m < 60 else f"{m / 60:g} uur")
-            st.caption("Sneller: typ onderaan gewoon \"vrijdag belasting, 1 uur\".")
-            if st.form_submit_button("Toevoegen", type="primary") and titel.strip():
-                opslag.taak_toevoegen(titel.strip(), deadline.isoformat() if deadline else None, minuten)
-                st.rerun()
+        taak_formulier("nieuwe_taak")
 
     def afvinken(t: dict) -> None:
         if st.checkbox(taak_label(t, vandaag), key=f"taak_{t['id']}"):
@@ -2769,17 +2777,24 @@ def onderdelen_uit() -> list[str]:
 def voorpagina_instellingen() -> None:
     """Wat er op de voorpagina staat en wat er in het menu staat."""
     huidig = voorpagina()
+    uit = onderdelen_uit()
+    # Wat bij een onderdeel hoort dat uit staat, laten we hier niet zien: die knop zou toch niets doen.
+    hoort_bij = {"saldo": "Marktplaats", "budget": "Budget"}
     st.markdown("**Op de voorpagina**")
-    nieuw = {k: st.toggle(label, value=huidig[k], key=f"vp_{k}") for k, label in VOORPAGINA.items()}
+    keuzes = [k for k in VOORPAGINA if hoort_bij.get(k) not in uit]
+    aan_vp = st.pills("Op de voorpagina", keuzes, selection_mode="multi", default=[k for k in keuzes if huidig[k]],
+                      format_func=lambda k: VOORPAGINA_KORT.get(k, k), key="vp_keuze", label_visibility="collapsed")
+    nieuw = huidig | {k: k in aan_vp for k in keuzes}
     if nieuw != huidig:
         opslag.instellingen_bijwerken(voorpagina=nieuw)
-    uit = onderdelen_uit()
-    st.markdown("**In het menu**")
-    nieuw_uit = [o for o, label in ONDERDELEN.items() if not st.toggle(label, value=o not in uit, key=f"onderdeel_{o}")]
+    st.markdown("**In het menu**", help="Tik aan wat je gebruikt. Wat uit staat, kan de assistent via het gesprek "
+                                         "nog steeds voor je doen.")
+    aan = st.pills("In het menu", list(ONDERDELEN), selection_mode="multi", default=[o for o in ONDERDELEN if o not in uit],
+                   format_func=lambda o: KORT.get(o, o), key="menu_onderdelen", label_visibility="collapsed")
+    nieuw_uit = [o for o in ONDERDELEN if o not in aan]
     if sorted(nieuw_uit) != sorted(uit):
         opslag.instellingen_bijwerken(onderdelen_uit=nieuw_uit)
         st.rerun()
-    st.caption("Zet uit wat je niet gebruikt; de assistent kan het via het gesprek nog steeds voor je doen.")
     st.markdown("**Bij de assistent**")
     aan = opslag.instellingen().get("voorbeeldvragen", True)
     if st.toggle("Voorbeeldvragen tonen", value=aan, key="vp_voorbeeldvragen") != aan:
@@ -3242,18 +3257,16 @@ def euro(bedrag: float) -> str:
 def boodschappen_tabblad() -> None:
     """Boodschappenlijst om af te vinken, met de goedkoopste supermarkt in de buurt."""
     with st.form("nieuwe_boodschap", clear_on_submit=True, border=False):
-        kol1, kol2 = st.columns([5, 1], vertical_alignment="bottom")
-        invoer = kol1.text_input("Toevoegen", placeholder="Bijv. 1 liter halfvolle melk, 6 eieren (komma's mag)",
-                                 label_visibility="collapsed")
-        if kol2.form_submit_button("➕") and invoer.strip():
-            opslag.boodschap_toevoegen([d for d in re.split(r",|\n", invoer) if d.strip()])
-            st.rerun()
+        with st.container(horizontal=True, vertical_alignment="bottom", gap="small"):
+            invoer = st.text_input("Toevoegen", placeholder="Bijv. melk, 6 eieren", label_visibility="collapsed")
+            if st.form_submit_button("", icon=":material/add:") and invoer.strip():
+                opslag.boodschap_toevoegen([d for d in re.split(r",|\n", invoer) if d.strip()])
+                st.rerun()
 
     lijst = opslag.boodschappen()
     if not lijst:
-        st.caption("Je lijst is leeg. Typ hierboven wat je nodig hebt, of vraag de assistent: "
-                   "\"Zet de ingrediënten voor lasagne voor 4 personen op mijn lijst\".")
-        if st.button("Laat de assistent een weekmenu met boodschappenlijst maken"):
+        st.caption("Je lijst is leeg.")
+        if st.button("Weekmenu met boodschappen laten maken", icon=":material/auto_awesome:"):
             vraag_assistent("Maak een eenvoudig weekmenu voor 5 avonden en zet alle ingrediënten op mijn boodschappenlijst.")
         return
 
@@ -3363,7 +3376,11 @@ def gesprek() -> None:
         st.html('<p style="text-align:center;font-size:1.4rem;margin:12vh 0 1rem">Waarmee kan ik helpen?</p>')
         if opslag.instellingen().get("voorbeeldvragen", True):
             with st.container(horizontal=True, horizontal_alignment="center", gap="small"):
-                for i, (kort_, vraag_) in enumerate(SUGGESTIES.items()):
+                suggesties = {k: v for k, v in SUGGESTIES.items()
+                              if k != "Mail" or (mail.gekoppeld() and "Mail" not in onderdelen_uit())}
+                if "Mail" not in suggesties:
+                    suggesties["Taken"] = "Welke taken moet ik deze week nog doen, en wanneer past dat?"
+                for i, (kort_, vraag_) in enumerate(suggesties.items()):
                     if st.button(kort_, key=f"suggestie_{i}"):
                         st.session_state.vooraf_vraag = vraag_
     gezicht = avatar.plaatje(mijn_avatar())
@@ -3516,6 +3533,44 @@ def wenslijst() -> None:
     werk_scherm.lijstje("wenslijst")
 
 
+def deelpagina(sleutel: str, delen: dict) -> None:
+    """Eén pagina met een paar onderdelen erin, bovenaan te kiezen (in plaats van losse tegels)."""
+    if len(delen) > 1:
+        keuze = st.segmented_control("Onderdeel", list(delen), default=next(iter(delen)), key=sleutel,
+                                     label_visibility="collapsed") or next(iter(delen))
+    else:
+        keuze = next(iter(delen))
+    delen.get(keuze, next(iter(delen.values())))()
+
+
+def lijstjes_delen() -> dict:
+    uit = onderdelen_uit()
+    delen = {"Boodschappen": boodschappen_tabblad} if "Boodschappen" not in uit else {}
+    if "Lijstjes" not in uit:
+        delen |= {"Kooplijst": kooplijst, "Wenslijst": wenslijst}
+    return delen
+
+
+def handig_delen() -> dict:
+    uit = onderdelen_uit()
+    delen = {}
+    if "Hulpmiddelen" not in uit:
+        delen |= {"Notities": werk_scherm.notities, "Timer": werk_scherm.focustimer, "Rekenen": werk_scherm.rekenhulp}
+    if "Scannen" not in uit:
+        delen["Scannen"] = werk_scherm.scannen
+    if "DIY" not in uit:
+        delen["DIY"] = werk_scherm.diy
+    return delen
+
+
+def lijstjes() -> None:
+    deelpagina("lijstjes_deel", lijstjes_delen())
+
+
+def handig() -> None:
+    deelpagina("handig_deel", handig_delen())
+
+
 # Hoe de onderdelen in Instellingen gegroepeerd staan; gevuld door paginas().
 GROEPEN: dict[str, list[str]] = {}
 
@@ -3553,7 +3608,7 @@ def paginas() -> list:
           als(online and "Marktplaats" not in uit, samen_scherm.aanbieden, "Verkopen", ":material/sell:", "verkopen"),
           als(online and "Marktplaats" not in uit, samen_scherm.markt_bestellingen, "Bestellingen", ":material/receipt_long:",
               "bestellingen", nieuw.get("bestellingen", 0)),
-          als(online and "Marktplaats" not in uit, samen_scherm.berichten, "Berichten", ":material/forum:", "berichten",
+          als(online and "Marktplaats" not in uit, samen_scherm.berichten, "Berichten", ":material/inbox:", "berichten",
               nieuw.get("berichten", 0)),
           als(online and "Marktplaats" not in uit and ik().get("niveau") in ("verkoper", "ondernemer"),
               samen_scherm.mijn_webshop, "Mijn webshop", ":material/inventory_2:", "webshop"),
@@ -3572,12 +3627,8 @@ def paginas() -> list:
               "budget"),
           als("Beleggen" not in uit, geld_scherm.beleggen_pagina, "Beleggen", ":material/trending_up:", "beleggen"))
     groep("Thuis en handig",
-          als("Boodschappen" not in uit, boodschappen_tabblad, "Boodschappen", ":material/shopping_cart:", "boodschappen"),
-          als("Lijstjes" not in uit, kooplijst, "Kooplijst", ":material/shopping_bag:", "kooplijst"),
-          als("Lijstjes" not in uit, wenslijst, "Wenslijst", ":material/favorite:", "wenslijst"),
-          als("DIY" not in uit, werk_scherm.diy, "DIY en hobby", ":material/handyman:", "diy"),
-          als("Hulpmiddelen" not in uit, werk_scherm.hulpmiddelen, "Hulpmiddelen", ":material/build:", "hulpmiddelen"),
-          als("Scannen" not in uit, werk_scherm.scannen, "Foto scannen", ":material/photo_camera:", "scannen"))
+          als(bool(lijstjes_delen()), lijstjes, "Lijstjes", ":material/shopping_cart:", "lijstjes"),
+          als(bool(handig_delen()), handig, "Hulpmiddelen", ":material/build:", "hulpmiddelen"))
     st.session_state._nieuw_totaal = sum(nieuw.get(k, 0) for k in ("bestellingen", "berichten", "gedeeld"))
     return list(PAGINA.values())
 

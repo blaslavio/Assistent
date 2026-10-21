@@ -264,11 +264,13 @@ def gedeeld_aannemen(item: dict) -> str:
     elif item["soort"] == "boodschappen":
         opslag.boodschap_toevoegen(inhoud.get("items", []))
         plek = "je boodschappenlijst"
+    elif item["soort"] == "notitie":
+        tekst = inhoud.get("tekst", "")
+        opslag.lijst_toevoegen("notities", titel=(inhoud.get("titel") or tekst[:40] or "Notitie") + f" (van {van})",
+                               tekst=tekst)
+        plek = "je notities"
     else:
-        titel = inhoud.get("titel", "")
-        if item["soort"] == "notitie":
-            titel = f"📝 {titel or inhoud.get('tekst', '')[:80]} (van {van})"
-        opslag.taak_toevoegen(titel, inhoud.get("deadline"))
+        opslag.taak_toevoegen(inhoud.get("titel", ""), inhoud.get("deadline"))
         plek = "je taken"
     opslag._rpc_ik("gedeeld_afhandelen", p_id=item["id"], p_aangenomen=True)
     return plek

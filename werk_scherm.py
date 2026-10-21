@@ -182,12 +182,6 @@ def totaal_voortgang(doelen: list[dict]) -> None:
 
 # --- Hulpmiddelen: notities, focustimer, rekenhulp ------------------------------------
 
-def hulpmiddelen() -> None:
-    keuze = st.segmented_control("Hulpmiddel", ["Notities", "Focustimer", "Rekenhulp"], default="Notities",
-                                 key="hulpmiddel", label_visibility="collapsed") or "Notities"
-    {"Notities": notities, "Focustimer": focustimer, "Rekenhulp": rekenhulp}[keuze]()
-
-
 def notities() -> None:
     with st.expander("Nieuwe notitie", expanded=not opslag.lijst("notities")):
         with st.form("nieuwe_notitie", clear_on_submit=True, border=False):
@@ -321,17 +315,16 @@ def lijstje(naam: str) -> None:
     """Kooplijst of wenslijst, met prijzen vergelijken (goedkoopste eerst)."""
     ander = "wenslijst" if naam == "kooplijst" else "kooplijst"
     with st.form(f"nieuw_{naam}", clear_on_submit=True, border=False):
-        kol1, kol2, kol3 = st.columns([4, 2, 1], vertical_alignment="bottom")
-        product = kol1.text_input("Product", placeholder="Bijv. draadloze koptelefoon Sony WH-1000XM6",
-                                  label_visibility="collapsed")
-        prijs = kol2.number_input("Prijs", min_value=0.0, value=None, step=5.0, placeholder="Prijs (optioneel)",
-                                  label_visibility="collapsed")
-        if kol3.form_submit_button("➕") and product.strip():
+        rij = st.container(horizontal=True, vertical_alignment="bottom", gap="small")
+        product = rij.text_input("Product", placeholder="Bijv. koptelefoon", label_visibility="collapsed")
+        prijs = rij.number_input("Prijs", min_value=0.0, value=None, step=5.0, placeholder="Prijs", width=110,
+                                 label_visibility="collapsed")
+        if rij.form_submit_button("", icon=":material/add:") and product.strip():
             opslag.lijst_toevoegen(naam, naam_product=product.strip(), prijs=prijs, winkel="", link="", gekocht=False)
             st.rerun()
     items = opslag.lijst(naam)
     if not items:
-        st.caption("Nog leeg. Zet hier iets op, of doe het vanuit DIY of Scannen.")
+        st.caption("Nog leeg.")
         return
     open_items = [i for i in items if not i.get("gekocht")]
     if bekend := [i["prijs"] for i in open_items if i.get("prijs")]:

@@ -43,7 +43,7 @@ def pagina() -> None:
     _melding_tonen()
     online = samen.beschikbaar()
     gelegenheid = st.pills("Waarvoor?", list(R.GELEGENHEDEN), default="Date", key="plannen_gelegenheid",
-                           format_func=lambda g: f"{R.GELEGENHEDEN[g][1]} {g}", label_visibility="collapsed") or "Uitje"
+                           format_func=lambda g: f"{R.GELEGENHEDEN[g][1]} {g}", label_visibility="collapsed") or "Date"
     if online:
         with st.container(horizontal=True, gap="small"):
             if st.button("Samen een datum kiezen", icon=":material/how_to_vote:", key="prik_nieuw"):
