@@ -19,7 +19,7 @@ CSS = """
 .c-wortel { --c-rand: rgba(128,128,128,.22); --c-zacht: rgba(128,128,128,.09); --c-hoofd: var(--st-primary-color, #4f46e5);
   --c-tekst: var(--st-text-color, #1f2937); --c-achter: var(--st-background-color, #fff);
   font-family: inherit; color: var(--c-tekst); display: flex; flex-direction: column; position: relative;
-  height: calc(100dvh - 8.5rem); min-height: 420px; font-size: 16px; overflow: hidden;
+  height: calc(100dvh - 8.5rem); min-height: 320px; font-size: 16px; overflow: hidden; overscroll-behavior: contain;
   border: 1px solid var(--c-rand); border-radius: 18px; background: var(--c-achter); }
 .c-wortel svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;
   stroke-linejoin: round; flex: none; }
@@ -76,7 +76,7 @@ CSS = """
 .c-titel span { display: flex; flex-direction: column; min-width: 0; }
 .c-titel b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .c-titel small { opacity: .6; font-size: 12px; }
-.c-berichten { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; padding: 10px 10px 12px;
+.c-berichten { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 3px; padding: 10px 10px 12px;
   -webkit-overflow-scrolling: touch; background: color-mix(in srgb, var(--c-hoofd) 5%, var(--c-achter)); }
 .c-e2e { align-self: center; max-width: 85%; text-align: center; font-size: 12px; line-height: 1.4; padding: 6px 12px;
   border-radius: 10px; background: color-mix(in srgb, #f59e0b 14%, var(--c-achter)); margin: 4px 0 8px; }

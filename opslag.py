@@ -895,17 +895,33 @@ def verplaatsen(van: str, naar: str, item_id: int) -> None:
 # maatstaf: keer_per_week, minuten_per_week, km_per_week, langste_km (één keer zo
 # ver, bijvoorbeeld 10 km hardlopen) of totaal_km (bij elkaar vanaf de start).
 
-MAATSTAVEN = ["keer_per_week", "minuten_per_week", "km_per_week", "langste_km", "totaal_km"]
+# eigen: de gebruiker houdt zelf de stand bij (kilo's, rondes, tricks, tijd), met een eigen eenheid.
+MAATSTAVEN = ["keer_per_week", "minuten_per_week", "km_per_week", "langste_km", "totaal_km", "eigen"]
 
 
-def sportdoel_stellen(omschrijving: str, maatstaf: str, doelwaarde: float, sport: str = "", deadline: str = "") -> dict:
+def sportdoel_stellen(omschrijving: str, maatstaf: str, doelwaarde: float, sport: str = "", deadline: str = "",
+                      eenheid: str = "") -> dict:
     with _slot:
         g = laden()
-        doel = {"id": _nieuw_id(g), "omschrijving": omschrijving, "sport": sport.lower(), "maatstaf": maatstaf,
+        doel = {"id": _nieuw_id(g), "omschrijving": omschrijving, "sport": sport.strip().lower(), "maatstaf": maatstaf,
                 "doelwaarde": doelwaarde, "deadline": deadline, "gestart": date.today().isoformat(), "actief": True}
+        if maatstaf == "eigen":
+            doel |= {"eenheid": eenheid[:40], "stand": 0}
         g.setdefault("sportdoelen", []).append(doel)
         opslaan(g)
     return doel
+
+
+def sportdoel_bijwerken(doel_id: int, stand: float) -> dict | None:
+    """Nieuwe stand bij een doel dat de gebruiker zelf bijhoudt."""
+    with _slot:
+        g = laden()
+        for doel in g.get("sportdoelen", []):
+            if doel["id"] == doel_id:
+                doel["stand"] = stand
+                opslaan(g)
+                return doel
+    return None
 
 
 def sportdoel_stoppen(doel_id: int) -> bool:

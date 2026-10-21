@@ -632,8 +632,10 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
                                   if (a.get("contact_id") or 0) in opties else 0, format_func=namen.get)
         nieuw_naam = meer.text_input("Naam nieuw contact", placeholder="Alleen bij Nieuw contact")
         nieuw_tel = meer.text_input("Telefoon nieuw contact", placeholder="Optioneel")
-        sport = meer.selectbox("Welke sport (bij soort Sport)", SPORTEN, index=SPORTEN.index(a.get("sport", "")) if a.get("sport", "") in SPORTEN else 0,
-                             format_func=lambda s: s.capitalize() if s else "Geen sport")
+        sporten = SPORTEN + ([a["sport"]] if a.get("sport") and a["sport"] not in SPORTEN else [])
+        sport = (meer.selectbox("Welke sport (bij soort Sport)", sporten, index=sporten.index(a.get("sport") or ""),
+                                format_func=lambda s: s.capitalize() if s else "Geen sport",
+                                accept_new_options=True) or "").strip().lower()
         notitie = meer.text_area("Notitie", value=a.get("notitie", ""), height=68)
         prive = meer.toggle("Privé (niet zichtbaar voor wie meekijkt)", value=bool(a.get("prive")))
         reeks = opslag.reeks(a.get("reeks"))
@@ -867,7 +869,7 @@ def agenda_tabblad() -> None:
         raise
     except Exception:
         pass
-    opties = ["Agenda", "Taken", "Plannen"] + (["Samen"] if samen.beschikbaar() else []) + ["Overzicht"]
+    opties = ["Agenda", "Taken", "Plannen", "Samen", "Overzicht"]
     if st.session_state.get("agenda_deel") == "Gedeeld":
         st.session_state.agenda_deel = "Samen"
     deel = st.segmented_control("Onderdeel", opties, default="Agenda", key="agenda_deel",
@@ -1046,14 +1048,17 @@ def agenda_delen_beheer() -> None:
 
 
 def samen_agendas() -> None:
-    """De gezinsagenda, en agenda's die anderen met je delen."""
-    if DEELSITUATIE_NU.get("met_mij"):
-        keuze = st.segmented_control("Samen", ["Gezin", "Gedeeld met mij"], default="Gezin", key="samen_deel",
-                                     label_visibility="collapsed") or "Gezin"
-        if keuze != "Gezin":
-            gedeelde_agendas()
-            return
-    gezin_scherm.pagina()
+    """De gezinsagenda, agenda's die anderen met je delen, en sport (met je doelen)."""
+    online = samen.beschikbaar()
+    opties = (["Gezin"] if online else []) + (["Gedeeld met mij"] if online and DEELSITUATIE_NU.get("met_mij") else []) + ["Sport"]
+    keuze = st.segmented_control("Samen", opties, default=opties[0], key="samen_deel",
+                                 label_visibility="collapsed") or opties[0]
+    if keuze == "Sport":
+        sport_tabblad(datetime.now())
+    elif keuze == "Gedeeld met mij":
+        gedeelde_agendas()
+    else:
+        gezin_scherm.pagina()
 
 
 def gedeelde_agendas() -> None:
@@ -1371,13 +1376,10 @@ def agenda_overzicht() -> None:
 
     # Extra's in één blok, zodat de agenda rustig blijft.
     st.write("")
-    with st.expander("Meer: sport en tijd"):
-        sport, tijdblok = st.tabs(["Sport", "Tijd"])
-        with sport:
-            sport_tabblad(datetime.now())
-        with tijdblok:
-            if not tijdsbesteding_overzicht(date.today()):
-                st.caption("Nog niets vastgelegd. Gebruik op Vandaag de knoppen \"Ik vertrek nu\" en \"Ik ben er\".")
+    # Sport staat bij Samen.
+    with st.expander("Tijdsbesteding"):
+        if not tijdsbesteding_overzicht(date.today()):
+            st.caption("Nog niets vastgelegd. Gebruik op Vandaag de knoppen \"Ik vertrek nu\" en \"Ik ben er\".")
 
 
 def blok_tekst(blok: dict) -> str:
@@ -1630,8 +1632,9 @@ def maandrooster(dagen: list[date], alle: dict, taken: list[dict]) -> None:
 
 MAATSTAF_TEKST = {"keer_per_week": "Aantal keer per week", "minuten_per_week": "Minuten per week",
                   "km_per_week": "Kilometers per week", "langste_km": "Afstand in één keer (km)",
-                  "totaal_km": "Kilometers bij elkaar"}
-SPORTEN = ["", "hardlopen", "fitness", "fietsen", "zwemmen", "wandelen", "voetbal", "tennis", "padel", "yoga"]
+                  "totaal_km": "Kilometers bij elkaar", "eigen": "Zelf bijhouden (kilo's, rondes, tricks, tijd...)"}
+# Staat je sport er niet bij? Typ hem gewoon in; elke sport kan.
+SPORTEN = ["", *tijd.SPORTEN]
 
 
 def sport_tabblad(nu: datetime) -> None:
@@ -1645,6 +1648,12 @@ def sport_tabblad(nu: datetime) -> None:
             icoon = tijd.sport_icoon(doel["sport"]) if doel["sport"] else "🎯"
             st.markdown(f"{icoon} **{doel['omschrijving']}**")
             st.progress(v["procent"] / 100, text=v["tekst"] + (" ✅" if v["procent"] >= 100 else ""))
+            if doel["maatstaf"] == "eigen":
+                stand = st.number_input(f"Waar sta je nu? ({doel.get('eenheid') or 'getal'})", min_value=0.0,
+                                        value=float(doel.get("stand", 0)), step=1.0, key=f"stand_{doel['id']}")
+                if stand != float(doel.get("stand", 0)):
+                    opslag.sportdoel_bijwerken(doel["id"], stand)
+                    st.rerun()
             if "dagen_te_gaan" in v:
                 st.caption(f"Nog {v['dagen_te_gaan']} dagen tot {doel['deadline']}." if v["dagen_te_gaan"] >= 0
                            else f"De deadline ({doel['deadline']}) is voorbij.")
@@ -1655,17 +1664,20 @@ def sport_tabblad(nu: datetime) -> None:
     with st.expander("Nieuw doel"):
         with st.form("nieuw_doel", border=False):
             omschrijving = st.text_input("Wat wil je bereiken?", placeholder="Bijvoorbeeld: 10 km hardlopen voor de zomer")
-            sport = st.selectbox("Sport", SPORTEN, format_func=lambda s: s.capitalize() if s else "Alle sporten")
+            sport = st.selectbox("Sport (typ om te zoeken of een eigen sport toe te voegen)", SPORTEN,
+                                 format_func=lambda s: s.capitalize() if s else "Alle sporten",
+                                 accept_new_options=True) or ""
             maatstaf = st.selectbox("Hoe meten we het?", list(MAATSTAF_TEKST), format_func=MAATSTAF_TEKST.get)
             waarde = st.number_input("Doel (getal)", min_value=0.5, value=3.0, step=0.5)
+            eenheid = st.text_input("Eenheid (bij Zelf bijhouden)", placeholder="Bijv. kg bankdrukken, rondes, tricks, seconden")
             met_deadline = st.checkbox("Met een einddatum")
             deadline = st.date_input("Einddatum", value=nu.date() + timedelta(days=60), format="DD-MM-YYYY")
             if st.form_submit_button("Doel opslaan"):
                 if not omschrijving.strip():
                     st.error("Omschrijf je doel.")
                 else:
-                    opslag.sportdoel_stellen(omschrijving.strip(), maatstaf, float(waarde), sport,
-                                             deadline.isoformat() if met_deadline else "")
+                    opslag.sportdoel_stellen(omschrijving.strip(), maatstaf, float(waarde), sport.strip(),
+                                             deadline.isoformat() if met_deadline else "", eenheid.strip())
                     st.rerun()
     st.divider()
     # De vraag "hoe ging het" staat al bovenaan de agenda; hier alleen het weekoverzicht.
@@ -3721,10 +3733,12 @@ def kopbalk() -> None:
             ".st-key-kopbalk{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}"
             ".st-key-kopbalk > div:not(:last-child) a > span:has([data-testid=stIconMaterial]){display:none}</style>")
     with st.container(horizontal=True, gap="small", key="kopbalk"):
-        for url, label in (("vandaag", "Vandaag"), ("agenda", "Agenda"), ("assistent", mijn_avatar()["naam"])):
+        # Vaste volgorde: Vandaag, Agenda, Chat en de assistent altijd als laatste.
+        for url, label in (("vandaag", "Vandaag"), ("agenda", "Agenda")):
             st.page_link(PAGINA[url], label=label, width="content")
         if "chat" in PAGINA:
             st.page_link(PAGINA["chat"], label=f"Chat ({n})" if (n := chat.ongelezen()) else "Chat", width="content")
+        st.page_link(PAGINA["assistent"], label=mijn_avatar()["naam"], width="content")
         # Instellingen als icoon, zodat alles ook op een telefoon op één regel past.
         st.page_link(PAGINA["instellingen"], label=f"{totaal}" if totaal else " ", icon=":material/settings:",
                      width="content", help="Instellingen")

@@ -70,7 +70,7 @@ Werkwijze:
   goedkoopste (inclusief verzendkosten) vooraan; noem alleen prijzen en links
   die je echt gevonden hebt. Zet iets met lijst_toevoegen op de kooplijst of
   wenslijst als de gebruiker dat wil. DIY-projecten staan bij DIY en hobby; foto's scannen bij Foto scannen.
-- Waar alles staat: bovenaan Vandaag, Agenda, het gesprek met jou en Instellingen. Alle andere onderdelen
+- Waar alles staat: bovenaan Vandaag, Agenda, Chat, het gesprek met jou en Instellingen. Alle andere onderdelen
   (Mail, Leren, Marktplaats, Boodschappen en de rest) staan als tegels in Instellingen.
 - Documenten: de gebruiker schrijft en bewerkt documenten in de app (Documenten), op al zijn apparaten. Vraagt hij
   om een brief, plan, verslag of lijst om te bewaren, maak dan een document met document_maken. Lees een document
@@ -734,20 +734,24 @@ def weer_bekijken(plaats: str = "", datum: str = "") -> str:
 
 
 @beta_tool
-def sportdoel_stellen(omschrijving: str, maatstaf: str, doelwaarde: float, sport: str = "", deadline: str = "") -> str:
-    """Stel een sportdoel waar de gebruiker naartoe werkt.
+def sportdoel_stellen(omschrijving: str, maatstaf: str, doelwaarde: float, sport: str = "", deadline: str = "",
+                      eenheid: str = "") -> str:
+    """Stel een sportdoel waar de gebruiker naartoe werkt. Elke sport kan (fitness, boksen, BMX, klimmen, enz.).
 
     Args:
         omschrijving: Het doel in de woorden van de gebruiker, bijvoorbeeld "10 km hardlopen voor de zomer".
         maatstaf: Hoe het gemeten wordt: keer_per_week, minuten_per_week, km_per_week,
-            langste_km (één keer zo ver) of totaal_km (bij elkaar vanaf nu).
+            langste_km (één keer zo ver), totaal_km (bij elkaar vanaf nu), of eigen (de gebruiker houdt
+            zelf de stand bij, bijvoorbeeld 100 kg bankdrukken, 12 rondes sparren of 5 nieuwe BMX-tricks).
         doelwaarde: Het getal dat gehaald moet worden.
-        sport: Alleen deze sport meetellen (bijvoorbeeld hardlopen), leeg voor alle sporten.
+        sport: Alleen deze sport meetellen (bijvoorbeeld boksen), leeg voor alle sporten.
         deadline: Optionele datum als JJJJ-MM-DD.
+        eenheid: Bij maatstaf eigen: waarin het gemeten wordt, bijvoorbeeld "kg bankdrukken" of "tricks".
     """
     if maatstaf not in opslag.MAATSTAVEN:
         return "Kies een maatstaf uit: " + ", ".join(opslag.MAATSTAVEN)
-    return _json(tijd.doel_voortgang(opslag.sportdoel_stellen(omschrijving, maatstaf, doelwaarde, sport, deadline)))
+    return _json(tijd.doel_voortgang(opslag.sportdoel_stellen(omschrijving, maatstaf, doelwaarde, sport, deadline,
+                                                               eenheid)))
 
 
 @beta_tool

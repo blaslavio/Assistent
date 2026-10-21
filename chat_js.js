@@ -1171,6 +1171,34 @@ function bijhouden(st) {
   }, st.scherm === "gesprek" ? 2500 : 8000);
 }
 
+// Zoals WhatsApp: de pagina zelf schuift niet, alleen de berichten. Het chatvenster vult precies de ruimte
+// onder de kopbalk, ook als het toetsenbord opent (visualViewport).
+function vastzetten(wortel) {
+  const scrollers = [document.documentElement, document.body,
+    ...document.querySelectorAll('[data-testid="stMain"], [data-testid="stAppViewContainer"], section.main')];
+  const oud = scrollers.map((el) => [el, el.style.overflow, el.style.overscrollBehavior]);
+  for (const el of scrollers) { el.scrollTop = 0; el.style.overflow = "hidden"; el.style.overscrollBehavior = "none"; }
+  window.scrollTo(0, 0);
+  const passen = () => {
+    const vv = window.visualViewport;
+    const onder = vv ? vv.offsetTop + vv.height : window.innerHeight;
+    const hoogte = Math.max(320, Math.floor(onder - wortel.getBoundingClientRect().top - 8));
+    wortel.style.height = hoogte + "px";
+    if (window.scrollY) window.scrollTo(0, 0);
+  };
+  passen();
+  const vv = window.visualViewport;
+  window.addEventListener("resize", passen);
+  if (vv) { vv.addEventListener("resize", passen); vv.addEventListener("scroll", passen); }
+  const later = setTimeout(passen, 300);
+  return () => {
+    clearTimeout(later);
+    window.removeEventListener("resize", passen);
+    if (vv) { vv.removeEventListener("resize", passen); vv.removeEventListener("scroll", passen); }
+    for (const [el, overflow, overscroll] of oud) { el.style.overflow = overflow; el.style.overscrollBehavior = overscroll; }
+  };
+}
+
 export default function (component) {
   const { data, setTriggerValue, parentElement } = component;
   let st = parentElement.__chat;
@@ -1208,4 +1236,7 @@ export default function (component) {
   st.vrij = data.vrij || [];
   st.zet = setTriggerValue;
   bijhouden(st);
+  if (st.losmaken && st.vastOp !== wortel) { st.losmaken(); st.losmaken = null; }
+  if (!st.losmaken) { st.losmaken = vastzetten(wortel); st.vastOp = wortel; }
+  return () => { if (st.losmaken) { st.losmaken(); st.losmaken = null; } };
 }

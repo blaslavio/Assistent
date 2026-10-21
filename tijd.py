@@ -62,8 +62,21 @@ def tijdsbesteding(van: str, tot: str) -> dict:
     return {"van": van, "tot": tot, "afspraken": regels, "totaal_minuten": totaal}
 
 
-SPORT_ICOON = {"hardlopen": "🏃", "rennen": "🏃", "fitness": "🏋️", "fietsen": "🚴", "wielrennen": "🚴",
-               "zwemmen": "🏊", "wandelen": "🚶", "voetbal": "⚽", "tennis": "🎾", "padel": "🎾", "yoga": "🧘"}
+SPORT_ICOON = {"hardlopen": "🏃", "rennen": "🏃", "fitness": "🏋️", "krachttraining": "🏋️", "crossfit": "🏋️",
+               "fietsen": "🚴", "wielrennen": "🚴", "mountainbiken": "🚵", "bmx": "🚲", "spinning": "🚴",
+               "zwemmen": "🏊", "waterpolo": "🤽", "wandelen": "🚶", "hiken": "🥾", "voetbal": "⚽", "futsal": "⚽",
+               "tennis": "🎾", "padel": "🎾", "squash": "🎾", "badminton": "🏸", "tafeltennis": "🏓", "yoga": "🧘",
+               "pilates": "🧘", "boksen": "🥊", "kickboksen": "🥊", "mma": "🥋", "judo": "🥋", "karate": "🥋",
+               "taekwondo": "🥋", "worstelen": "🤼", "basketbal": "🏀", "volleybal": "🏐", "beachvolleybal": "🏐",
+               "handbal": "🤾", "hockey": "🏑", "ijshockey": "🏒", "honkbal": "⚾", "softbal": "🥎", "rugby": "🏉",
+               "american football": "🏈", "golf": "⛳", "skiën": "⛷️", "snowboarden": "🏂", "schaatsen": "⛸️",
+               "skaten": "🛹", "skateboarden": "🛹", "surfen": "🏄", "kitesurfen": "🏄", "zeilen": "⛵",
+               "roeien": "🚣", "kanoën": "🛶", "klimmen": "🧗", "boulderen": "🧗", "paardrijden": "🏇",
+               "atletiek": "🏃", "turnen": "🤸", "dansen": "💃", "schermen": "🤺", "darten": "🎯",
+               "boogschieten": "🏹", "schaken": "♟️", "duiken": "🤿", "triatlon": "🏊", "korfbal": "🏀",
+               "cricket": "🏏", "motorcross": "🏍️", "karten": "🏎️", "parkour": "🤸", "calisthenics": "🤸",
+               "touwtjespringen": "🤸", "wandelvoetbal": "⚽", "bootcamp": "🏋️"}
+SPORTEN = sorted(set(SPORT_ICOON) - {"rennen"})
 
 
 def sport_icoon(sport: str) -> str:
@@ -132,7 +145,7 @@ def _km(afspraak: dict) -> float:
 
 
 EENHEID = {"keer_per_week": "keer deze week", "minuten_per_week": "minuten deze week", "km_per_week": "km deze week",
-           "langste_km": "km in één keer", "totaal_km": "km totaal"}
+           "langste_km": "km in één keer", "totaal_km": "km totaal", "eigen": ""}
 
 
 def doel_voortgang(doel: dict) -> dict:
@@ -140,11 +153,14 @@ def doel_voortgang(doel: dict) -> dict:
     vandaag = datetime.now().date()
     maandag = (vandaag - timedelta(days=vandaag.weekday())).isoformat()
     maatstaf = doel["maatstaf"]
-    if maatstaf.endswith("_per_week"):
+    if maatstaf == "eigen":
+        lijst = []
+    elif maatstaf.endswith("_per_week"):
         lijst = gedaan(maandag, vandaag.isoformat(), doel.get("sport", ""))
     else:
         lijst = gedaan(doel["gestart"], vandaag.isoformat(), doel.get("sport", ""))
     huidig = {
+        "eigen": doel.get("stand", 0),
         "keer_per_week": len(lijst),
         "minuten_per_week": sum(sportminuten(a) for a in lijst),
         "km_per_week": sum(_km(a) for a in lijst),
@@ -153,7 +169,7 @@ def doel_voortgang(doel: dict) -> dict:
     }[maatstaf]
     procent = min(100, round(100 * huidig / doel["doelwaarde"])) if doel["doelwaarde"] else 0
     uitkomst = {**doel, "huidig": round(huidig, 1), "procent": procent,
-                "tekst": f"{round(huidig, 1):g} van {doel['doelwaarde']:g} {EENHEID[maatstaf]}"}
+                "tekst": f"{round(huidig, 1):g} van {doel['doelwaarde']:g} {doel.get('eenheid', '') if maatstaf == 'eigen' else EENHEID[maatstaf]}".strip()}
     if doel.get("deadline"):
         uitkomst["dagen_te_gaan"] = (datetime.fromisoformat(doel["deadline"]).date() - vandaag).days
     return uitkomst
