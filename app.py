@@ -862,7 +862,7 @@ def agenda_tabblad() -> None:
         raise
     except Exception:
         pass
-    opties = ["Agenda", "Taken", "Plannen", "Overzicht"] + (["Samen"] if samen.beschikbaar() else [])
+    opties = ["Agenda", "Taken", "Plannen"] + (["Samen"] if samen.beschikbaar() else []) + ["Overzicht"]
     if st.session_state.get("agenda_deel") == "Gedeeld":
         st.session_state.agenda_deel = "Samen"
     deel = st.segmented_control("Onderdeel", opties, default="Agenda", key="agenda_deel",
