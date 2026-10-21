@@ -61,6 +61,7 @@ import onthouden
 import snelinvoer
 import woning
 import winkelkaart
+import chat  # niet in de herlaadlus hieronder: een onderdeel mag maar één keer worden aangemeld
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
@@ -1829,7 +1830,7 @@ VOORPAGINA = {"ochtend": "Ochtendoverzicht ('s ochtends, met voorlezen)", "weer"
               "seintjes": "Korte seintjes (herhalen, sportresultaat)",
               "woning": "Knoppen voor Apple Woning (als je scènes hebt ingesteld)"}
 # Wat je in het menu aan of uit kunt zetten (de sleutels staan zo in je instellingen).
-ONDERDELEN = {"Documenten": "Documenten", "Mail": "Mail", "Leren": "Leren en schrijven", "Samen": "Projecten en delen",
+ONDERDELEN = {"Chat": "Chat (end-to-end versleuteld)", "Documenten": "Documenten", "Mail": "Mail", "Leren": "Leren en schrijven", "Samen": "Projecten en delen",
               "DIY": "DIY en hobby", "Hulpmiddelen": "Hulpmiddelen (notities, timer, rekenen)",
               "Scannen": "Foto scannen", "VR-ruimtes": "VR-ruimtes (projecten in 3D)",
               "Boodschappen": "Boodschappen",
@@ -2786,7 +2787,7 @@ def voorpagina_instellingen() -> None:
 
 
 # Wat een nieuwe gebruiker standaard aan heeft staan; de rest zet je zelf aan (bij het aanmelden of later).
-STANDAARD_AAN = ["Mail", "Budget", "Boodschappen", "Documenten"]
+STANDAARD_AAN = ["Chat", "Mail", "Budget", "Boodschappen", "Documenten"]
 
 
 @st.dialog("Welkom! Wat wil je gebruiken?")
@@ -3519,7 +3520,7 @@ GROEPEN: dict[str, list[str]] = {}
 
 
 def paginas() -> list:
-    """Alle pagina's. Bovenaan staan er maar vier (zie kopbalk); de rest staat als tegels in Instellingen."""
+    """Alle pagina's. Bovenaan staan er maar een paar (zie kopbalk); de rest staat als tegels in Instellingen."""
     PAGINA.clear()
     GROEPEN.clear()
     uit = onderdelen_uit()
@@ -3538,6 +3539,8 @@ def paginas() -> list:
     pagina(vandaag_overzicht, "Vandaag", ":material/today:", "vandaag", default=True)
     pagina(agenda_tabblad, "Agenda", ":material/calendar_month:", "agenda")
     pagina(gesprek, mijn_avatar()["naam"], ":material/chat_bubble:", "assistent")
+    if online and "Chat" not in uit:
+        pagina(chat.pagina, "Chat", ":material/forum:", "chat")
     pagina(instellingen_tabblad, "Instellingen", ":material/settings:", "instellingen")
 
     def als(aan: bool, *args, **kwargs) -> str | None:
@@ -3579,14 +3582,20 @@ def paginas() -> list:
 
 
 def kopbalk() -> None:
-    """Vier vaste plekken bovenaan; alle andere onderdelen staan als tegels in Instellingen."""
+    """Een paar vaste plekken bovenaan; alle andere onderdelen staan als tegels in Instellingen."""
     totaal = st.session_state.get("_nieuw_totaal", 0)
     # Iets compacter, zodat de vier knoppen ook op een telefoon op één regel passen.
-    st.html("<style>.st-key-kopbalk{gap:2px}.st-key-kopbalk a{padding-left:6px;padding-right:6px}</style>")
+    st.html("<style>.st-key-kopbalk{gap:2px}.st-key-kopbalk a{padding-left:6px;padding-right:6px}"
+            ".st-key-kopbalk{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}"
+            ".st-key-kopbalk > div:not(:last-child) a > span:has([data-testid=stIconMaterial]){display:none}</style>")
     with st.container(horizontal=True, gap="small", key="kopbalk"):
-        for url, label in (("vandaag", "Vandaag"), ("agenda", "Agenda"), ("assistent", mijn_avatar()["naam"]),
-                           ("instellingen", f"Instellingen ({totaal})" if totaal else "Instellingen")):
+        for url, label in (("vandaag", "Vandaag"), ("agenda", "Agenda"), ("assistent", mijn_avatar()["naam"])):
             st.page_link(PAGINA[url], label=label, width="content")
+        if "chat" in PAGINA:
+            st.page_link(PAGINA["chat"], label=f"Chat ({n})" if (n := chat.ongelezen()) else "Chat", width="content")
+        # Instellingen als icoon, zodat alles ook op een telefoon op één regel past.
+        st.page_link(PAGINA["instellingen"], label=f"{totaal}" if totaal else " ", icon=":material/settings:",
+                     width="content", help="Instellingen")
 
 
 def onderdelen_tegels() -> None:
@@ -3614,6 +3623,30 @@ def webshop_bezoek(adres: str) -> None:
     st.divider()
     st.markdown("**Inloggen of gratis een account maken om te bestellen**")
     wachtwoord_ok()
+
+
+def assistent_invoer() -> None:
+    """Het invoerveld onderaan, met de microfoon erin."""
+    with st.container(key="microfoon_houder"):
+        gezegd = spraak.microfoon(stem())
+    st.html("<style>.st-key-microfoon_houder{display:none}</style>")
+    if gezegd:
+        if snel_uitgave(gezegd):
+            pass
+        elif snelinvoer.lijkt_invoer(gezegd):
+            snel_toevoegen(gezegd)
+        else:
+            st.session_state.vooraf_vraag = gezegd
+            st.session_state.ingesproken = True
+            st.session_state.ga_naar = "assistent"
+    if vraag := st.chat_input(f"Vraag {avatar.aanspreken(mijn_avatar())} iets..."):
+        if snel_uitgave(vraag):
+            pass
+        elif snelinvoer.lijkt_invoer(vraag):
+            snel_toevoegen(vraag)
+        else:
+            st.session_state.vooraf_vraag = vraag
+            st.session_state.ga_naar = "assistent"
 
 
 def main() -> None:
@@ -3737,26 +3770,9 @@ def main() -> None:
     # Het invoerveld onderaan: "morgen 9u tandarts" komt meteen in de agenda (ook zonder Claude),
     # al het andere gaat naar het gesprek met de assistent.
     # De microfoon zit in het invoerveld (naast het pijltje); wat je zegt, gaat dezelfde weg als wat je typt.
-    with st.container(key="microfoon_houder"):
-        gezegd = spraak.microfoon(stem())
-    st.html("<style>.st-key-microfoon_houder{display:none}</style>")
-    if gezegd:
-        if snel_uitgave(gezegd):
-            pass
-        elif snelinvoer.lijkt_invoer(gezegd):
-            snel_toevoegen(gezegd)
-        else:
-            st.session_state.vooraf_vraag = gezegd
-            st.session_state.ingesproken = True
-            st.session_state.ga_naar = "assistent"
-    if vraag := st.chat_input(f"Vraag {avatar.aanspreken(mijn_avatar())} iets..."):
-        if snel_uitgave(vraag):
-            pass
-        elif snelinvoer.lijkt_invoer(vraag):
-            snel_toevoegen(vraag)
-        else:
-            st.session_state.vooraf_vraag = vraag
-            st.session_state.ga_naar = "assistent"
+    # Niet op de chatpagina: daar heeft de chat zijn eigen invoerveld.
+    if nu_open.url_path != "chat":
+        assistent_invoer()
     doel = st.session_state.pop("ga_naar", None)
     if doel in PAGINA and nu_open.url_path != doel:
         st.switch_page(PAGINA[doel])
