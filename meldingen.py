@@ -12,6 +12,7 @@ import time
 from datetime import date, datetime, timedelta
 
 import opslag
+import taal
 import planning
 
 SOORTEN = {"vertrek": "Vertrekwekker", "herinnering": "Herinneringen", "uitnodiging": "Uitnodigingen",
@@ -92,7 +93,9 @@ def lijst(dagen: int = DAGEN_VOORUIT) -> list[dict]:
 
 
 def plannen() -> int:
-    return opslag._rpc_ik("herinneringen_plannen", p_lijst=lijst()).get("gepland", 0)
+    # Meldingen in de taal van de gebruiker.
+    berichten = [m | {k: taal.t(m[k]) for k in ("titel", "tekst") if isinstance(m.get(k), str)} for m in lijst()]
+    return opslag._rpc_ik("herinneringen_plannen", p_lijst=berichten).get("gepland", 0)
 
 
 def vanzelf() -> None:
@@ -104,7 +107,7 @@ def vanzelf() -> None:
     stand = hashlib.sha256(json.dumps([[a for a in g["afspraken"] if van <= a["start"][:10] <= tot],
                                        [t for t in g["taken"] if not t["klaar"]],
                                        opslag.instellingen().get("melding_voor"),
-                                       opslag.instellingen().get("thuisadres")],
+                                       opslag.instellingen().get("thuisadres"), taal.huidig()],
                                       sort_keys=True, default=str).encode()).hexdigest()
     gebruiker = _gebruiker()
     with _slot:

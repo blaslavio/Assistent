@@ -16,7 +16,7 @@ for pad in delen:
     for nl, vertaald in json.loads(Path(pad).read_text()).items():
         if not isinstance(vertaald, str) or not vertaald.strip():
             continue
-        if nl in sjablonen:
+        if nl in sjablonen or "{}" in nl:
             if nl.count("{}") != vertaald.count("{}"):
                 fout += 1
                 continue

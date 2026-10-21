@@ -267,6 +267,8 @@ def taal_bepalen() -> None:
     code = st.session_state.get("taal")
     if st.session_state.get("wachtwoord"):
         try:
+            if st.session_state.pop("taal_bij_inloggen", False) and code:
+                opslag.instellingen_bijwerken(taal=code)  # gekozen op het inlogscherm: bewaren
             code = opslag.instellingen().get("taal") or code
         except Exception:
             pass
@@ -278,11 +280,20 @@ def taalkeuze(key: str) -> None:
     def gekozen():
         if code := st.session_state.get(key):
             st.session_state.taal = code
+            st.session_state.taal_bij_inloggen = not st.session_state.get("wachtwoord")
             if st.session_state.get("wachtwoord"):
                 opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.wachtwoord)
                 opslag.instellingen_bijwerken(taal=code)
-    st.segmented_control("Taal", list(taal.TALEN), default=taal.huidig(), key=key, format_func=taal.TALEN.get,
-                         label_visibility="collapsed", on_change=gekozen)
+    talen = list(taal.TALEN)
+    st.selectbox("Taal", talen, index=talen.index(taal.huidig()) if taal.huidig() in talen else 0, key=key,
+                 format_func=taal.TALEN.get, label_visibility="collapsed", on_change=gekozen, width=200)
+    richting_css()
+
+
+def richting_css() -> None:
+    """Arabisch leest van rechts naar links."""
+    if taal.rechts_naar_links():
+        st.html("<style>.stApp{direction:rtl}</style>")
 
 
 TEKSTGROOTTE = {"Normaal": 16, "Groot": 19, "Extra groot": 22}
@@ -308,6 +319,7 @@ def toegankelijkheid_css() -> None:
         css.append("*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}")
     if css:
         st.html("<style>" + "".join(css) + "</style>")
+    richting_css()
 
 
 def toegankelijkheid_instellingen() -> None:

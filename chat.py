@@ -14,6 +14,7 @@ from pathlib import Path
 import streamlit as st
 
 import opslag
+import taal
 
 CSS = """
 .c-wortel { --c-rand: rgba(128,128,128,.22); --c-zacht: rgba(128,128,128,.09); --c-hoofd: var(--st-primary-color, #4f46e5);
@@ -302,7 +303,7 @@ def pagina() -> None:
         "url": os.environ.get("SUPABASE_URL", opslag.SUPABASE_URL).rstrip("/"),
         "key": os.environ.get("SUPABASE_KEY", opslag.SUPABASE_PUBLISHABLE_KEY),
         "naam": st.session_state.get("naam", ""), "token": st.session_state.get("wachtwoord", ""),
-        "label": apparaat_naam(), "vrij": vrij, "open": _open(),
+        "label": apparaat_naam(), "vrij": vrij, "open": _open(), "taal": taal.chat_teksten(),
     }, on_agenda_change=lambda: None)
     _naar_agenda(getattr(resultaat, "agenda", None) if resultaat is not None else None)
     # Zo blijft het aantal in de kopbalk kloppen nadat je berichten hebt gelezen.

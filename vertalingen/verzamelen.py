@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 
 MAP = Path(__file__).parent.parent
-OVERSLAAN = {"agent.py", "slim.py", "opslag.py", "mailtaken.py", "taal.py"}  # teksten voor Claude of de database
+OVERSLAAN = {"agent.py", "slim.py", "taal.py"}  # teksten voor Claude of de database
 WOORD = re.compile(r"[A-Za-zÀ-ÿ]{2,}")
 
 

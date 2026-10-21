@@ -20,6 +20,12 @@ const hex = (buf) => Array.from(new Uint8Array(buf)).map((b) => b.toString(16).p
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const rnd = (n) => crypto.getRandomValues(new Uint8Array(n));
 
+// Vertalen: data.taal is {Nederlands: vertaling}. Wat er niet in staat, blijft Nederlands. {} wordt op volgorde gevuld.
+let TAAL = {};
+const vul = (tekst, waarden) => { let i = 0; return String(tekst).replace(/\{\}/g, (m) => (i < waarden.length ? String(waarden[i++]) : m)); };
+const T = (tekst, ...waarden) => vul(Object.prototype.hasOwnProperty.call(TAAL, tekst) && typeof TAAL[tekst] === "string" && TAAL[tekst] ? TAAL[tekst] : tekst, waarden);
+const NL = (tekst, ...waarden) => vul(tekst, waarden);  // zelfde vorm, maar niet vertaald (voor wat naar anderen gaat)
+
 // --- Opslag op dit apparaat --------------------------------------------------------------------------------------
 
 function idb() {
@@ -138,9 +144,9 @@ async function rpc(st, functie, parameters = {}) {
     headers: { apikey: st.key, "Content-Type": "application/json" },
     body: JSON.stringify({ p_naam: st.naam, p_wachtwoord: st.token, ...parameters }),
   });
-  if (!r.ok) throw new Error(`Verbinding mislukt (${r.status})`);
+  if (!r.ok) throw new Error(T("Verbinding mislukt ({})", r.status));
   const j = await r.json();
-  if (j && j.geen_toegang) throw new Error("Je bent uitgelogd. Herlaad de app.");
+  if (j && j.geen_toegang) throw new Error(T("Je bent uitgelogd. Herlaad de app."));
   if (j && j.fout) throw new Error(j.fout);
   return j;
 }
@@ -173,12 +179,12 @@ const MAANDEN = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", 
 const tijd = (iso) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
 const dag = (iso) => {
   const d = new Date(iso); const nu = new Date();
-  if (d.toDateString() === nu.toDateString()) return "Vandaag";
+  if (d.toDateString() === nu.toDateString()) return T("Vandaag");
   const gisteren = new Date(nu); gisteren.setDate(nu.getDate() - 1);
-  if (d.toDateString() === gisteren.toDateString()) return "Gisteren";
-  return `${DAGEN[d.getDay()]} ${d.getDate()} ${MAANDEN[d.getMonth()]}`;
+  if (d.toDateString() === gisteren.toDateString()) return T("Gisteren");
+  return `${T(DAGEN[d.getDay()])} ${d.getDate()} ${T(MAANDEN[d.getMonth()])}`;
 };
-const kortTijd = (iso) => { if (!iso) return ""; const d = dag(iso); return d === "Vandaag" ? tijd(iso) : d; };
+const kortTijd = (iso) => { if (!iso) return ""; const d = dag(iso); return d === T("Vandaag") ? tijd(iso) : d; };
 const wanneer = (lokaal) => { const d = new Date(lokaal); return `${dag(d)} ${tijd(d)}`; };
 const VERDWIJNEN = { 0: "Uit", 3600: "1 uur", 86400: "24 uur", 604800: "7 dagen", 7776000: "90 dagen" };
 
@@ -208,53 +214,53 @@ function avatar(naam, groot = false) {
 }
 const communityAvatar = (naam, groot = false) => avatar(naam, groot).replace('class="c-avatar', 'class="c-avatar c-vierkant');
 const communityOngelezen = (c) => (c.kanalen || []).reduce((n, k) => n + (k.ongelezen || 0), 0);
-const leden = (n) => (n === 1 ? "1 lid" : `${n} leden`);
+const leden = (n) => (n === 1 ? T("1 lid") : T("{} leden", n));
 const codeTekst = (code) => String(code || "").match(/.{1,4}/g)?.join("-") || "";
 
 function gesprekNaam(st, g) {
   if (g.community) return "# " + g.naam;
   if (g.soort === "groep") return g.naam;
   const ander = g.leden.find((l) => l.id !== st.ik);
-  return ander ? ander.naam : "Gesprek";
+  return ander ? ander.naam : T("Gesprek");
 }
 
 function voorbeeldTekst(st, g, m, afzender) {
   if (!m) return "";
   const lid = g.leden.find((l) => l.id === afzender);
-  const wie = afzender === st.ik ? "Jij: " : (g.soort === "groep" && lid ? `${lid.naam}: ` : (m.t === "reactie" && lid ? `${lid.naam} ` : ""));
+  const wie = afzender === st.ik ? T("Jij") + ": " : (g.soort === "groep" && lid ? `${lid.naam}: ` : (m.t === "reactie" && lid ? `${lid.naam} ` : ""));
   if (m.t === "tekst") return wie + m.tekst.slice(0, 80);
-  if (m.t === "foto") return wie + "Foto";
-  if (m.t === "afspraak") return wie + `Afspraak: ${m.titel}`;
-  if (m.t === "peiling") return wie + `Peiling: ${m.vraag}`;
-  if (m.t === "emoji") return m.emoji ? wie.replace(/: $/, " ") + `reageerde ${m.emoji}` : "";
-  if (m.t === "stem") return wie.replace(/: $/, " ") + "stemde";
-  if (m.t === "vrij") return wie + "Wanneer ik kan";
-  if (m.t === "reactie") return wie.replace(/: $/, " ") + (m.antwoord === "ja" ? "zet de afspraak in de agenda" : "kan niet op die afspraak");
+  if (m.t === "foto") return wie + T("Foto");
+  if (m.t === "afspraak") return wie + T("Afspraak: {}", m.titel);
+  if (m.t === "peiling") return wie + T("Peiling: {}", m.vraag);
+  if (m.t === "emoji") return m.emoji ? wie.replace(/: $/, " ") + T("reageerde {}", m.emoji) : "";
+  if (m.t === "stem") return wie.replace(/: $/, " ") + T("stemde");
+  if (m.t === "vrij") return wie + T("Wanneer ik kan");
+  if (m.t === "reactie") return wie.replace(/: $/, " ") + (m.antwoord === "ja" ? T("zet de afspraak in de agenda") : T("kan niet op die afspraak"));
   return "";
 }
 
 function kop(links, midden, rechts = "") {
   return `<div class="c-balk">${links}<div class="c-balk-midden">${midden}</div>${rechts}</div>`;
 }
-const terugKnop = (a) => `<button class="c-ikoon" data-a="${a}" aria-label="Terug">${ICOON.terug}</button>`;
+const terugKnop = (a) => `<button class="c-ikoon" data-a="${a}" aria-label="${esc(T("Terug"))}">${ICOON.terug}</button>`;
 
 function tabs(st) {
   const verzoeken = st.gesprekken.filter((g) => g.status === "verzoek").length;
   const ongelezen = st.gesprekken.reduce((n, g) => n + (g.ongelezen || 0), 0) + verzoeken
     + (st.communities || []).reduce((n, c) => n + communityOngelezen(c) + (c.status === "uitgenodigd" ? 1 : 0), 0);
   return `<div class="c-tabs">
-    <button class="c-tab ${st.scherm === "lijst" ? "c-aan" : ""}" data-a="lijst">${ICOON.chats}<span>Chats${ongelezen ? ` (${ongelezen})` : ""}</span></button>
-    <button class="c-tab ${st.scherm === "contacten" ? "c-aan" : ""}" data-a="contacten">${ICOON.mensen}<span>Contacten</span></button></div>`;
+    <button class="c-tab ${st.scherm === "lijst" ? "c-aan" : ""}" data-a="lijst">${ICOON.chats}<span>${T("Chats")}${ongelezen ? ` (${ongelezen})` : ""}</span></button>
+    <button class="c-tab ${st.scherm === "contacten" ? "c-aan" : ""}" data-a="contacten">${ICOON.mensen}<span>${T("Contacten")}</span></button></div>`;
 }
 
 function toon(st) {
   const w = st.wortel;
   if (st.fout) {
     w.innerHTML = `<div class="c-inhoud c-midden"><div class="c-fout">${esc(st.fout)}</div>
-      <button class="c-knop" data-a="opnieuw">Opnieuw proberen</button></div>`;
+      <button class="c-knop" data-a="opnieuw">${T("Opnieuw proberen")}</button></div>`;
     return;
   }
-  if (!st.klaar) { w.innerHTML = `<div class="c-inhoud c-midden"><div class="c-leeg">${ICOON.slot}<br>Chat beveiligen...</div></div>`; return; }
+  if (!st.klaar) { w.innerHTML = `<div class="c-inhoud c-midden"><div class="c-leeg">${ICOON.slot}<br>${T("Chat beveiligen...")}</div></div>`; return; }
   if (st.scherm === "gesprek") return toonGesprek(st);
   if (st.scherm === "contacten") return toonContacten(st);
   if (st.scherm === "groep") return toonGroep(st);
@@ -269,20 +275,20 @@ function toon(st) {
 function itemHtml(st, g) {
   const naam = gesprekNaam(st, g);
   const v = st.voorbeelden.get(g.id);
-  const onder = g.status === "verzoek" ? `<span class="c-accent">Wil met je chatten</span>`
-    : esc(v && v.id === g.laatste_id ? v.tekst : (g.laatste_id ? "Versleuteld bericht" : (g.soort === "groep" ? `${g.leden.length} deelnemers` : "Nog geen berichten")));
+  const onder = g.status === "verzoek" ? `<span class="c-accent">${T("Wil met je chatten")}</span>`
+    : esc(v && v.id === g.laatste_id ? v.tekst : (g.laatste_id ? T("Versleuteld bericht") : (g.soort === "groep" ? T("{} deelnemers", g.leden.length) : T("Nog geen berichten"))));
   return `<button class="c-item" data-a="open" data-id="${g.id}">
       ${g.soort === "groep" ? `<span class="c-avatar c-groep">${ICOON.groep}</span>` : avatar(naam)}
       <span class="c-item-tekst"><b>${esc(naam)}</b><small>${onder}</small></span>
       <span class="c-item-rechts"><small class="${g.ongelezen ? "c-accent" : ""}">${esc(kortTijd(g.laatst))}</small>
-        ${g.ongelezen ? `<span class="c-badge">${g.ongelezen}</span>` : (g.stil ? "<small>stil</small>" : "<span></span>")}</span>
+        ${g.ongelezen ? `<span class="c-badge">${g.ongelezen}</span>` : (g.stil ? `<small>${T("stil")}</small>` : "<span></span>")}</span>
     </button>`;
 }
 
 function communityItemHtml(st, c) {
   const ongelezen = communityOngelezen(c);
-  const onder = c.status === "uitgenodigd" ? `<span class="c-accent">Uitnodiging${c.door ? " van " + esc(c.door) : ""}</span>`
-    : `${c.kanalen.length === 1 ? "1 kanaal" : c.kanalen.length + " kanalen"} · ${leden(c.leden)}`;
+  const onder = c.status === "uitgenodigd" ? `<span class="c-accent">${esc(c.door ? T("Uitnodiging van {}", c.door) : T("Uitnodiging"))}</span>`
+    : `${c.kanalen.length === 1 ? T("1 kanaal") : T("{} kanalen", c.kanalen.length)} · ${leden(c.leden)}`;
   const laatst = c.kanalen.reduce((m, k) => (k.laatst > m ? k.laatst : m), "");
   return `<button class="c-item" data-a="community" data-id="${c.id}">${communityAvatar(c.naam)}
       <span class="c-item-tekst"><b>${esc(c.naam)}</b><small>${onder}</small></span>
@@ -292,9 +298,9 @@ function communityItemHtml(st, c) {
 
 function nieuwBlad() {
   return `<div class="c-achtergrond" data-a="blad-dicht"></div><div class="c-blad">
-    <button class="c-blad-knop" data-a="contacten">${ICOON.chats}Nieuw gesprek</button>
-    <button class="c-blad-knop" data-a="groep-nieuw">${ICOON.groep}Nieuwe groep</button>
-    <button class="c-blad-knop" data-a="cnieuw">${ICOON.kanaal}Community maken of meedoen</button></div>`;
+    <button class="c-blad-knop" data-a="contacten">${ICOON.chats}${T("Nieuw gesprek")}</button>
+    <button class="c-blad-knop" data-a="groep-nieuw">${ICOON.groep}${T("Nieuwe groep")}</button>
+    <button class="c-blad-knop" data-a="cnieuw">${ICOON.kanaal}${T("Community maken of meedoen")}</button></div>`;
 }
 
 function toonLijst(st) {
@@ -306,15 +312,15 @@ function toonLijst(st) {
                 ...communities.filter((c) => c.status === "lid").map((c) => [laatstC(c), communityItemHtml(st, c)])]
     .sort((a, b) => (a[0] < b[0] ? 1 : -1)).map((x) => x[1]);
   st.wortel.innerHTML = `
-    ${kop("", "<b class='c-groot-titel'>Chats</b>",
-      `<button class="c-ikoon" data-a="apparaten" aria-label="Beveiliging">${ICOON.slot}</button>
-       <button class="c-ikoon" data-a="blad" aria-label="Nieuw">${ICOON.nieuw}</button>`)}
+    ${kop("", `<b class='c-groot-titel'>${T("Chats")}</b>`,
+      `<button class="c-ikoon" data-a="apparaten" aria-label="${esc(T("Beveiliging"))}">${ICOON.slot}</button>
+       <button class="c-ikoon" data-a="blad" aria-label="${esc(T("Nieuw"))}">${ICOON.nieuw}</button>`)}
     <div class="c-inhoud">
-      ${verzoeken.length ? `<div class="c-sectie">Verzoeken en uitnodigingen</div>${verzoeken.join("")}
-        <div class="c-sectie">Gesprekken</div>` : ""}
-      ${rest.join("") || (verzoeken.length ? "" : `<div class="c-leeg">Nog geen gesprekken.<br>
-        <button class="c-knop c-hoofd" data-a="blad">Begin een gesprek</button></div>`)}
-      <div class="c-voet">${ICOON.slot} Berichten zijn end-to-end versleuteld</div>
+      ${verzoeken.length ? `<div class="c-sectie">${T("Verzoeken en uitnodigingen")}</div>${verzoeken.join("")}
+        <div class="c-sectie">${T("Gesprekken")}</div>` : ""}
+      ${rest.join("") || (verzoeken.length ? "" : `<div class="c-leeg">${T("Nog geen gesprekken.")}<br>
+        <button class="c-knop c-hoofd" data-a="blad">${T("Begin een gesprek")}</button></div>`)}
+      <div class="c-voet">${ICOON.slot} ${T("Berichten zijn end-to-end versleuteld")}</div>
     </div>
     ${tabs(st)}
     ${st.blad === "nieuw" ? nieuwBlad() : ""}`;
@@ -329,15 +335,15 @@ function toonCommunity(st) {
       <span><b>${esc(c.naam)}</b><small>${leden(c.leden)}</small></span></button>`)}
     <div class="c-inhoud">
       ${c.omschrijving ? `<div class="c-uitleg" style="padding-top:12px">${esc(c.omschrijving)}</div>` : ""}
-      ${c.status === "uitgenodigd" ? `<div class="c-verzoek"><div>${c.door ? `<b>${esc(c.door)}</b> nodigt je uit` : "Je bent uitgenodigd"}
-        voor <b>${esc(c.naam)}</b>.</div>
-        <div class="c-rij"><button class="c-knop c-hoofd" data-a="c-ja">Meedoen</button><button class="c-knop" data-a="c-nee">Weigeren</button></div></div>`
-      : `<div class="c-sectie">Kanalen</div>${c.kanalen.map((k) => `<button class="c-item" data-a="open" data-id="${k.id}">
+      ${c.status === "uitgenodigd" ? `<div class="c-verzoek"><div>${c.door ? T("{} nodigt je uit voor {}.", `<b>${esc(c.door)}</b>`, `<b>${esc(c.naam)}</b>`)
+        : T("Je bent uitgenodigd voor {}.", `<b>${esc(c.naam)}</b>`)}</div>
+        <div class="c-rij"><button class="c-knop c-hoofd" data-a="c-ja">${T("Meedoen")}</button><button class="c-knop" data-a="c-nee">${T("Weigeren")}</button></div></div>`
+      : `<div class="c-sectie">${T("Kanalen")}</div>${c.kanalen.map((k) => `<button class="c-item" data-a="open" data-id="${k.id}">
           <span class="c-hekje">#</span><span class="c-item-tekst"><b>${esc(k.naam)}</b>
-          <small>${k.alleen_beheer ? "Mededelingen van beheerders" : "&nbsp;"}</small></span>
+          <small>${k.alleen_beheer ? T("Mededelingen van beheerders") : "&nbsp;"}</small></span>
           <span class="c-item-rechts"><small class="${k.ongelezen ? "c-accent" : ""}">${esc(kortTijd(k.laatst))}</small>
           ${k.ongelezen ? `<span class="c-badge">${k.ongelezen}</span>` : "<span></span>"}</span></button>`).join("")}
-        <div class="c-vulling"><button class="c-knop" data-a="cinfo">${beheer ? "Uitnodigen en beheren" : "Mensen uitnodigen"}</button></div>`}
+        <div class="c-vulling"><button class="c-knop" data-a="cinfo">${beheer ? T("Uitnodigen en beheren") : T("Mensen uitnodigen")}</button></div>`}
     </div>`;
 }
 
@@ -347,45 +353,45 @@ async function cinfoLaden(st) {
 
 function toonCommunityInfo(st) {
   const c = st.cinfo;
-  if (!c) { st.wortel.innerHTML = `${kop(terugKnop("cterug"), "<b>Community</b>")}<div class="c-inhoud"></div>`; return; }
+  if (!c) { st.wortel.innerHTML = `${kop(terugKnop("cterug"), `<b>${T("Community")}</b>`)}<div class="c-inhoud"></div>`; return; }
   const beheer = c.rol === "eigenaar" || c.rol === "beheerder";
-  const rolNaam = { eigenaar: "eigenaar", beheerder: "beheerder", lid: "" };
+  const rolNaam = { eigenaar: T("eigenaar"), beheerder: T("beheerder"), lid: "" };
   const keuzes = (d) => {
     if (!beheer || d.id === st.ik || d.rol === "eigenaar" || (d.rol === "beheerder" && c.rol !== "eigenaar")) return "";
-    const opties = [["", "..."], d.rol === "beheerder" ? ["lid", "Gewoon lid maken"] : ["beheerder", "Beheerder maken"],
-      ...(c.rol === "eigenaar" && d.status === "lid" ? [["eigenaar", "Eigenaar maken"]] : []),
-      ["verwijderen", "Verwijderen"], ["weren", "Weren"]];
-    return `<select class="c-rol" data-wie="${d.id}" data-naam="${esc(d.naam)}" aria-label="Beheren">${opties.map(([w, t]) => `<option value="${w}">${t}</option>`).join("")}</select>`;
+    const opties = [["", "..."], d.rol === "beheerder" ? ["lid", T("Gewoon lid maken")] : ["beheerder", T("Beheerder maken")],
+      ...(c.rol === "eigenaar" && d.status === "lid" ? [["eigenaar", T("Eigenaar maken")]] : []),
+      ["verwijderen", T("Verwijderen")], ["weren", T("Weren")]];
+    return `<select class="c-rol" data-wie="${d.id}" data-naam="${esc(d.naam)}" aria-label="${esc(T("Beheren"))}">${opties.map(([w, t]) => `<option value="${w}">${t}</option>`).join("")}</select>`;
   };
   st.wortel.innerHTML = `
-    ${kop(terugKnop("cterug"), "<b>Community</b>")}
+    ${kop(terugKnop("cterug"), `<b>${T("Community")}</b>`)}
     <div class="c-inhoud c-vulling">
       <div class="c-profiel">${communityAvatar(c.naam, true)}<b>${esc(c.naam)}</b>
         ${c.omschrijving ? `<small>${esc(c.omschrijving)}</small>` : ""}<small>${leden(c.leden)}</small></div>
-      <div class="c-sectie">Uitnodigen</div>
-      <div class="c-zoek"><input class="c-veld" id="c-c-wie" placeholder="Gebruikersnaam" autocapitalize="none" autocomplete="off">
-        <button class="c-knop c-hoofd" data-a="c-uitnodigen">Uitnodigen</button></div>
-      ${c.code ? `<div class="c-kaart"><b>Uitnodigingscode</b>
+      <div class="c-sectie">${T("Uitnodigen")}</div>
+      <div class="c-zoek"><input class="c-veld" id="c-c-wie" placeholder="${esc(T("Gebruikersnaam"))}" autocapitalize="none" autocomplete="off">
+        <button class="c-knop c-hoofd" data-a="c-uitnodigen">${T("Uitnodigen")}</button></div>
+      ${c.code ? `<div class="c-kaart"><b>${T("Uitnodigingscode")}</b>
         ${c.code_aan ? `<div class="c-code-groot">${esc(codeTekst(c.code))}</div>
-        <small>Wie deze code heeft, kan meedoen. Deel hem alleen met wie je erbij wilt.</small>
-        <div class="c-rij c-wrap"><button class="c-knop" data-a="c-delen">Delen</button><button class="c-knop" data-a="c-nieuwe-code">Nieuwe code</button></div>`
-        : "<small>Meedoen met een code staat uit. Alleen wie je uitnodigt, kan erbij.</small>"}
-        <label class="c-vink"><span>Meedoen met code</span><input type="checkbox" id="c-code-aan" ${c.code_aan ? "checked" : ""}></label></div>` : ""}
-      ${beheer ? `<div class="c-sectie">Kanalen</div>
-        ${c.kanalen.map((k) => `<div class="c-lid"><span># ${esc(k.naam)}${k.alleen_beheer ? " <small>alleen beheerders schrijven</small>" : ""}</span>
-          <button class="c-mini" data-a="kanaal-weg" data-id="${k.id}" data-naam="${esc(k.naam)}" aria-label="Weghalen">×</button></div>`).join("")}
-        <div class="c-zoek"><input class="c-veld" id="c-k-naam" placeholder="Nieuw kanaal" autocapitalize="none" autocomplete="off">
-          <button class="c-knop" data-a="kanaal-maken">Maken</button></div>
-        <label class="c-vink"><span>Alleen beheerders schrijven in het nieuwe kanaal</span><input type="checkbox" id="c-k-alleen"></label>
-        <div class="c-sectie">Naam en omschrijving</div>
+        <small>${T("Wie deze code heeft, kan meedoen. Deel hem alleen met wie je erbij wilt.")}</small>
+        <div class="c-rij c-wrap"><button class="c-knop" data-a="c-delen">${T("Delen")}</button><button class="c-knop" data-a="c-nieuwe-code">${T("Nieuwe code")}</button></div>`
+        : `<small>${T("Meedoen met een code staat uit. Alleen wie je uitnodigt, kan erbij.")}</small>`}
+        <label class="c-vink"><span>${T("Meedoen met code")}</span><input type="checkbox" id="c-code-aan" ${c.code_aan ? "checked" : ""}></label></div>` : ""}
+      ${beheer ? `<div class="c-sectie">${T("Kanalen")}</div>
+        ${c.kanalen.map((k) => `<div class="c-lid"><span># ${esc(k.naam)}${k.alleen_beheer ? ` <small>${T("alleen beheerders schrijven")}</small>` : ""}</span>
+          <button class="c-mini" data-a="kanaal-weg" data-id="${k.id}" data-naam="${esc(k.naam)}" aria-label="${esc(T("Weghalen"))}">×</button></div>`).join("")}
+        <div class="c-zoek"><input class="c-veld" id="c-k-naam" placeholder="${esc(T("Nieuw kanaal"))}" autocapitalize="none" autocomplete="off">
+          <button class="c-knop" data-a="kanaal-maken">${T("Maken")}</button></div>
+        <label class="c-vink"><span>${T("Alleen beheerders schrijven in het nieuwe kanaal")}</span><input type="checkbox" id="c-k-alleen"></label>
+        <div class="c-sectie">${T("Naam en omschrijving")}</div>
         <input class="c-veld" id="c-c-naam" value="${esc(c.naam)}" maxlength="60">
-        <input class="c-veld" id="c-c-omschr" value="${esc(c.omschrijving)}" placeholder="Omschrijving" maxlength="300">
-        <button class="c-knop" data-a="c-opslaan">Opslaan</button>` : ""}
-      <div class="c-sectie">Deelnemers</div>
-      ${(c.deelnemers || []).map((d) => `<div class="c-lid">${avatar(d.naam)}<span>${esc(d.naam)}${d.id === st.ik ? " (jij)" : ""}
-          <br><small>${d.status === "uitgenodigd" ? "uitgenodigd" : rolNaam[d.rol]}</small></span>${keuzes(d)}</div>`).join("")}
-      <div class="c-rij c-wrap">${c.rol === "eigenaar" ? `<button class="c-knop c-rood" data-a="c-opheffen">Community opheffen</button>`
-        : `<button class="c-knop c-rood" data-a="c-verlaten">Community verlaten</button>`}</div>
+        <input class="c-veld" id="c-c-omschr" value="${esc(c.omschrijving)}" placeholder="${esc(T("Omschrijving"))}" maxlength="300">
+        <button class="c-knop" data-a="c-opslaan">${T("Opslaan")}</button>` : ""}
+      <div class="c-sectie">${T("Deelnemers")}</div>
+      ${(c.deelnemers || []).map((d) => `<div class="c-lid">${avatar(d.naam)}<span>${esc(d.naam)}${d.id === st.ik ? ` (${T("jij")})` : ""}
+          <br><small>${d.status === "uitgenodigd" ? T("uitgenodigd") : rolNaam[d.rol]}</small></span>${keuzes(d)}</div>`).join("")}
+      <div class="c-rij c-wrap">${c.rol === "eigenaar" ? `<button class="c-knop c-rood" data-a="c-opheffen">${T("Community opheffen")}</button>`
+        : `<button class="c-knop c-rood" data-a="c-verlaten">${T("Community verlaten")}</button>`}</div>
     </div>`;
   const codeAan = st.wortel.querySelector("#c-code-aan");
   if (codeAan) codeAan.addEventListener("change", (e) => actie(st, "c-code-aan", e.target));
@@ -394,35 +400,34 @@ function toonCommunityInfo(st) {
 
 function toonCommunityNieuw(st) {
   st.wortel.innerHTML = `
-    ${kop(terugKnop("lijst"), "<b>Community</b>")}
+    ${kop(terugKnop("lijst"), `<b>${T("Community")}</b>`)}
     <div class="c-inhoud c-vulling">
-      <div class="c-uitleg" style="padding:0">Een community is een plek met kanalen voor een club, team, klas of buurt.
-        Ook hier is alles end-to-end versleuteld.</div>
-      <label>Naam<input class="c-veld" id="c-n-naam" placeholder="Bijvoorbeeld: Voetbalclub" maxlength="60"></label>
-      <label>Omschrijving (optioneel)<input class="c-veld" id="c-n-omschr" maxlength="300"></label>
-      <button class="c-knop c-hoofd" data-a="c-maken">Community maken</button>
-      <div class="c-sectie">Heb je een code?</div>
+      <div class="c-uitleg" style="padding:0">${T("Een community is een plek met kanalen voor een club, team, klas of buurt. Ook hier is alles end-to-end versleuteld.")}</div>
+      <label>${T("Naam")}<input class="c-veld" id="c-n-naam" placeholder="${esc(T("Bijvoorbeeld: Voetbalclub"))}" maxlength="60"></label>
+      <label>${T("Omschrijving (optioneel)")}<input class="c-veld" id="c-n-omschr" maxlength="300"></label>
+      <button class="c-knop c-hoofd" data-a="c-maken">${T("Community maken")}</button>
+      <div class="c-sectie">${T("Heb je een code?")}</div>
       <div class="c-zoek"><input class="c-veld" id="c-n-code" placeholder="XXXX-XXXX-XXXX" autocapitalize="characters" autocomplete="off">
-        <button class="c-knop" data-a="c-meedoen">Meedoen</button></div>
+        <button class="c-knop" data-a="c-meedoen">${T("Meedoen")}</button></div>
     </div>`;
 }
 
 function toonContacten(st) {
   const lijst = st.contacten || [];
   st.wortel.innerHTML = `
-    ${kop("", "<b class='c-groot-titel'>Contacten</b>",
-      `<button class="c-ikoon" data-a="groep-nieuw" aria-label="Nieuwe groep">${ICOON.groep}</button>`)}
+    ${kop("", `<b class='c-groot-titel'>${T("Contacten")}</b>`,
+      `<button class="c-ikoon" data-a="groep-nieuw" aria-label="${esc(T("Nieuwe groep"))}">${ICOON.groep}</button>`)}
     <div class="c-inhoud">
-      <div class="c-zoek"><input class="c-veld" id="c-nieuw-contact" placeholder="Gebruikersnaam toevoegen" autocapitalize="none" autocomplete="off">
-        <button class="c-knop c-hoofd" data-a="contact-toevoegen">Toevoegen</button></div>
-      <div class="c-uitleg">Met je contacten app je direct. Iemand die jou niet als contact heeft, stuurt eerst een verzoek.</div>
+      <div class="c-zoek"><input class="c-veld" id="c-nieuw-contact" placeholder="${esc(T("Gebruikersnaam toevoegen"))}" autocapitalize="none" autocomplete="off">
+        <button class="c-knop c-hoofd" data-a="contact-toevoegen">${T("Toevoegen")}</button></div>
+      <div class="c-uitleg">${T("Met je contacten app je direct. Iemand die jou niet als contact heeft, stuurt eerst een verzoek.")}</div>
       ${lijst.length ? lijst.map((c) => `
         <div class="c-item c-contact">
           <button class="c-item-knop" data-a="chat-met" data-naam="${esc(c.gebruikersnaam || "")}" ${c.chat ? "" : "disabled"}>
             ${avatar(c.naam)}<span class="c-item-tekst"><b>${esc(c.naam)}</b>
-            <small>${c.chat ? "@" + esc(c.gebruikersnaam || "") : "Gebruikt de chat nog niet"}</small></span></button>
-          <button class="c-mini" data-a="contact-weg" data-id="${c.id}" data-naam="${esc(c.naam)}" aria-label="Weghalen">×</button>
-        </div>`).join("") : `<div class="c-leeg">Nog geen contacten. Vul hierboven een gebruikersnaam in.</div>`}
+            <small>${c.chat ? "@" + esc(c.gebruikersnaam || "") : T("Gebruikt de chat nog niet")}</small></span></button>
+          <button class="c-mini" data-a="contact-weg" data-id="${c.id}" data-naam="${esc(c.naam)}" aria-label="${esc(T("Weghalen"))}">×</button>
+        </div>`).join("") : `<div class="c-leeg">${T("Nog geen contacten. Vul hierboven een gebruikersnaam in.")}</div>`}
     </div>
     ${tabs(st)}`;
   const veld = st.wortel.querySelector("#c-nieuw-contact");
@@ -432,14 +437,14 @@ function toonContacten(st) {
 function toonGroep(st) {
   const lijst = (st.contacten || []).filter((c) => c.chat);
   st.wortel.innerHTML = `
-    ${kop(terugKnop("contacten"), "<b>Nieuwe groep</b>")}
+    ${kop(terugKnop("contacten"), `<b>${T("Nieuwe groep")}</b>`)}
     <div class="c-inhoud c-vulling">
-      <label>Naam van de groep<input class="c-veld" id="c-groep" placeholder="Bijvoorbeeld: Familie"></label>
-      <div class="c-sectie">Wie doet er mee?</div>
+      <label>${T("Naam van de groep")}<input class="c-veld" id="c-groep" placeholder="${esc(T("Bijvoorbeeld: Familie"))}"></label>
+      <div class="c-sectie">${T("Wie doet er mee?")}</div>
       ${lijst.map((c) => `<label class="c-vink">${avatar(c.naam)}<span>${esc(c.naam)}</span>
         <input type="checkbox" class="c-groep-lid" value="${esc(c.gebruikersnaam || "")}"></label>`).join("")
-        || `<div class="c-leeg">Voeg eerst contacten toe.</div>`}
-      <button class="c-knop c-hoofd c-breed" data-a="groep">Groep maken</button>
+        || `<div class="c-leeg">${T("Voeg eerst contacten toe.")}</div>`}
+      <button class="c-knop c-hoofd c-breed" data-a="groep">${T("Groep maken")}</button>
     </div>`;
 }
 
@@ -452,13 +457,13 @@ function tekstHtml(g, tekst) {
   return html;
 }
 
-function korteInhoud(m) {
+function korteInhoud(m, vertaal = T) {
   if (!m) return "";
   if (m.t === "tekst") return m.tekst.slice(0, 100);
-  if (m.t === "foto") return "Foto";
-  if (m.t === "afspraak") return `Afspraak: ${m.titel}`;
-  if (m.t === "peiling") return `Peiling: ${m.vraag}`;
-  if (m.t === "vrij") return "Wanneer ik kan";
+  if (m.t === "foto") return vertaal("Foto");
+  if (m.t === "afspraak") return vertaal("Afspraak: {}", m.titel);
+  if (m.t === "peiling") return vertaal("Peiling: {}", m.vraag);
+  if (m.t === "vrij") return vertaal("Wanneer ik kan");
   return "";
 }
 
@@ -476,46 +481,46 @@ function berichtHtml(st, g, b, vorige) {
   const mijn = b.afzender === st.ik;
   const afzender = g.leden.find((l) => l.id === b.afzender);
   const naam = g.soort === "groep" && !mijn && (!vorige || vorige.afzender !== b.afzender)
-    ? `<div class="c-naam">${esc(afzender ? afzender.naam : "Oud lid")}</div>` : "";
+    ? `<div class="c-naam">${esc(afzender ? afzender.naam : T("Oud lid"))}</div>` : "";
   let inhoud;
   let kaart = false;
-  if (b.weg) inhoud = `<i class="c-grijs">Dit bericht is verwijderd.</i>`;
-  else if (b.fout) inhoud = `<i class="c-waarschuwing">Dit bericht kon niet worden gecontroleerd en wordt niet getoond.</i>`;
+  if (b.weg) inhoud = `<i class="c-grijs">${T("Dit bericht is verwijderd.")}</i>`;
+  else if (b.fout) inhoud = `<i class="c-waarschuwing">${T("Dit bericht kon niet worden gecontroleerd en wordt niet getoond.")}</i>`;
   else if (!b.bericht) inhoud = `<i class="c-grijs">...</i>`;
   else {
     const m = b.bericht;
     const citaat = m.antwoord ? `<button class="c-citaat" data-a="naar" data-b="${Number(m.antwoord.id) || 0}">
       <b>${esc(m.antwoord.naam)}</b><span>${esc(m.antwoord.tekst)}</span></button>` : "";
     if (m.t === "tekst") inhoud = citaat + tekstHtml(g, m.tekst);
-    else if (m.t === "foto") inhoud = `<img src="${esc(m.data)}" alt="Foto">${m.tekst ? `<div>${esc(m.tekst)}</div>` : ""}`;
+    else if (m.t === "foto") inhoud = `<img src="${esc(m.data)}" alt="${esc(T("Foto"))}">${m.tekst ? `<div>${esc(m.tekst)}</div>` : ""}`;
     else if (m.t === "afspraak") {
       kaart = true;
       const reacties = st.reacties.get(m.id) || [];
       const ikKoos = reacties.find((r) => r.id === st.ik);
       const ja = reacties.filter((r) => r.antwoord === "ja"), nee = reacties.filter((r) => r.antwoord !== "ja");
-      const wie = reacties.length > 4 ? `${ja.length} komen${nee.length ? ` · ${nee.length} kunnen niet` : ""}`
-        : reacties.map((r) => `${esc(r.naam)}: ${r.antwoord === "ja" ? "kan" : "kan niet"}`).join(", ");
-      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>${g.community ? "Evenement" : "Afspraak voorgesteld"}</span></div>
+      const wie = reacties.length > 4 ? `${T("{} komen", ja.length)}${nee.length ? ` · ${T("{} kunnen niet", nee.length)}` : ""}`
+        : reacties.map((r) => `${esc(r.naam)}: ${r.antwoord === "ja" ? T("kan") : T("kan niet")}`).join(", ");
+      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>${g.community ? T("Evenement") : T("Afspraak voorgesteld")}</span></div>
         <b>${esc(m.titel)}</b><div>${esc(wanneer(m.start))}${m.plaats ? ` · ${esc(m.plaats)}` : ""}</div>
         ${reacties.length ? `<small>${wie}</small>` : ""}
-        ${ikKoos && !mijn ? "" : `<div class="c-rij"><button class="c-knop c-hoofd" data-a="agenda" data-b="${b.id}">In mijn agenda</button>
-        ${mijn ? "" : `<button class="c-knop" data-a="kanniet" data-b="${b.id}">Kan niet</button>`}</div>`}</div>`;
+        ${ikKoos && !mijn ? "" : `<div class="c-rij"><button class="c-knop c-hoofd" data-a="agenda" data-b="${b.id}">${T("In mijn agenda")}</button>
+        ${mijn ? "" : `<button class="c-knop" data-a="kanniet" data-b="${b.id}">${T("Kan niet")}</button>`}</div>`}</div>`;
     } else if (m.t === "peiling") {
       kaart = true;
       const stemmen = st.stemmen.get(m.id) || new Map();
       const totaal = stemmen.size;
       const mijnKeuze = stemmen.get(st.ik);
       const tel = (k) => [...stemmen.values()].filter((x) => x === k).length;
-      inhoud = `<div class="c-kaart"><div class="c-kaart-kop"><span>Peiling</span></div><b>${esc(m.vraag)}</b>
+      inhoud = `<div class="c-kaart"><div class="c-kaart-kop"><span>${T("Peiling")}</span></div><b>${esc(m.vraag)}</b>
         ${(m.opties || []).map((o, k) => { const n = tel(k); const pct = totaal ? Math.round((n / totaal) * 100) : 0;
           return `<button class="c-optie ${mijnKeuze === k ? "c-aan" : ""}" data-a="stem" data-b="${b.id}" data-k="${k}">
             <i style="width:${mijnKeuze === undefined ? 0 : pct}%"></i><span>${esc(o)}</span><small>${mijnKeuze === undefined ? "" : n}</small></button>`; }).join("")}
-        <small>${totaal === 1 ? "1 stem" : `${totaal} stemmen`}${mijnKeuze === undefined ? " · tik om te stemmen" : ""}</small></div>`;
+        <small>${totaal === 1 ? T("1 stem") : T("{} stemmen", totaal)}${mijnKeuze === undefined ? ` · ${T("tik om te stemmen")}` : ""}</small></div>`;
     } else if (m.t === "vrij") {
       kaart = true;
-      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>Wanneer ${mijn ? "ik kan" : esc(afzender ? afzender.naam : "") + " kan"}</span></div>
+      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>${mijn ? T("Wanneer ik kan") : T("Wanneer {} kan", esc(afzender ? afzender.naam : ""))}</span></div>
         <div class="c-rij c-wrap">${m.momenten.map((x) => `<button class="c-pil" data-a="kies" data-m="${esc(x)}">${esc(wanneer(x))}</button>`).join("")}</div></div>`;
-    } else inhoud = `<i class="c-grijs">Onbekend bericht.</i>`;
+    } else inhoud = `<i class="c-grijs">${T("Onbekend bericht.")}</i>`;
   }
   const anderen = g.leden.filter((l) => l.id !== st.ik && l.status === "lid");
   const gelezen = mijn && anderen.length && anderen.every((l) => l.gelezen_tot >= b.id);
@@ -540,14 +545,14 @@ function toonGesprek(st) {
   }
   const ander = g.soort === "twee" ? g.leden.find((l) => l.id !== st.ik) : null;
   const verzoek = g.status === "verzoek" ? `<div class="c-verzoek"><div>${g.soort === "groep"
-      ? `Je bent toegevoegd aan <b>${esc(g.naam)}</b> door iemand die niet in je contacten staat.`
-      : `<b>${esc(gesprekNaam(st, g))}</b> staat niet in je contacten en wil met je chatten.`}</div>
-    <div class="c-rij"><button class="c-knop c-hoofd" data-a="ja">Accepteren</button><button class="c-knop" data-a="nee">Weigeren</button>
-    ${g.soort === "twee" ? `<button class="c-knop c-rood" data-a="blokkeer">Blokkeren</button>` : ""}</div></div>` : "";
+      ? T("Je bent toegevoegd aan {} door iemand die niet in je contacten staat.", `<b>${esc(g.naam)}</b>`)
+      : T("{} staat niet in je contacten en wil met je chatten.", `<b>${esc(gesprekNaam(st, g))}</b>`)}</div>
+    <div class="c-rij"><button class="c-knop c-hoofd" data-a="ja">${T("Accepteren")}</button><button class="c-knop" data-a="nee">${T("Weigeren")}</button>
+    ${g.soort === "twee" ? `<button class="c-knop c-rood" data-a="blokkeer">${T("Blokkeren")}</button>` : ""}</div></div>` : "";
   const wachtOp = ander && ander.status === "verzoek" && g.status === "lid"
-    ? `<div class="c-tip">${esc(ander.naam)} heeft jou niet als contact en ziet je bericht als verzoek.</div>` : "";
-  const sleutelWaarschuwing = st.sleutelsVeranderd ? `<div class="c-tip c-waarschuwing">De beveiligingscode is veranderd, bijvoorbeeld door een
-    nieuw apparaat. <button class="c-link" data-a="info">Controleer de code</button></div>` : "";
+    ? `<div class="c-tip">${T("{} heeft jou niet als contact en ziet je bericht als verzoek.", esc(ander.naam))}</div>` : "";
+  const sleutelWaarschuwing = st.sleutelsVeranderd ? `<div class="c-tip c-waarschuwing">${T("De beveiligingscode is veranderd, bijvoorbeeld door een nieuw apparaat.")}
+    <button class="c-link" data-a="info">${T("Controleer de code")}</button></div>` : "";
   const oud = st.wortel.querySelector(".c-berichten");
   const onderaan = !oud || oud.scrollHeight - oud.scrollTop - oud.clientHeight < 80;
   const veldOud = st.wortel.querySelector("#c-tekst");
@@ -558,8 +563,8 @@ function toonGesprek(st) {
     st.voorstel = { titel: waarde("#c-a-titel"), start: waarde("#c-a-start"), duur: Number(waarde("#c-a-duur")), plaats: waarde("#c-a-plaats") };
   }
   if (st.paneel === "peiling" && st.wortel.querySelector("#c-p-vraag")) peilingBewaren(st);
-  const sub = g.community ? g.community_naam || "" : g.soort === "groep" ? `${g.leden.length} deelnemers` : (ander && ander.gebruikersnaam ? "@" + ander.gebruikersnaam : "");
-  const terug = g.community ? `<button class="c-ikoon" data-a="community" data-id="${g.community}" aria-label="Terug">${ICOON.terug}</button>` : terugKnop("lijst");
+  const sub = g.community ? g.community_naam || "" : g.soort === "groep" ? T("{} deelnemers", g.leden.length) : (ander && ander.gebruikersnaam ? "@" + ander.gebruikersnaam : "");
+  const terug = g.community ? `<button class="c-ikoon" data-a="community" data-id="${g.community}" aria-label="${esc(T("Terug"))}">${ICOON.terug}</button>` : terugKnop("lijst");
   const beeld = g.community ? `<span class="c-hekje">#</span>` : g.soort === "groep" ? `<span class="c-avatar c-groep c-klein">${ICOON.groep}</span>` : avatar(gesprekNaam(st, g));
   const vastIds = (g.vast || []).filter((id) => st.berichten.some((x) => x.id === id && x.bericht));
   const vastId = vastIds.length ? vastIds[(st.vastStap || 0) % vastIds.length] : null;
@@ -567,41 +572,41 @@ function toonGesprek(st) {
   const magSchrijven = g.status === "lid" && (!g.alleen_beheer || g.beheerder);
   st.wortel.innerHTML = `
     ${kop(terug, `<button class="c-titel" data-a="${g.community ? "cinfo" : "info"}">${beeld}
-      <span><b>${esc(g.community ? g.naam : gesprekNaam(st, g))}</b><small>${g.verdwijnen ? `⏱ ${VERDWIJNEN[g.verdwijnen] || ""} · ` : ""}${esc(sub)}</small></span></button>`)}
+      <span><b>${esc(g.community ? g.naam : gesprekNaam(st, g))}</b><small>${g.verdwijnen ? `⏱ ${T(VERDWIJNEN[g.verdwijnen] || "")} · ` : ""}${esc(sub)}</small></span></button>`)}
     ${vastBericht ? `<button class="c-vast" data-a="vast-volgende" data-b="${vastBericht.id}">${ICOON.vast}<span>${esc(korteInhoud(vastBericht.bericht))}</span>
       ${vastIds.length > 1 ? `<small>${((st.vastStap || 0) % vastIds.length) + 1}/${vastIds.length}</small>` : ""}</button>` : ""}
     ${sleutelWaarschuwing}
     <div class="c-berichten">
-      <div class="c-e2e">${ICOON.slot} Berichten zijn end-to-end versleuteld. Niemand ${g.community ? "buiten de community" : "anders"} kan ze lezen, ook de app niet.</div>
+      <div class="c-e2e">${ICOON.slot} ${g.community ? T("Berichten zijn end-to-end versleuteld. Niemand buiten de community kan ze lezen, ook de app niet.") : T("Berichten zijn end-to-end versleuteld. Niemand anders kan ze lezen, ook de app niet.")}</div>
       ${rijen.join("")}
       ${wachtOp}
     </div>
     ${verzoek}
     ${st.paneel === "afspraak" ? `<div class="c-paneel">
-      <b>Afspraak voorstellen</b>
-      <label>Wat<input class="c-veld" id="c-a-titel" placeholder="Bijvoorbeeld: koffie drinken" value="${esc(st.voorstel.titel || "")}"></label>
-      <div class="c-rij"><label>Wanneer<input class="c-veld" id="c-a-start" type="datetime-local" value="${esc(st.voorstel.start || "")}"></label>
-      <label class="c-smal">Hoe lang<select class="c-veld" id="c-a-duur">${[30, 60, 90, 120, 180].map((m) => `<option value="${m}" ${m === (st.voorstel.duur || 60) ? "selected" : ""}>${m < 60 ? m + " min" : m / 60 + " uur"}</option>`).join("")}</select></label></div>
-      <label>Waar (optioneel)<input class="c-veld" id="c-a-plaats" value="${esc(st.voorstel.plaats || "")}"></label>
-      <div class="c-rij"><button class="c-knop c-hoofd" data-a="stuur-afspraak">Voorstellen</button><button class="c-knop" data-a="sluit">Annuleren</button></div></div>` : ""}
+      <b>${T("Afspraak voorstellen")}</b>
+      <label>${T("Wat")}<input class="c-veld" id="c-a-titel" placeholder="${esc(T("Bijvoorbeeld: koffie drinken"))}" value="${esc(st.voorstel.titel || "")}"></label>
+      <div class="c-rij"><label>${T("Wanneer")}<input class="c-veld" id="c-a-start" type="datetime-local" value="${esc(st.voorstel.start || "")}"></label>
+      <label class="c-smal">${T("Hoe lang")}<select class="c-veld" id="c-a-duur">${[30, 60, 90, 120, 180].map((m) => `<option value="${m}" ${m === (st.voorstel.duur || 60) ? "selected" : ""}>${m < 60 ? T("{} min", m) : T("{} uur", m / 60)}</option>`).join("")}</select></label></div>
+      <label>${T("Waar (optioneel)")}<input class="c-veld" id="c-a-plaats" value="${esc(st.voorstel.plaats || "")}"></label>
+      <div class="c-rij"><button class="c-knop c-hoofd" data-a="stuur-afspraak">${T("Voorstellen")}</button><button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>` : ""}
     ${st.paneel === "peiling" ? `<div class="c-paneel">
-      <b>Peiling</b>
-      <input class="c-veld" id="c-p-vraag" placeholder="Vraag" value="${esc(st.peiling.vraag || "")}" maxlength="200">
-      ${st.peiling.opties.map((o, k) => `<input class="c-veld c-p-optie" placeholder="Keuze ${k + 1}" value="${esc(o)}" maxlength="80">`).join("")}
-      <div class="c-rij c-wrap"><button class="c-knop c-hoofd" data-a="stuur-peiling">Versturen</button>
-      ${st.peiling.opties.length < 8 ? `<button class="c-knop" data-a="optie-erbij">Keuze erbij</button>` : ""}
-      <button class="c-knop" data-a="sluit">Annuleren</button></div></div>` : ""}
+      <b>${T("Peiling")}</b>
+      <input class="c-veld" id="c-p-vraag" placeholder="${esc(T("Vraag"))}" value="${esc(st.peiling.vraag || "")}" maxlength="200">
+      ${st.peiling.opties.map((o, k) => `<input class="c-veld c-p-optie" placeholder="${esc(T("Keuze {}", k + 1))}" value="${esc(o)}" maxlength="80">`).join("")}
+      <div class="c-rij c-wrap"><button class="c-knop c-hoofd" data-a="stuur-peiling">${T("Versturen")}</button>
+      ${st.peiling.opties.length < 8 ? `<button class="c-knop" data-a="optie-erbij">${T("Keuze erbij")}</button>` : ""}
+      <button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>` : ""}
     ${st.paneel === "plus" ? `<div class="c-paneel c-plus">
-      <button class="c-plus-knop" data-a="foto"><span>📷</span>Foto</button>
-      <button class="c-plus-knop" data-a="afspraak"><span>📅</span>${g.community ? "Evenement" : "Afspraak"}</button>
-      ${g.soort === "groep" ? `<button class="c-plus-knop" data-a="peiling"><span>📊</span>Peiling</button>` : ""}
-      <button class="c-plus-knop" data-a="vrij"><span>🕒</span>Wanneer ik kan</button></div>` : ""}
+      <button class="c-plus-knop" data-a="foto"><span>📷</span>${T("Foto")}</button>
+      <button class="c-plus-knop" data-a="afspraak"><span>📅</span>${g.community ? T("Evenement") : T("Afspraak")}</button>
+      ${g.soort === "groep" ? `<button class="c-plus-knop" data-a="peiling"><span>📊</span>${T("Peiling")}</button>` : ""}
+      <button class="c-plus-knop" data-a="vrij"><span>🕒</span>${T("Wanneer ik kan")}</button></div>` : ""}
     ${st.antwoord && magSchrijven ? `<div class="c-antwoord-balk"><div><b>${esc(st.antwoord.naam)}</b><span>${esc(st.antwoord.tekst)}</span></div>
-      <button class="c-mini" data-a="antwoord-weg" aria-label="Niet beantwoorden">×</button></div>` : ""}
-    ${magSchrijven ? `<div class="c-vermeld-rij"></div><div class="c-invoer"><button class="c-rond" data-a="plus" aria-label="Meer">${ICOON.plus}</button>
-      <textarea id="c-tekst" class="c-veld" rows="1" placeholder="${g.community ? "Bericht in #" + esc(g.naam) : "Bericht"}"></textarea>
-      <button class="c-rond c-hoofd" data-a="stuur" aria-label="Versturen">${ICOON.stuur}</button></div>`
-      : g.status === "lid" ? `<div class="c-alleen">Alleen beheerders schrijven in dit kanaal.</div>` : ""}
+      <button class="c-mini" data-a="antwoord-weg" aria-label="${esc(T("Niet beantwoorden"))}">×</button></div>` : ""}
+    ${magSchrijven ? `<div class="c-vermeld-rij"></div><div class="c-invoer"><button class="c-rond" data-a="plus" aria-label="${esc(T("Meer"))}">${ICOON.plus}</button>
+      <textarea id="c-tekst" class="c-veld" rows="1" placeholder="${g.community ? esc(T("Bericht in #{}", g.naam)) : esc(T("Bericht"))}"></textarea>
+      <button class="c-rond c-hoofd" data-a="stuur" aria-label="${esc(T("Versturen"))}">${ICOON.stuur}</button></div>`
+      : g.status === "lid" ? `<div class="c-alleen">${T("Alleen beheerders schrijven in dit kanaal.")}</div>` : ""}
     <input type="file" id="c-foto" accept="image/*" hidden>
     ${st.menu ? menuBlad(st, g) : ""}`;
   const lijst = st.wortel.querySelector(".c-berichten");
@@ -639,10 +644,10 @@ function menuBlad(st, g) {
   const schrijven = g.status === "lid" && (!g.alleen_beheer || g.beheerder);
   return `<div class="c-achtergrond" data-a="menu-dicht"></div><div class="c-blad">
     ${g.status === "lid" ? `<div class="c-emoji-rij">${EMOJI.map((e) => `<button data-a="emoji" data-b="${b.id}" data-e="${e}">${e}</button>`).join("")}</div>` : ""}
-    ${schrijven ? `<button class="c-blad-knop" data-a="beantwoord">${ICOON.antwoord}Beantwoorden</button>` : ""}
-    ${magBeheren ? `<button class="c-blad-knop" data-a="vastzetten">${ICOON.vast}${vast ? "Losmaken" : "Vastzetten"}</button>` : ""}
-    ${b.bericht.t === "tekst" ? `<button class="c-blad-knop" data-a="kopieer">${ICOON.kopie}Kopiëren</button>` : ""}
-    ${mijn || (g.soort === "groep" && g.beheerder) ? `<button class="c-blad-knop c-rood" data-a="verwijder">${ICOON.weg}Verwijderen</button>` : ""}</div>`;
+    ${schrijven ? `<button class="c-blad-knop" data-a="beantwoord">${ICOON.antwoord}${T("Beantwoorden")}</button>` : ""}
+    ${magBeheren ? `<button class="c-blad-knop" data-a="vastzetten">${ICOON.vast}${vast ? T("Losmaken") : T("Vastzetten")}</button>` : ""}
+    ${b.bericht.t === "tekst" ? `<button class="c-blad-knop" data-a="kopieer">${ICOON.kopie}${T("Kopiëren")}</button>` : ""}
+    ${mijn || (g.soort === "groep" && g.beheerder) ? `<button class="c-blad-knop c-rood" data-a="verwijder">${ICOON.weg}${T("Verwijderen")}</button>` : ""}</div>`;
 }
 
 // @naam: een paar deelnemers voorstellen terwijl je typt.
@@ -667,25 +672,24 @@ async function toonInfo(st) {
                                  st.sleutelLijst.filter((a) => a.gebruiker === ander.id));
   }
   st.wortel.innerHTML = `
-    ${kop(terugKnop("terug"), "<b>Info</b>")}
+    ${kop(terugKnop("terug"), `<b>${T("Info")}</b>`)}
     <div class="c-inhoud c-vulling">
       <div class="c-profiel">${g.soort === "groep" ? `<span class="c-avatar c-groep c-groot">${ICOON.groep}</span>` : avatar(gesprekNaam(st, g), true)}
         <b>${esc(gesprekNaam(st, g))}</b>${ander && ander.gebruikersnaam ? `<small>@${esc(ander.gebruikersnaam)}</small>` : ""}
-        ${ander && !ander.contact ? `<button class="c-knop" data-a="als-contact" data-naam="${esc(ander.gebruikersnaam || "")}">Aan contacten toevoegen</button>` : ""}</div>
-      ${ander && code ? `<div class="c-kaart"><b>${ICOON.slot} Beveiligingscode</b>
+        ${ander && !ander.contact ? `<button class="c-knop" data-a="als-contact" data-naam="${esc(ander.gebruikersnaam || "")}">${T("Aan contacten toevoegen")}</button>` : ""}</div>
+      ${ander && code ? `<div class="c-kaart"><b>${ICOON.slot} ${T("Beveiligingscode")}</b>
         <div class="c-code">${esc(code)}</div>
-        <small>Vergelijk deze code met die op het scherm van ${esc(ander.naam)}, het liefst samen of via een telefoontje.
-        Zijn ze gelijk, dan weet je zeker dat niemand meeleest.</small>
-        <div class="c-rij"><button class="c-knop" data-a="gecontroleerd" data-code="${esc(code)}">Code is gelijk</button></div></div>` : ""}
-      <label>Verdwijnende berichten<select class="c-veld" id="c-verdwijn">${Object.entries(VERDWIJNEN).map(([k, v]) =>
-        `<option value="${k}" ${Number(k) === (g.verdwijnen || 0) ? "selected" : ""}>${v}</option>`).join("")}</select></label>
-      <label class="c-vink"><span>Geen meldingen voor dit gesprek</span><input type="checkbox" id="c-stil" ${g.stil ? "checked" : ""}></label>
-      ${g.soort === "groep" ? `<div class="c-sectie">Deelnemers</div>
-        ${g.leden.map((l) => `<div class="c-lid">${avatar(l.naam)}<span>${esc(l.naam)}${l.id === st.ik ? " (jij)" : ""}</span>
-          <small>${l.beheerder ? "beheerder" : ""}${l.status === "verzoek" ? "uitgenodigd" : ""}</small></div>`).join("")}
-        ${g.beheerder ? `<div class="c-zoek"><input class="c-veld" id="c-toevoegen" placeholder="Gebruikersnaam" autocapitalize="none"><button class="c-knop" data-a="toevoegen">Toevoegen</button></div>` : ""}` : ""}
-      <div class="c-rij c-wrap"><button class="c-knop c-rood" data-a="verlaten">${g.soort === "groep" ? "Groep verlaten" : "Gesprek verwijderen"}</button>
-      ${ander ? `<button class="c-knop c-rood" data-a="blokkeer">Blokkeren</button>` : ""}</div>
+        <small>${T("Vergelijk deze code met die op het scherm van {}, het liefst samen of via een telefoontje. Zijn ze gelijk, dan weet je zeker dat niemand meeleest.", esc(ander.naam))}</small>
+        <div class="c-rij"><button class="c-knop" data-a="gecontroleerd" data-code="${esc(code)}">${T("Code is gelijk")}</button></div></div>` : ""}
+      <label>${T("Verdwijnende berichten")}<select class="c-veld" id="c-verdwijn">${Object.entries(VERDWIJNEN).map(([k, v]) =>
+        `<option value="${k}" ${Number(k) === (g.verdwijnen || 0) ? "selected" : ""}>${T(v)}</option>`).join("")}</select></label>
+      <label class="c-vink"><span>${T("Geen meldingen voor dit gesprek")}</span><input type="checkbox" id="c-stil" ${g.stil ? "checked" : ""}></label>
+      ${g.soort === "groep" ? `<div class="c-sectie">${T("Deelnemers")}</div>
+        ${g.leden.map((l) => `<div class="c-lid">${avatar(l.naam)}<span>${esc(l.naam)}${l.id === st.ik ? ` (${T("jij")})` : ""}</span>
+          <small>${l.beheerder ? T("beheerder") : ""}${l.status === "verzoek" ? T("uitgenodigd") : ""}</small></div>`).join("")}
+        ${g.beheerder ? `<div class="c-zoek"><input class="c-veld" id="c-toevoegen" placeholder="${esc(T("Gebruikersnaam"))}" autocapitalize="none"><button class="c-knop" data-a="toevoegen">${T("Toevoegen")}</button></div>` : ""}` : ""}
+      <div class="c-rij c-wrap"><button class="c-knop c-rood" data-a="verlaten">${g.soort === "groep" ? T("Groep verlaten") : T("Gesprek verwijderen")}</button>
+      ${ander ? `<button class="c-knop c-rood" data-a="blokkeer">${T("Blokkeren")}</button>` : ""}</div>
     </div>`;
   st.wortel.querySelector("#c-verdwijn").addEventListener("change", (e) => instellen(st, { p_verdwijnen: Number(e.target.value) }));
   st.wortel.querySelector("#c-stil").addEventListener("change", (e) => instellen(st, { p_stil: e.target.checked }));
@@ -694,16 +698,14 @@ async function toonInfo(st) {
 async function toonApparaten(st) {
   const ik = await rpc(st, "chat_ik", { p_apparaat: st.apparaat });
   st.wortel.innerHTML = `
-    ${kop(terugKnop("lijst"), "<b>Beveiliging</b>")}
+    ${kop(terugKnop("lijst"), `<b>${T("Beveiliging")}</b>`)}
     <div class="c-inhoud c-vulling">
-      <div class="c-kaart"><b>${ICOON.slot} Hoe het werkt</b>
-        Elk bericht wordt op je apparaat versleuteld en pas op het apparaat van de ander weer leesbaar. De sleutels
-        blijven op je apparaat; de server en de makers van de app kunnen je berichten niet lezen, ook de assistent niet.
-        Een nieuw apparaat kan berichten van vóór de aanmelding niet lezen.</div>
-      <div class="c-sectie">Je apparaten met chat</div>
-      ${ik.apparaten.map((a) => `<div class="c-lid"><span><b>${esc(a.naam || "Apparaat")}</b>${a.id === st.apparaat ? " (dit apparaat)" : ""}
-        <br><small>${esc(a.vingerafdruk.slice(0, 8))} · laatst ${esc(dag(a.laatst))}</small></span>
-        ${a.id === st.apparaat ? "" : `<button class="c-knop" data-a="apparaat-weg" data-id="${a.id}">Weghalen</button>`}</div>`).join("")}
+      <div class="c-kaart"><b>${ICOON.slot} ${T("Hoe het werkt")}</b>
+        ${T("Elk bericht wordt op je apparaat versleuteld en pas op het apparaat van de ander weer leesbaar. De sleutels blijven op je apparaat; de server en de makers van de app kunnen je berichten niet lezen, ook de assistent niet. Een nieuw apparaat kan berichten van vóór de aanmelding niet lezen.")}</div>
+      <div class="c-sectie">${T("Je apparaten met chat")}</div>
+      ${ik.apparaten.map((a) => `<div class="c-lid"><span><b>${esc(a.naam || T("Apparaat"))}</b>${a.id === st.apparaat ? ` (${T("dit apparaat")})` : ""}
+        <br><small>${esc(a.vingerafdruk.slice(0, 8))} · ${esc(T("laatst {}", dag(a.laatst)))}</small></span>
+        ${a.id === st.apparaat ? "" : `<button class="c-knop" data-a="apparaat-weg" data-id="${a.id}">${T("Weghalen")}</button>`}</div>`).join("")}
     </div>`;
 }
 
@@ -733,11 +735,11 @@ async function voorbeeldenBijwerken(st) {
     const r = await rpc(st, "chat_berichten", { p_gesprek: g.id, p_na: g.laatste_id - 1, p_apparaat: st.apparaat });
     const b = r.berichten[r.berichten.length - 1];
     let tekst = "";
-    if (b && b.weg) tekst = "Bericht verwijderd";
+    if (b && b.weg) tekst = T("Bericht verwijderd");
     else if (b && b.inhoud) {
       try { const o = await ontsleutel(st, g.id, b); tekst = voorbeeldTekst(st, g, o.bericht, b.afzender); } catch (e) { tekst = ""; }
     }
-    const nieuw = { id: g.laatste_id, tekst: tekst || "Versleuteld bericht" };
+    const nieuw = { id: g.laatste_id, tekst: tekst || T("Versleuteld bericht") };
     st.voorbeelden.set(g.id, nieuw);
     idbPut("voorbeeld", `${st.ik}:${g.id}`, nieuw).catch(() => {});
     veranderd = true;
@@ -780,7 +782,7 @@ async function berichtenLaden(st) {
   }
   const laatste = [...st.berichten].reverse().find((b) => b.bericht || b.weg);
   if (laatste && r.berichten.length) {
-    const v = { id: laatste.id, tekst: laatste.weg ? "Bericht verwijderd" : voorbeeldTekst(st, st.gesprek, laatste.bericht, laatste.afzender) };
+    const v = { id: laatste.id, tekst: laatste.weg ? T("Bericht verwijderd") : voorbeeldTekst(st, st.gesprek, laatste.bericht, laatste.afzender) };
     st.voorbeelden.set(g.id, v);
     idbPut("voorbeeld", `${st.ik}:${g.id}`, v).catch(() => {});
   }
@@ -881,54 +883,54 @@ async function actie(st, a, el) {
     if (a === "c-maken") {
       const r = await rpc(st, "chat_community_maken", { p_community: v("#c-n-naam"), p_omschrijving: v("#c-n-omschr") });
       await gesprekkenLaden(st); st.communityId = r.id; st.scherm = "community"; toon(st);
-      melding(st, "Community gemaakt. Nodig mensen uit met de knop hieronder.");
+      melding(st, T("Community gemaakt. Nodig mensen uit met de knop hieronder."));
       return;
     }
     if (a === "c-meedoen") {
       const r = await rpc(st, "chat_community_deelnemen", { p_code: v("#c-n-code") });
       await gesprekkenLaden(st); st.communityId = r.id; st.scherm = "community"; toon(st);
-      melding(st, `Welkom bij ${r.naam}.`);
+      melding(st, T("Welkom bij {}.", r.naam));
       return;
     }
     if (a === "c-ja" || a === "c-nee" || a === "c-verlaten") {
-      if (a === "c-verlaten" && !confirm("Deze community verlaten? Je ziet de kanalen dan niet meer.")) return;
+      if (a === "c-verlaten" && !confirm(T("Deze community verlaten? Je ziet de kanalen dan niet meer."))) return;
       await rpc(st, "chat_community_antwoorden", { p_community: st.communityId, p_antwoord: { "c-ja": "ja", "c-nee": "nee", "c-verlaten": "verlaten" }[a] });
       await gesprekkenLaden(st);
       st.scherm = a === "c-ja" ? "community" : "lijst"; return toon(st);
     }
     if (a === "c-opheffen") {
-      if (!confirm("De community opheffen? Alle kanalen en berichten verdwijnen, voor iedereen.")) return;
+      if (!confirm(T("De community opheffen? Alle kanalen en berichten verdwijnen, voor iedereen."))) return;
       await rpc(st, "chat_community_instellen", { p_community: st.communityId, p_titel: null, p_omschrijving: null,
                                                   p_code_aan: null, p_nieuwe_code: null, p_opheffen: true });
       await gesprekkenLaden(st); st.scherm = "lijst"; return toon(st);
     }
     if (a === "c-opslaan" || a === "c-code-aan" || a === "c-nieuwe-code") {
-      if (a === "c-nieuwe-code" && !confirm("Een nieuwe code maken? De oude werkt dan niet meer.")) return;
+      if (a === "c-nieuwe-code" && !confirm(T("Een nieuwe code maken? De oude werkt dan niet meer."))) return;
       await rpc(st, "chat_community_instellen", { p_community: st.communityId,
         p_titel: a === "c-opslaan" ? v("#c-c-naam") : null, p_omschrijving: a === "c-opslaan" ? v("#c-c-omschr") : null,
         p_code_aan: a === "c-code-aan" ? el.checked : null, p_nieuwe_code: a === "c-nieuwe-code", p_opheffen: false });
       await cinfoLaden(st); toon(st);
-      if (a === "c-opslaan") melding(st, "Opgeslagen.");
+      if (a === "c-opslaan") melding(st, T("Opgeslagen."));
       return;
     }
     if (a === "c-delen") {
       const c = st.cinfo;
-      const tekst = `Doe mee met ${c.naam} in de chat van de Assistent-app. Open Chat, tik op het potlood en kies "Community maken of meedoen". Code: ${codeTekst(c.code)}`;
+      const tekst = T("Doe mee met {} in de chat van de Assistent-app. Open Chat, tik op het potlood en kies \"Community maken of meedoen\". Code: {}", c.naam, codeTekst(c.code));
       if (navigator.share) { try { await navigator.share({ title: c.naam, text: tekst }); } catch (e) { /* geannuleerd */ } return; }
-      await navigator.clipboard.writeText(tekst); melding(st, "Gekopieerd."); return;
+      await navigator.clipboard.writeText(tekst); melding(st, T("Gekopieerd.")); return;
     }
     if (a === "c-uitnodigen") {
       const r = await rpc(st, "chat_community_uitnodigen", { p_community: st.communityId, p_wie: v("#c-c-wie") });
       await cinfoLaden(st); toon(st);
-      melding(st, r.status === "lid" ? "Doet nu mee." : "Uitnodiging verstuurd.");
+      melding(st, r.status === "lid" ? T("Doet nu mee.") : T("Uitnodiging verstuurd."));
       return;
     }
     if (a === "c-rol") {
       const actieNaam = el.value; el.value = "";
       if (!actieNaam) return;
-      const vraag = { eigenaar: `${el.dataset.naam} eigenaar maken? Jij wordt dan beheerder.`,
-                      verwijderen: `${el.dataset.naam} uit de community halen?`,
-                      weren: `${el.dataset.naam} weren? Diegene kan dan ook niet terug met de code.` }[actieNaam];
+      const vraag = { eigenaar: T("{} eigenaar maken? Jij wordt dan beheerder.", el.dataset.naam),
+                      verwijderen: T("{} uit de community halen?", el.dataset.naam),
+                      weren: T("{} weren? Diegene kan dan ook niet terug met de code.", el.dataset.naam) }[actieNaam];
       if (vraag && !confirm(vraag)) return;
       await rpc(st, "chat_community_lid", { p_community: st.communityId, p_wie: Number(el.dataset.wie), p_actie: actieNaam });
       await cinfoLaden(st); return toon(st);
@@ -939,7 +941,7 @@ async function actie(st, a, el) {
       await cinfoLaden(st); return toon(st);
     }
     if (a === "kanaal-weg") {
-      if (!confirm(`#${el.dataset.naam} weghalen? De berichten erin verdwijnen voor iedereen.`)) return;
+      if (!confirm(T("#{} weghalen? De berichten erin verdwijnen voor iedereen.", el.dataset.naam))) return;
       await rpc(st, "chat_kanaal_instellen", { p_kanaal: Number(el.dataset.id), p_titel: null, p_alleen_beheer: null, p_weg: true });
       await cinfoLaden(st); return toon(st);
     }
@@ -953,7 +955,7 @@ async function actie(st, a, el) {
     if (a === "beantwoord") {
       const b = st.berichten.find((x) => x.id === st.menu);
       const lid = st.gesprek.leden.find((l) => l.id === b.afzender);
-      st.antwoord = { id: b.id, naam: b.afzender === st.ik ? "Jij" : (lid ? lid.naam : ""), tekst: korteInhoud(b.bericht) };
+      st.antwoord = { id: b.id, naam: b.afzender === st.ik ? "Jij" : (lid ? lid.naam : ""), tekst: korteInhoud(b.bericht, NL) };
       st.menu = null; st.focus = true; return toon(st);
     }
     if (a === "antwoord-weg") { st.antwoord = null; return toon(st); }
@@ -964,7 +966,7 @@ async function actie(st, a, el) {
     }
     if (a === "vast-volgende" || a === "naar") {
       const id = Number(el.dataset.b);
-      if (!st.wortel.querySelector(`#c-b-${id}`)) { melding(st, "Dit bericht is niet meer in beeld."); return; }
+      if (!st.wortel.querySelector(`#c-b-${id}`)) { melding(st, T("Dit bericht is niet meer in beeld.")); return; }
       st.wortel.querySelector(`#c-b-${id}`).scrollIntoView({ block: "center" });
       if (a === "vast-volgende") { st.vastStap = (st.vastStap || 0) + 1; toon(st); }
       const doel = st.wortel.querySelector(`#c-b-${id}`);
@@ -973,12 +975,12 @@ async function actie(st, a, el) {
     }
     if (a === "kopieer") {
       const b = st.berichten.find((x) => x.id === st.menu); st.menu = null; toon(st);
-      await navigator.clipboard.writeText(b.bericht.tekst); melding(st, "Gekopieerd."); return;
+      await navigator.clipboard.writeText(b.bericht.tekst); melding(st, T("Gekopieerd.")); return;
     }
     if (a === "verwijder") {
       const id = st.menu; st.menu = null; toon(st);
-      if (!confirm("Dit bericht voor iedereen verwijderen?")) return;
-      if (!await rpc(st, "chat_bericht_weg", { p_bericht: id })) { melding(st, "Dat kan niet."); return; }
+      if (!confirm(T("Dit bericht voor iedereen verwijderen?"))) return;
+      if (!await rpc(st, "chat_bericht_weg", { p_bericht: id })) { melding(st, T("Dat kan niet.")); return; }
       const b = st.berichten.find((x) => x.id === id); if (b) { b.weg = true; b.bericht = null; }
       return toon(st);
     }
@@ -994,7 +996,7 @@ async function actie(st, a, el) {
     if (a === "optie-erbij") {
       const velden = st.wortel.querySelectorAll(".c-p-optie");
       const nieuw = document.createElement("input");
-      nieuw.className = "c-veld c-p-optie"; nieuw.maxLength = 80; nieuw.placeholder = `Keuze ${velden.length + 1}`;
+      nieuw.className = "c-veld c-p-optie"; nieuw.maxLength = 80; nieuw.placeholder = T("Keuze {}", velden.length + 1);
       velden[velden.length - 1].after(nieuw); nieuw.focus();
       if (velden.length + 1 >= 8) el.remove();
       return;
@@ -1002,7 +1004,7 @@ async function actie(st, a, el) {
     if (a === "stuur-peiling") {
       peilingBewaren(st);
       const vraag = st.peiling.vraag.trim(); const opties = st.peiling.opties.map((o) => o.trim()).filter(Boolean);
-      if (!vraag || opties.length < 2) { melding(st, "Vul een vraag en minstens twee keuzes in."); return; }
+      if (!vraag || opties.length < 2) { melding(st, T("Vul een vraag en minstens twee keuzes in.")); return; }
       return versturen(st, { t: "peiling", id: b64(rnd(9)), vraag, opties });
     }
     if (a === "stem") {
@@ -1022,17 +1024,17 @@ async function actie(st, a, el) {
       if (!naam) return;
       const r = await rpc(st, "chat_contact_toevoegen", { p_wie: naam });
       await contactenLaden(st); toon(st);
-      melding(st, r.chat ? `${r.naam} staat in je contacten.` : `${r.naam} staat in je contacten, maar gebruikt de chat nog niet.`);
+      melding(st, r.chat ? T("{} staat in je contacten.", r.naam) : T("{} staat in je contacten, maar gebruikt de chat nog niet.", r.naam));
       return;
     }
     if (a === "contact-weg") {
-      if (!confirm(`${el.dataset.naam} uit je contacten halen? Een nieuw bericht van diegene komt dan eerst als verzoek binnen.`)) return;
+      if (!confirm(T("{} uit je contacten halen? Een nieuw bericht van diegene komt dan eerst als verzoek binnen.", el.dataset.naam))) return;
       await rpc(st, "chat_contact_weg", { p_wie: Number(el.dataset.id) });
       await contactenLaden(st); return toon(st);
     }
     if (a === "als-contact") {
       await rpc(st, "chat_contact_toevoegen", { p_wie: el.dataset.naam });
-      await instellen(st, {}); st.contacten = null; melding(st, "Staat in je contacten."); return toon(st);
+      await instellen(st, {}); st.contacten = null; melding(st, T("Staat in je contacten.")); return toon(st);
     }
     if (a === "chat-met") {
       const r = await rpc(st, "chat_starten", { p_met: el.dataset.naam });
@@ -1040,11 +1042,11 @@ async function actie(st, a, el) {
     }
     if (a === "groep") {
       const leden = [...st.wortel.querySelectorAll(".c-groep-lid:checked")].map((x) => x.value).filter(Boolean);
-      if (!v("#c-groep").trim()) { melding(st, "Geef de groep een naam."); return; }
-      if (!leden.length) { melding(st, "Kies wie er meedoet."); return; }
+      if (!v("#c-groep").trim()) { melding(st, T("Geef de groep een naam.")); return; }
+      if (!leden.length) { melding(st, T("Kies wie er meedoet.")); return; }
       const r = await rpc(st, "chat_groep_maken", { p_groep: v("#c-groep"), p_leden: leden });
       await gesprekkenLaden(st); await openen(st, r.id);
-      if (r.niet_gevonden && r.niet_gevonden.length) melding(st, `Niet toegevoegd: ${r.niet_gevonden.join(", ")}`);
+      if (r.niet_gevonden && r.niet_gevonden.length) melding(st, T("Niet toegevoegd: {}", r.niet_gevonden.join(", ")));
       return;
     }
     if (a === "stuur") {
@@ -1069,12 +1071,12 @@ async function actie(st, a, el) {
     }
     if (a === "kies") { st.voorstel = { start: el.dataset.m.slice(0, 16) }; st.paneel = "afspraak"; return toon(st); }
     if (a === "vrij") {
-      if (!st.vrij.length) { melding(st, "Je hebt de komende week geen vrije momenten in je agenda."); return; }
+      if (!st.vrij.length) { melding(st, T("Je hebt de komende week geen vrije momenten in je agenda.")); return; }
       return versturen(st, { t: "vrij", momenten: st.vrij });
     }
     if (a === "stuur-afspraak") {
       const titel = v("#c-a-titel").trim(); const begin = v("#c-a-start");
-      if (!titel || !begin) { melding(st, "Vul in wat en wanneer."); return; }
+      if (!titel || !begin) { melding(st, T("Vul in wat en wanneer.")); return; }
       return versturen(st, { t: "afspraak", id: b64(rnd(9)), titel, start: begin, minuten: Number(v("#c-a-duur")) || 60, plaats: v("#c-a-plaats").trim() });
     }
     if (a === "agenda" || a === "kanniet") {
@@ -1085,7 +1087,7 @@ async function actie(st, a, el) {
         const van = (st.gesprek.leden.find((l) => l.id === b.afzender) || {}).naam || "";
         st.zet("agenda", { titel: m.titel, start: m.start, minuten: m.minuten || 60, plaats: m.plaats || "",
                            met: b.afzender === st.ik ? gesprekNaam(st, st.gesprek) : van, n: Date.now() });
-        melding(st, "Staat in je agenda.");
+        melding(st, T("Staat in je agenda."));
       }
       if (b.afzender !== st.ik) await versturen(st, { t: "reactie", op: m.id, antwoord: a === "agenda" ? "ja" : "nee", titel: m.titel });
       return;
@@ -1097,13 +1099,13 @@ async function actie(st, a, el) {
       await gesprekkenLaden(st); st.contacten = null; return openen(st, st.gesprek.id);
     }
     if (a === "verlaten") {
-      if (!confirm("Weet je het zeker?")) return;
+      if (!confirm(T("Weet je het zeker?"))) return;
       await rpc(st, "chat_antwoorden", { p_gesprek: st.gesprek.id, p_antwoord: st.gesprek.status === "verzoek" ? "nee" : "verlaten" });
       return actie(st, "lijst");
     }
     if (a === "blokkeer") {
       const ander = st.gesprek.leden.find((l) => l.id !== st.ik);
-      if (!ander || !confirm(`${ander.naam} blokkeren? Jullie kunnen elkaar dan geen berichten meer sturen.`)) return;
+      if (!ander || !confirm(T("{} blokkeren? Jullie kunnen elkaar dan geen berichten meer sturen.", ander.naam))) return;
       await rpc(st, "chat_blokkeren", { p_wie: ander.id, p_aan: true });
       st.contacten = null;
       return actie(st, "lijst");
@@ -1115,16 +1117,16 @@ async function actie(st, a, el) {
     if (a === "gecontroleerd") {
       const ander = st.gesprek.leden.find((l) => l.id !== st.ik);
       await idbPut("geverifieerd", `${st.ik}:${ander.id}`, el.dataset.code);
-      st.sleutelsVeranderd = false; melding(st, "Opgeslagen. Verandert de code, dan zie je een waarschuwing.");
+      st.sleutelsVeranderd = false; melding(st, T("Opgeslagen. Verandert de code, dan zie je een waarschuwing."));
       return;
     }
     if (a === "apparaat-weg") {
-      if (!confirm("Dit apparaat weghalen? Het kan daarna geen nieuwe berichten meer lezen.")) return;
+      if (!confirm(T("Dit apparaat weghalen? Het kan daarna geen nieuwe berichten meer lezen."))) return;
       await rpc(st, "chat_apparaat_weg", { p_apparaat: Number(el.dataset.id) });
       return toon(st);
     }
   } catch (e) {
-    melding(st, e.message || "Er ging iets mis.");
+    melding(st, e.message || T("Er ging iets mis."));
   }
 }
 
@@ -1149,7 +1151,7 @@ async function start(st) {
     if (st.open) { const id = st.open; st.open = null; return openen(st, id); }
     toon(st);
   } catch (e) {
-    st.fout = e.message || "De chat kon niet starten.";
+    st.fout = e.message || T("De chat kon niet starten.");
     toon(st);
   }
 }
@@ -1201,6 +1203,8 @@ function vastzetten(wortel) {
 
 export default function (component) {
   const { data, setTriggerValue, parentElement } = component;
+  const taalVoor = TAAL;
+  TAAL = (data && data.taal && typeof data.taal === "object") ? data.taal : {};
   let st = parentElement.__chat;
   const wortel = parentElement.querySelector(".c-wortel");
   if (!st || st.naam !== data.naam || st.token !== data.token) {
@@ -1234,6 +1238,7 @@ export default function (component) {
   }
   st.wortel = wortel;
   st.vrij = data.vrij || [];
+  if (st.klaar && JSON.stringify(taalVoor) !== JSON.stringify(TAAL)) toon(st);  // andere taal: meteen opnieuw tekenen
   st.zet = setTriggerValue;
   bijhouden(st);
   if (st.losmaken && st.vastOp !== wortel) { st.losmaken(); st.losmaken = null; }
