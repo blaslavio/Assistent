@@ -6,6 +6,7 @@ nooit geld via de app: kopers en verkopers regelen de betaling zelf.
 
 import os
 import re
+import time
 from datetime import date, datetime, timedelta
 from urllib.parse import quote_plus
 
@@ -100,11 +101,13 @@ REACTIES = {"op_tijd": "Op tijd", "later": "Later", "kan_niet": "Kan niet", "opm
 
 
 def agenda_delen(met: str, niveau: str = "bezet") -> str:
+    _deelsituatie.clear()
     """Deelt je agenda met een gebruiker (details of alleen 'bezet'). Geeft diens naam."""
     return _ok(opslag._rpc_ik("agenda_delen", p_met=met.strip().lstrip("@"), p_niveau=niveau))["met"]
 
 
 def agenda_delen_stoppen(ander_id: int) -> None:
+    _deelsituatie.clear()
     opslag._rpc_ik("agenda_delen_stoppen", p_ander=ander_id)
 
 
@@ -112,7 +115,17 @@ def agenda_deelsituatie() -> dict:
     """{ik_deel_met: [{id, naam, niveau}], met_mij: [{id, naam, niveau}]}; leeg als je niet online bent."""
     if not beschikbaar():
         return {"ik_deel_met": [], "met_mij": []}
-    return opslag._rpc_ik("agenda_deelsituatie")
+    # Een minuut onthouden: verandert zelden, en de agenda vraagt het bij elke klik.
+    sleutel = (opslag._naam.get(), opslag._wachtwoord.get())
+    bewaard = _deelsituatie.get(sleutel)
+    if bewaard and time.time() - bewaard[0] < 60:
+        return bewaard[1]
+    antwoord = opslag._rpc_ik("agenda_deelsituatie")
+    _deelsituatie[sleutel] = (time.time(), antwoord)
+    return antwoord
+
+
+_deelsituatie: dict[tuple, tuple[float, dict]] = {}
 
 
 def gedeelde_agenda(eigenaar_id: int, van: str, tot: str) -> dict:
@@ -649,7 +662,22 @@ def nieuw() -> dict:
     maand = date.today().strftime("%Y-%m")
     week = (date.today() - timedelta(days=7)).isoformat()
     saldo = {"verdiend": 0.0, "verkocht": 0, "onderweg": 0.0, "uitgegeven": 0.0}
-    for b in mijn_bestellingen():
+    sinds = opslag.instellingen().get("agenda_gezien") or (datetime.now() - timedelta(days=2)).isoformat()
+
+    def veilig(functie):
+        def proberen():
+            try:
+                return functie()
+            except opslag.GeenToegang:
+                raise
+            except Exception:
+                return None
+        return proberen
+
+    # Alles tegelijk vragen: scheelt bij elke vraag de reistijd naar de database.
+    bestellingen, alle_berichten, met_mij, nieuws, winkelnieuws = opslag.tegelijk(
+        mijn_bestellingen, berichten, gedeeld_met_mij, veilig(lambda: agenda_nieuws(sinds)), veilig(mijn_winkelnieuws))
+    for b in bestellingen:
         bijgewerkt = (b.get("bijgewerkt") or "")[:10]
         if b["rol"] == "verkoper":
             wacht += b["status"] in ("aangevraagd", "betaald")
@@ -673,33 +701,22 @@ def nieuw() -> dict:
                 meldingen.append(("bestellingen", f"📦 **{b['titel']}** is onderweg, bevestig als het binnen is"))
             if b["status"] in ("betaald", "geleverd", "afgerond") and bijgewerkt[:7] == maand:
                 saldo["uitgegeven"] += float(b["bedrag"]) + float(b.get("kosten") or 0)
-    ongelezen = sum(not b["gelezen"] for b in berichten())
-    gedeeld = len(gedeeld_met_mij())
+    ongelezen = sum(not b["gelezen"] for b in alle_berichten)
+    gedeeld = len(met_mij)
     if ongelezen:
         meldingen.append(("berichten", f"💬 {ongelezen} nieuw bericht" + ("en" if ongelezen > 1 else "")))
     if gedeeld:
         meldingen.append(("samen", f"🤝 {gedeeld} nieuw met je gedeeld"))
-    try:
-        sinds = opslag.instellingen().get("agenda_gezien") or (datetime.now() - timedelta(days=2)).isoformat()
-        nieuws = agenda_nieuws(sinds)
+    if nieuws:
         for u in nieuws["uitnodigingen"][:3]:
             meldingen.append(("agenda", f"🗓️ {u['van']} nodigt je uit: **{u['titel']}** · {tijd_kort(u['start'])}"))
         for u in nieuws["antwoorden"][:3]:
-            meldingen.append(("agenda", f"🗓️ {u['gast']}: {ANTWOORDEN[u['antwoord']].lower()} · {u['titel']}"))
+            meldingen.append(("agenda", f"🗓️ {u['gast']}: {ANTWOORDEN.get(u['antwoord'], u['antwoord']).lower()} · {u['titel']}"))
         for r in nieuws["reacties"][:3]:
             meldingen.append(("agenda", f"🗓️ {reactie_tekst(r)} · {r.get('titel') or 'afspraak'}"))
-    except opslag.GeenToegang:
-        raise
-    except Exception:
-        pass
-    try:
-        for n in mijn_winkelnieuws().get("nieuws", [])[:2]:
-            if n["datum"][:10] >= (date.today() - timedelta(days=2)).isoformat():
-                meldingen.append(("winkels", f"📰 **{n['winkel']}**: {n['tekst'][:70]}"))
-    except opslag.GeenToegang:
-        raise
-    except Exception:
-        pass
+    for n in (winkelnieuws or {}).get("nieuws", [])[:2]:
+        if n["datum"][:10] >= (date.today() - timedelta(days=2)).isoformat():
+            meldingen.append(("winkels", f"📰 **{n['winkel']}**: {n['tekst'][:70]}"))
     return {"gedeeld": gedeeld, "berichten": ongelezen, "bestellingen": wacht, "meldingen": meldingen, "saldo": saldo}
 
 

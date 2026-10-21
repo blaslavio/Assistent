@@ -1327,8 +1327,9 @@ def agenda_overzicht() -> None:
     GASTEN_NU.clear()
     if samen.beschikbaar() and eigen:
         try:
-            REACTIES_NU.update(samen.mijn_agenda_reacties(eigen))
-            GASTEN_NU.update(samen.gasten(eigen))
+            reacties, gasten = opslag.tegelijk(lambda: samen.mijn_agenda_reacties(eigen), lambda: samen.gasten(eigen))
+            REACTIES_NU.update(reacties)
+            GASTEN_NU.update(gasten)
         except opslag.GeenToegang:
             raise
         except Exception:

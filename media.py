@@ -8,6 +8,7 @@ naam en wachtwoord van de gebruiker nodig.
 import base64
 import io
 import json
+import time
 
 from PIL import Image, ImageOps
 
@@ -56,6 +57,7 @@ def toevoegen(afspraak_id: int, soort: str, naam: str, mime: str, inhoud: bytes)
         index.append({"id": nieuw, "afspraak_id": afspraak_id, "soort": soort, "naam": naam, "mime": mime})
         _lokale_index_opslaan(index)
         return nieuw
+    _lijsten.clear()
     nieuw = opslag._rpc_ik("media_toevoegen", p_afspraak_id=afspraak_id, p_soort=soort, p_bestandsnaam=naam,
                            p_mime=mime, p_inhoud=base64.b64encode(inhoud).decode())
     if nieuw is None:
@@ -66,7 +68,17 @@ def toevoegen(afspraak_id: int, soort: str, naam: str, mime: str, inhoud: bytes)
 def lijst(afspraak_id: int) -> list[dict]:
     if not opslag.online():
         return [m for m in _lokale_index() if m["afspraak_id"] == afspraak_id]
-    return opslag._rpc_ik("media_lijst", p_afspraak_id=afspraak_id)["media"]
+    # Vijf minuten onthouden: toevoegen en weghalen gaan via deze server en vergeten het dan meteen.
+    sleutel = (opslag._naam.get(), opslag._wachtwoord.get(), afspraak_id)
+    bewaard = _lijsten.get(sleutel)
+    if bewaard and time.time() - bewaard[0] < 300:
+        return bewaard[1]
+    media = opslag._rpc_ik("media_lijst", p_afspraak_id=afspraak_id)["media"]
+    _lijsten[sleutel] = (time.time(), media)
+    return media
+
+
+_lijsten: dict[tuple, tuple[float, list]] = {}
 
 
 def ophalen(media_id: int) -> bytes:
@@ -79,7 +91,7 @@ def ophalen(media_id: int) -> bytes:
 def weghalen(media_id: int) -> None:
     if not opslag.online():
         _lokale_index_opslaan([m for m in _lokale_index() if m["id"] != media_id])
-    elif not opslag._rpc_ik("media_weghalen", p_id=media_id):
+    elif _lijsten.clear() or not opslag._rpc_ik("media_weghalen", p_id=media_id):
         raise opslag.GeenToegang
 
 

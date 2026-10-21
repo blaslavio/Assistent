@@ -35,9 +35,15 @@ LEEG = {"taken": [], "afspraken": [], "contacten": [], "leerdoelen": [], "sportd
 # Een lege naam is de eigenaar van de app.
 _naam: contextvars.ContextVar[str] = contextvars.ContextVar("naam", default="")
 _wachtwoord: contextvars.ContextVar[str] = contextvars.ContextVar("wachtwoord", default="")
-# De gegevens van deze run, zodat een pagina ze maar één keer uit de database haalt: (account, tijd, gegevens).
-_onthouden: contextvars.ContextVar[tuple | None] = contextvars.ContextVar("onthouden", default=None)
-ONTHOUD_SECONDEN = 20
+# De gegevens per gebruiker, gedeeld door alle sessies in deze server. Alles wat deze gegevens wijzigt, gaat via
+# deze server (opslaan hieronder), dus ze blijven kloppen en hoeven niet bij elke klik opnieuw uit de database
+# (die staat in Ierland, de server in de VS: elke vraag kost een paar honderd milliseconden).
+# Een inlogcode mag de bewaarde gegevens alleen gebruiken als de database die code kort geleden nog goedkeurde.
+_gedeeld: dict[int, tuple[float, dict]] = {}          # gebruiker-id -> (tijd, gegevens)
+_codes: dict[tuple[str, str], tuple[float, int]] = {}  # (naam, inlogcode) -> (goedgekeurd om, gebruiker-id)
+_gedeeld_slot = threading.Lock()
+ONTHOUD_SECONDEN = 600
+CODE_GELDIG_SECONDEN = 300
 
 
 class GeenToegang(Exception):
@@ -48,7 +54,6 @@ def gebruik_account(naam: str, wachtwoord: str) -> None:
     """Begin van elke run (en elke knop): vanaf hier de gegevens van dit account, vers uit de database."""
     _naam.set(naam)
     _wachtwoord.set(wachtwoord)
-    _onthouden.set(None)
 
 
 def gebruik_wachtwoord(wachtwoord: str) -> None:
@@ -72,12 +77,29 @@ def _rpc(functie: str, **parameters):
     return r.json()
 
 
+def tegelijk(*functies):
+    """Voert een paar databasevragen tegelijk uit in plaats van na elkaar (scheelt telkens de reistijd)."""
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=len(functies)) as uitvoerder:
+        bezig = [uitvoerder.submit(contextvars.copy_context().run, f) for f in functies]
+        return [b.result() for b in bezig]
+
+
 def _rpc_ik(functie: str, **parameters):
     """Roept een databasefunctie aan als de ingelogde gebruiker."""
     antwoord = _rpc(functie, p_naam=_naam.get(), p_wachtwoord=_wachtwoord.get(), **parameters)
+    if functie in _MAAKT_CODES_ONGELDIG:
+        vergeet_gegevens()
     if isinstance(antwoord, dict) and antwoord.get("geen_toegang"):
+        with _gedeeld_slot:
+            _codes.pop((_naam.get(), _wachtwoord.get()), None)
         raise GeenToegang
     return antwoord
+
+
+# Na deze databasefuncties kan een inlogcode niet meer geldig zijn, of zijn de gegevens elders gewist.
+_MAAKT_CODES_ONGELDIG = {"uitloggen", "overal_uitloggen", "profiel_bijwerken", "account_verwijderen",
+                         "twee_stap_bevestigen", "twee_stap_uitzetten"}
 
 
 def _lokaal_laden() -> dict:
@@ -102,31 +124,55 @@ def _lokale_hash(wachtwoord: str, zout: str) -> str:
 def laden() -> dict:
     if not online():
         return _lokaal_laden()
-    account = (_naam.get(), _wachtwoord.get())
-    bewaard = _onthouden.get()
-    if bewaard and bewaard[0] == account and datetime.now().timestamp() - bewaard[1] < ONTHOUD_SECONDEN:
-        return copy.deepcopy(bewaard[2])
-    gegevens = {**json.loads(json.dumps(LEEG)), **(_rpc_ik("mijn_gegevens").get("data") or {})}
-    _onthouden.set((account, datetime.now().timestamp(), gegevens))
-    return copy.deepcopy(gegevens)
+    sleutel, nu = (_naam.get(), _wachtwoord.get()), time.time()
+    with _gedeeld_slot:
+        goedgekeurd, gebruiker = _codes.get(sleutel, (0, None))
+        bewaard = _gedeeld.get(gebruiker) if nu - goedgekeurd < CODE_GELDIG_SECONDEN else None
+        if bewaard and nu - bewaard[0] < ONTHOUD_SECONDEN:
+            return copy.deepcopy(bewaard[1])
+    antwoord = _rpc_ik("mijn_gegevens")
+    gegevens = {**json.loads(json.dumps(LEEG)), **(antwoord.get("data") or {})}
+    if gebruiker_id := (antwoord.get("gebruiker") or {}).get("id"):
+        with _gedeeld_slot:
+            _codes[sleutel] = (nu, gebruiker_id)
+            _gedeeld[gebruiker_id] = (nu, copy.deepcopy(gegevens))
+    return gegevens
+
+
+def vergeet_gegevens() -> None:
+    """Haalt alles weg wat deze server onthoudt: de volgende keer vers uit de database."""
+    with _gedeeld_slot:
+        _gedeeld.clear()
+        _codes.clear()
 
 
 def opslaan(gegevens: dict) -> None:
     if not online():
         _lokaal_opslaan(gegevens)
     elif not _rpc_ik("mijn_gegevens_bewaren", p_data=gegevens):
-        _onthouden.set(None)
+        with _gedeeld_slot:
+            _codes.pop((_naam.get(), _wachtwoord.get()), None)
         raise GeenToegang
     else:
-        _onthouden.set(((_naam.get(), _wachtwoord.get()), datetime.now().timestamp(), copy.deepcopy(gegevens)))
+        with _gedeeld_slot:
+            _goedgekeurd, gebruiker = _codes.get((_naam.get(), _wachtwoord.get()), (0, None))
+            if gebruiker is not None:
+                _codes[(_naam.get(), _wachtwoord.get())] = (time.time(), gebruiker)
+                _gedeeld[gebruiker] = (time.time(), copy.deepcopy(gegevens))
 
 
 # --- Wachtwoord ------------------------------------------------------------
 
+_geregistreerd = False
+
+
 def is_geregistreerd() -> bool:
+    global _geregistreerd
     if not online():
         return "wachtwoord_hash" in _lokaal_laden().get("instellingen", {})
-    return bool(_rpc("is_geregistreerd"))
+    # Eenmaal geregistreerd blijft zo: dan hoeft het niet bij elke klik opnieuw gevraagd.
+    _geregistreerd = _geregistreerd or bool(_rpc("is_geregistreerd"))
+    return _geregistreerd
 
 
 def registreer(wachtwoord: str) -> bool:
