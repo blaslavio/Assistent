@@ -192,14 +192,27 @@ const ICOON = {
   mensen: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0M16 4.5a3.5 3.5 0 010 7M18 14a6 6 0 013.5 6"/></svg>',
   groep: '<svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2 19a6 6 0 0112 0M10 19a6 6 0 0112 0"/></svg>',
   agenda: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>',
+  kanaal: '<svg viewBox="0 0 24 24"><path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16"/></svg>',
+  vast: '<svg viewBox="0 0 24 24"><path d="M9 4h6l-1 6 4 4H6l4-4-1-6zM12 14v7"/></svg>',
+  antwoord: '<svg viewBox="0 0 24 24"><path d="M10 8L5 12l5 4M5 12h9a5 5 0 015 5v1"/></svg>',
+  kopie: '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg>',
+  weg: '<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>',
+  delen: '<svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 12v7a1 1 0 001 1h12a1 1 0 001-1v-7"/></svg>',
 };
+const EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+const SKIP = new Set(["reactie", "emoji", "stem"]);
 const KLEUREN = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
 function avatar(naam, groot = false) {
   let h = 0; for (const c of String(naam || "?")) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return `<span class="c-avatar${groot ? " c-groot" : ""}" style="background:${KLEUREN[h % KLEUREN.length]}">${esc(String(naam || "?").trim().slice(0, 1).toUpperCase())}</span>`;
 }
+const communityAvatar = (naam, groot = false) => avatar(naam, groot).replace('class="c-avatar', 'class="c-avatar c-vierkant');
+const communityOngelezen = (c) => (c.kanalen || []).reduce((n, k) => n + (k.ongelezen || 0), 0);
+const leden = (n) => (n === 1 ? "1 lid" : `${n} leden`);
+const codeTekst = (code) => String(code || "").match(/.{1,4}/g)?.join("-") || "";
 
 function gesprekNaam(st, g) {
+  if (g.community) return "# " + g.naam;
   if (g.soort === "groep") return g.naam;
   const ander = g.leden.find((l) => l.id !== st.ik);
   return ander ? ander.naam : "Gesprek";
@@ -212,6 +225,9 @@ function voorbeeldTekst(st, g, m, afzender) {
   if (m.t === "tekst") return wie + m.tekst.slice(0, 80);
   if (m.t === "foto") return wie + "Foto";
   if (m.t === "afspraak") return wie + `Afspraak: ${m.titel}`;
+  if (m.t === "peiling") return wie + `Peiling: ${m.vraag}`;
+  if (m.t === "emoji") return m.emoji ? wie.replace(/: $/, " ") + `reageerde ${m.emoji}` : "";
+  if (m.t === "stem") return wie.replace(/: $/, " ") + "stemde";
   if (m.t === "vrij") return wie + "Wanneer ik kan";
   if (m.t === "reactie") return wie.replace(/: $/, " ") + (m.antwoord === "ja" ? "zet de afspraak in de agenda" : "kan niet op die afspraak");
   return "";
@@ -224,7 +240,8 @@ const terugKnop = (a) => `<button class="c-ikoon" data-a="${a}" aria-label="Teru
 
 function tabs(st) {
   const verzoeken = st.gesprekken.filter((g) => g.status === "verzoek").length;
-  const ongelezen = st.gesprekken.reduce((n, g) => n + (g.ongelezen || 0), 0) + verzoeken;
+  const ongelezen = st.gesprekken.reduce((n, g) => n + (g.ongelezen || 0), 0) + verzoeken
+    + (st.communities || []).reduce((n, c) => n + communityOngelezen(c) + (c.status === "uitgenodigd" ? 1 : 0), 0);
   return `<div class="c-tabs">
     <button class="c-tab ${st.scherm === "lijst" ? "c-aan" : ""}" data-a="lijst">${ICOON.chats}<span>Chats${ongelezen ? ` (${ongelezen})` : ""}</span></button>
     <button class="c-tab ${st.scherm === "contacten" ? "c-aan" : ""}" data-a="contacten">${ICOON.mensen}<span>Contacten</span></button></div>`;
@@ -243,6 +260,9 @@ function toon(st) {
   if (st.scherm === "groep") return toonGroep(st);
   if (st.scherm === "info") return toonInfo(st);
   if (st.scherm === "apparaten") return toonApparaten(st);
+  if (st.scherm === "community") return toonCommunity(st);
+  if (st.scherm === "cinfo") return toonCommunityInfo(st);
+  if (st.scherm === "cnieuw") return toonCommunityNieuw(st);
   toonLijst(st);
 }
 
@@ -259,21 +279,132 @@ function itemHtml(st, g) {
     </button>`;
 }
 
+function communityItemHtml(st, c) {
+  const ongelezen = communityOngelezen(c);
+  const onder = c.status === "uitgenodigd" ? `<span class="c-accent">Uitnodiging${c.door ? " van " + esc(c.door) : ""}</span>`
+    : `${c.kanalen.length === 1 ? "1 kanaal" : c.kanalen.length + " kanalen"} · ${leden(c.leden)}`;
+  const laatst = c.kanalen.reduce((m, k) => (k.laatst > m ? k.laatst : m), "");
+  return `<button class="c-item" data-a="community" data-id="${c.id}">${communityAvatar(c.naam)}
+      <span class="c-item-tekst"><b>${esc(c.naam)}</b><small>${onder}</small></span>
+      <span class="c-item-rechts"><small class="${ongelezen ? "c-accent" : ""}">${esc(kortTijd(laatst))}</small>
+        ${ongelezen ? `<span class="c-badge">${ongelezen}</span>` : "<span></span>"}</span></button>`;
+}
+
+function nieuwBlad() {
+  return `<div class="c-achtergrond" data-a="blad-dicht"></div><div class="c-blad">
+    <button class="c-blad-knop" data-a="contacten">${ICOON.chats}Nieuw gesprek</button>
+    <button class="c-blad-knop" data-a="groep-nieuw">${ICOON.groep}Nieuwe groep</button>
+    <button class="c-blad-knop" data-a="cnieuw">${ICOON.kanaal}Community maken of meedoen</button></div>`;
+}
+
 function toonLijst(st) {
-  const verzoeken = st.gesprekken.filter((g) => g.status === "verzoek");
-  const rest = st.gesprekken.filter((g) => g.status !== "verzoek");
+  const communities = st.communities || [];
+  const verzoeken = [...st.gesprekken.filter((g) => g.status === "verzoek").map((g) => itemHtml(st, g)),
+                     ...communities.filter((c) => c.status === "uitgenodigd").map((c) => communityItemHtml(st, c))];
+  const laatstC = (c) => c.kanalen.reduce((m, k) => (k.laatst > m ? k.laatst : m), "");
+  const rest = [...st.gesprekken.filter((g) => g.status !== "verzoek").map((g) => [g.laatst || "", itemHtml(st, g)]),
+                ...communities.filter((c) => c.status === "lid").map((c) => [laatstC(c), communityItemHtml(st, c)])]
+    .sort((a, b) => (a[0] < b[0] ? 1 : -1)).map((x) => x[1]);
   st.wortel.innerHTML = `
     ${kop("", "<b class='c-groot-titel'>Chats</b>",
       `<button class="c-ikoon" data-a="apparaten" aria-label="Beveiliging">${ICOON.slot}</button>
-       <button class="c-ikoon" data-a="contacten" aria-label="Nieuw gesprek">${ICOON.nieuw}</button>`)}
+       <button class="c-ikoon" data-a="blad" aria-label="Nieuw">${ICOON.nieuw}</button>`)}
     <div class="c-inhoud">
-      ${verzoeken.length ? `<div class="c-sectie">Verzoeken van onbekenden</div>${verzoeken.map((g) => itemHtml(st, g)).join("")}
+      ${verzoeken.length ? `<div class="c-sectie">Verzoeken en uitnodigingen</div>${verzoeken.join("")}
         <div class="c-sectie">Gesprekken</div>` : ""}
-      ${rest.map((g) => itemHtml(st, g)).join("") || (verzoeken.length ? "" : `<div class="c-leeg">Nog geen gesprekken.<br>
-        <button class="c-knop c-hoofd" data-a="contacten">Begin een gesprek</button></div>`)}
+      ${rest.join("") || (verzoeken.length ? "" : `<div class="c-leeg">Nog geen gesprekken.<br>
+        <button class="c-knop c-hoofd" data-a="blad">Begin een gesprek</button></div>`)}
       <div class="c-voet">${ICOON.slot} Berichten zijn end-to-end versleuteld</div>
     </div>
-    ${tabs(st)}`;
+    ${tabs(st)}
+    ${st.blad === "nieuw" ? nieuwBlad() : ""}`;
+}
+
+function toonCommunity(st) {
+  const c = (st.communities || []).find((x) => x.id === st.communityId);
+  if (!c) { st.scherm = "lijst"; return toonLijst(st); }
+  const beheer = c.rol === "eigenaar" || c.rol === "beheerder";
+  st.wortel.innerHTML = `
+    ${kop(terugKnop("lijst"), `<button class="c-titel" data-a="cinfo">${communityAvatar(c.naam).replace("c-avatar", "c-avatar c-klein")}
+      <span><b>${esc(c.naam)}</b><small>${leden(c.leden)}</small></span></button>`)}
+    <div class="c-inhoud">
+      ${c.omschrijving ? `<div class="c-uitleg" style="padding-top:12px">${esc(c.omschrijving)}</div>` : ""}
+      ${c.status === "uitgenodigd" ? `<div class="c-verzoek"><div>${c.door ? `<b>${esc(c.door)}</b> nodigt je uit` : "Je bent uitgenodigd"}
+        voor <b>${esc(c.naam)}</b>.</div>
+        <div class="c-rij"><button class="c-knop c-hoofd" data-a="c-ja">Meedoen</button><button class="c-knop" data-a="c-nee">Weigeren</button></div></div>`
+      : `<div class="c-sectie">Kanalen</div>${c.kanalen.map((k) => `<button class="c-item" data-a="open" data-id="${k.id}">
+          <span class="c-hekje">#</span><span class="c-item-tekst"><b>${esc(k.naam)}</b>
+          <small>${k.alleen_beheer ? "Mededelingen van beheerders" : "&nbsp;"}</small></span>
+          <span class="c-item-rechts"><small class="${k.ongelezen ? "c-accent" : ""}">${esc(kortTijd(k.laatst))}</small>
+          ${k.ongelezen ? `<span class="c-badge">${k.ongelezen}</span>` : "<span></span>"}</span></button>`).join("")}
+        <div class="c-vulling"><button class="c-knop" data-a="cinfo">${beheer ? "Uitnodigen en beheren" : "Mensen uitnodigen"}</button></div>`}
+    </div>`;
+}
+
+async function cinfoLaden(st) {
+  st.cinfo = await rpc(st, "chat_community", { p_community: st.communityId });
+}
+
+function toonCommunityInfo(st) {
+  const c = st.cinfo;
+  if (!c) { st.wortel.innerHTML = `${kop(terugKnop("cterug"), "<b>Community</b>")}<div class="c-inhoud"></div>`; return; }
+  const beheer = c.rol === "eigenaar" || c.rol === "beheerder";
+  const rolNaam = { eigenaar: "eigenaar", beheerder: "beheerder", lid: "" };
+  const keuzes = (d) => {
+    if (!beheer || d.id === st.ik || d.rol === "eigenaar" || (d.rol === "beheerder" && c.rol !== "eigenaar")) return "";
+    const opties = [["", "..."], d.rol === "beheerder" ? ["lid", "Gewoon lid maken"] : ["beheerder", "Beheerder maken"],
+      ...(c.rol === "eigenaar" && d.status === "lid" ? [["eigenaar", "Eigenaar maken"]] : []),
+      ["verwijderen", "Verwijderen"], ["weren", "Weren"]];
+    return `<select class="c-rol" data-wie="${d.id}" data-naam="${esc(d.naam)}" aria-label="Beheren">${opties.map(([w, t]) => `<option value="${w}">${t}</option>`).join("")}</select>`;
+  };
+  st.wortel.innerHTML = `
+    ${kop(terugKnop("cterug"), "<b>Community</b>")}
+    <div class="c-inhoud c-vulling">
+      <div class="c-profiel">${communityAvatar(c.naam, true)}<b>${esc(c.naam)}</b>
+        ${c.omschrijving ? `<small>${esc(c.omschrijving)}</small>` : ""}<small>${leden(c.leden)}</small></div>
+      <div class="c-sectie">Uitnodigen</div>
+      <div class="c-zoek"><input class="c-veld" id="c-c-wie" placeholder="Gebruikersnaam" autocapitalize="none" autocomplete="off">
+        <button class="c-knop c-hoofd" data-a="c-uitnodigen">Uitnodigen</button></div>
+      ${c.code ? `<div class="c-kaart"><b>Uitnodigingscode</b>
+        ${c.code_aan ? `<div class="c-code-groot">${esc(codeTekst(c.code))}</div>
+        <small>Wie deze code heeft, kan meedoen. Deel hem alleen met wie je erbij wilt.</small>
+        <div class="c-rij c-wrap"><button class="c-knop" data-a="c-delen">Delen</button><button class="c-knop" data-a="c-nieuwe-code">Nieuwe code</button></div>`
+        : "<small>Meedoen met een code staat uit. Alleen wie je uitnodigt, kan erbij.</small>"}
+        <label class="c-vink"><span>Meedoen met code</span><input type="checkbox" id="c-code-aan" ${c.code_aan ? "checked" : ""}></label></div>` : ""}
+      ${beheer ? `<div class="c-sectie">Kanalen</div>
+        ${c.kanalen.map((k) => `<div class="c-lid"><span># ${esc(k.naam)}${k.alleen_beheer ? " <small>alleen beheerders schrijven</small>" : ""}</span>
+          <button class="c-mini" data-a="kanaal-weg" data-id="${k.id}" data-naam="${esc(k.naam)}" aria-label="Weghalen">×</button></div>`).join("")}
+        <div class="c-zoek"><input class="c-veld" id="c-k-naam" placeholder="Nieuw kanaal" autocapitalize="none" autocomplete="off">
+          <button class="c-knop" data-a="kanaal-maken">Maken</button></div>
+        <label class="c-vink"><span>Alleen beheerders schrijven in het nieuwe kanaal</span><input type="checkbox" id="c-k-alleen"></label>
+        <div class="c-sectie">Naam en omschrijving</div>
+        <input class="c-veld" id="c-c-naam" value="${esc(c.naam)}" maxlength="60">
+        <input class="c-veld" id="c-c-omschr" value="${esc(c.omschrijving)}" placeholder="Omschrijving" maxlength="300">
+        <button class="c-knop" data-a="c-opslaan">Opslaan</button>` : ""}
+      <div class="c-sectie">Deelnemers</div>
+      ${(c.deelnemers || []).map((d) => `<div class="c-lid">${avatar(d.naam)}<span>${esc(d.naam)}${d.id === st.ik ? " (jij)" : ""}
+          <br><small>${d.status === "uitgenodigd" ? "uitgenodigd" : rolNaam[d.rol]}</small></span>${keuzes(d)}</div>`).join("")}
+      <div class="c-rij c-wrap">${c.rol === "eigenaar" ? `<button class="c-knop c-rood" data-a="c-opheffen">Community opheffen</button>`
+        : `<button class="c-knop c-rood" data-a="c-verlaten">Community verlaten</button>`}</div>
+    </div>`;
+  const codeAan = st.wortel.querySelector("#c-code-aan");
+  if (codeAan) codeAan.addEventListener("change", (e) => actie(st, "c-code-aan", e.target));
+  for (const s of st.wortel.querySelectorAll(".c-rol")) s.addEventListener("change", (e) => actie(st, "c-rol", e.target));
+}
+
+function toonCommunityNieuw(st) {
+  st.wortel.innerHTML = `
+    ${kop(terugKnop("lijst"), "<b>Community</b>")}
+    <div class="c-inhoud c-vulling">
+      <div class="c-uitleg" style="padding:0">Een community is een plek met kanalen voor een club, team, klas of buurt.
+        Ook hier is alles end-to-end versleuteld.</div>
+      <label>Naam<input class="c-veld" id="c-n-naam" placeholder="Bijvoorbeeld: Voetbalclub" maxlength="60"></label>
+      <label>Omschrijving (optioneel)<input class="c-veld" id="c-n-omschr" maxlength="300"></label>
+      <button class="c-knop c-hoofd" data-a="c-maken">Community maken</button>
+      <div class="c-sectie">Heb je een code?</div>
+      <div class="c-zoek"><input class="c-veld" id="c-n-code" placeholder="XXXX-XXXX-XXXX" autocapitalize="characters" autocomplete="off">
+        <button class="c-knop" data-a="c-meedoen">Meedoen</button></div>
+    </div>`;
 }
 
 function toonContacten(st) {
@@ -312,6 +443,35 @@ function toonGroep(st) {
     </div>`;
 }
 
+function tekstHtml(g, tekst) {
+  let html = esc(tekst).replace(/\n/g, "<br>");
+  const namen = g.leden.map((l) => l.gebruikersnaam).filter(Boolean);
+  if (namen.length && html.includes("@")) {
+    html = html.replace(/@([a-z0-9._-]+)/gi, (heel, naam) => (namen.includes(naam.toLowerCase()) ? `<span class="c-vermeld">${heel}</span>` : heel));
+  }
+  return html;
+}
+
+function korteInhoud(m) {
+  if (!m) return "";
+  if (m.t === "tekst") return m.tekst.slice(0, 100);
+  if (m.t === "foto") return "Foto";
+  if (m.t === "afspraak") return `Afspraak: ${m.titel}`;
+  if (m.t === "peiling") return `Peiling: ${m.vraag}`;
+  if (m.t === "vrij") return "Wanneer ik kan";
+  return "";
+}
+
+function emojiHtml(st, b) {
+  const per = st.emoji.get(b.id);
+  if (!per || !per.size) return "";
+  const tel = new Map();
+  for (const e of per.values()) tel.set(e, (tel.get(e) || 0) + 1);
+  const mijn = per.get(st.ik);
+  return `<div class="c-emojis">${[...tel].map(([e, n]) => `<button class="c-emoji ${mijn === e ? "c-aan" : ""}" data-a="emoji"
+    data-b="${b.id}" data-e="${esc(e)}">${esc(e)}${n > 1 ? " " + n : ""}</button>`).join("")}</div>`;
+}
+
 function berichtHtml(st, g, b, vorige) {
   const mijn = b.afzender === st.ik;
   const afzender = g.leden.find((l) => l.id === b.afzender);
@@ -324,17 +484,33 @@ function berichtHtml(st, g, b, vorige) {
   else if (!b.bericht) inhoud = `<i class="c-grijs">...</i>`;
   else {
     const m = b.bericht;
-    if (m.t === "tekst") inhoud = esc(m.tekst).replace(/\n/g, "<br>");
+    const citaat = m.antwoord ? `<button class="c-citaat" data-a="naar" data-b="${Number(m.antwoord.id) || 0}">
+      <b>${esc(m.antwoord.naam)}</b><span>${esc(m.antwoord.tekst)}</span></button>` : "";
+    if (m.t === "tekst") inhoud = citaat + tekstHtml(g, m.tekst);
     else if (m.t === "foto") inhoud = `<img src="${esc(m.data)}" alt="Foto">${m.tekst ? `<div>${esc(m.tekst)}</div>` : ""}`;
     else if (m.t === "afspraak") {
       kaart = true;
       const reacties = st.reacties.get(m.id) || [];
       const ikKoos = reacties.find((r) => r.id === st.ik);
-      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>Afspraak voorgesteld</span></div>
+      const ja = reacties.filter((r) => r.antwoord === "ja"), nee = reacties.filter((r) => r.antwoord !== "ja");
+      const wie = reacties.length > 4 ? `${ja.length} komen${nee.length ? ` · ${nee.length} kunnen niet` : ""}`
+        : reacties.map((r) => `${esc(r.naam)}: ${r.antwoord === "ja" ? "kan" : "kan niet"}`).join(", ");
+      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>${g.community ? "Evenement" : "Afspraak voorgesteld"}</span></div>
         <b>${esc(m.titel)}</b><div>${esc(wanneer(m.start))}${m.plaats ? ` · ${esc(m.plaats)}` : ""}</div>
-        ${reacties.length ? `<small>${reacties.map((r) => `${esc(r.naam)}: ${r.antwoord === "ja" ? "kan" : "kan niet"}`).join(", ")}</small>` : ""}
+        ${reacties.length ? `<small>${wie}</small>` : ""}
         ${ikKoos && !mijn ? "" : `<div class="c-rij"><button class="c-knop c-hoofd" data-a="agenda" data-b="${b.id}">In mijn agenda</button>
         ${mijn ? "" : `<button class="c-knop" data-a="kanniet" data-b="${b.id}">Kan niet</button>`}</div>`}</div>`;
+    } else if (m.t === "peiling") {
+      kaart = true;
+      const stemmen = st.stemmen.get(m.id) || new Map();
+      const totaal = stemmen.size;
+      const mijnKeuze = stemmen.get(st.ik);
+      const tel = (k) => [...stemmen.values()].filter((x) => x === k).length;
+      inhoud = `<div class="c-kaart"><div class="c-kaart-kop"><span>Peiling</span></div><b>${esc(m.vraag)}</b>
+        ${(m.opties || []).map((o, k) => { const n = tel(k); const pct = totaal ? Math.round((n / totaal) * 100) : 0;
+          return `<button class="c-optie ${mijnKeuze === k ? "c-aan" : ""}" data-a="stem" data-b="${b.id}" data-k="${k}">
+            <i style="width:${mijnKeuze === undefined ? 0 : pct}%"></i><span>${esc(o)}</span><small>${mijnKeuze === undefined ? "" : n}</small></button>`; }).join("")}
+        <small>${totaal === 1 ? "1 stem" : `${totaal} stemmen`}${mijnKeuze === undefined ? " · tik om te stemmen" : ""}</small></div>`;
     } else if (m.t === "vrij") {
       kaart = true;
       inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>Wanneer ${mijn ? "ik kan" : esc(afzender ? afzender.naam : "") + " kan"}</span></div>
@@ -343,9 +519,11 @@ function berichtHtml(st, g, b, vorige) {
   }
   const anderen = g.leden.filter((l) => l.id !== st.ik && l.status === "lid");
   const gelezen = mijn && anderen.length && anderen.every((l) => l.gelezen_tot >= b.id);
-  const menu = mijn && !b.weg ? ` data-menu="${b.id}"` : "";
-  return `<div class="c-bericht ${mijn ? "c-mijn" : ""} ${kaart ? "c-met-kaart" : ""}"${menu}>${naam}${inhoud}
-    <span class="c-tijd">${b.verloopt ? "⏱ " : ""}${esc(tijd(b.aangemaakt))}${mijn ? `<span class="${gelezen ? "c-gelezen" : ""}">${gelezen ? " ✓✓" : " ✓"}</span>` : ""}</span></div>`;
+  const vinkjes = mijn && !g.community ? `<span class="${gelezen ? "c-gelezen" : ""}">${gelezen ? " ✓✓" : " ✓"}</span>` : "";
+  const vast = (g.vast || []).includes(b.id) ? "📌 " : "";
+  const menu = !b.weg && b.bericht ? ` data-menu="${b.id}"` : "";
+  return `<div class="c-bericht ${mijn ? "c-mijn" : ""} ${kaart ? "c-met-kaart" : ""}" id="c-b-${b.id}"${menu}>${naam}${inhoud}
+    <span class="c-tijd">${vast}${b.verloopt ? "⏱ " : ""}${esc(tijd(b.aangemaakt))}${vinkjes}</span>${b.weg ? "" : emojiHtml(st, b)}</div>`;
 }
 
 function toonGesprek(st) {
@@ -354,7 +532,7 @@ function toonGesprek(st) {
   const rijen = [];
   let vorigeDag = "", vorige = null;
   for (const b of st.berichten) {
-    if (b.bericht && b.bericht.t === "reactie") continue;
+    if (b.bericht && SKIP.has(b.bericht.t)) continue;
     const d = dag(b.aangemaakt);
     if (d !== vorigeDag) { rijen.push(`<div class="c-dag">${esc(d)}</div>`); vorigeDag = d; vorige = null; }
     rijen.push(berichtHtml(st, g, b, vorige));
@@ -379,13 +557,22 @@ function toonGesprek(st) {
   if (st.paneel === "afspraak" && st.wortel.querySelector("#c-a-titel")) {
     st.voorstel = { titel: waarde("#c-a-titel"), start: waarde("#c-a-start"), duur: Number(waarde("#c-a-duur")), plaats: waarde("#c-a-plaats") };
   }
-  const sub = g.soort === "groep" ? `${g.leden.length} deelnemers` : (ander && ander.gebruikersnaam ? "@" + ander.gebruikersnaam : "");
+  if (st.paneel === "peiling" && st.wortel.querySelector("#c-p-vraag")) peilingBewaren(st);
+  const sub = g.community ? g.community_naam || "" : g.soort === "groep" ? `${g.leden.length} deelnemers` : (ander && ander.gebruikersnaam ? "@" + ander.gebruikersnaam : "");
+  const terug = g.community ? `<button class="c-ikoon" data-a="community" data-id="${g.community}" aria-label="Terug">${ICOON.terug}</button>` : terugKnop("lijst");
+  const beeld = g.community ? `<span class="c-hekje">#</span>` : g.soort === "groep" ? `<span class="c-avatar c-groep c-klein">${ICOON.groep}</span>` : avatar(gesprekNaam(st, g));
+  const vastIds = (g.vast || []).filter((id) => st.berichten.some((x) => x.id === id && x.bericht));
+  const vastId = vastIds.length ? vastIds[(st.vastStap || 0) % vastIds.length] : null;
+  const vastBericht = vastId ? st.berichten.find((x) => x.id === vastId) : null;
+  const magSchrijven = g.status === "lid" && (!g.alleen_beheer || g.beheerder);
   st.wortel.innerHTML = `
-    ${kop(terugKnop("lijst"), `<button class="c-titel" data-a="info">${g.soort === "groep" ? `<span class="c-avatar c-groep c-klein">${ICOON.groep}</span>` : avatar(gesprekNaam(st, g))}
-      <span><b>${esc(gesprekNaam(st, g))}</b><small>${g.verdwijnen ? `⏱ ${VERDWIJNEN[g.verdwijnen] || ""} · ` : ""}${esc(sub)}</small></span></button>`)}
+    ${kop(terug, `<button class="c-titel" data-a="${g.community ? "cinfo" : "info"}">${beeld}
+      <span><b>${esc(g.community ? g.naam : gesprekNaam(st, g))}</b><small>${g.verdwijnen ? `⏱ ${VERDWIJNEN[g.verdwijnen] || ""} · ` : ""}${esc(sub)}</small></span></button>`)}
+    ${vastBericht ? `<button class="c-vast" data-a="vast-volgende" data-b="${vastBericht.id}">${ICOON.vast}<span>${esc(korteInhoud(vastBericht.bericht))}</span>
+      ${vastIds.length > 1 ? `<small>${((st.vastStap || 0) % vastIds.length) + 1}/${vastIds.length}</small>` : ""}</button>` : ""}
     ${sleutelWaarschuwing}
     <div class="c-berichten">
-      <div class="c-e2e">${ICOON.slot} Berichten zijn end-to-end versleuteld. Niemand anders kan ze lezen, ook de app niet.</div>
+      <div class="c-e2e">${ICOON.slot} Berichten zijn end-to-end versleuteld. Niemand ${g.community ? "buiten de community" : "anders"} kan ze lezen, ook de app niet.</div>
       ${rijen.join("")}
       ${wachtOp}
     </div>
@@ -397,14 +584,26 @@ function toonGesprek(st) {
       <label class="c-smal">Hoe lang<select class="c-veld" id="c-a-duur">${[30, 60, 90, 120, 180].map((m) => `<option value="${m}" ${m === (st.voorstel.duur || 60) ? "selected" : ""}>${m < 60 ? m + " min" : m / 60 + " uur"}</option>`).join("")}</select></label></div>
       <label>Waar (optioneel)<input class="c-veld" id="c-a-plaats" value="${esc(st.voorstel.plaats || "")}"></label>
       <div class="c-rij"><button class="c-knop c-hoofd" data-a="stuur-afspraak">Voorstellen</button><button class="c-knop" data-a="sluit">Annuleren</button></div></div>` : ""}
+    ${st.paneel === "peiling" ? `<div class="c-paneel">
+      <b>Peiling</b>
+      <input class="c-veld" id="c-p-vraag" placeholder="Vraag" value="${esc(st.peiling.vraag || "")}" maxlength="200">
+      ${st.peiling.opties.map((o, k) => `<input class="c-veld c-p-optie" placeholder="Keuze ${k + 1}" value="${esc(o)}" maxlength="80">`).join("")}
+      <div class="c-rij c-wrap"><button class="c-knop c-hoofd" data-a="stuur-peiling">Versturen</button>
+      ${st.peiling.opties.length < 8 ? `<button class="c-knop" data-a="optie-erbij">Keuze erbij</button>` : ""}
+      <button class="c-knop" data-a="sluit">Annuleren</button></div></div>` : ""}
     ${st.paneel === "plus" ? `<div class="c-paneel c-plus">
       <button class="c-plus-knop" data-a="foto"><span>📷</span>Foto</button>
-      <button class="c-plus-knop" data-a="afspraak"><span>📅</span>Afspraak</button>
+      <button class="c-plus-knop" data-a="afspraak"><span>📅</span>${g.community ? "Evenement" : "Afspraak"}</button>
+      ${g.soort === "groep" ? `<button class="c-plus-knop" data-a="peiling"><span>📊</span>Peiling</button>` : ""}
       <button class="c-plus-knop" data-a="vrij"><span>🕒</span>Wanneer ik kan</button></div>` : ""}
-    ${g.status === "lid" ? `<div class="c-invoer"><button class="c-rond" data-a="plus" aria-label="Meer">${ICOON.plus}</button>
-      <textarea id="c-tekst" class="c-veld" rows="1" placeholder="Bericht"></textarea>
-      <button class="c-rond c-hoofd" data-a="stuur" aria-label="Versturen">${ICOON.stuur}</button></div>` : ""}
-    <input type="file" id="c-foto" accept="image/*" hidden>`;
+    ${st.antwoord && magSchrijven ? `<div class="c-antwoord-balk"><div><b>${esc(st.antwoord.naam)}</b><span>${esc(st.antwoord.tekst)}</span></div>
+      <button class="c-mini" data-a="antwoord-weg" aria-label="Niet beantwoorden">×</button></div>` : ""}
+    ${magSchrijven ? `<div class="c-vermeld-rij"></div><div class="c-invoer"><button class="c-rond" data-a="plus" aria-label="Meer">${ICOON.plus}</button>
+      <textarea id="c-tekst" class="c-veld" rows="1" placeholder="${g.community ? "Bericht in #" + esc(g.naam) : "Bericht"}"></textarea>
+      <button class="c-rond c-hoofd" data-a="stuur" aria-label="Versturen">${ICOON.stuur}</button></div>`
+      : g.status === "lid" ? `<div class="c-alleen">Alleen beheerders schrijven in dit kanaal.</div>` : ""}
+    <input type="file" id="c-foto" accept="image/*" hidden>
+    ${st.menu ? menuBlad(st, g) : ""}`;
   const lijst = st.wortel.querySelector(".c-berichten");
   if (onderaan || st.naarOnder) { lijst.scrollTop = lijst.scrollHeight; st.naarOnder = false; }
   else if (oud) lijst.scrollTop = oud.scrollTop;
@@ -413,7 +612,7 @@ function toonGesprek(st) {
     veld.value = concept;
     const hoogte = () => { veld.style.height = "auto"; veld.style.height = Math.min(veld.scrollHeight, 140) + "px"; };
     hoogte();
-    veld.addEventListener("input", () => { st.concept = veld.value; hoogte(); });
+    veld.addEventListener("input", () => { st.concept = veld.value; hoogte(); vermeldVoorstel(st, veld); });
     veld.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !/iPhone|iPad|Android/.test(navigator.userAgent)) { e.preventDefault(); actie(st, "stuur"); } });
     if (st.focus || hadFocus) { veld.focus({ preventScroll: true }); st.focus = false; }
   }
@@ -423,6 +622,40 @@ function toonGesprek(st) {
     const data = await verkleind(foto.files[0]);
     if (data) await versturen(st, { t: "foto", data, tekst: "" });
   });
+}
+
+function peilingBewaren(st) {
+  st.peiling = { vraag: st.wortel.querySelector("#c-p-vraag").value,
+                 opties: [...st.wortel.querySelectorAll(".c-p-optie")].map((x) => x.value) };
+}
+
+// Lang drukken op een bericht: reageren met een emoji, beantwoorden, vastzetten, kopiëren of verwijderen.
+function menuBlad(st, g) {
+  const b = st.berichten.find((x) => x.id === st.menu);
+  if (!b || !b.bericht) return "";
+  const mijn = b.afzender === st.ik;
+  const magBeheren = g.soort === "twee" || g.beheerder;
+  const vast = (g.vast || []).includes(b.id);
+  const schrijven = g.status === "lid" && (!g.alleen_beheer || g.beheerder);
+  return `<div class="c-achtergrond" data-a="menu-dicht"></div><div class="c-blad">
+    ${g.status === "lid" ? `<div class="c-emoji-rij">${EMOJI.map((e) => `<button data-a="emoji" data-b="${b.id}" data-e="${e}">${e}</button>`).join("")}</div>` : ""}
+    ${schrijven ? `<button class="c-blad-knop" data-a="beantwoord">${ICOON.antwoord}Beantwoorden</button>` : ""}
+    ${magBeheren ? `<button class="c-blad-knop" data-a="vastzetten">${ICOON.vast}${vast ? "Losmaken" : "Vastzetten"}</button>` : ""}
+    ${b.bericht.t === "tekst" ? `<button class="c-blad-knop" data-a="kopieer">${ICOON.kopie}Kopiëren</button>` : ""}
+    ${mijn || (g.soort === "groep" && g.beheerder) ? `<button class="c-blad-knop c-rood" data-a="verwijder">${ICOON.weg}Verwijderen</button>` : ""}</div>`;
+}
+
+// @naam: een paar deelnemers voorstellen terwijl je typt.
+function vermeldVoorstel(st, veld) {
+  const rij = st.wortel.querySelector(".c-vermeld-rij");
+  const g = st.gesprek;
+  if (!rij || !g || g.soort !== "groep") return;
+  const m = veld.value.slice(0, veld.selectionStart).match(/@([a-z0-9._-]*)$/i);
+  if (!m) { rij.innerHTML = ""; return; }
+  const zoek = m[1].toLowerCase();
+  const passend = g.leden.filter((l) => l.id !== st.ik && l.gebruikersnaam && l.status === "lid"
+    && (l.gebruikersnaam.startsWith(zoek) || l.naam.toLowerCase().startsWith(zoek))).slice(0, 6);
+  rij.innerHTML = passend.map((l) => `<button class="c-pil" data-a="vermeld" data-naam="${esc(l.gebruikersnaam)}">${esc(l.naam)}</button>`).join("");
 }
 
 async function toonInfo(st) {
@@ -477,7 +710,8 @@ async function toonApparaten(st) {
 // --- Acties ------------------------------------------------------------------------------------------------------
 
 async function gesprekkenLaden(st) {
-  st.gesprekken = (await rpc(st, "chat_gesprekken")).gesprekken;
+  const r = await rpc(st, "chat_gesprekken");
+  st.gesprekken = r.gesprekken; st.communities = r.communities || [];
   voorbeeldenBijwerken(st).catch(() => {});
 }
 
@@ -517,9 +751,10 @@ async function berichtenLaden(st) {
   const na = st.berichten.length ? st.berichten[st.berichten.length - 1].id : 0;
   const r = await rpc(st, "chat_berichten", { p_gesprek: g.id, p_na: na, p_apparaat: st.apparaat });
   if (!st.gesprek || st.gesprek.id !== g.id) return;
-  const ledenVoor = JSON.stringify(st.gesprek.leden.map((l) => [l.id, l.status, l.gelezen_tot]));
+  const stand = (x) => JSON.stringify([x.leden.map((l) => [l.id, l.status, l.gelezen_tot]), x.vast || [], x.naam, x.alleen_beheer, x.beheerder]);
+  const ledenVoor = stand(st.gesprek);
   st.gesprek = r.gesprek || g;
-  let nieuw = JSON.stringify(st.gesprek.leden.map((l) => [l.id, l.status, l.gelezen_tot])) !== ledenVoor;
+  let nieuw = stand(st.gesprek) !== ledenVoor;
   for (const b of r.berichten) {
     if (!b.weg && b.inhoud) {
       try { Object.assign(b, await ontsleutel(st, g.id, b)); } catch (e) { b.fout = "kapot"; }
@@ -528,6 +763,16 @@ async function berichtenLaden(st) {
       const lid = st.gesprek.leden.find((l) => l.id === b.afzender) || {};
       const lijst = st.reacties.get(b.bericht.op) || [];
       st.reacties.set(b.bericht.op, [...lijst.filter((x) => x.id !== b.afzender), { id: b.afzender, naam: lid.naam || "", antwoord: b.bericht.antwoord }]);
+    }
+    if (b.bericht && b.bericht.t === "emoji") {
+      const per = st.emoji.get(Number(b.bericht.op)) || new Map();
+      if (b.bericht.emoji) per.set(b.afzender, String(b.bericht.emoji).slice(0, 8)); else per.delete(b.afzender);
+      st.emoji.set(Number(b.bericht.op), per);
+    }
+    if (b.bericht && b.bericht.t === "stem") {
+      const per = st.stemmen.get(b.bericht.op) || new Map();
+      per.set(b.afzender, Number(b.bericht.keuze));
+      st.stemmen.set(b.bericht.op, per);
     }
     st.berichten.push(b);
     nieuw = true;
@@ -558,8 +803,13 @@ async function sleutelsLaden(st) {
 }
 
 async function openen(st, id) {
-  st.gesprek = st.gesprekken.find((g) => g.id === id) || { id, leden: [], soort: "twee", status: "lid" };
-  st.berichten = []; st.reacties = new Map(); st.scherm = "gesprek"; st.paneel = null; st.naarOnder = true;
+  const kanaal = (st.communities || []).flatMap((c) => c.kanalen.map((k) => ({ ...k, community: c.id, community_naam: c.naam })))
+    .find((k) => k.id === id);
+  st.gesprek = st.gesprekken.find((g) => g.id === id)
+    || (kanaal ? { id, naam: kanaal.naam, community: kanaal.community, community_naam: kanaal.community_naam, leden: [], soort: "groep", status: "lid" }
+              : { id, leden: [], soort: "twee", status: "lid" });
+  st.berichten = []; st.reacties = new Map(); st.emoji = new Map(); st.stemmen = new Map(); st.scherm = "gesprek"; st.paneel = null; st.naarOnder = true;
+  st.menu = null; st.antwoord = null; st.vastStap = 0; st.blad = null;
   st.sleutelsVeranderd = false; st.sleutelLijst = null; st.concept = "";
   toon(st);
   await berichtenLaden(st);
@@ -572,11 +822,17 @@ async function versturen(st, bericht) {
   const g = st.gesprek;
   if (!st.sleutelLijst || !st.sleutelLijst.length) await sleutelsLaden(st);
   const pakket = await versleutel(st, g.id, st.sleutelLijst, bericht);
-  await rpc(st, "chat_versturen", { p_gesprek: g.id, p_apparaat: st.apparaat, p_inhoud: pakket.inhoud, p_iv: pakket.iv,
-                                    p_epk: pakket.epk, p_sleutels: pakket.sleutels, p_handtekening: pakket.handtekening });
-  st.paneel = null; st.naarOnder = true;
+  const r = await rpc(st, "chat_versturen", { p_gesprek: g.id, p_apparaat: st.apparaat, p_inhoud: pakket.inhoud, p_iv: pakket.iv,
+                                              p_epk: pakket.epk, p_sleutels: pakket.sleutels, p_handtekening: pakket.handtekening });
+  st.paneel = null; st.menu = null;
+  if (!SKIP.has(bericht.t)) st.naarOnder = true;
   await berichtenLaden(st);
   toon(st);
+  return r.id;
+}
+
+async function gesprekVernieuwen(st) {
+  st.gesprek = (await rpc(st, "chat_berichten", { p_gesprek: st.gesprek.id, p_na: 2 ** 52, p_apparaat: st.apparaat })).gesprek;
 }
 
 async function instellen(st, w) {
@@ -603,6 +859,156 @@ async function actie(st, a, el) {
   const v = (id) => (st.wortel.querySelector(id) || {}).value || "";
   try {
     if (a === "opnieuw") { st.fout = null; return start(st); }
+    if (a !== "blad") st.blad = null;
+    if (a === "blad") { st.blad = "nieuw"; return toon(st); }
+    if (a === "blad-dicht") return toon(st);
+    if (a === "cnieuw") { st.scherm = "cnieuw"; return toon(st); }
+    if (a === "community") {
+      st.communityId = Number(el.dataset.id); st.scherm = "community"; st.gesprek = null; toon(st);
+      await gesprekkenLaden(st); return toon(st);
+    }
+    if (a === "cinfo") {
+      st.cinfoTerug = st.scherm === "gesprek" ? "gesprek" : "community";
+      if (st.scherm === "gesprek") st.communityId = st.gesprek.community;
+      st.cinfo = null; st.scherm = "cinfo"; toon(st); await cinfoLaden(st); return toon(st);
+    }
+    if (a === "cterug") {
+      st.scherm = st.cinfoTerug || "community"; st.naarOnder = true;
+      if (st.scherm === "community") await gesprekkenLaden(st);
+      return toon(st);
+    }
+    if (a === "c-maken") {
+      const r = await rpc(st, "chat_community_maken", { p_community: v("#c-n-naam"), p_omschrijving: v("#c-n-omschr") });
+      await gesprekkenLaden(st); st.communityId = r.id; st.scherm = "community"; toon(st);
+      melding(st, "Community gemaakt. Nodig mensen uit met de knop hieronder.");
+      return;
+    }
+    if (a === "c-meedoen") {
+      const r = await rpc(st, "chat_community_deelnemen", { p_code: v("#c-n-code") });
+      await gesprekkenLaden(st); st.communityId = r.id; st.scherm = "community"; toon(st);
+      melding(st, `Welkom bij ${r.naam}.`);
+      return;
+    }
+    if (a === "c-ja" || a === "c-nee" || a === "c-verlaten") {
+      if (a === "c-verlaten" && !confirm("Deze community verlaten? Je ziet de kanalen dan niet meer.")) return;
+      await rpc(st, "chat_community_antwoorden", { p_community: st.communityId, p_antwoord: { "c-ja": "ja", "c-nee": "nee", "c-verlaten": "verlaten" }[a] });
+      await gesprekkenLaden(st);
+      st.scherm = a === "c-ja" ? "community" : "lijst"; return toon(st);
+    }
+    if (a === "c-opheffen") {
+      if (!confirm("De community opheffen? Alle kanalen en berichten verdwijnen, voor iedereen.")) return;
+      await rpc(st, "chat_community_instellen", { p_community: st.communityId, p_titel: null, p_omschrijving: null,
+                                                  p_code_aan: null, p_nieuwe_code: null, p_opheffen: true });
+      await gesprekkenLaden(st); st.scherm = "lijst"; return toon(st);
+    }
+    if (a === "c-opslaan" || a === "c-code-aan" || a === "c-nieuwe-code") {
+      if (a === "c-nieuwe-code" && !confirm("Een nieuwe code maken? De oude werkt dan niet meer.")) return;
+      await rpc(st, "chat_community_instellen", { p_community: st.communityId,
+        p_titel: a === "c-opslaan" ? v("#c-c-naam") : null, p_omschrijving: a === "c-opslaan" ? v("#c-c-omschr") : null,
+        p_code_aan: a === "c-code-aan" ? el.checked : null, p_nieuwe_code: a === "c-nieuwe-code", p_opheffen: false });
+      await cinfoLaden(st); toon(st);
+      if (a === "c-opslaan") melding(st, "Opgeslagen.");
+      return;
+    }
+    if (a === "c-delen") {
+      const c = st.cinfo;
+      const tekst = `Doe mee met ${c.naam} in de chat van de Assistent-app. Open Chat, tik op het potlood en kies "Community maken of meedoen". Code: ${codeTekst(c.code)}`;
+      if (navigator.share) { try { await navigator.share({ title: c.naam, text: tekst }); } catch (e) { /* geannuleerd */ } return; }
+      await navigator.clipboard.writeText(tekst); melding(st, "Gekopieerd."); return;
+    }
+    if (a === "c-uitnodigen") {
+      const r = await rpc(st, "chat_community_uitnodigen", { p_community: st.communityId, p_wie: v("#c-c-wie") });
+      await cinfoLaden(st); toon(st);
+      melding(st, r.status === "lid" ? "Doet nu mee." : "Uitnodiging verstuurd.");
+      return;
+    }
+    if (a === "c-rol") {
+      const actieNaam = el.value; el.value = "";
+      if (!actieNaam) return;
+      const vraag = { eigenaar: `${el.dataset.naam} eigenaar maken? Jij wordt dan beheerder.`,
+                      verwijderen: `${el.dataset.naam} uit de community halen?`,
+                      weren: `${el.dataset.naam} weren? Diegene kan dan ook niet terug met de code.` }[actieNaam];
+      if (vraag && !confirm(vraag)) return;
+      await rpc(st, "chat_community_lid", { p_community: st.communityId, p_wie: Number(el.dataset.wie), p_actie: actieNaam });
+      await cinfoLaden(st); return toon(st);
+    }
+    if (a === "kanaal-maken") {
+      await rpc(st, "chat_kanaal_maken", { p_community: st.communityId, p_kanaal: v("#c-k-naam"),
+                                           p_alleen_beheer: Boolean((st.wortel.querySelector("#c-k-alleen") || {}).checked) });
+      await cinfoLaden(st); return toon(st);
+    }
+    if (a === "kanaal-weg") {
+      if (!confirm(`#${el.dataset.naam} weghalen? De berichten erin verdwijnen voor iedereen.`)) return;
+      await rpc(st, "chat_kanaal_instellen", { p_kanaal: Number(el.dataset.id), p_titel: null, p_alleen_beheer: null, p_weg: true });
+      await cinfoLaden(st); return toon(st);
+    }
+    if (a === "menu-dicht") { st.menu = null; return toon(st); }
+    if (a === "emoji") {
+      const id = Number(el.dataset.b);
+      const nu = (st.emoji.get(id) || new Map()).get(st.ik);
+      st.menu = null;
+      return versturen(st, { t: "emoji", op: id, emoji: nu === el.dataset.e ? "" : el.dataset.e });
+    }
+    if (a === "beantwoord") {
+      const b = st.berichten.find((x) => x.id === st.menu);
+      const lid = st.gesprek.leden.find((l) => l.id === b.afzender);
+      st.antwoord = { id: b.id, naam: b.afzender === st.ik ? "Jij" : (lid ? lid.naam : ""), tekst: korteInhoud(b.bericht) };
+      st.menu = null; st.focus = true; return toon(st);
+    }
+    if (a === "antwoord-weg") { st.antwoord = null; return toon(st); }
+    if (a === "vastzetten") {
+      const id = st.menu; st.menu = null;
+      await rpc(st, "chat_vastzetten", { p_bericht: id, p_aan: !(st.gesprek.vast || []).includes(id) });
+      await gesprekVernieuwen(st); st.vastStap = 0; return toon(st);
+    }
+    if (a === "vast-volgende" || a === "naar") {
+      const id = Number(el.dataset.b);
+      if (!st.wortel.querySelector(`#c-b-${id}`)) { melding(st, "Dit bericht is niet meer in beeld."); return; }
+      st.wortel.querySelector(`#c-b-${id}`).scrollIntoView({ block: "center" });
+      if (a === "vast-volgende") { st.vastStap = (st.vastStap || 0) + 1; toon(st); }
+      const doel = st.wortel.querySelector(`#c-b-${id}`);
+      doel.classList.add("c-flits"); setTimeout(() => doel.classList.remove("c-flits"), 1500);
+      return;
+    }
+    if (a === "kopieer") {
+      const b = st.berichten.find((x) => x.id === st.menu); st.menu = null; toon(st);
+      await navigator.clipboard.writeText(b.bericht.tekst); melding(st, "Gekopieerd."); return;
+    }
+    if (a === "verwijder") {
+      const id = st.menu; st.menu = null; toon(st);
+      if (!confirm("Dit bericht voor iedereen verwijderen?")) return;
+      if (!await rpc(st, "chat_bericht_weg", { p_bericht: id })) { melding(st, "Dat kan niet."); return; }
+      const b = st.berichten.find((x) => x.id === id); if (b) { b.weg = true; b.bericht = null; }
+      return toon(st);
+    }
+    if (a === "vermeld") {
+      const veld = st.wortel.querySelector("#c-tekst");
+      const voor = veld.value.slice(0, veld.selectionStart).replace(/@([a-z0-9._-]*)$/i, `@${el.dataset.naam} `);
+      veld.value = voor + veld.value.slice(veld.selectionStart); st.concept = veld.value;
+      veld.focus(); veld.setSelectionRange(voor.length, voor.length);
+      st.wortel.querySelector(".c-vermeld-rij").innerHTML = "";
+      return;
+    }
+    if (a === "peiling") { st.peiling = { vraag: "", opties: ["", ""] }; st.paneel = "peiling"; return toon(st); }
+    if (a === "optie-erbij") {
+      const velden = st.wortel.querySelectorAll(".c-p-optie");
+      const nieuw = document.createElement("input");
+      nieuw.className = "c-veld c-p-optie"; nieuw.maxLength = 80; nieuw.placeholder = `Keuze ${velden.length + 1}`;
+      velden[velden.length - 1].after(nieuw); nieuw.focus();
+      if (velden.length + 1 >= 8) el.remove();
+      return;
+    }
+    if (a === "stuur-peiling") {
+      peilingBewaren(st);
+      const vraag = st.peiling.vraag.trim(); const opties = st.peiling.opties.map((o) => o.trim()).filter(Boolean);
+      if (!vraag || opties.length < 2) { melding(st, "Vul een vraag en minstens twee keuzes in."); return; }
+      return versturen(st, { t: "peiling", id: b64(rnd(9)), vraag, opties });
+    }
+    if (a === "stem") {
+      const b = st.berichten.find((x) => x.id === Number(el.dataset.b));
+      if (!b || !b.bericht || st.gesprek.status !== "lid") return;
+      return versturen(st, { t: "stem", op: b.bericht.id, keuze: Number(el.dataset.k) });
+    }
     if (a === "lijst") { st.scherm = "lijst"; st.gesprek = null; toon(st); await gesprekkenLaden(st); return toon(st); }
     if (a === "contacten") { st.scherm = "contacten"; st.gesprek = null; toon(st); await contactenLaden(st); return toon(st); }
     if (a === "groep-nieuw") { st.scherm = "groep"; if (!st.contacten) await contactenLaden(st); return toon(st); }
@@ -645,7 +1051,13 @@ async function actie(st, a, el) {
       const tekst = (veld ? veld.value : "").trim();
       if (!tekst) return;
       st.concept = ""; veld.value = ""; st.focus = true;
-      return versturen(st, { t: "tekst", tekst });
+      const bericht = { t: "tekst", tekst };
+      if (st.antwoord) { bericht.antwoord = st.antwoord; st.antwoord = null; }
+      const genoemd = st.gesprek.soort === "groep" ? st.gesprek.leden.filter((l) => l.id !== st.ik && l.gebruikersnaam
+        && new RegExp(`@${l.gebruikersnaam.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![a-z0-9._-])`, "i").test(tekst)).map((l) => l.id) : [];
+      const id = await versturen(st, bericht);
+      if (id && genoemd.length) rpc(st, "chat_vermelden", { p_bericht: id, p_wie: genoemd }).catch(() => {});
+      return;
     }
     if (a === "plus") { st.paneel = st.paneel === "plus" ? null : "plus"; st.naarOnder = true; return toon(st); }
     if (a === "sluit") { st.paneel = null; return toon(st); }
@@ -677,12 +1089,7 @@ async function actie(st, a, el) {
       if (b.afzender !== st.ik) await versturen(st, { t: "reactie", op: m.id, antwoord: a === "agenda" ? "ja" : "nee", titel: m.titel });
       return;
     }
-    if (a === "menu") {
-      if (!confirm("Dit bericht voor iedereen verwijderen?")) return;
-      await rpc(st, "chat_bericht_weg", { p_bericht: Number(el.dataset.menu) });
-      const b = st.berichten.find((x) => x.id === Number(el.dataset.menu)); if (b) { b.weg = true; b.bericht = null; }
-      return toon(st);
-    }
+    if (a === "menu") { st.menu = Number(el.dataset.menu); st.paneel = null; return toon(st); }
     if (a === "ja" || a === "nee") {
       await rpc(st, "chat_antwoorden", { p_gesprek: st.gesprek.id, p_antwoord: a });
       if (a === "nee") return actie(st, "lijst");
@@ -754,7 +1161,8 @@ function bijhouden(st) {
       st.bezig = true;
       try {
         if (st.scherm === "gesprek" && st.gesprek) { if (await berichtenLaden(st)) toon(st); }
-        else if (st.scherm === "lijst") { await gesprekkenLaden(st); toon(st); }
+        else if (st.scherm === "lijst" && !st.blad) { await gesprekkenLaden(st); toon(st); }
+        else if (st.scherm === "community") { await gesprekkenLaden(st); toon(st); }
       } catch (e) { /* volgende keer opnieuw */ }
       st.bezig = false;
     }
@@ -769,7 +1177,8 @@ export default function (component) {
   if (!st || st.naam !== data.naam || st.token !== data.token) {
     st = parentElement.__chat = {
       url: data.url, key: data.key, naam: data.naam, token: data.token, label: data.label, wortel,
-      scherm: "lijst", gesprekken: [], berichten: [], reacties: new Map(), voorbeelden: new Map(),
+      scherm: "lijst", gesprekken: [], communities: [], berichten: [], reacties: new Map(), emoji: new Map(), stemmen: new Map(),
+      voorbeelden: new Map(), peiling: { vraag: "", opties: ["", ""] },
       vrij: data.vrij || [], open: data.open || null, contacten: null,
     };
     wortel.addEventListener("click", (e) => {
@@ -786,7 +1195,12 @@ export default function (component) {
     for (const soort of ["pointerup", "pointercancel", "pointerleave", "scroll"]) {
       wortel.addEventListener(soort, () => { clearTimeout(druk); druk = null; }, true);
     }
-    wortel.addEventListener("contextmenu", (e) => { if (e.target.closest("[data-menu]")) e.preventDefault(); });
+    wortel.addEventListener("contextmenu", (e) => {
+      const el = e.target.closest("[data-menu]");
+      if (!el) return;
+      e.preventDefault();
+      if (!e.target.closest("button")) actie(st, "menu", el);
+    });
     start(st);
   }
   st.wortel = wortel;

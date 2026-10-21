@@ -147,6 +147,53 @@ CSS = """
   justify-content: center; align-items: center; }
 .c-voet svg { width: 13px; height: 13px; }
 .c-link { font: inherit; background: transparent; border: 0; color: var(--c-hoofd); cursor: pointer; padding: 0; text-decoration: underline; }
+.c-avatar.c-vierkant { border-radius: 14px; }
+.c-hekje { width: 46px; height: 46px; display: grid; place-items: center; font-size: 22px; font-weight: 600; opacity: .5; flex: none; }
+.c-titel .c-hekje { width: 28px; height: 36px; }
+.c-achtergrond { position: absolute; inset: 0; background: rgba(0,0,0,.28); z-index: 6; }
+.c-blad { position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; background: var(--c-achter); border-radius: 18px 18px 0 0;
+  padding: 8px 8px calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; box-shadow: 0 -4px 20px rgba(0,0,0,.12); }
+.c-blad-knop { display: flex; align-items: center; gap: 14px; font: inherit; font-size: 16px; color: inherit; background: transparent;
+  border: 0; padding: 13px 12px; border-radius: 12px; cursor: pointer; text-align: left; }
+.c-blad-knop:active { background: var(--c-zacht); }
+.c-blad-knop svg { color: var(--c-hoofd); }
+.c-blad-knop.c-rood svg { color: #dc2626; }
+.c-emoji-rij { display: flex; justify-content: space-around; padding: 6px 4px 10px; border-bottom: 1px solid var(--c-zacht); margin-bottom: 4px; }
+.c-emoji-rij button { font-size: 28px; background: var(--c-zacht); border: 0; border-radius: 50%; width: 46px; height: 46px; cursor: pointer; padding: 0; }
+.c-emojis { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; clear: both; }
+.c-emoji { font: inherit; font-size: 13px; border-radius: 999px; padding: 1px 8px; cursor: pointer; border: 1px solid var(--c-rand);
+  background: var(--c-achter); color: var(--c-tekst); }
+.c-emoji.c-aan { border-color: var(--c-hoofd); background: color-mix(in srgb, var(--c-hoofd) 14%, var(--c-achter)); }
+.c-citaat { display: flex; flex-direction: column; text-align: left; width: 100%; font: inherit; font-size: 13px; color: inherit;
+  border: 0; border-left: 3px solid currentColor; border-radius: 6px; background: rgba(128,128,128,.14); padding: 4px 8px;
+  margin-bottom: 4px; cursor: pointer; opacity: .9; }
+.c-citaat span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .8; }
+.c-vermeld { font-weight: 600; }
+.c-bericht:not(.c-mijn) .c-vermeld { color: var(--c-hoofd); }
+.c-flits { outline: 3px solid color-mix(in srgb, var(--c-hoofd) 50%, transparent); }
+.c-vast { display: flex; align-items: center; gap: 8px; font: inherit; font-size: 14px; color: inherit; background: var(--c-achter);
+  border: 0; border-bottom: 1px solid var(--c-rand); padding: 7px 14px; cursor: pointer; text-align: left; }
+.c-vast svg { width: 16px; height: 16px; color: var(--c-hoofd); }
+.c-vast span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-vast small { opacity: .55; }
+.c-antwoord-balk { display: flex; align-items: center; gap: 8px; padding: 8px 12px 0; background: var(--c-achter);
+  border-top: 1px solid var(--c-rand); font-size: 13px; }
+.c-antwoord-balk div { flex: 1; min-width: 0; border-left: 3px solid var(--c-hoofd); padding-left: 8px; display: flex; flex-direction: column; }
+.c-antwoord-balk span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .7; }
+.c-antwoord-balk + .c-invoer { border-top: 0; }
+.c-vermeld-rij { display: flex; gap: 6px; padding: 6px 10px 0; overflow-x: auto; background: var(--c-achter); }
+.c-vermeld-rij:empty { display: none; }
+.c-alleen { text-align: center; font-size: 13px; opacity: .6; padding: 12px; border-top: 1px solid var(--c-rand);
+  padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+.c-optie { position: relative; display: flex; justify-content: space-between; gap: 8px; width: 100%; font: inherit; font-size: 15px;
+  color: inherit; text-align: left; border: 1px solid var(--c-rand); border-radius: 10px; padding: 7px 10px; background: transparent;
+  cursor: pointer; overflow: hidden; }
+.c-optie i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--c-hoofd) 16%, transparent); z-index: 0; }
+.c-optie span, .c-optie small { position: relative; z-index: 1; }
+.c-optie.c-aan { border-color: var(--c-hoofd); font-weight: 600; }
+.c-rol { font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--c-rand); background: var(--c-achter);
+  color: inherit; max-width: 130px; }
+.c-code-groot { font-family: ui-monospace, Menlo, monospace; font-size: 22px; letter-spacing: .08em; text-align: center; padding: 4px 0; }
 """
 
 _chat = st.components.v2.component("chat", html='<div class="c-wortel"></div>', css=CSS,
@@ -165,10 +212,13 @@ def ongelezen() -> int:
     if bewaard and time.time() - bewaard[0] < 30:
         return bewaard[1]
     try:
-        gesprekken = opslag._rpc_ik("chat_gesprekken").get("gesprekken", [])
+        alles = opslag._rpc_ik("chat_gesprekken")
     except Exception:
         return bewaard[1] if bewaard else 0
-    aantal = sum(g["ongelezen"] + (g["status"] == "verzoek") for g in gesprekken)
+    aantal = sum(g["ongelezen"] + (g["status"] == "verzoek") for g in alles.get("gesprekken", []))
+    # Community's tellen alleen mee met uitnodigingen en mededelingen; gewone kanalen houden de balk rustig.
+    for c in alles.get("communities", []):
+        aantal += (c.get("status") == "uitgenodigd") + sum(k["ongelezen"] for k in c.get("kanalen", []) if k.get("alleen_beheer"))
     _ongelezen[sleutel] = (time.time(), aantal)
     return aantal
 
