@@ -61,12 +61,13 @@ import onthouden
 import snelinvoer
 import woning
 import winkelkaart
+import verbeteren
 import chat
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, spraak, chat):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, spraak, verbeteren, chat):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -2908,6 +2909,7 @@ INSTELLING_GROEPEN = {
     "Weergave": (":material/palette:", "Voorpagina, onderdelen, kleuren"),
     "Koppelingen": (":material/link:", "Meldingen, agenda, mail, Siri"),
     "Account": (":material/person:", "Profiel, beveiliging, privacy"),
+    "Idee of probleem": (":material/lightbulb:", "Zeg wat beter kan"),
 }
 
 
@@ -2922,7 +2924,8 @@ def instellingen_tabblad() -> None:
             st.button("Terug", icon=":material/arrow_back:", type="tertiary", on_click=kies, args=(None,))
             st.markdown(f"**{groep}**")
         {"Assistent": instellingen_assistent, "Weergave": instellingen_weergave,
-         "Koppelingen": instellingen_koppelingen, "Account": instellingen_account}[groep]()
+         "Koppelingen": instellingen_koppelingen, "Account": instellingen_account,
+         "Idee of probleem": idee_of_probleem}[groep]()
         return
     gebruiker = samen_scherm.ik()
     st.markdown(f'<div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">'
@@ -2937,6 +2940,27 @@ def instellingen_tabblad() -> None:
             with st.container(border=True, width=168):
                 st.button(naam, key=f"inst_{i}", icon=icoon, on_click=kies, args=(naam,), type="tertiary")
                 st.caption(uitleg)
+
+
+def idee_of_probleem() -> None:
+    """Meldingen gaan naar de vaste verbeterronde; wat ermee gebeurd is, staat eronder."""
+    with st.form("melden", clear_on_submit=True, border=False):
+        soort = st.segmented_control("Soort", list(verbeteren.SOORTEN), format_func=verbeteren.SOORTEN.get,
+                                     default="idee", label_visibility="collapsed") or "idee"
+        tekst = st.text_area("Wat kan beter?", placeholder="Bijv. ik wil boodschappen kunnen delen met mijn huisgenoot",
+                             max_chars=2000, label_visibility="collapsed")
+        if st.form_submit_button("Versturen", type="primary"):
+            if fout := verbeteren.melden(soort, tekst):
+                st.error(fout)
+            else:
+                st.success("Dank je. We kijken ernaar en je ziet hieronder wat ermee gebeurt.")
+    st.caption("Fouten in de app worden vanzelf gemeld, zonder je naam of gegevens.")
+    for m in verbeteren.mijn_meldingen():
+        with st.container(border=True):
+            st.markdown(f"{m['tekst'][:200]}  \n:gray[{verbeteren.SOORTEN.get(m['soort'], '')} · "
+                        f"{verbeteren.STATUS.get(m['status'], '')}]")
+            if m["antwoord"]:
+                st.caption(m["antwoord"])
 
 
 def instellingen_assistent() -> None:
@@ -3836,6 +3860,7 @@ def main() -> None:
         (st.success if melding[0] == "ok" else st.error)(melding[1], icon="⭐" if melding[0] == "ok" else None)
     strava_terugkomst()
     strava_bijwerken()
+    st.session_state._pagina = nu_open.url_path
     nu_open.run()
 
 
@@ -3847,3 +3872,6 @@ except opslag.GeenToegang:
     st.error("Geen toegang tot je gegevens. Ververs de pagina en log opnieuw in.")
 except opslag.httpx.HTTPError:
     st.error("De database is even niet bereikbaar. Ververs de pagina over een minuut.")
+except Exception as fout:
+    verbeteren.fout_melden(fout, st.session_state.get("_pagina", ""))
+    raise
