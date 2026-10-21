@@ -24,6 +24,7 @@ def _fout(functie, *args, **kwargs):
     """Voert een actie uit en toont een nette melding als het niet lukt.
 
     Geeft het resultaat (True als de actie niets teruggeeft), of None als het niet lukte."""
+    st.session_state.pop("_markt_resultaat", None)  # na een actie opnieuw zoeken (voorraad, prijs)
     try:
         resultaat = functie(*args, **kwargs)
         return True if resultaat is None else resultaat
@@ -269,15 +270,29 @@ def zoeken() -> None:
     st.session_state.markt_zoekterm = zoekterm
     soort = st.pills("Soort", list(samen.SOORTEN_AANBOD), format_func=samen.SOORTEN_AANBOD.get,
                      label_visibility="collapsed", key="markt_soort") or ""
-    resultaten = samen.aanbod_zoeken(zoekterm, soort)
+    # Kort onthouden: elke klik op een kaart laat de pagina opnieuw lopen, dan hoeft er niet opnieuw gezocht te worden.
+    sleutel = (zoekterm.strip().lower(), soort)
+    eerder = st.session_state.get("_markt_resultaat")
+    if eerder and eerder[0] == sleutel and time.time() - eerder[1] < 30:
+        resultaten = eerder[2]
+    else:
+        resultaten = samen.aanbod_zoeken(zoekterm, soort)
+        if not eerder or eerder[0] != sleutel:
+            st.session_state.markt_aantal = 20
+        st.session_state._markt_resultaat = (sleutel, time.time(), resultaten)
+    aantal = st.session_state.get("markt_aantal", 20)
     # Afgesproken prijzen (geaccepteerde biedingen), één keer per pagina opgehaald.
     st.session_state._afgesproken = {b["aanbod_id"]: b["tegenbod"] or b["bedrag"] for b in samen.mijn_biedingen()
                                      if b["ik_ben"] == "koper" and b["status"] == "geaccepteerd" and not b["verlopen"]}
     if not resultaten:
         st.caption("Nog niets gevonden op onze marktplaats." + (" Kijk hieronder ook bij de andere marktplaatsen."
                                                                if zoekterm else " Wees de eerste: kies Verkopen."))
-    for aanbod in resultaten:
+    for aanbod in resultaten[:aantal]:
         aanbod_kaart(aanbod)
+    if len(resultaten) > aantal:
+        if st.button("Meer laten zien", key="markt_meer"):
+            st.session_state.markt_aantal = aantal + 20
+            st.rerun()
     with st.expander("Ook kijken op andere marktplaatsen", expanded=bool(zoekterm) and not resultaten):
         for m in samen.externe_links(zoekterm):
             st.markdown(f"[{m['naam']}]({m['link']}) · :gray[{m['voor']}]")

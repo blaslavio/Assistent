@@ -2,9 +2,10 @@
 
 Versleutelen en ontsleutelen gebeurt alleen in de browser: deze server (en dus ook de assistent) ziet nooit wat er
 in een bericht staat. De browser praat daarvoor zelf met de database, met dezelfde inlogsessie als de app.
-Niet in de herlaadlus van app.py: een onderdeel mag maar één keer worden aangemeld.
+Het onderdeel krijgt een naam met een vingerafdruk van de code, zodat een update meteen de nieuwe chat laat zien.
 """
 
+import hashlib
 import os
 import time
 from datetime import date, datetime, timedelta
@@ -196,8 +197,9 @@ CSS = """
 .c-code-groot { font-family: ui-monospace, Menlo, monospace; font-size: 22px; letter-spacing: .08em; text-align: center; padding: 4px 0; }
 """
 
-_chat = st.components.v2.component("chat", html='<div class="c-wortel"></div>', css=CSS,
-                                   js=(Path(__file__).parent / "chat_js.js").read_text())
+_JS = (Path(__file__).parent / "chat_js.js").read_text()
+_chat = st.components.v2.component("chat_" + hashlib.sha1((_JS + CSS).encode()).hexdigest()[:10],
+                                   html='<div class="c-wortel"></div>', css=CSS, js=_JS)
 
 # Ongelezen berichten per account, kort onthouden zodat de kopbalk niet bij elke klik de database vraagt.
 _ongelezen: dict[str, tuple[float, int]] = {}

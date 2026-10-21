@@ -61,13 +61,15 @@ import onthouden
 import snelinvoer
 import woning
 import winkelkaart
-import chat  # niet in de herlaadlus hieronder: een onderdeel mag maar één keer worden aangemeld
+import chat
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
-# laden we hier opnieuw, anders draait de nieuwe app.py met oude modules.
+# laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, spraak):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, spraak, chat):
     _gewijzigd = os.path.getmtime(_module.__file__)
+    if _module is chat:
+        _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
     if _gewijzigd > getattr(_module, "_geladen_om", 0):
         importlib.reload(_module)
         _module._geladen_om = _gewijzigd

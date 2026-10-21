@@ -754,6 +754,7 @@ async function berichtenLaden(st) {
   const stand = (x) => JSON.stringify([x.leden.map((l) => [l.id, l.status, l.gelezen_tot]), x.vast || [], x.naam, x.alleen_beheer, x.beheerder]);
   const ledenVoor = stand(st.gesprek);
   st.gesprek = r.gesprek || g;
+  if (!st.gesprek.leden) st.gesprek.leden = g.leden;  // grote kanalen sturen de ledenlijst alleen als er iets veranderde
   let nieuw = stand(st.gesprek) !== ledenVoor;
   for (const b of r.berichten) {
     if (!b.weg && b.inhoud) {
