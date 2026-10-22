@@ -97,6 +97,14 @@ CSS = """
   display: grid; place-items: center; padding: 0 6px; box-sizing: border-box; font-weight: 600; }
 .c-zoek { display: flex; gap: 8px; padding: 12px 14px 4px; }
 .c-vulling .c-zoek { padding: 0; }
+.c-suggesties { padding: 4px 14px 0; display: flex; flex-direction: column; gap: 2px; }
+.c-suggesties:empty { display: none; }
+.c-suggestie { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 6px; border: 0; border-radius: 10px;
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.c-suggestie:hover { background: rgba(128,128,128,.12); }
+.c-suggestie span { display: flex; flex-direction: column; min-width: 0; }
+.c-suggestie small { opacity: .6; }
+.c-suggestie .c-suggestie-i { width: 36px; text-align: center; font-size: 20px; }
 .c-uitleg { font-size: 13px; opacity: .6; padding: 4px 16px 8px; }
 .c-titel { flex: 1; display: flex; align-items: center; gap: 10px; font: inherit; color: inherit; background: transparent;
   border: 0; cursor: pointer; text-align: left; padding: 0; min-width: 0; }

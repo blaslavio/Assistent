@@ -1297,6 +1297,40 @@ def webshop_formulier(w: dict, p: dict) -> None:
 
 # --- Account en beheer ---------------------------------------------------------------
 
+def telefoon_instellingen(gebruiker: dict) -> None:
+    """Inloggen met je nummer en, als je wilt, vindbaar zijn voor mensen die je nummer al hebben."""
+    eind = gebruiker.get("telefoon_eind")
+    with st.expander("Telefoonnummer" + (f" (eindigt op {eind})" if eind else "")):
+        st.caption("Log in met je nummer in plaats van je gebruikersnaam. Je nummer wordt versleuteld bewaard; "
+                   "niemand kan het zien, ook wij niet.")
+        if eind:
+            vindbaar = st.toggle("Mensen die mijn nummer hebben, kunnen mij in de chat vinden",
+                                 value=bool(gebruiker.get("telefoon_vindbaar")), key="tel_vindbaar")
+            if vindbaar != bool(gebruiker.get("telefoon_vindbaar")):
+                opslag.telefoon_instellen("-", vindbaar)
+                _gebruiker_verversen()
+                st.rerun()
+        with st.form("telefoon", clear_on_submit=True, border=False):
+            nummer = st.text_input("Nieuw nummer" if eind else "Telefoonnummer", placeholder="06 12345678",
+                                   autocomplete="tel")
+            vindbaar_nieuw = False if eind else st.checkbox(
+                "Mensen die mijn nummer hebben, kunnen mij in de chat vinden")
+            if st.form_submit_button("Bewaren") and nummer.strip():
+                if fout := opslag.telefoon_instellen(nummer, vindbaar_nieuw or bool(gebruiker.get("telefoon_vindbaar"))):
+                    st.error(fout)
+                else:
+                    _gebruiker_verversen()
+                    st.rerun()
+        if eind and st.button("Nummer weghalen", type="tertiary", icon=":material/delete:"):
+            opslag.telefoon_instellen("", False)
+            _gebruiker_verversen()
+            st.rerun()
+
+
+def _gebruiker_verversen() -> None:
+    st.session_state.ik = opslag.inloggen(st.session_state.get("naam", ""), st.session_state.wachtwoord) or {}
+
+
 def account_instellingen() -> None:
     """Profiel, voorwaarden, gegevens downloaden en account verwijderen."""
     gebruiker = ik()
@@ -1329,6 +1363,8 @@ def account_instellingen() -> None:
                         st.session_state.ik = opslag.inloggen(st.session_state.get("naam", ""),
                                                               st.session_state.wachtwoord)
                         st.success("Opgeslagen.")
+    if samen.beschikbaar():
+        telefoon_instellingen(gebruiker)
     if samen.beschikbaar():
         niveau = gebruiker.get("niveau") or "particulier"
         with st.expander(f"Accounttype: {samen.NIVEAUS[niveau][0]}"):

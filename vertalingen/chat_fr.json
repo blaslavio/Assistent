@@ -303,5 +303,9 @@
 "{} uit de community halen?": "Retirer {} de la communauté ?",
 "{} uit je contacten halen? Een nieuw bericht van diegene komt dan eerst als verzoek binnen.": "Retirer {} de tes contacts ? Un nouveau message de sa part arrivera d’abord comme demande.",
 "{} uur": "{} h",
-"{} weren? Diegene kan dan ook niet terug met de code.": "Bannir {} ? Cette personne ne pourra pas non plus revenir avec le code."
+"{} weren? Diegene kan dan ook niet terug met de code.": "Bannir {} ? Cette personne ne pourra pas non plus revenir avec le code.",
+"Naam, gebruikersnaam of telefoonnummer": "Nom, nom d'utilisateur ou numéro de téléphone",
+"in je contacten": "dans tes contacts",
+"uit je groepen": "de tes groupes",
+"Zoeken op telefoonnummer": "Rechercher par numéro de téléphone"
 }

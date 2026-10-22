@@ -303,5 +303,9 @@
 "{} uit de community halen?": "Вилучити {} зі спільноти?",
 "{} uit je contacten halen? Een nieuw bericht van diegene komt dan eerst als verzoek binnen.": "Вилучити {} зі своїх контактів? Нове повідомлення від цієї людини спершу прийде як запит.",
 "{} uur": "{} год",
-"{} weren? Diegene kan dan ook niet terug met de code.": "Заблокувати {}? Ця людина не зможе повернутися й за кодом."
+"{} weren? Diegene kan dan ook niet terug met de code.": "Заблокувати {}? Ця людина не зможе повернутися й за кодом.",
+"Naam, gebruikersnaam of telefoonnummer": "Ім'я, ім'я користувача або номер телефону",
+"in je contacten": "у твоїх контактах",
+"uit je groepen": "з твоїх груп",
+"Zoeken op telefoonnummer": "Шукати за номером телефону"
 }

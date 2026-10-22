@@ -207,7 +207,7 @@ def inlogformulier() -> None:
         code_formulier(*wacht)
         return
     with st.form("inloggen"):
-        naam = st.text_input("Gebruikersnaam of mailadres", autocomplete="username",
+        naam = st.text_input("Gebruikersnaam, mailadres of telefoonnummer", autocomplete="username",
                              help="Nog nooit een gebruikersnaam gekozen omdat je de app als eerste instelde? Laat dit leeg.")
         wachtwoord = st.text_input("Wachtwoord", type="password", autocomplete="current-password")
         onthoud = st.checkbox("Ingelogd blijven op dit apparaat", value=True,

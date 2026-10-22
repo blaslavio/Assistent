@@ -515,8 +515,9 @@ function toonContacten(st) {
     ${kop("", `<b class='c-groot-titel'>${T("Contacten")}</b>`,
       `<button class="c-ikoon" data-a="groep-nieuw" aria-label="${esc(T("Nieuwe groep"))}">${ICOON.groep}</button>`)}
     <div class="c-inhoud">
-      <div class="c-zoek"><input class="c-veld" id="c-nieuw-contact" placeholder="${esc(T("Gebruikersnaam toevoegen"))}" autocapitalize="none" autocomplete="off">
+      <div class="c-zoek"><input class="c-veld" id="c-nieuw-contact" type="search" placeholder="${esc(T("Naam, gebruikersnaam of telefoonnummer"))}" autocapitalize="none" autocomplete="off">
         <button class="c-knop c-hoofd" data-a="contact-toevoegen">${T("Toevoegen")}</button></div>
+      <div id="c-suggesties" class="c-suggesties"></div>
       <div class="c-uitleg">${T("Met je contacten app je direct. Iemand die jou niet als contact heeft, stuurt eerst een verzoek.")}</div>
       ${lijst.length ? lijst.map((c) => `
         <div class="c-item c-contact">
@@ -529,6 +530,28 @@ function toonContacten(st) {
     ${tabs(st)}`;
   const veld = st.wortel.querySelector("#c-nieuw-contact");
   veld.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); actie(st, "contact-toevoegen"); } });
+  veld.addEventListener("input", () => contactSuggesties(st, veld.value));
+}
+
+// Suggesties terwijl je typt: je contacten en mensen uit je groepen. Alleen wie je al kent; een nummer zoekt de server.
+function contactSuggesties(st, tekst) {
+  const vak = st.wortel.querySelector("#c-suggesties");
+  if (!vak) return;
+  const q = tekst.trim().toLowerCase().replace(/^@/, "");
+  const cijfers = q.replace(/[^0-9]/g, "");
+  if (!q) { vak.innerHTML = ""; return; }
+  const bekend = new Map();
+  for (const c of st.contacten || []) if (c.gebruikersnaam) bekend.set(c.gebruikersnaam, { naam: c.naam, wie: c.gebruikersnaam, contact: true, chat: c.chat });
+  for (const g of st.gesprekken || []) for (const l of g.leden || []) {
+    if (l.id !== st.ik && l.gebruikersnaam && !bekend.has(l.gebruikersnaam)) bekend.set(l.gebruikersnaam, { naam: l.naam, wie: l.gebruikersnaam, contact: false });
+  }
+  const gevonden = [...bekend.values()].filter((p) => p.wie.includes(q) || (p.naam || "").toLowerCase().includes(q)).slice(0, 6);
+  const regels = gevonden.map((p) => `<button class="c-suggestie" data-a="${p.contact ? "chat-met" : "contact-suggestie"}" data-naam="${esc(p.wie)}" ${p.contact && !p.chat ? "disabled" : ""}>
+      ${avatar(p.naam)}<span><b>${esc(p.naam)}</b><small>@${esc(p.wie)} · ${p.contact ? T("in je contacten") : T("uit je groepen")}</small></span></button>`);
+  if (/^[+0-9][0-9 ()-]{6,}$/.test(q) && cijfers.length >= 8) {
+    regels.push(`<button class="c-suggestie" data-a="contact-toevoegen"><span class="c-suggestie-i">📞</span><span><b>${esc(tekst.trim())}</b><small>${T("Zoeken op telefoonnummer")}</small></span></button>`);
+  }
+  vak.innerHTML = regels.join("");
 }
 
 function toonGroep(st) {
@@ -1395,6 +1418,10 @@ async function actie(st, a, el) {
       await contactenLaden(st); toon(st);
       melding(st, r.chat ? T("{} staat in je contacten.", r.naam) : T("{} staat in je contacten, maar gebruikt de chat nog niet.", r.naam));
       return;
+    }
+    if (a === "contact-suggestie") {
+      st.wortel.querySelector("#c-nieuw-contact").value = el.dataset.naam;
+      return actie(st, "contact-toevoegen");
     }
     if (a === "contact-weg") {
       if (!confirm(T("{} uit je contacten halen? Een nieuw bericht van diegene komt dan eerst als verzoek binnen.", el.dataset.naam))) return;

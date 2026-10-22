@@ -290,6 +290,12 @@ def account_maken(naam: str, weergavenaam: str, email: str, wachtwoord: str, akk
     return antwoord.get("fout")
 
 
+def telefoon_instellen(telefoon: str, vindbaar: bool) -> str | None:
+    """Telefoonnummer om mee in te loggen (en, als je wilt, om gevonden te worden). "" haalt het weg,
+    "-" verandert alleen vindbaar. Het nummer wordt alleen versleuteld (als hash) bewaard. Geeft een fout of None."""
+    return _rpc_ik("telefoon_instellen", p_telefoon=telefoon, p_vindbaar=vindbaar).get("fout")
+
+
 def email_instellen(email: str) -> str | None:
     """Slaat het mailadres op. Geeft een foutmelding, of None."""
     if not online():
