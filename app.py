@@ -3556,8 +3556,21 @@ def euro(bedrag: float) -> str:
     return f"€ {bedrag:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+VEEL_GEKOCHT = ["halfvolle melk", "eieren", "brood", "roomboter", "kaas", "bananen", "appels", "tomaten", "komkommer",
+                "aardappelen", "rijst", "pasta", "kipfilet", "gehakt", "yoghurt", "koffie", "thee", "pindakaas",
+                "hagelslag", "jam", "olijfolie", "uien", "paprika", "wortels", "sla", "spinazie", "broccoli",
+                "zalm", "tonijn", "cola", "sinaasappelsap", "chips", "wc-papier", "wasmiddel", "afwasmiddel",
+                "tandpasta", "shampoo", "luiers", "hondenvoer", "kattenvoer", "havermout", "muesli", "suiker", "bloem",
+                "noten", "chocolade", "bier", "water", "frisdrank", "boter", "slagroom", "mozzarella", "tortilla"]
+
+
 def boodschappen_tabblad() -> None:
-    """Boodschappenlijst om af te vinken, met de goedkoopste supermarkt in de buurt."""
+    """Boodschappenlijst om af te vinken met waar je het goedkoopst uit bent, en losse producten vergelijken."""
+    deel = st.segmented_control("Weergave", ["Mijn lijst", "Product vergelijken"], default="Mijn lijst",
+                                key="boodschappen_deel", label_visibility="collapsed") or "Mijn lijst"
+    if deel == "Product vergelijken":
+        product_vergelijken()
+        return
     with st.form("nieuwe_boodschap", clear_on_submit=True, border=False):
         with st.container(horizontal=True, vertical_alignment="bottom", gap="small"):
             invoer = st.text_input("Toevoegen", placeholder="Bijv. melk, 6 eieren", label_visibility="collapsed")
@@ -3573,12 +3586,12 @@ def boodschappen_tabblad() -> None:
         return
 
     for b in sorted(lijst, key=lambda b: b["gekocht"]):
-        kol1, kol2 = st.columns([8, 1], vertical_alignment="center")
-        gekocht = kol1.checkbox(f"~~{b['tekst']}~~" if b["gekocht"] else b["tekst"], value=b["gekocht"], key=f"bs_{b['id']}")
+        rij = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
+        gekocht = rij.checkbox(f"~~{b['tekst']}~~" if b["gekocht"] else b["tekst"], value=b["gekocht"], key=f"bs_{b['id']}")
         if gekocht != b["gekocht"]:
             opslag.boodschap_bijwerken(b["id"], gekocht=gekocht)
             st.rerun()
-        if kol2.button("✕", key=f"bs_weg_{b['id']}", help="Van de lijst halen"):
+        if rij.button("", icon=":material/close:", key=f"bs_weg_{b['id']}", help="Van de lijst halen", type="tertiary"):
             opslag.boodschap_bijwerken(b["id"], gekocht=True)
             opslag.boodschappen_opruimen()
             st.rerun()
@@ -3590,7 +3603,6 @@ def boodschappen_tabblad() -> None:
     if not nog_nodig:
         return
     st.divider()
-    st.markdown("**Waar is het het goedkoopst?**")
     try:
         winkels = _vergelijken(nog_nodig)
     except Exception:
@@ -3600,24 +3612,15 @@ def boodschappen_tabblad() -> None:
         buurt = boodschappen.winkels_in_de_buurt()
     except Exception:
         buurt = {}
-    max_km = st.select_slider("Hoe ver wil je gaan?", options=[1, 2, 3, 5], value=3, format_func=lambda k: f"{k} km",
-                              key="max_km") if buurt else None
-    dichtbij = [w for w in winkels if w["code"] in buurt and buurt[w["code"]]["afstand_km"] <= max_km] if buurt else []
-    if dichtbij:
-        beste = dichtbij[0]
-        duurste = max(w["totaal"] for w in dichtbij)
-        vestiging = buurt[beste["code"]]
-        st.success(f"**{beste['naam']}** is het goedkoopst in de buurt: **{euro(beste['totaal'])}**"
-                   + (f", {euro(duurste - beste['totaal'])} minder dan de duurste" if duurste > beste["totaal"] else "") + ".  \n"
-                   f"{vestiging['naam']}, {vestiging['adres'] or 'adres onbekend'} ({vestiging['afstand_km']} km)"
-                   + (f"  \n:material/schedule: {vestiging['openingstijden']}" if vestiging["openingstijden"] else ""))
-        route = urlencode({"daddr": f"{vestiging['lat']},{vestiging['lon']}", "q": vestiging["naam"]})
-        st.link_button("Route", f"https://maps.apple.com/?{route}")
-    elif buurt:
-        st.caption(f"Geen bekende supermarkt binnen {max_km} km.")
-    else:
-        st.caption("Vul je thuisadres in bij Instellingen om de dichtstbijzijnde winkels te zien.")
+    max_km = st.select_slider("Hoe ver wil je gaan?", options=[1, 2, 3, 5, 10], value=3,
+                              format_func=lambda k: f"{k} km", key="max_km") if buurt else None
+    dichtbij = {c for c, v in buurt.items() if v["afstand_km"] <= max_km} if buurt else None
+    if buurt and not any(w["code"] in dichtbij for w in winkels):
+        st.caption(f"Geen bekende supermarkt binnen {max_km} km. Hieronder alle supermarkten.")
+        dichtbij = None
+    samenvatting_tonen(boodschappen.samenvatting(winkels, list(nog_nodig), dichtbij), buurt)
 
+    st.markdown("**Alle supermarkten**")
     for w in winkels:
         afstand = f" · {buurt[w['code']]['afstand_km']} km" if w["code"] in buurt else ""
         compleet = "" if w["gevonden"] == len(nog_nodig) else f" · {w['gevonden']} van {len(nog_nodig)} gevonden"
@@ -3630,6 +3633,64 @@ def boodschappen_tabblad() -> None:
                     st.markdown(f"{r['zoekterm']}: _niet gevonden, geschat {euro(r['schatting'])}_")
     st.caption("Prijzen van de webwinkels via Checkjebon.nl; aanbiedingen in de winkel kunnen afwijken. "
                "Klopt een product niet? Maak het specifieker, bijvoorbeeld \"ongezouten roomboter\" in plaats van \"boter\".")
+
+
+def samenvatting_tonen(s: dict, buurt: dict) -> None:
+    """Waar je in totaal het goedkoopst uit bent, in een paar regels."""
+    if not s:
+        return
+    een = s["een"]
+    with st.container(border=True):
+        st.markdown("**Samenvatting**")
+        regel = f"Alles bij **{een['winkel']}**: **{euro(een['totaal'])}**"
+        if een["besparing"] > 0:
+            regel += f", {euro(een['besparing'])} goedkoper dan de duurste"
+        st.markdown(regel + ("." if een["compleet"] else ". Niet alles is daar gevonden; wat ontbreekt is geschat."))
+        if s["twee"]:
+            a, b = s["twee"]["winkels"]
+            st.markdown(f"Verdeeld over **{a}** en **{b}**: **{euro(s['twee']['totaal'])}**, nog "
+                        f"{euro(een['totaal'] - s['twee']['totaal'])} minder.")
+        if vestiging := buurt.get(een["code"]):
+            route = urlencode({"daddr": f"{vestiging['lat']},{vestiging['lon']}", "q": vestiging["naam"]})
+            with st.container(horizontal=True, vertical_alignment="center"):
+                st.caption(f"{vestiging['naam']}, {vestiging['adres'] or 'adres onbekend'} · {vestiging['afstand_km']} km"
+                           + (f" · {vestiging['openingstijden']}" if vestiging["openingstijden"] else ""))
+                st.link_button("Route", f"https://maps.apple.com/?{route}", icon=":material/directions:")
+        if s["per_product"]:
+            with st.expander("Per product het goedkoopst"):
+                st.dataframe([{"Product": p["zoekterm"], "Waar": p["winkel"], "Prijs": euro(p["prijs"]),
+                               "Scheelt": euro(p["verschil"]) if p["verschil"] else ""} for p in s["per_product"]],
+                             hide_index=True, width="stretch")
+
+
+def product_vergelijken() -> None:
+    """Eén product bij alle supermarkten naast elkaar, met de prijs per kilo, liter of stuk."""
+    term = zoekveld.zoekveld("product_zoek", "Welk product? Bijv. halfvolle melk",
+                             [zoekveld.suggestie(p, icoon="🛒") for p in VEEL_GEKOCHT], kop="Veel gekocht")
+    if not term:
+        st.caption("Typ een product. Je ziet dan per supermarkt wat het kost, ook per kilo of liter.")
+        return
+    try:
+        rijen = boodschappen.product_vergelijken(term)
+    except Exception:
+        st.caption("De prijzen konden niet worden geladen. Probeer het later opnieuw.")
+        return
+    if not rijen:
+        st.caption("Niet gevonden. Probeer een ander woord, bijvoorbeeld \"melk\" in plaats van \"zuivel\".")
+        return
+    beste = rijen[0]
+    eenheid = f" ({euro(beste['per'][0])} per {beste['per'][1]})" if beste["per"] else ""
+    st.markdown(f"Het goedkoopst bij **{beste['winkel']}**: {beste['naam']} {beste['hoeveelheid']} voor "
+                f"**{euro(beste['prijs'])}**{eenheid}.")
+    st.dataframe([{"Winkel": r["winkel"], "Prijs": euro(r["prijs"]),
+                   "Per kg, l of stuk": f"{euro(r['per'][0])} / {r['per'][1]}" if r["per"] else "",
+                   "Product": f"{r['naam']} {r['hoeveelheid']}".strip(), "Link": r["link"] or None} for r in rijen],
+                 hide_index=True, width="stretch",
+                 column_config={"Link": st.column_config.LinkColumn("Link", display_text="Bekijk")})
+    if st.button("Op mijn lijst", icon=":material/add_shopping_cart:", key="product_op_lijst"):
+        opslag.boodschap_toevoegen([term])
+        st.toast("Op je boodschappenlijst gezet.")
+    st.caption("Prijzen van de webwinkels via Checkjebon.nl; aanbiedingen in de winkel kunnen afwijken.")
 
 
 # --- Assistent ------------------------------------------------------------

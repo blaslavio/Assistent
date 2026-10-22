@@ -146,3 +146,84 @@ def winkels_in_de_buurt(adres: str = "", straal_km: int = 5) -> dict[str, dict]:
                              "openingstijden": tags.get("opening_hours", "")}
     _buurt_cache[sleutel] = (time.time(), dichtst)
     return dichtst
+
+
+# --- Producten vergelijken --------------------------------------------------------------------------------------------
+
+_HOEVEEL = re.compile(r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*([a-z]+)")
+_EENHEID = {"g": ("kg", 0.001), "gr": ("kg", 0.001), "gram": ("kg", 0.001), "kg": ("kg", 1), "kilo": ("kg", 1),
+            "kilogram": ("kg", 1), "ml": ("l", 0.001), "milliliter": ("l", 0.001), "cl": ("l", 0.01),
+            "centiliter": ("l", 0.01), "l": ("l", 1), "liter": ("l", 1), "st": ("stuk", 1), "stuk": ("stuk", 1),
+            "stuks": ("stuk", 1)}
+
+
+def per_eenheid(hoeveelheid: str, prijs: float) -> tuple[float, str] | None:
+    """Prijs per kilo, liter of stuk uit een hoeveelheid als '500 g', '0,75 l', '2 x 250 g' of '6 stuks'."""
+    m = _HOEVEEL.search((hoeveelheid or "").lower())
+    if not m or m.group(3) not in _EENHEID:
+        return None
+    aantal = int(m.group(1) or 1) * float(m.group(2).replace(",", "."))
+    eenheid, factor = _EENHEID[m.group(3)]
+    totaal = aantal * factor
+    return (round(prijs / totaal, 2), eenheid) if totaal > 0 else None
+
+
+def product_vergelijken(zoekterm: str) -> list[dict]:
+    """Eén product bij alle supermarkten: wat het best past, met prijs en prijs per kilo/liter/stuk.
+    Goedkoopste eerst (per eenheid als dat te vergelijken is)."""
+    uit = []
+    for w in prijzen():
+        p = beste_product(w, zoekterm)
+        if p:
+            uit.append({"code": w["code"], "winkel": w["naam"], **p, "per": per_eenheid(p["hoeveelheid"], p["prijs"])})
+    eenheden = {r["per"][1] for r in uit if r["per"]}
+    vergelijkbaar = len(eenheden) == 1
+    uit.sort(key=lambda r: (r["per"][0] if vergelijkbaar and r["per"] else float("inf") if vergelijkbaar else 0,
+                            r["prijs"]))
+    return uit
+
+
+def samenvatting(winkels: list[dict], lijst: list[str], toegestaan: set[str] | None = None) -> dict:
+    """Waar je in totaal het goedkoopst uit bent: bij één winkel, of verdeeld over twee winkels.
+
+    winkels komt uit vergelijken(). Met toegestaan tel je alleen winkels mee die je wilt (bijvoorbeeld in de buurt).
+    """
+    kandidaten = [w for w in winkels if (toegestaan is None or w["code"] in toegestaan)
+                  and w["gevonden"] == len(lijst)]
+    if not kandidaten:  # geen winkel heeft alles: neem wat er is
+        kandidaten = [w for w in winkels if toegestaan is None or w["code"] in toegestaan]
+    if not kandidaten:
+        return {}
+    een = min(kandidaten, key=lambda w: w["totaal"])
+    duurste = max(w["totaal"] for w in kandidaten)
+    twee = None
+    for i, a in enumerate(kandidaten):
+        for b in kandidaten[i + 1:]:
+            totaal, verdeling = 0.0, []
+            for ra, rb in zip(a["regels"], b["regels"]):
+                pa = ra["product"]["prijs"] if ra["product"] else None
+                pb = rb["product"]["prijs"] if rb["product"] else None
+                if pa is None and pb is None:
+                    totaal += ra["schatting"] or 0
+                    verdeling.append((ra["zoekterm"], None, ra["schatting"]))
+                elif pb is None or (pa is not None and pa <= pb):
+                    totaal += pa
+                    verdeling.append((ra["zoekterm"], a["naam"], pa))
+                else:
+                    totaal += pb
+                    verdeling.append((ra["zoekterm"], b["naam"], pb))
+            if twee is None or totaal < twee["totaal"]:
+                twee = {"winkels": [a["naam"], b["naam"]], "totaal": round(totaal, 2), "verdeling": verdeling}
+    # Twee winkels alleen noemen als het echt scheelt (minstens € 1 en 5%).
+    if twee and not (een["totaal"] - twee["totaal"] >= max(1.0, een["totaal"] * 0.05)):
+        twee = None
+    per_product = []
+    for i, term in enumerate(lijst):
+        opties = [(w["regels"][i]["product"]["prijs"], w["naam"]) for w in kandidaten if w["regels"][i]["product"]]
+        if opties:
+            prijs, winkel = min(opties)
+            per_product.append({"zoekterm": term, "winkel": winkel, "prijs": prijs,
+                                "verschil": round(max(o[0] for o in opties) - prijs, 2)})
+    return {"een": {"winkel": een["naam"], "code": een["code"], "totaal": een["totaal"],
+                    "besparing": round(duurste - een["totaal"], 2), "compleet": een["gevonden"] == len(lijst)},
+            "twee": twee, "per_product": per_product}
