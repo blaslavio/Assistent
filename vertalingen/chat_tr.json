@@ -307,5 +307,18 @@
 "Naam, gebruikersnaam of telefoonnummer": "Ad, kullanıcı adı veya telefon numarası",
 "in je contacten": "kişilerinde",
 "uit je groepen": "gruplarından",
-"Zoeken op telefoonnummer": "Telefon numarasıyla ara"
+"Zoeken op telefoonnummer": "Telefon numarasıyla ara",
+"Betaald via de app. Het geld komt na de afspraak naar je toe.": "Uygulama üzerinden ödendi. Para randevudan sonra sana gelir.",
+"Gratis annuleren tot {} uur van tevoren. Daarna betaal je {}%.": "{} saat öncesine kadar ücretsiz iptal. Sonrasında %{} ödersin.",
+"Wacht op betaling": "Ödeme bekleniyor",
+"Alle komende keren annuleren? Je krijgt {} terug.": "Gelecek tüm seanslar iptal edilsin mi? {} geri alırsın.",
+"Betaald via de app": "Uygulama üzerinden ödendi",
+"Betaal binnen 30 minuten, dan is je boeking bevestigd.": "30 dakika içinde öde, rezervasyonun onaylansın.",
+"Je betaalt vooraf via de app.": "Uygulama üzerinden önceden ödersin.",
+"Boeken en betalen": "Rezerve et ve öde",
+"Gratis annuleren kan altijd.": "Her zaman ücretsiz iptal.",
+"De betaaldienst is even niet bereikbaar. Probeer het later opnieuw.": "Ödeme hizmetine şu an ulaşılamıyor. Daha sonra tekrar dene.",
+"Betaal binnen 30 minuten, anders vervalt de boeking.": "30 dakika içinde öde, yoksa rezervasyon düşer.",
+"{} keer geannuleerd. Je krijgt {} terug op je rekening.": "{} kez iptal edildi. Hesabına {} geri gelir.",
+"Je krijgt {} terug.": "{} geri alırsın."
 }

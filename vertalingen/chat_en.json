@@ -307,5 +307,18 @@
 "Naam, gebruikersnaam of telefoonnummer": "Name, username or phone number",
 "in je contacten": "in your contacts",
 "uit je groepen": "from your groups",
-"Zoeken op telefoonnummer": "Search by phone number"
+"Zoeken op telefoonnummer": "Search by phone number",
+"Betaald via de app. Het geld komt na de afspraak naar je toe.": "Paid via the app. The money comes to you after the appointment.",
+"Gratis annuleren tot {} uur van tevoren. Daarna betaal je {}%.": "Free cancellation up to {} hours before. After that you pay {}%.",
+"Wacht op betaling": "Waiting for payment",
+"Alle komende keren annuleren? Je krijgt {} terug.": "Cancel all upcoming sessions? You get {} back.",
+"Betaald via de app": "Paid via the app",
+"Betaal binnen 30 minuten, dan is je boeking bevestigd.": "Pay within 30 minutes and your booking is confirmed.",
+"Je betaalt vooraf via de app.": "You pay in advance via the app.",
+"Boeken en betalen": "Book and pay",
+"Gratis annuleren kan altijd.": "Free cancellation at any time.",
+"De betaaldienst is even niet bereikbaar. Probeer het later opnieuw.": "The payment service is unavailable right now. Please try again later.",
+"Betaal binnen 30 minuten, anders vervalt de boeking.": "Pay within 30 minutes, otherwise the booking expires.",
+"{} keer geannuleerd. Je krijgt {} terug op je rekening.": "{} cancelled. You get {} back on your account.",
+"Je krijgt {} terug.": "You get {} back."
 }

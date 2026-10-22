@@ -4,7 +4,8 @@
 // bevestigt dat alles goed is ontvangen. Bij een geschil beslist de beheerder.
 // De Stripe-sleutels staan in de database (private.platform) of als geheim van deze functie; nooit in de code.
 //
-// Acties (POST, JSON): verkoper_aanmelden, verkoper_status, afrekenen, ontvangen, geschil_besluiten.
+// Acties (POST, JSON): verkoper_aanmelden, verkoper_status, afrekenen, ontvangen, geschil_besluiten,
+// boeking_afrekenen, boekingen_verrekenen.
 // Stripe stuurt gebeurtenissen (webhook) naar dezelfde URL, met de kop stripe-signature.
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -177,6 +178,66 @@ async function geschilBesluiten(body: Record<string, unknown>) {
   return { ok: true };
 }
 
+// --- Boekingen (diensten via de chat) ----------------------------------------------------------
+// De klant betaalt vooraf; het geld blijft bij Stripe tot na de afspraak. Bij annuleren rekent de database uit wat
+// terug gaat (annuleringsregel van de aanbieder). Verrekenen = terugbetalen en/of uitbetalen, min de commissie.
+
+async function boekingAfrekenen(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  const ids = Array.isArray(body.boekingen) ? body.boekingen.map(Number).filter(Number.isFinite) : [];
+  const b = await rpc("stripe_boekingen", { p_ids: ids, p_klant: g.id });
+  if (!b) throw new Fout("Deze boeking kan niet (meer) betaald worden. Boek opnieuw.");
+  if (!b.kan_ontvangen) throw new Fout("De aanbieder kan op dit moment geen betalingen ontvangen.");
+  const { app_adres } = await instellingen();
+  const verloopt = Math.floor(Date.now() / 1000) + 31 * 60;  // Stripe: minstens 30 minuten
+  const sessie = await stripe("POST", "/v1/checkout/sessions", {
+    mode: "payment",
+    customer_email: g.email ?? undefined,
+    line_items: { 0: { quantity: 1, price_data: { currency: "eur", unit_amount: b.totaal, product_data: { name: b.titel } } } },
+    payment_intent_data: { transfer_group: `boeking-${b.ids[0]}`, metadata: { boekingen: b.ids.join(",") } },
+    metadata: { boekingen: b.ids.join(",") },
+    success_url: `${app_adres}/?boeking_betaald=1`,
+    cancel_url: `${app_adres}/?boeking_betaald=0`,
+    expires_at: verloopt,
+  });
+  await rpc("stripe_boeking_sessie", { p_ids: b.ids, p_klant: g.id, p_sessie: sessie.id,
+                                       p_tot: new Date(verloopt * 1000).toISOString() });
+  return { url: sessie.url };
+}
+
+async function verrekenen(gebruikerId: number | null) {
+  const lijst = await rpc("stripe_te_verrekenen", { p_gebruiker: gebruikerId });
+  let klaar = 0;
+  for (const b of lijst) {
+    try {
+      if (b.terug > 0) {
+        await stripe("POST", "/v1/refunds", { payment_intent: b.betaling, amount: b.terug, metadata: { boeking: b.id } },
+                     `boeking-terug-${b.id}`);
+        await rpc("stripe_boeking_teruggestort", { p_id: b.id });
+      }
+      const uit = b.aan - b.commissie;
+      if (uit > 0) {
+        if (!b.account || !b.klaar) continue;  // later opnieuw, als de aanbieder weer kan ontvangen
+        const betaling = await stripe("GET", `/v1/payment_intents/${b.betaling}`);
+        await stripe("POST", "/v1/transfers", {
+          amount: uit, currency: "eur", destination: b.account, source_transaction: betaling.latest_charge,
+          transfer_group: `boeking-${b.id}`, metadata: { boeking: b.id },
+        }, `boeking-uit-${b.id}`);
+      }
+      await rpc("stripe_boeking_verrekend", { p_id: b.id });
+      klaar++;
+    } catch (fout) {
+      console.error("verrekenen", b.id, fout);
+    }
+  }
+  return klaar;
+}
+
+async function boekingenVerrekenen(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  return { verrekend: await verrekenen(g.id) };
+}
+
 // --- Webhook --------------------------------------------------------------------------------
 
 async function handtekeningKlopt(payload: string, kop: string, geheim: string) {
@@ -203,6 +264,10 @@ async function webhook(payload: string, kop: string) {
       && object.payment_status === "paid" && object.metadata?.bestelling) {
     await rpc("stripe_betaald", { p_id: Number(object.metadata.bestelling), p_sessie: object.id,
                                   p_betaling: object.payment_intent });
+  } else if (["checkout.session.completed", "checkout.session.async_payment_succeeded"].includes(gebeurtenis.type)
+             && object.payment_status === "paid" && object.metadata?.boekingen) {
+    const r = await rpc("stripe_boeking_betaald", { p_sessie: object.id, p_betaling: object.payment_intent });
+    if (r?.terug) await verrekenen(null);
   } else if (gebeurtenis.type === "account.updated") {
     await rpc("stripe_account_klaar", { p_account: object.id,
                                         p_klaar: Boolean(object.details_submitted && object.payouts_enabled) });
@@ -216,9 +281,16 @@ const ACTIES: Record<string, (body: Record<string, unknown>) => Promise<unknown>
   afrekenen,
   ontvangen,
   geschil_besluiten: geschilBesluiten,
+  boeking_afrekenen: boekingAfrekenen,
+  boekingen_verrekenen: boekingenVerrekenen,
 };
 
+// De chat in de app roept deze functie rechtstreeks vanuit de browser aan.
+const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "POST, OPTIONS",
+               "Access-Control-Allow-Headers": "content-type, apikey, authorization, x-client-info" };
+
 export async function verwerk(verzoek: Request): Promise<Response> {
+  if (verzoek.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (verzoek.method !== "POST") return new Response("alleen POST", { status: 405 });
   const payload = await verzoek.text();
   try {
@@ -226,12 +298,12 @@ export async function verwerk(verzoek: Request): Promise<Response> {
     if (kop) return await webhook(payload, kop);
     const body = JSON.parse(payload || "{}");
     const actie = ACTIES[body.actie];
-    if (!actie) return Response.json({ fout: "Onbekende actie." }, { status: 400 });
-    return Response.json(await actie(body));
+    if (!actie) return Response.json({ fout: "Onbekende actie." }, { status: 400, headers: CORS });
+    return Response.json(await actie(body), { headers: CORS });
   } catch (fout) {
-    if (fout instanceof Fout) return Response.json({ fout: fout.message });
+    if (fout instanceof Fout) return Response.json({ fout: fout.message }, { headers: CORS });
     console.error(fout);
-    return Response.json({ fout: "Er ging iets mis bij het betalen. Probeer het later opnieuw." }, { status: 500 });
+    return Response.json({ fout: "Er ging iets mis bij het betalen. Probeer het later opnieuw." }, { status: 500, headers: CORS });
   }
 }
 

@@ -307,5 +307,18 @@
 "Naam, gebruikersnaam of telefoonnummer": "الاسم أو اسم المستخدم أو رقم الهاتف",
 "in je contacten": "في جهات اتصالك",
 "uit je groepen": "من مجموعاتك",
-"Zoeken op telefoonnummer": "البحث برقم الهاتف"
+"Zoeken op telefoonnummer": "البحث برقم الهاتف",
+"Betaald via de app. Het geld komt na de afspraak naar je toe.": "تم الدفع عبر التطبيق. يصلك المال بعد الموعد.",
+"Gratis annuleren tot {} uur van tevoren. Daarna betaal je {}%.": "إلغاء مجاني حتى {} ساعة قبل الموعد. بعد ذلك تدفع {}%.",
+"Wacht op betaling": "بانتظار الدفع",
+"Alle komende keren annuleren? Je krijgt {} terug.": "إلغاء كل المواعيد القادمة؟ يُعاد إليك {}.",
+"Betaald via de app": "تم الدفع عبر التطبيق",
+"Betaal binnen 30 minuten, dan is je boeking bevestigd.": "ادفع خلال 30 دقيقة ليتأكد حجزك.",
+"Je betaalt vooraf via de app.": "تدفع مسبقًا عبر التطبيق.",
+"Boeken en betalen": "احجز وادفع",
+"Gratis annuleren kan altijd.": "الإلغاء المجاني متاح دائمًا.",
+"De betaaldienst is even niet bereikbaar. Probeer het later opnieuw.": "خدمة الدفع غير متاحة الآن. حاول لاحقًا.",
+"Betaal binnen 30 minuten, anders vervalt de boeking.": "ادفع خلال 30 دقيقة، وإلا ينتهي الحجز.",
+"{} keer geannuleerd. Je krijgt {} terug op je rekening.": "أُلغي {} مرة. يُعاد إليك {} في حسابك.",
+"Je krijgt {} terug.": "يُعاد إليك {}."
 }

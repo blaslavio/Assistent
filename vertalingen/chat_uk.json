@@ -307,5 +307,18 @@
 "Naam, gebruikersnaam of telefoonnummer": "Ім'я, ім'я користувача або номер телефону",
 "in je contacten": "у твоїх контактах",
 "uit je groepen": "з твоїх груп",
-"Zoeken op telefoonnummer": "Шукати за номером телефону"
+"Zoeken op telefoonnummer": "Шукати за номером телефону",
+"Betaald via de app. Het geld komt na de afspraak naar je toe.": "Оплачено в застосунку. Гроші надійдуть тобі після запису.",
+"Gratis annuleren tot {} uur van tevoren. Daarna betaal je {}%.": "Безкоштовне скасування до {} год. до початку. Потім ти платиш {}%.",
+"Wacht op betaling": "Очікує оплати",
+"Alle komende keren annuleren? Je krijgt {} terug.": "Скасувати всі наступні записи? Тобі повернуть {}.",
+"Betaald via de app": "Оплачено в застосунку",
+"Betaal binnen 30 minuten, dan is je boeking bevestigd.": "Оплати протягом 30 хвилин, і бронювання буде підтверджено.",
+"Je betaalt vooraf via de app.": "Ти платиш наперед у застосунку.",
+"Boeken en betalen": "Забронювати й оплатити",
+"Gratis annuleren kan altijd.": "Безкоштовне скасування будь-коли.",
+"De betaaldienst is even niet bereikbaar. Probeer het later opnieuw.": "Платіжний сервіс зараз недоступний. Спробуй пізніше.",
+"Betaal binnen 30 minuten, anders vervalt de boeking.": "Оплати протягом 30 хвилин, інакше бронювання скасується.",
+"{} keer geannuleerd. Je krijgt {} terug op je rekening.": "Скасовано {} раз(и). Тобі повернуть {} на рахунок.",
+"Je krijgt {} terug.": "Тобі повернуть {}."
 }

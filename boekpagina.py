@@ -7,6 +7,7 @@ als ze geannuleerd worden).
 import hashlib
 import re
 import secrets
+import threading
 import time
 from datetime import date, datetime, timedelta
 
@@ -104,8 +105,26 @@ def vanzelf() -> None:
         return
     _laatst[wie] = time.time()
     verwerken()
+    if time.time() - _laatst.get("geld|" + wie, 0) > 600:
+        _laatst["geld|" + wie] = time.time()
+        threading.Thread(target=_verrekenen, args=(opslag._naam.get(), opslag._wachtwoord.get()), daemon=True).start()
+
+
+def terugbetalen() -> None:
+    """Na annuleren meteen terugbetalen, op de achtergrond."""
+    threading.Thread(target=_verrekenen, args=(opslag._naam.get(), opslag._wachtwoord.get()), daemon=True).start()
+
+
+def _verrekenen(naam: str, wachtwoord: str) -> None:
+    """Betaalde boekingen die voorbij of geannuleerd zijn: terugbetalen en/of uitbetalen (via de betaalfunctie)."""
+    try:
+        opslag.gebruik_account(naam, wachtwoord)
+        if samen.betalen_status().get("aan"):
+            samen._stripe("boekingen_verrekenen")
+    except Exception:
+        pass  # volgende keer opnieuw
 
 
 def nieuw(m: dict) -> list[dict]:
     """Boekingen die op jouw antwoord wachten."""
-    return [b for b in m["boekingen"] if b["status"] == "aangevraagd"]
+    return [b for b in m["boekingen"] if b["status"] == "aangevraagd" and b.get("geld") != "open"]

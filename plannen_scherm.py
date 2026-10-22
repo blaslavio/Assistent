@@ -696,7 +696,7 @@ def geboekt_bij_mij() -> None:
         raise
     except Exception:
         return
-    lijst = [b for b in m["boekingen"] if b["status"] in ("aangevraagd", "bevestigd")
+    lijst = [b for b in m["boekingen"] if b["status"] in ("aangevraagd", "bevestigd") and b.get("geld") != "open"
              and datetime.fromisoformat(b["start"]) > datetime.now().astimezone() - timedelta(hours=2)]
     if not lijst:
         return
@@ -705,7 +705,8 @@ def geboekt_bij_mij() -> None:
         with st.container(horizontal=True, vertical_alignment="center", key=f"boeking_{b['id']}"):
             with st.container(gap=None):
                 st.markdown(f"**{_wanneer(b['start'])}** · {b['naam']}")
-                st.caption(" · ".join(filter(None, [b["soort"], boekpagina.STATUS[b["status"]], b["notitie"][:60]])))
+                st.caption(" · ".join(filter(None, [b["soort"], boekpagina.STATUS[b["status"]],
+                                                    "Betaald via de app" if b.get("geld") else "", b["notitie"][:60]])))
             with st.popover("", icon=":material/more_horiz:"):
                 st.caption(" · ".join(filter(None, [b["email"], b["telefoon"]])))
                 if b["status"] == "aangevraagd":
@@ -713,7 +714,8 @@ def geboekt_bij_mij() -> None:
                         _boek_actie(b, "bevestigen", "Bevestigd en in je agenda gezet.")
                     if st.button("Afwijzen", key=f"boek_nee_{b['id']}", width="stretch"):
                         _boek_actie(b, "afwijzen", "Afgewezen. Laat het de ander even weten.")
-                elif st.button("Annuleren", key=f"boek_weg_{b['id']}", width="stretch"):
+                elif st.button("Annuleren", key=f"boek_weg_{b['id']}", width="stretch",
+                               help="De klant krijgt het betaalde bedrag terug." if b.get("geld") else None):
                     _boek_actie(b, "annuleren", "Geannuleerd en uit je agenda gehaald. Laat het de ander even weten.")
                 if b["email"]:
                     onderwerp = quote(f"{b['soort']} {_wanneer(b['start'])}")
@@ -728,6 +730,8 @@ def _boek_actie(b: dict, actie: str, melding: str) -> None:
     except samen.Fout as fout:
         st.error(str(fout))
         return
+    if b.get("geld") == "betaald" and actie != "bevestigen":
+        boekpagina.terugbetalen()
     st.session_state.plannen_melding = melding
     st.rerun()
 
@@ -784,8 +788,25 @@ def boek_dialoog() -> None:
         vooruit = k2.selectbox("Tot hoe ver vooruit", [7, 14, 30, 60, 90], format_func=lambda d: f"{d} dagen",
                                index=[7, 14, 30, 60, 90].index(p["vooruit"]) if p["vooruit"] in [7, 14, 30, 60, 90] else 2)
         adres = st.text_input("Linknaam", value=p["adres"], max_chars=40, help="Letters, cijfers en streepjes.")
-    with st.expander("Betalen"):
-        st.caption("Wie via de chat boekt, ziet deze gegevens om te betalen. De app verplaatst zelf geen geld.")
+    with st.expander("Betalen en annuleren"):
+        regel = p.get("annuleren") or {"uren": 24, "procent": 50}
+        app_betalen = st.toggle("Klanten betalen vooraf via de app", value=bool(p.get("app_betalen")),
+                                disabled=not p.get("kan_app_betalen") and not p.get("app_betalen"),
+                                help="De betaling bevestigt de boeking. Het geld komt na de afspraak naar je toe, "
+                                     "min 5% commissie (minimaal € 0,35).")
+        if not p.get("kan_app_betalen"):
+            st.caption("Hiervoor meld je je eerst aan bij Instellingen › Account › Betalen via de app.")
+        uur_keuzes = {0: "Altijd", 12: "12 uur", 24: "24 uur", 48: "2 dagen", 72: "3 dagen", 168: "1 week"}
+        k1, k2 = st.columns(2)
+        uren = k1.selectbox("Gratis annuleren tot", list(uur_keuzes), format_func=uur_keuzes.get,
+                            index=list(uur_keuzes).index(regel["uren"]) if regel["uren"] in uur_keuzes else 2,
+                            help="Zoveel tijd voor de afspraak kan de klant nog kosteloos annuleren.")
+        procent = k2.selectbox("Daarna krijg jij", [0, 25, 50, 75, 100], format_func=lambda x: f"{x}%",
+                               index=[0, 25, 50, 75, 100].index(regel["procent"]) if regel["procent"] in [0, 25, 50, 75, 100] else 2,
+                               disabled=uren == 0)
+        st.caption("Annuleer of weiger jij, dan krijgt de klant altijd alles terug.")
+        st.markdown("**Zelf betaling regelen**")
+        st.caption("Zonder betalen via de app ziet de klant deze gegevens.")
         betalen = p.get("betalen") or {}
         iban = st.text_input("Jouw IBAN", value=betalen.get("iban", ""), placeholder="NL00 BANK 0123 4567 89")
         rekeningnaam = st.text_input("Naam op je rekening", value=betalen.get("naam", ""), max_chars=70)
@@ -798,7 +819,8 @@ def boek_dialoog() -> None:
                                   "uren": {str(d): [[van.strftime("%H:%M"), tot.strftime("%H:%M")]] for d in dagen},
                                   "buffer": buffer, "min_vooraf": min_vooraf, "vooruit": vooruit,
                                   "max_per_dag": int(max_per_dag),
-                                  "betalen": {"iban": iban.strip(), "naam": rekeningnaam.strip(), "link": betaallink.strip()}})
+                                  "betalen": {"iban": iban.strip(), "naam": rekeningnaam.strip(), "link": betaallink.strip()},
+                                  "app_betalen": app_betalen, "annuleren": {"uren": uren, "procent": procent}})
         except samen.Fout as fout:
             st.error(str(fout))
             return

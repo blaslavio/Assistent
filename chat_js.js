@@ -151,6 +151,39 @@ async function rpc(st, functie, parameters = {}) {
   return j;
 }
 
+// Betalen via de app loopt via de betaalfunctie (die met Stripe praat), niet via de database.
+async function betaalFunctie(st, actie, extra = {}) {
+  const r = await fetch(`${st.url}/functions/v1/betalen`, {
+    method: "POST",
+    headers: { apikey: st.key, "Content-Type": "application/json" },
+    body: JSON.stringify({ actie, naam: st.naam, wachtwoord: st.token, ...extra }),
+  });
+  let j = null;
+  try { j = await r.json(); } catch (e) { /* geen antwoord */ }
+  if (!j) throw new Error(T("De betaaldienst is even niet bereikbaar. Probeer het later opnieuw."));
+  if (j.fout) throw new Error(j.fout);
+  return j;
+}
+
+// Een venster openen moet meteen bij de tik (anders blokkeert Safari het); het adres komt daarna.
+async function betaalVenster(st, ids) {
+  const venster = window.open("", "_blank");
+  try {
+    const r = await betaalFunctie(st, "boeking_afrekenen", { boekingen: ids });
+    if (venster) venster.location.href = r.url; else window.location.href = r.url;
+  } catch (fout) {
+    if (venster) venster.close();
+    throw fout;
+  }
+}
+
+function annuleerRegel(regel, app) {
+  if (!regel) return "";
+  const r = !regel.uren || !regel.procent ? T("Gratis annuleren kan altijd.")
+    : T("Gratis annuleren tot {} uur van tevoren. Daarna betaal je {}%.", regel.uren, regel.procent);
+  return app ? `${T("Je betaalt vooraf via de app.")} ${r}` : r;
+}
+
 // --- Foto's verkleinen -------------------------------------------------------------------------------------------
 
 function verkleind(bestand) {
@@ -935,7 +968,10 @@ async function berichtenLaden(st) {
   st.gesprek = r.gesprek || g;
   if (!st.gesprek.leden) st.gesprek.leden = g.leden;  // grote kanalen sturen de ledenlijst alleen als er iets veranderde
   let nieuw = stand(st.gesprek) !== ledenVoor;
+  const al = new Set(st.berichten.map((x) => x.id));
   for (const b of r.berichten) {
+    if (al.has(b.id)) continue;  // twee keer tegelijk geladen (openen en verversen)
+    al.add(b.id);
     if (!b.weg && b.inhoud) {
       try { Object.assign(b, await ontsleutel(st, g.id, b)); } catch (e) { b.fout = "kapot"; }
     }
@@ -959,6 +995,7 @@ async function berichtenLaden(st) {
       per.set(b.afzender, Number(b.bericht.keuze));
       st.stemmen.set(b.bericht.op, per);
     }
+    if (st.berichten.some((x) => x.id === b.id)) continue;
     st.berichten.push(b);
     nieuw = true;
   }
@@ -1037,10 +1074,12 @@ function boekingKaart(st, b, m, mijn, afzender) {
   const starts = m.starts || [];
   const regels = starts.slice(0, 4).map((x, k) => `<div>${kort(st.boekStatus.get(ids[k]), x)}</div>`).join("")
     + (starts.length > 4 ? `<small>${esc(T("en nog {} keer", starts.length - 4))}</small>` : "");
+  const open = actief.some((x) => x.geld === "open");
+  const viaApp = status.some((x) => x.geld && x.geld !== "open");
   const wacht = actief.some((x) => x.status === "aangevraagd") || (!status.length && m.status === "aangevraagd");
   const allesWeg = status.length && !actief.length && status.every((x) => ["afgewezen", "geannuleerd"].includes(x.status));
   const stand = allesWeg ? T(status[0].status === "afgewezen" ? "Afgewezen" : "Geannuleerd")
-    : wacht ? T("Wacht op bevestiging") : T("Bevestigd");
+    : open ? T("Wacht op betaling") : wacht ? T("Wacht op bevestiging") : T("Bevestigd");
   const totaal = (m.prijs || 0) * (status.length ? actief.length || 0 : starts.length);
   const betaald = (st.betaald.get(m.id) || []).length || status.some((x) => x.betaald);
   const saldo = status.length ? status[0].saldo : null;
@@ -1049,21 +1088,25 @@ function boekingKaart(st, b, m, mijn, afzender) {
   const wie = mijn ? T("bij {}", m.naam || "") : (afzender ? afzender.naam : "");
   const knoppen = [];
   if (!aanbieder) {
-    if (!allesWeg && totaal > 0 && betalen && !betaald) knoppen.push(`<button class="c-knop c-hoofd" data-a="boek-betalen" data-b="${b.id}">${T("Betalen")}</button>`);
+    if (open) knoppen.push(`<button class="c-knop c-hoofd" data-a="boek-betalen" data-b="${b.id}">${T("Betalen")}</button>`);
+    else if (!allesWeg && totaal > 0 && betalen && !betaald && !viaApp) knoppen.push(`<button class="c-knop c-hoofd" data-a="boek-betalen" data-b="${b.id}">${T("Betalen")}</button>`);
     if (actief.some((x) => new Date(x.start) > new Date())) knoppen.push(`<button class="c-knop" data-a="boek-annuleer" data-b="${b.id}">${T("Annuleren")}</button>`);
   } else {
-    if (actief.some((x) => x.status === "aangevraagd")) {
+    if (actief.some((x) => x.status === "aangevraagd" && x.geld !== "open")) {
       knoppen.push(`<button class="c-knop c-hoofd" data-a="boek-ja" data-b="${b.id}">${T("Bevestigen")}</button>`);
       knoppen.push(`<button class="c-knop" data-a="boek-nee" data-b="${b.id}">${T("Afwijzen")}</button>`);
     }
-    if (betaald && totaal > 0 && !status.some((x) => x.ontvangen) && !st.ontvangen?.has(m.id)) knoppen.push(`<button class="c-knop" data-a="boek-ontvangen" data-b="${b.id}">${T("Geld ontvangen")}</button>`);
+    if (betaald && !viaApp && totaal > 0 && !status.some((x) => x.ontvangen) && !st.ontvangen?.has(m.id)) knoppen.push(`<button class="c-knop" data-a="boek-ontvangen" data-b="${b.id}">${T("Geld ontvangen")}</button>`);
   }
   return `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>${T("Boeking")} · ${esc(stand)}</span></div>
     <b>${esc(m.soort)}</b><small>${esc(wie)}${m.locatie ? ` · ${esc(m.locatie)}` : ""}</small>${regels}
     ${totaal > 0 ? `<div>${esc(T("Totaal {}", bedragTekst(totaal)))}${starts.length > 1 ? ` <small>(${esc(T("{} per keer", bedragTekst(m.prijs)))})</small>` : ""}</div>` : ""}
-    ${status.some((x) => x.ontvangen) ? `<small class="c-groen">✓ ${esc(T("Betaling ontvangen"))}</small>`
+    ${open ? `<small>${esc(T("Betaal binnen 30 minuten, anders vervalt de boeking."))}</small>` : ""}
+    ${viaApp ? `<small class="c-groen">✓ ${esc(aanbieder ? T("Betaald via de app. Het geld komt na de afspraak naar je toe.") : T("Betaald via de app"))}</small>`
+      : status.some((x) => x.ontvangen) ? `<small class="c-groen">✓ ${esc(T("Betaling ontvangen"))}</small>`
       : betaald ? `<small class="c-groen">✓ ${esc(aanbieder ? T("De klant heeft betaald") : T("Je hebt betaald"))}</small>` : ""}
-    ${saldoTekst && !aanbieder ? `<small>${esc(saldoTekst)}</small>` : ""}
+    ${saldoTekst && !aanbieder && !viaApp ? `<small>${esc(saldoTekst)}</small>` : ""}
+    ${!aanbieder && status.some((x) => x.terug > 0) ? `<small>${esc(T("Je krijgt {} terug.", bedragTekst(status.reduce((n, x) => n + (x.terug || 0), 0))))}</small>` : ""}
     ${knoppen.length ? `<div class="c-rij c-wrap">${knoppen.join("")}</div>` : ""}</div>`;
 }
 
@@ -1081,7 +1124,8 @@ function boekPaneel(st) {
     <div class="c-rij"><label>${T("Hoe vaak")}<select class="c-veld" id="c-bk-herhaal">${Object.entries(HERHAAL).map(([k, w]) => `<option value="${k}" ${k === (bk.herhaal || "") ? "selected" : ""}>${T(w)}</option>`).join("")}</select></label>
       <label class="c-smal">${T("Aantal keer")}<select class="c-veld" id="c-bk-aantal">${[2, 3, 4, 6, 8, 10, 12].map((n) => `<option value="${n}" ${n === (bk.aantal || 4) ? "selected" : ""}>${n}</option>`).join("")}</select></label></div>
     <input class="c-veld" id="c-bk-notitie" maxlength="300" placeholder="${esc(T("Opmerking (optioneel)"))}" value="${esc(bk.notitie || "")}">
-    <div class="c-rij"><button class="c-knop c-hoofd" data-a="boek-stuur" ${bk.tijd ? "" : "disabled"}>${T("Boeken")}</button><button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>`;
+    ${bk.annuleren && (d.prijs || 0) > 0 ? `<small>${esc(annuleerRegel(bk.annuleren, bk.app_betalen))}</small>` : ""}
+    <div class="c-rij"><button class="c-knop c-hoofd" data-a="boek-stuur" ${bk.tijd ? "" : "disabled"}>${(d.prijs || 0) > 0 && bk.app_betalen ? T("Boeken en betalen") : T("Boeken")}</button><button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>`;
 }
 
 function roosterPaneel(st) {
@@ -1106,7 +1150,7 @@ async function boekDagen(st) {
   const bk = st.boek;
   bk.dagen = null; bk.tijden = null; bk.tijd = null; toon(st);
   const r = await rpc(st, "chat_dienst_bekijken", { p_adres: bk.adres, p_soort: bk.soort });
-  bk.dagen = r.dagen || []; bk.naam = r.naam || bk.naam;
+  bk.dagen = r.dagen || []; bk.naam = r.naam || bk.naam; bk.annuleren = r.annuleren; bk.app_betalen = !!r.app_betalen;
   bk.dag = bk.dagen[0] || null;
   if (bk.dag) await boekTijden(st); else toon(st);
 }
@@ -1163,8 +1207,16 @@ async function boekActie(st, a, el, v) {
   if (a === "boek-stuur") {
     const bk = st.boek;
     const herhaal = v("#c-bk-herhaal"); const aantal = herhaal ? Number(v("#c-bk-aantal")) || 4 : 1;
-    const r = await rpc(st, "chat_boeken", { p_adres: bk.adres, p_soort: bk.soort, p_start: bk.tijd, p_herhaal: herhaal,
-                                             p_aantal: aantal, p_notitie: v("#c-bk-notitie").trim() });
+    const metApp = bk.app_betalen && ((bk.soorten[bk.soort] || {}).prijs || 0) > 0;
+    const venster = metApp ? window.open("", "_blank") : null;
+    let r;
+    try {
+      r = await rpc(st, "chat_boeken", { p_adres: bk.adres, p_soort: bk.soort, p_start: bk.tijd, p_herhaal: herhaal,
+                                         p_aantal: aantal, p_notitie: v("#c-bk-notitie").trim() });
+    } catch (fout) {
+      if (venster) venster.close();
+      throw fout;
+    }
     st.paneel = null; st.boek = null;
     st.zet("boeking", { n: Date.now(), titel: `${r.soort} · ${r.naam}`, starts: r.starts, ids: r.ids, minuten: r.minuten,
                         plaats: r.locatie || "", met: r.naam, status: r.status });
@@ -1172,6 +1224,18 @@ async function boekActie(st, a, el, v) {
     const id = b64(rnd(9));
     await versturen(st, { t: "boeking", id, adres: bk.adres, ids: r.ids, starts: r.starts, soort: r.soort, minuten: r.minuten,
                           prijs: r.prijs, naam: r.naam, locatie: r.locatie || "", status: r.status });
+    if (r.app_betalen) {
+      melding(st, T("Betaal binnen 30 minuten, dan is je boeking bevestigd."));
+      try {
+        const b = await betaalFunctie(st, "boeking_afrekenen", { boekingen: r.ids });
+        if (venster) venster.location.href = b.url; else window.location.href = b.url;
+      } catch (fout) {
+        if (venster) venster.close();
+        melding(st, fout.message);
+      }
+      return;
+    }
+    if (venster) venster.close();
     melding(st, r.overgeslagen.length ? T("Geboekt. {} keer was niet vrij en is overgeslagen.", r.overgeslagen.length)
       : r.status === "aangevraagd" ? T("Aangevraagd. Je krijgt bericht als het bevestigd is.") : T("Geboekt en in je agenda gezet."));
     if (r.prijs > 0 && r.betalen) {
@@ -1185,6 +1249,11 @@ async function boekActie(st, a, el, v) {
   const ids = (m.ids || []).map(Number);
   if (a === "boek-betalen") {
     const s = ids.map((id) => st.boekStatus.get(id)).filter(Boolean);
+    if (s.some((x) => x.geld === "open")) {
+      await betaalVenster(st, s.filter((x) => x.geld === "open").map((x) => x.id));
+      st.boekTijd = 0;
+      return;
+    }
     const actief = s.filter((x) => ["aangevraagd", "bevestigd"].includes(x.status));
     const info = s.length && s[0].betalen;
     if (!info) return melding(st, T("Vraag de aanbieder hoe je kunt betalen."));
@@ -1193,13 +1262,25 @@ async function boekActie(st, a, el, v) {
     st.paneel = "betalen"; return toon(st);
   }
   if (a === "boek-annuleer") {
-    if (!confirm(T("Alle komende keren annuleren?"))) return;
+    const s = ids.map((id) => st.boekStatus.get(id)).filter((x) => x && ["aangevraagd", "bevestigd"].includes(x.status) && new Date(x.start) > new Date());
+    const regel = s.length && s[0].annuleren;
+    const betaald = s.filter((x) => x.geld === "betaald");
+    let terug = 0;
+    for (const x of betaald) {
+      const op_tijd = !regel || !regel.uren || new Date(x.start) - new Date() >= regel.uren * 3600000;
+      terug += op_tijd ? x.prijs : x.prijs - Math.round(x.prijs * regel.procent / 100);
+    }
+    const vraag = betaald.length ? T("Alle komende keren annuleren? Je krijgt {} terug.", bedragTekst(terug)) : T("Alle komende keren annuleren?");
+    if (!confirm(vraag)) return;
     const r = await rpc(st, "chat_boeking_klant", { p_ids: ids, p_actie: "annuleren" });
+    if (r.betaald) betaalFunctie(st, "boekingen_verrekenen").catch(() => {});
     st.boekTijd = 0; await boekStatusLaden(st, true);
-    melding(st, T("{} keer geannuleerd.", r.aantal)); return toon(st);
+    melding(st, r.betaald ? T("{} keer geannuleerd. Je krijgt {} terug op je rekening.", r.aantal, bedragTekst(r.terug))
+      : T("{} keer geannuleerd.", r.aantal)); return toon(st);
   }
   if (a === "boek-ja" || a === "boek-nee") {
     const r = await rpc(st, "chat_boeking_afhandelen", { p_ids: ids, p_actie: a === "boek-ja" ? "bevestigen" : "afwijzen" });
+    if (a === "boek-nee" && ids.some((id) => (st.boekStatus.get(id) || {}).geld === "betaald")) betaalFunctie(st, "boekingen_verrekenen").catch(() => {});
     await boekStatusLaden(st, true);
     melding(st, a === "boek-ja" ? T("Bevestigd. Het staat in je agenda.") : T("Afgewezen."));
     if (r.ok) await versturen(st, { t: "tekst", tekst: a === "boek-ja" ? T("Je boeking is bevestigd: {}", m.soort) : T("Je boeking kan helaas niet doorgaan: {}", m.soort) });

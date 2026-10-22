@@ -3857,7 +3857,7 @@ def feedback_vragen_antwoord() -> None:
 
 def terug_van_stripe() -> None:
     """Na betalen of aanmelden bij Stripe komt de gebruiker terug met ?betaald=... of ?stripe=..."""
-    for sleutel in ("betaald", "stripe"):
+    for sleutel in ("betaald", "stripe", "boeking_betaald"):
         if sleutel in st.query_params:
             st.session_state[f"terug_{sleutel}"] = st.query_params[sleutel]
             del st.query_params[sleutel]
@@ -3880,6 +3880,12 @@ def terug_van_stripe() -> None:
                 st.toast(str(fout), icon=":material/error:")
             else:
                 st.toast(f"{k['bank']} gekoppeld: {k['opgehaald']['nieuw']} regels opgehaald.", icon=":material/check:")
+    if (boeking := st.session_state.pop("terug_boeking_betaald", None)) is not None:
+        if boeking == "1":
+            st.toast("Betaald. Je boeking is bevestigd en staat in je agenda.", icon=":material/check:")
+        else:
+            st.toast("Betalen afgebroken. Betaal binnen 30 minuten via de chat, anders vervalt de boeking.",
+                     icon=":material/info:")
     betaald = st.session_state.pop("terug_betaald", None)
     stripe_terug = st.session_state.pop("terug_stripe", None)
     if betaald or stripe_terug:

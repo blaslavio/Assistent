@@ -307,5 +307,18 @@
 "Naam, gebruikersnaam of telefoonnummer": "姓名、用户名或手机号",
 "in je contacten": "在你的联系人中",
 "uit je groepen": "来自你的群组",
-"Zoeken op telefoonnummer": "按手机号搜索"
+"Zoeken op telefoonnummer": "按手机号搜索",
+"Betaald via de app. Het geld komt na de afspraak naar je toe.": "已通过应用付款。预约结束后款项会转给你。",
+"Gratis annuleren tot {} uur van tevoren. Daarna betaal je {}%.": "提前 {} 小时可免费取消。之后需支付 {}%。",
+"Wacht op betaling": "等待付款",
+"Alle komende keren annuleren? Je krijgt {} terug.": "取消所有后续预约？你将退回 {}。",
+"Betaald via de app": "已通过应用付款",
+"Betaal binnen 30 minuten, dan is je boeking bevestigd.": "请在 30 分钟内付款，预约即可确认。",
+"Je betaalt vooraf via de app.": "你需通过应用预先付款。",
+"Boeken en betalen": "预约并付款",
+"Gratis annuleren kan altijd.": "随时可免费取消。",
+"De betaaldienst is even niet bereikbaar. Probeer het later opnieuw.": "支付服务暂时无法使用，请稍后再试。",
+"Betaal binnen 30 minuten, anders vervalt de boeking.": "请在 30 分钟内付款，否则预约将失效。",
+"{} keer geannuleerd. Je krijgt {} terug op je rekening.": "已取消 {} 次。{} 将退回到你的账户。",
+"Je krijgt {} terug.": "你将退回 {}。"
 }
