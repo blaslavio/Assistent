@@ -10,6 +10,7 @@ import streamlit as st
 
 import opslag
 import slim
+import zoekveld
 
 
 # --- Algemeen ---------------------------------------------------------------------------
@@ -190,8 +191,10 @@ def notities() -> None:
             if st.form_submit_button("Bewaren", type="primary") and (titel.strip() or tekst.strip()):
                 opslag.lijst_toevoegen("notities", titel=titel.strip() or tekst.strip()[:40], tekst=tekst.strip())
                 st.rerun()
-    zoek = st.text_input("Zoeken in notities", placeholder="Zoeken", label_visibility="collapsed")
-    for n in reversed(opslag.lijst("notities")):
+    notities = opslag.lijst("notities")
+    zoek = zoekveld.zoekveld("notities_zoek", "Zoeken in notities", [
+        zoekveld.suggestie(n["titel"], icoon="📝", zoek=n["tekst"][:300]) for n in reversed(notities)], kop="Notities")
+    for n in reversed(notities):
         if zoek and zoek.lower() not in (n["titel"] + n["tekst"]).lower():
             continue
         with st.expander(f"{n['titel']}"):

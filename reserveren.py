@@ -6,6 +6,7 @@ bezoek schrijf je een review. Zaken die (nog) niet in de app zitten, zet je als 
 telefoonnummer erbij.
 """
 
+import unicodedata
 from datetime import date, datetime, timedelta
 
 import activiteiten
@@ -108,20 +109,52 @@ def beoordelen(reservering_id: int, sterren: int, tekst: str = "") -> None:
 
 # --- Ideeën, ook buiten de app ------------------------------------------------------------------------------------
 
-def ideeen(gelegenheid: str, adres: str = "") -> list[dict]:
-    """Plekken in de buurt die passen bij de gelegenheid: eten en drinken plus uitjes, dichtstbij eerst."""
-    passend = set(GELEGENHEDEN.get(gelegenheid, GELEGENHEDEN["Uitje"])[2])
-    lijst = []
-    if "Eten" in passend or "Familie" in passend:
-        lijst += activiteiten.eten_en_spelen(adres)
-    lijst += activiteiten.in_de_buurt(adres)
+def ideeen(gelegenheid: str, adres: str = "", zoek: str = "", wachten: bool = True,
+           alles: bool = False) -> list[dict] | None:
+    """Plekken in de buurt die passen bij de gelegenheid: eten en drinken plus uitjes, dichtstbij eerst.
+
+    Met een zoekterm telt de gelegenheid niet mee: dan zoekt hij in alles op naam, soort en keuken.
+    Met alles=True komen alle plekken (voor suggesties). Met wachten=False komt er None zolang de plekken nog worden opgehaald (de pagina blijft dan snel).
+    """
+    passend = set() if alles else set(GELEGENHEDEN.get(gelegenheid, GELEGENHEDEN["Uitje"])[2])
+    if wachten:
+        eten, uitjes = activiteiten.eten_en_spelen(adres), activiteiten.in_de_buurt(adres)
+    else:
+        eten, uitjes = activiteiten.op_achtergrond("eten", adres), activiteiten.op_achtergrond("uitjes", adres)
+        if eten is None or uitjes is None:
+            return None
+    lijst = (uitjes or []) + (eten or [] if zoek or alles or "Eten" in passend or "Familie" in passend else [])
+    woorden = zoek_woorden(zoek)
     gezien, uit = set(), []
     for a in sorted(lijst, key=lambda a: a["afstand_km"]):
-        if a["naam"] in gezien or (passend and a["voorkeur"] not in passend):
+        if a["naam"] in gezien:
+            continue
+        if woorden:
+            if not all(w in _plat(" ".join([a["naam"], a["soort"], a["voorkeur"], a.get("adres", "")])) for w in woorden):
+                continue
+        elif passend and a["voorkeur"] not in passend:
             continue
         gezien.add(a["naam"])
         uit.append(a)
+    if woorden:  # namen die met de zoekterm beginnen eerst
+        uit.sort(key=lambda a: (not _plat(a["naam"]).startswith(woorden[0]), a["afstand_km"]))
     return uit
+
+
+def _plat(tekst: str) -> str:
+    return unicodedata.normalize("NFD", (tekst or "").lower()).encode("ascii", "ignore").decode()
+
+
+# Zoekwoorden die mensen typen, en waar ze bij de plekken onder vallen.
+_ZOEK_SYNONIEMEN = {"restaurants": "restaurant", "eten": "eten", "uit eten": "restaurant", "koffie": "cafe",
+                    "cafes": "cafe", "terras": "cafe", "drinken": "bar", "musea": "museum", "film": "bioscoop",
+                    "zwemmen": "zwem", "kinderen": "familie", "speeltuinen": "speeltuin", "klimmen": "klim"}
+
+
+def zoek_woorden(zoek: str) -> list[str]:
+    z = _plat(zoek).strip()
+    z = _ZOEK_SYNONIEMEN.get(z, z)
+    return [w for w in z.split() if w]
 
 
 def als_plan(plek: dict, start: str, minuten: int, gelegenheid: str, uitnodigen: list[str] | None = None) -> dict:

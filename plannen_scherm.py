@@ -1,5 +1,6 @@
 """Agenda › Plannen: samen iets plannen en reserveren. En voor zaken: reserveringen aannemen (Mijn webshop)."""
 
+import time as klok
 from datetime import date, datetime, time, timedelta
 from urllib.parse import quote, urlsplit
 
@@ -11,7 +12,9 @@ import opslag
 import planning
 import prikker
 import reserveren as R
+import reizen
 import samen
+import zoekveld
 
 DAGEN = ["ma", "di", "wo", "do", "vr", "za", "zo"]
 MAANDEN = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
@@ -56,26 +59,7 @@ def pagina() -> None:
         geboekt_bij_mij()
         mijn_reserveringen()
         mijn_aanvragen()
-        zoek = st.text_input("Zoek", placeholder="Zoek een zaak in de app", label_visibility="collapsed",
-                             key="plannen_zoek")
-        try:
-            zaken = [z for z in R.zaken(zoek) if not z["van_mij"]]
-        except opslag.GeenToegang:
-            raise
-        except Exception:
-            zaken = []
-        if zaken:
-            st.markdown("**Direct reserveren**")
-            for z in zaken[:20]:
-                with st.container(horizontal=True, vertical_alignment="center", key=f"zaak_{z['adres']}"):
-                    with st.container(gap=None):
-                        st.markdown(f"**{z['naam']}**")
-                        st.caption(" · ".join(filter(None, [z["winkeladres"], z["omschrijving"][:60]])))
-                    if st.button("Reserveren", key=f"res_{z['adres']}", width=110):
-                        reserveer_dialoog(z, gelegenheid)
-        elif zoek:
-            st.caption("Geen zaak in de app gevonden.")
-    in_de_buurt(gelegenheid)
+    zoeken(gelegenheid, online)
 
 
 def mijn_reserveringen() -> None:
@@ -137,15 +121,88 @@ def mijn_reserveringen() -> None:
                                 st.error(str(fout))
 
 
-def in_de_buurt(gelegenheid: str) -> None:
-    st.markdown("**In de buurt**")
+def _zaken_in_app() -> list[dict]:
+    """Zaken in de app waar je kunt reserveren (een minuut bewaard, zodat zoeken bij elke letter snel is)."""
+    bewaard = st.session_state.get("plannen_zaken")
+    if bewaard and klok.time() - bewaard[0] < 60:
+        return bewaard[1]
     try:
-        plekken = R.ideeen(gelegenheid)
+        zaken = [z for z in R.zaken("") if not z["van_mij"]]
+    except opslag.GeenToegang:
+        raise
     except Exception:
-        st.caption("Plekken in de buurt laden lukt nu even niet. Probeer het straks opnieuw.")
+        zaken = []
+    st.session_state.plannen_zaken = (klok.time(), zaken)
+    return zaken
+
+
+@st.fragment
+def zoeken(gelegenheid: str, online: bool) -> None:
+    """Zoeken in zaken in de app en plekken in de buurt. Resultaten verschijnen al tijdens het typen."""
+    zoekveld.context()
+    zaken = _zaken_in_app() if online else []
+    try:
+        alles = R.ideeen(gelegenheid, alles=True, wachten=False)
+        fout = None
+    except reizen.AdresNietGevonden:
+        alles, fout = [], "adres"
+    suggesties = [zoekveld.suggestie(z["naam"], "Reserveren in de app", "📅",
+                                     zoek=" ".join([z["winkeladres"], z["omschrijving"]])) for z in zaken[:30]]
+    suggesties += [zoekveld.suggestie(p["naam"], f"{p['soort']} · {str(p['afstand_km']).replace('.', ',')} km",
+                                      p["icoon"], zoek=p.get("adres", "")) for p in (alles or [])[:200]]
+    soorten = {}
+    for p in alles or []:
+        soorten.setdefault(p["soort"].split(",")[0], p["icoon"])
+    suggesties += [zoekveld.suggestie(naam, "Alles in de buurt", icoon) for naam, icoon in soorten.items()]
+    zoek = zoekveld.zoekveld("plannen_zoek", "Zoek een restaurant, uitje of zaak", suggesties, kop="In de buurt")
+    woorden = R.zoek_woorden(zoek)
+    if woorden:
+        zaken = [z for z in zaken if all(w in R._plat(" ".join([z["naam"], z["winkeladres"], z["omschrijving"]]))
+                                         for w in woorden)]
+    if zaken:
+        st.markdown("**Direct reserveren**")
+        for z in zaken[:20]:
+            with st.container(horizontal=True, vertical_alignment="center", key=f"zaak_{z['adres']}"):
+                with st.container(gap=None):
+                    st.markdown(f"**{z['naam']}**")
+                    st.caption(" · ".join(filter(None, [z["winkeladres"], z["omschrijving"][:60]])))
+                if st.button("Reserveren", key=f"res_{z['adres']}", width=110):
+                    reserveer_dialoog(z, gelegenheid)
+    st.markdown("**In de buurt**")
+    if fout == "adres":
+        st.caption("Je thuisadres is niet gevonden. Pas het aan bij Instellingen.")
         return
+    plekken = None if alles is None else R.ideeen(gelegenheid, zoek=zoek, wachten=False)
+    if plekken is None:  # wordt nog opgehaald; de rest van de pagina is al te gebruiken
+        st.caption("Plekken in de buurt zoeken...")
+        _wachten_op_buurt(gelegenheid)
+        return
+    in_de_buurt(gelegenheid, plekken, zoek, met_zaken=bool(zaken))
+
+
+@st.fragment(run_every=1.5)
+def _wachten_op_buurt(gelegenheid: str) -> None:
+    """Kijkt op de achtergrond of de plekken binnen zijn en ververst dan de pagina."""
+    zoekveld.context()
+    try:
+        klaar = R.ideeen(gelegenheid, alles=True, wachten=False) is not None
+    except Exception:
+        klaar = True
+    if not klaar:
+        st.session_state._buurt_ververst = False
+    elif not st.session_state.get("_buurt_ververst"):
+        st.session_state._buurt_ververst = True
+        st.rerun()
+
+
+def in_de_buurt(gelegenheid: str, plekken: list[dict], zoek: str = "", met_zaken: bool = False) -> None:
     if not plekken:
-        st.caption("Niets gevonden. Vul je thuisadres in bij Instellingen.")
+        if zoek:
+            st.caption("Niets in de buurt gevonden." if not met_zaken else "Verder niets in de buurt gevonden.")
+        elif not opslag.instellingen().get("thuisadres"):
+            st.caption("Vul je thuisadres in bij Instellingen, dan zie je wat er bij jou in de buurt is.")
+        else:
+            st.caption("Plekken in de buurt laden lukt nu even niet. Probeer het straks opnieuw.")
         return
     toon = st.session_state.get("plannen_meer", 8)
     for i, p in enumerate(plekken[:toon]):
@@ -159,7 +216,7 @@ def in_de_buurt(gelegenheid: str) -> None:
                 plan_dialoog(p, gelegenheid)
     if len(plekken) > toon and st.button("Meer laten zien", type="tertiary"):
         st.session_state.plannen_meer = toon + 8
-        st.rerun()
+        st.rerun(scope="fragment")
 
 
 @st.dialog("Reserveren")

@@ -917,8 +917,9 @@ def koers_opzoeken(zoekterm: str) -> str:
 
 @beta_tool
 def markt_bekijken() -> str:
-    """Hoe de markt er vandaag voor staat: AEX, wereldwijde aandelen, S&P 500, euro-dollar, goud en bitcoin."""
-    return _json([{k: m.get(k) for k in ("naam", "prijs", "valuta", "vandaag_pct", "maand_pct")} for m in beleggen.markt()])
+    """Hoe de markten er nu voor staan die de gebruiker volgt (bijvoorbeeld AEX, wereldwijde aandelen, S&P 500, goud,
+    bitcoin, euro-dollar), met de tijd van de laatste koers."""
+    return _json([{k: m.get(k) for k in ("naam", "prijs", "valuta", "vandaag_pct", "maand_pct", "tijd")} for m in beleggen.markt()])
 
 
 @beta_tool

@@ -13,6 +13,7 @@ import avatar
 import documenten
 import editor
 import opslag
+import zoekveld
 
 TYPES = ["docx", "pdf", "txt", "md", "html"]
 
@@ -98,10 +99,13 @@ def overzicht() -> None:
                 else:
                     openen(doc["id"])
                     st.rerun()
-        zoek = st.text_input("Zoeken", placeholder="Zoeken", label_visibility="collapsed", icon=":material/search:",
-                             key="doc_zoek", width=220)
+        alle = documenten.lijst("")
+        with st.container(width=240):
+            zoek = zoekveld.zoekveld("doc_zoek", "Zoeken", [
+                zoekveld.suggestie(d["titel"] or "Naamloos", (d.get("gewijzigd") or "")[:10], "📄") for d in alle[:200]],
+                kop="Recent")
 
-    lijst = documenten.lijst(zoek)
+    lijst = documenten.lijst(zoek) if zoek else alle
     if not lijst:
         st.caption("Geen documenten gevonden." if zoek else
                    "Nog geen documenten. Tik op Nieuw document. Wat je hier schrijft, staat meteen ook op je "

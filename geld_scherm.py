@@ -1,5 +1,6 @@
 """Schermen voor geld: Budget (uitgaven, budgetten, vaste lasten, spaardoelen) en Beleggen (alleen meekijken)."""
 
+import html
 from datetime import date, datetime, time as kloktijd, timedelta
 from urllib.parse import urlparse
 
@@ -10,7 +11,9 @@ import bank
 import beleggen
 import budget
 import opslag
+import taal
 from werk_scherm import vraag_assistent
+import zoekveld
 
 MAANDEN = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober",
            "november", "december"]
@@ -149,10 +152,12 @@ def bank_platform_instellen(plek: str) -> None:
 
 
 def los_toevoegen() -> None:
+    soort = st.segmented_control("Soort", ["Uitgave", "Inkomsten"], default="Uitgave", label_visibility="collapsed",
+                                 key="budget_los_soort") or "Uitgave"
     with st.form("budget_los", clear_on_submit=True, border=False):
-        soort = st.segmented_control("Soort", ["Uitgave", "Inkomsten"], default="Uitgave", label_visibility="collapsed")
         bedrag = st.number_input("Bedrag in euro", min_value=0.0, step=1.0, format="%.2f")
-        omschrijving = st.text_input("Waarvoor?", placeholder="Bijvoorbeeld lunch, kapper of cadeau")
+        omschrijving = st.text_input("Waarvoor?", placeholder="Bijvoorbeeld lunch, kapper of cadeau"
+                                     if soort == "Uitgave" else "Bijvoorbeeld salaris, toeslag of verkocht op Vinted")
         categorie = st.selectbox("Categorie", ["Vanzelf herkennen"] + list(budget.CATEGORIEEN))
         datum = st.date_input("Datum", value=date.today(), format="DD-MM-YYYY")
         if st.form_submit_button("Toevoegen", type="primary") and bedrag > 0:
@@ -555,7 +560,11 @@ def _pct(waarde: float | None) -> str:
 
 
 def belegging_zoeken(sleutel: str, volg: bool = False) -> None:
-    zoek = st.text_input("Zoek op naam of ticker", key=f"{sleutel}_zoek", placeholder="Bijvoorbeeld Vanguard All-World")
+    bekend = [zoekveld.suggestie(naam, symbool, "📈", waarde=symbool) for naam, symbool in beleggen.MARKT.items()
+              if not symbool.startswith("^") and "=" not in symbool]
+    bekend += [zoekveld.suggestie(v["naam"], v["symbool"], "⭐", waarde=v["symbool"]) for v in beleggen.instellingen()["volglijst"]]
+    zoek = zoekveld.zoekveld(f"{sleutel}_zoek", "Zoek op naam of ticker, bijvoorbeeld Vanguard All-World", bekend,
+                             kop="Bekend")
     gevonden = []
     if zoek.strip():
         try:
@@ -588,9 +597,9 @@ def belegging_zoeken(sleutel: str, volg: bool = False) -> None:
 
 
 def beleggen_pagina() -> None:
-    st.subheader("Beleggen")
-    st.caption(beleggen.WAARSCHUWING)
     with st.container(horizontal=True, vertical_alignment="center"):
+        st.subheader("Beleggen", width="content")
+        st.space("stretch")
         with st.popover("Belegging toevoegen", icon=":material/add:"):
             belegging_zoeken("positie")
         with st.popover("Volgen", icon=":material/visibility:", help="Een koers volgen zonder dat je hem hebt"):
@@ -622,29 +631,89 @@ def beleggen_pagina() -> None:
             vraag_assistent("Bekijk mijn beleggingen. Leg in gewone taal uit hoe ze ervoor staan, hoe mijn spreiding "
                             "is en waar ik op kan letten. Geen koop- of verkoopadvies.", "Uitleg over mijn beleggingen")
     else:
-        st.write("Voeg je beleggingen toe om te zien wat ze waard zijn en hoe je spreiding is. Je kunt ook alleen "
-                 "koersen volgen.")
+        st.caption("Voeg je beleggingen toe om te zien wat ze waard zijn en hoe je spreiding is. Of volg alleen "
+                   "koersen.")
+
+    koersen_live()
+    st.caption(beleggen.WAARSCHUWING)
+
+
+KOERS_CSS = """<style>
+.mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:4px 0 6px}
+.mk{border:1px solid rgba(128,128,128,.22);border-radius:12px;padding:10px 12px;line-height:1.25}
+.mk-n{font-size:13px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk-p{font-size:19px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums}
+.mk-o{display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:12px}
+.mk-o span:last-child{opacity:.55}
+.mk-c{font-weight:600;font-variant-numeric:tabular-nums}
+.mk-c.op{color:#15803d}.mk-c.af{color:#dc2626}
+@media (prefers-color-scheme:dark){.mk-c.op{color:#4ade80}.mk-c.af{color:#f87171}}
+</style>"""
+
+
+def _getal(waarde: float) -> str:
+    decimalen = 4 if abs(waarde) < 10 else 2
+    return f"{waarde:,.{decimalen}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _tijdstip(epoch: int | None) -> str:
+    """Wanneer de laatste koers was: alleen de tijd als het vandaag was, anders de datum."""
+    if not epoch:
+        return ""
+    t = datetime.fromtimestamp(epoch).astimezone()
+    if t.date() == datetime.now().astimezone().date():
+        return t.strftime("%H:%M")
+    return f"{t.day} {MAANDEN_KORT[t.month - 1]}"
+
+
+MAANDEN_KORT = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
+
+
+def koers_tegels(regels: list[dict]) -> None:
+    """Koersen als nette tegels: naam, prijs, verandering vandaag en het tijdstip van de laatste koers."""
+    tegels = []
+    for r in regels:
+        pct = r.get("vandaag_pct")
+        kleur = "" if pct is None else ("op" if pct >= 0 else "af")
+        prijs = _getal(r["prijs"]) if r.get("prijs") else "–"
+        valuta = "" if r.get("symbool", "").startswith("^") or "=" in r.get("symbool", "") else r.get("valuta", "")
+        valuta = {"EUR": "€ ", "USD": "$ ", "GBP": "£ "}.get(valuta, f"{valuta} " if valuta else "")
+        tegels.append(f'<div class="mk"><div class="mk-n">{html.escape(taal.t(r["naam"]))}</div>'
+                      f'<div class="mk-p">{valuta}{prijs}</div><div class="mk-o">'
+                      f'<span class="mk-c {kleur}">{"" if pct is None else ("▲ " if pct >= 0 else "▼ ") + _pct(pct)}</span>'
+                      f'<span>{_tijdstip(r.get("tijd"))}</span></div></div>')
+    st.html(KOERS_CSS + '<div class="mk-grid">' + "".join(tegels) + "</div>")
+
+
+@st.fragment(run_every=30)
+def koersen_live() -> None:
+    """Markten en volglijst; ververst zichzelf elke halve minuut zolang de pagina open is."""
+    opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
+    with st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute"):
+        st.markdown("**Markten**", width="content")
+        with st.popover("Markten kiezen", icon=":material/tune:", type="tertiary"):
+            gekozen = []
+            huidig = beleggen.instellingen()["markten"]
+            for groep, markten in beleggen.MARKTEN.items():
+                gekozen += st.pills(groep, list(markten), selection_mode="multi", key=f"markten_{groep}",
+                                    default=[m for m in markten if m in huidig]) or []
+            if st.button("Bewaren", type="primary", key="markten_bewaar"):
+                beleggen.markten_kiezen(gekozen)
+                st.rerun()
+    koers_tegels(beleggen.markt())
 
     volg = beleggen.volglijst()
     if volg:
         st.markdown("**Volglijst**")
-        for v in volg:
-            rij = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
-            prijs = f"{v['prijs']:.2f} {v['valuta']}".replace(".", ",") if v.get("prijs") else "geen koers"
-            rij.markdown(f"{v['naam']} · {prijs} · {_pct(v.get('vandaag_pct'))}", width="content",
-                         help=f"Afgelopen maand {_pct(v.get('maand_pct'))}")
-            if rij.button("", icon=":material/close:", key=f"volg_weg_{v['symbool']}", help="Niet meer volgen",
-                          type="tertiary"):
-                beleggen.niet_volgen(v["symbool"])
-                st.rerun()
-
-    with st.expander("Markt vandaag"):
-        markt = beleggen.markt()
-        kolommen = st.columns(3)
-        for i, m in enumerate(markt):
-            waarde = f"{m['prijs']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if m.get("prijs") else "–"
-            kolommen[i % 3].metric(m["naam"], waarde, _pct(m.get("vandaag_pct")) if m.get("vandaag_pct") is not None else None)
-        st.caption("Koersen van Yahoo Finance, kunnen tot 15 minuten achterlopen.")
+        koers_tegels(volg)
+        with st.popover("Volglijst aanpassen", icon=":material/edit:", type="tertiary"):
+            for v in volg:
+                if st.button(v["naam"], icon=":material/close:", key=f"volg_weg_{v['symbool']}", type="tertiary",
+                             help="Niet meer volgen"):
+                    beleggen.niet_volgen(v["symbool"])
+                    st.rerun()
+    st.caption(f"Bijgewerkt om {datetime.now().astimezone().strftime('%H:%M:%S')}, elke 30 seconden opnieuw. "
+               "Bron: Yahoo Finance. Euronext geeft gratis koersen met 15 minuten vertraging.")
 
 
 def posities_bewerken(posities: list[dict]) -> None:

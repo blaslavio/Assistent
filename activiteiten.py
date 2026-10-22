@@ -3,6 +3,7 @@
 import math
 import os
 import time
+from concurrent.futures import Future, ThreadPoolExecutor
 
 
 import opslag
@@ -37,6 +38,30 @@ SOORTEN = {
 }
 
 _cache: dict[tuple, tuple[float, list]] = {}
+_bezig: dict[tuple, Future] = {}
+_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="activiteiten")
+
+
+def op_achtergrond(soort: str, adres: str = "") -> list[dict] | None:
+    """Plekken rond een adres zonder te wachten: de lijst als hij er al is, anders None (dan wordt hij nu
+    opgehaald). soort is "uitjes" of "eten". Lukt ophalen niet, dan een lege lijst en na twee minuten een nieuwe
+    poging; een onbekend adres geeft AdresNietGevonden."""
+    adres = adres or opslag.instellingen().get("thuisadres", "") or "Amsterdam"
+    sleutel = (soort, adres)
+    taak = _bezig.get(sleutel)
+    if taak is not None and taak.done():
+        oud = time.time() - taak.gestart
+        if (taak.exception() and oud > 120) or oud > 24 * 60 * 60:
+            taak = None
+    if taak is None:
+        taak = _pool.submit(in_de_buurt if soort == "uitjes" else eten_en_spelen, adres)
+        taak.gestart = time.time()
+        _bezig[sleutel] = taak
+    if not taak.done():
+        return None
+    if isinstance(taak.exception(), reizen.AdresNietGevonden):
+        raise taak.exception()
+    return [] if taak.exception() else taak.result()
 
 
 def _afstand_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -45,14 +70,14 @@ def _afstand_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 6371 * 2 * math.asin(math.sqrt(a))
 
 
-def in_de_buurt(adres: str = "", straal_km: int = 15) -> list[dict]:
+def in_de_buurt(adres: str = "", straal_km: int = 10) -> list[dict]:
     """Uitjes rond een adres (standaard het thuisadres), dichtstbij eerst. Een dag bewaard."""
     lat, lon, _ = reizen.coordinaten(adres or opslag.instellingen().get("thuisadres", "") or "Amsterdam")
     sleutel = (round(lat, 2), round(lon, 2), straal_km)
     if sleutel in _cache and time.time() - _cache[sleutel][0] < 24 * 60 * 60:
         return _cache[sleutel][1]
     rond = f"(around:{straal_km * 1000},{lat},{lon})"
-    vraag = f"""[out:json][timeout:25];
+    vraag = f"""[out:json][timeout:15];
 (
   nwr{rond}[tourism~"^(museum|gallery|aquarium|zoo|theme_park)$"][name];
   nwr{rond}[tourism~"^(attraction|viewpoint)$"][name][wikidata];
@@ -66,7 +91,7 @@ def in_de_buurt(adres: str = "", straal_km: int = 15) -> list[dict]:
 );
 out center tags 600;"""
     try:
-        antwoord = reizen.overpass(vraag)
+        antwoord = reizen.overpass(vraag, timeout=20)
     except Exception:
         if sleutel in _cache:  # liever een oudere lijst dan niets
             return _cache[sleutel][1]
@@ -96,21 +121,21 @@ out center tags 600;"""
     return resultaat
 
 
-def eten_en_spelen(adres: str = "", straal_km: int = 5) -> list[dict]:
+def eten_en_spelen(adres: str = "", straal_km: int = 3) -> list[dict]:
     """Restaurants, cafés, ijssalons en speeltuinen dichtbij (voor een date, etentje of speelafspraak). Een dag bewaard."""
     lat, lon, _ = reizen.coordinaten(adres or opslag.instellingen().get("thuisadres", "") or "Amsterdam")
     sleutel = ("eten", round(lat, 2), round(lon, 2), straal_km)
     if sleutel in _cache and time.time() - _cache[sleutel][0] < 24 * 60 * 60:
         return _cache[sleutel][1]
     rond = f"(around:{straal_km * 1000},{lat},{lon})"
-    vraag = f"""[out:json][timeout:25];
+    vraag = f"""[out:json][timeout:15];
 (
   nwr{rond}[amenity~"^(restaurant|cafe|bar|pub|ice_cream)$"][name];
   nwr{rond}[leisure~"^(playground|indoor_play)$"][name];
 );
 out center tags 400;"""
     try:
-        antwoord = reizen.overpass(vraag)
+        antwoord = reizen.overpass(vraag, timeout=20)
     except Exception:
         if sleutel in _cache:
             return _cache[sleutel][1]

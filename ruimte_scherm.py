@@ -5,6 +5,7 @@ from urllib.parse import quote, urlsplit
 import streamlit as st
 
 import ruimte
+import zoekveld
 
 
 def _fout(functie, *args, **kwargs):
@@ -71,9 +72,11 @@ def pagina() -> None:
 
 
 def ontdekken() -> None:
-    zoek = st.text_input("Zoek een ruimte", placeholder="Zoek een ruimte, project of expositie",
-                         label_visibility="collapsed")
-    ruimtes = ruimte.zoeken(zoek.strip())
+    alle = ruimte.zoeken("")
+    zoek = zoekveld.zoekveld("ruimte_zoek", "Zoek een ruimte, project of expositie", [
+        zoekveld.suggestie(r["titel"], r.get("maker") or "", "🖼️", zoek=r.get("omschrijving", "")) for r in alle[:200]],
+        kop="Openbare ruimtes")
+    ruimtes = ruimte.zoeken(zoek) if zoek else alle
     if not ruimtes:
         st.caption("Geen ruimtes gevonden." if zoek else
                    "Nog geen openbare ruimtes. Maak de eerste bij Mijn ruimtes: laat je project, kunst, verbouwing "

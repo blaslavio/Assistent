@@ -14,6 +14,7 @@ import ruimte
 import samen
 import teksten
 import winkelkaart
+import zoekveld
 
 
 def ik() -> dict:
@@ -211,9 +212,12 @@ def project_kaart(project: dict) -> None:
     if not items:
         st.caption("Nog leeg. Zet hieronder de eerste taak of notitie erin.")
 
+    soort = st.pills("Soort", list(samen.SOORTEN_ITEM), default="taak", format_func=samen.SOORTEN_ITEM.get,
+                     key=f"item_soort_{project['id']}") or "taak"
+    voorbeeld = {"taak": "Bijv. dozen regelen", "notitie": "Bijv. sleutel ligt bij de buren",
+                 "afspraak": "Bijv. verhuizing zaterdag 9 uur", "link": "Bijv. het huurcontract"}
     with st.form(f"item_{project['id']}", clear_on_submit=True):
-        soort = st.pills("Soort", list(samen.SOORTEN_ITEM), default="taak", format_func=samen.SOORTEN_ITEM.get) or "taak"
-        titel = st.text_input("Titel", placeholder="Bijv. dozen regelen")
+        titel = st.text_input("Titel", placeholder=voorbeeld.get(soort, ""))
         inhoud = st.text_input("Toelichting of link (optioneel)")
         kol1, kol2 = st.columns(2)
         datum = kol1.date_input("Datum (optioneel)", value=None, format="DD-MM-YYYY")
@@ -247,7 +251,7 @@ def veilig_handelen() -> None:
 
 
 def markt_zoeken() -> None:
-    """Pagina 🔎 Zoeken: onze eigen marktplaats, met verwijzingen naar andere marktplaatsen."""
+    """Pagina 🔎 Zoeken: onze eigen marktplaats."""
     zoeken()
     veilig_handelen()
 
@@ -261,13 +265,27 @@ def markt_bestellingen() -> None:
     veilig_handelen()
 
 
+def _markt_suggesties() -> list[dict]:
+    """Titels van wat er nu te koop of te huur is, plus de soorten (een minuut bewaard)."""
+    bewaard = st.session_state.get("_markt_suggesties")
+    if bewaard and time.time() - bewaard[0] < 60:
+        return bewaard[1]
+    try:
+        alles = samen.aanbod_zoeken("", "")
+    except Exception:
+        alles = []
+    lijst = [zoekveld.suggestie(a["titel"], " · ".join(filter(None, [samen.SOORTEN_AANBOD.get(a.get("soort"), ""),
+                                                                      a.get("plaats", "")])),
+                                zoek=a.get("omschrijving", "")[:200]) for a in alles[:200]]
+    st.session_state._markt_suggesties = (time.time(), lijst)
+    return lijst
+
+
+@st.fragment
 def zoeken() -> None:
-    with st.form("markt_zoeken", border=False):
-        kol1, kol2 = st.columns([4, 1], vertical_alignment="bottom")
-        zoekterm = kol1.text_input("Zoeken", placeholder="Bijv. fiets, bijles wiskunde, personal trainer Utrecht",
-                                   label_visibility="collapsed", value=st.session_state.get("markt_zoekterm", ""))
-        kol2.form_submit_button("🔎", width="stretch")
-    st.session_state.markt_zoekterm = zoekterm
+    zoekveld.context()
+    zoekterm = zoekveld.zoekveld("markt_zoek", "Bijv. fiets, bijles wiskunde, personal trainer Utrecht",
+                                 _markt_suggesties(), kop="Nu op de marktplaats")
     soort = st.pills("Soort", list(samen.SOORTEN_AANBOD), format_func=samen.SOORTEN_AANBOD.get,
                      label_visibility="collapsed", key="markt_soort") or ""
     # Kort onthouden: elke klik op een kaart laat de pagina opnieuw lopen, dan hoeft er niet opnieuw gezocht te worden.
@@ -285,18 +303,13 @@ def zoeken() -> None:
     st.session_state._afgesproken = {b["aanbod_id"]: b["tegenbod"] or b["bedrag"] for b in samen.mijn_biedingen()
                                      if b["ik_ben"] == "koper" and b["status"] == "geaccepteerd" and not b["verlopen"]}
     if not resultaten:
-        st.caption("Nog niets gevonden op onze marktplaats." + (" Kijk hieronder ook bij de andere marktplaatsen."
-                                                               if zoekterm else " Wees de eerste: kies Verkopen."))
+        st.caption("Niets gevonden." if zoekterm else "Nog niets te koop. Wees de eerste: kies Verkopen.")
     for aanbod in resultaten[:aantal]:
         aanbod_kaart(aanbod)
     if len(resultaten) > aantal:
         if st.button("Meer laten zien", key="markt_meer"):
             st.session_state.markt_aantal = aantal + 20
             st.rerun()
-    with st.expander("Ook kijken op andere marktplaatsen", expanded=bool(zoekterm) and not resultaten):
-        for m in samen.externe_links(zoekterm):
-            st.markdown(f"[{m['naam']}]({m['link']}) · :gray[{m['voor']}]")
-        st.caption("Dit zijn gewone links; je gaat naar de website van die marktplaats.")
 
 
 def aanbod_kaart(aanbod: dict) -> None:
@@ -465,14 +478,19 @@ def aanbieden() -> None:
     wijzen = [w for w in samen.BETAALWIJZEN if w != "app" or status.get("ik_kan_ontvangen")]
     open_ = st.session_state.pop("aanbod_open", False) or not st.session_state.get("markt_heeft_aanbod")
     with st.expander("Iets nieuws aanbieden", expanded=open_):
+        # Vanaf de voorpagina kan de soort al gekozen zijn (bijvoorbeeld Dienst aanbieden).
+        standaard = {} if "aanbod_soort" in st.session_state else {"default": "product"}
+        soort = st.pills("Wat bied je aan?", list(samen.SOORTEN_AANBOD), key="aanbod_soort",
+                         format_func=samen.SOORTEN_AANBOD.get, **standaard) or "product"
+        voorbeeld = {
+            "product": ("Bijv. Racefiets maat 56", "Staat, merk, maat en wat erbij zit."),
+            "dienst": ("Bijv. Tuin onderhouden", "Wat je doet, waar, en hoe lang het ongeveer duurt."),
+            "training": ("Bijv. Personal training in het park", "Voor wie, hoe lang een sessie duurt en wat je meeneemt."),
+            "les": ("Bijv. Bijles wiskunde havo", "Niveau, vak, hoe lang een les duurt en of het online kan.")}
+        titel_vb, omschrijving_vb = voorbeeld.get(soort, voorbeeld["product"])
         with st.form("aanbod_nieuw", clear_on_submit=True, border=False):
-            # Vanaf de voorpagina kan de soort al gekozen zijn (bijvoorbeeld Dienst aanbieden).
-            standaard = {} if "aanbod_soort" in st.session_state else {"default": "product"}
-            soort = st.pills("Wat bied je aan?", list(samen.SOORTEN_AANBOD), key="aanbod_soort",
-                             format_func=samen.SOORTEN_AANBOD.get, **standaard) or "product"
-            titel = st.text_input("Titel", placeholder="Bijv. Racefiets maat 56, of Personal training in het park")
-            omschrijving = st.text_area("Omschrijving", height=100,
-                                        placeholder="Staat, wat je krijgt, voor wie het geschikt is, hoe lang een les duurt.")
+            titel = st.text_input("Titel", placeholder=titel_vb)
+            omschrijving = st.text_area("Omschrijving", height=100, placeholder=omschrijving_vb)
             kol1, kol2 = st.columns(2)
             prijs = kol1.number_input("Prijs in euro (leeg = in overleg)", min_value=0.0, value=None, step=5.0)
             per = kol2.selectbox("Per", ["", "per stuk", "per uur", "per les", "per maand", "per persoon"],
@@ -983,9 +1001,11 @@ def winkelstraat() -> None:
             st.rerun()
         winkel_pagina(adres, True)
         return
-    zoek = st.text_input("Zoek een winkel of product", placeholder="Zoek een winkel of product",
-                         label_visibility="collapsed")
-    winkels = samen.winkels_zoeken(zoek.strip())
+    alle = samen.winkels_zoeken("")
+    zoek = zoekveld.zoekveld("winkels_zoek", "Zoek een winkel of product", [
+        zoekveld.suggestie(w["naam"], w.get("winkeladres") or "Winkel in de app", "🏬",
+                           zoek=w.get("omschrijving", "")) for w in alle[:200]], kop="Winkels in de app")
+    winkels = samen.winkels_zoeken(zoek) if zoek else alle
     if ik() and (nieuws := (_fout(samen.mijn_winkelnieuws) or {}).get("nieuws")):
         with st.container(border=True):
             st.markdown("**Nieuws van winkels die je volgt**")

@@ -1,6 +1,6 @@
 """Beleggen: je portefeuille en een volglijst met actuele koersen. Alleen meekijken en uitleg, nooit kopen of verkopen.
 
-Koersen komen van Yahoo Finance (openbare grafiekgegevens, geen sleutel nodig) en worden een kwartier onthouden
+Koersen komen van Yahoo Finance (openbare grafiekgegevens, geen sleutel nodig) en worden een halve minuut onthouden
 voor alle gebruikers samen, zodat de app snel blijft. Lukt ophalen niet, dan vul je een koers zelf in.
 Alles wordt omgerekend naar euro's. Je posities staan bij de instellingen (instellingen.beleggen).
 """
@@ -17,11 +17,23 @@ import opslag
 
 YAHOO = os.environ.get("YAHOO_URL", "https://query1.finance.yahoo.com")
 YAHOO_ZOEK = os.environ.get("YAHOO_ZOEK_URL", "https://query2.finance.yahoo.com")
-KOERS_SECONDEN = 900
+KOERS_SECONDEN = 30
 KOPPEN = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15"}
-# Het marktoverzicht: een paar graadmeters die de meeste mensen kennen.
-MARKT = {"AEX": "^AEX", "Wereld (MSCI World)": "IWDA.AS", "S&P 500 (VS)": "^GSPC", "Euro in dollar": "EURUSD=X",
-         "Goud": "GC=F", "Bitcoin": "BTC-EUR"}
+# Markten om te volgen, per regio. Je kiest zelf welke je op je overzicht ziet.
+MARKTEN = {
+    "Nederland en België": {"AEX": "^AEX", "AMX (middelgrote bedrijven)": "^AMX", "BEL 20": "^BFX"},
+    "Europa": {"Euro Stoxx 50": "^STOXX50E", "DAX (Duitsland)": "^GDAXI", "CAC 40 (Frankrijk)": "^FCHI",
+               "FTSE 100 (Verenigd Koninkrijk)": "^FTSE"},
+    "Verenigde Staten": {"S&P 500": "^GSPC", "Nasdaq": "^IXIC", "Dow Jones": "^DJI"},
+    "Azië": {"Nikkei 225 (Japan)": "^N225", "Hang Seng (Hongkong)": "^HSI"},
+    "Wereld": {"Wereld (MSCI World)": "IWDA.AS", "Opkomende landen": "EMIM.AS"},
+    "Grondstoffen": {"Goud": "GC=F", "Zilver": "SI=F", "Olie (Brent)": "BZ=F"},
+    "Crypto": {"Bitcoin": "BTC-EUR", "Ethereum": "ETH-EUR"},
+    "Valuta": {"Euro in dollar": "EURUSD=X", "Euro in pond": "EURGBP=X"},
+}
+MARKT = {naam: s for groep in MARKTEN.values() for naam, s in groep.items()}
+STANDAARD_MARKTEN = ["AEX", "Wereld (MSCI World)", "S&P 500", "Nasdaq", "DAX (Duitsland)", "Goud", "Bitcoin",
+                     "Euro in dollar"]
 SOORTEN = {"ETF": "Indexfonds (ETF)", "EQUITY": "Aandeel", "MUTUALFUND": "Beleggingsfonds", "CRYPTOCURRENCY": "Crypto",
            "INDEX": "Index", "CURRENCY": "Valuta", "FUTURE": "Grondstof", "BOND": "Obligatie"}
 WAARSCHUWING = ("Dit is uitleg, geen persoonlijk financieel advies. Beleggen kent risico's: je kunt (een deel van) je "
@@ -40,7 +52,12 @@ class Fout(Exception):
 
 def instellingen() -> dict:
     b = opslag.instellingen().get("beleggen", {})
-    return {"posities": b.get("posities", []), "volglijst": b.get("volglijst", [])}
+    markten = [m for m in b.get("markten", STANDAARD_MARKTEN) if m in MARKT]
+    return {"posities": b.get("posities", []), "volglijst": b.get("volglijst", []), "markten": markten}
+
+
+def markten_kiezen(namen: list[str]) -> None:
+    _bewaar(markten=[m for m in namen if m in MARKT])
 
 
 def _bewaar(**velden) -> None:
@@ -131,7 +148,7 @@ def _ophalen_en_bewaren(symbolen: list[str]) -> dict[str, dict | None]:
 
 
 def koersen(symbolen: list[str], achtergrond: bool = False) -> dict[str, dict | None]:
-    """Actuele koersen (tegelijk opgehaald, een kwartier onthouden). None als een koers niet te krijgen is.
+    """Actuele koersen (tegelijk opgehaald, een halve minuut onthouden). None als een koers niet te krijgen is.
 
     Met achtergrond=True wacht de app nergens op: wat nog niet bekend is, wordt op de achtergrond opgehaald.
     """
@@ -140,7 +157,7 @@ def koersen(symbolen: list[str], achtergrond: bool = False) -> dict[str, dict | 
     with _slot:
         for s in dict.fromkeys(symbolen):
             bewaard = _koersen.get(s)
-            # Een mislukte poging niet een kwartier onthouden, maar twee minuten.
+            # Een mislukte poging twee minuten onthouden, zodat we Yahoo niet blijven bestoken.
             if bewaard and nu - bewaard[0] < (KOERS_SECONDEN if bewaard[1] else 120):
                 uit[s] = bewaard[1]
             else:
@@ -218,9 +235,11 @@ def volglijst() -> list[dict]:
     return [{**v, **(k.get(v["symbool"]) or {}), "naam": v["naam"]} for v in lijst]
 
 
-def markt() -> list[dict]:
-    k = koersen(list(MARKT.values()))
-    return [{**(k.get(s) or {}), "naam": naam, "symbool": s} for naam, s in MARKT.items()]
+def markt(namen: list[str] | None = None, achtergrond: bool = False) -> list[dict]:
+    """De gekozen markten (of de opgegeven namen) met hun koers van dit moment."""
+    namen = namen or instellingen()["markten"] or STANDAARD_MARKTEN
+    k = koersen([MARKT[n] for n in namen], achtergrond)
+    return [{**(k.get(MARKT[n]) or {}), "naam": n, "symbool": MARKT[n]} for n in namen]
 
 
 def kort() -> str | None:

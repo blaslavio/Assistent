@@ -67,11 +67,12 @@ import chat
 import taal
 import zaak
 import zaak_scherm
+import zoekveld
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -3204,10 +3205,12 @@ def instellingen_tabblad() -> None:
 
 def idee_of_probleem() -> None:
     """Meldingen gaan naar de vaste verbeterronde; wat ermee gebeurd is, staat eronder."""
+    soort = st.segmented_control("Soort", list(verbeteren.SOORTEN), format_func=verbeteren.SOORTEN.get,
+                                 default="idee", label_visibility="collapsed", key="melden_soort") or "idee"
+    voorbeeld = {"idee": "Wat zou je graag willen? Bijv. boodschappen delen met mijn huisgenoot",
+                 "probleem": "Wat ging er mis, en waar? Bijv. de kaart bij Winkels blijft leeg"}
     with st.form("melden", clear_on_submit=True, border=False):
-        soort = st.segmented_control("Soort", list(verbeteren.SOORTEN), format_func=verbeteren.SOORTEN.get,
-                                     default="idee", label_visibility="collapsed") or "idee"
-        tekst = st.text_area("Wat kan beter?", placeholder="Bijv. ik wil boodschappen kunnen delen met mijn huisgenoot",
+        tekst = st.text_area("Wat kan beter?", placeholder=voorbeeld.get(soort, voorbeeld["idee"]),
                              max_chars=2000, label_visibility="collapsed")
         if st.form_submit_button("Versturen", type="primary"):
             if fout := verbeteren.melden(soort, tekst):
@@ -3950,6 +3953,7 @@ def kopbalk() -> None:
     st.html("<style>.st-key-kopbalk{gap:2px}.st-key-kopbalk a{padding-left:6px;padding-right:6px}"
             ".st-key-kopbalk{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}"
             ".st-key-kopbalk > div:not(:last-child) a > span:has([data-testid=stIconMaterial]){display:none}"
+            "[data-testid=InputInstructions]{display:none}"  # geen "Press Enter to submit" in invoervelden
             # Alles op één lijn, ook het tandwiel (dat heeft geen tekst en was daardoor lager en kleiner).
             ".st-key-kopbalk{align-items:center;padding:3px 0}"
             ".st-key-kopbalk a{height:32px;display:inline-flex;align-items:center;box-sizing:border-box}"
