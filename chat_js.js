@@ -186,6 +186,61 @@ const dag = (iso) => {
 };
 const kortTijd = (iso) => { if (!iso) return ""; const d = dag(iso); return d === T("Vandaag") ? tijd(iso) : d; };
 const wanneer = (lokaal) => { const d = new Date(lokaal); return `${dag(d)} ${tijd(d)}`; };
+// --- Afspraken herkennen in gewone berichten ("vrijdag 14:00 kapper") ------------------------------------
+const DAGNAMEN = [["zondag", "sunday"], ["maandag", "monday"], ["dinsdag", "tuesday"], ["woensdag", "wednesday"],
+  ["donderdag", "thursday"], ["vrijdag", "friday"], ["zaterdag", "saturday"]];
+const MAANDNAMEN = ["jan", "feb", "m(?:aa)?r", "apr", "mei|may", "jun", "jul", "aug", "sep", "o[ck]t", "nov", "dec"];
+function datumHerkennen(tekst, nu = new Date()) {
+  const t = " " + String(tekst || "").toLowerCase() + " ";
+  const klok = t.match(/(?:om|at|um|à)?\s*\b([01]?\d|2[0-3])(?:[:.]([0-5]\d)\b|\s?(?:u|uur|h)\b)/);
+  if (!klok) return null;
+  let dag = null, stuk = [];
+  const rel = t.match(/\b(vandaag|today|overmorgen|morgen|tomorrow)\b/);
+  if (rel) { dag = new Date(nu); dag.setDate(dag.getDate() + (rel[1] === "overmorgen" ? 2 : rel[1].startsWith("morgen") || rel[1] === "tomorrow" ? 1 : 0)); stuk.push(rel[0]); }
+  const datum = t.match(/\b(\d{1,2})[-/](\d{1,2})(?:[-/](\d{2,4}))?\b/) || null;
+  const metMaand = t.match(new RegExp("\\b(\\d{1,2})\\s+(" + MAANDNAMEN.join("|") + ")[a-z]*\\.?(?:\\s+(\\d{4}))?\\b"));
+  if (!dag && (metMaand || datum)) {
+    const d = Number((metMaand || datum)[1]);
+    const m = metMaand ? MAANDNAMEN.findIndex((x) => new RegExp("^(" + x + ")").test(metMaand[2])) : Number(datum[2]) - 1;
+    let j = Number((metMaand || datum)[3]) || nu.getFullYear(); if (j < 100) j += 2000;
+    if (m >= 0 && m < 12 && d >= 1 && d <= 31) {
+      dag = new Date(j, m, d);
+      if (!(metMaand || datum)[3] && dag < new Date(nu.getFullYear(), nu.getMonth(), nu.getDate())) dag.setFullYear(j + 1);
+      stuk.push((metMaand || datum)[0]);
+    }
+  }
+  if (!dag) {
+    const i = DAGNAMEN.findIndex((namen) => namen.some((n) => new RegExp("\\b" + n + "\\b").test(t)));
+    if (i >= 0) { dag = new Date(nu); dag.setDate(dag.getDate() + ((i - nu.getDay() + 7) % 7 || 7)); stuk.push(DAGNAMEN[i].find((n) => t.includes(n))); }
+  }
+  if (!dag) return null;  // alleen een tijd is te vaag
+  dag.setHours(Number(klok[1]), Number(klok[2] || 0), 0, 0);
+  if (dag < nu) return null;
+  stuk.push(klok[0]);
+  let titel = String(tekst);
+  for (const x of stuk) titel = titel.replace(new RegExp(x.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), " ");
+  titel = titel.replace(/\b(op|om|at|on|de|het)\b\s*(?=[,.!?]|$)/gi, "").replace(/\s+/g, " ").replace(/^[\s,.:;!-]+|[\s,.:;!?-]+$/g, "");
+  titel = (titel.split(/\s*[,.!?;]\s+|\s*[!?]$/).find((x) => x.trim()) || "").trim();  // alleen het eerste stukje zin
+  titel = titel.length > 60 ? titel.slice(0, 57) + "..." : titel;
+  return { start: lokaal(dag), titel: titel ? titel[0].toUpperCase() + titel.slice(1) : T("Afspraak") };
+}
+
+// --- Betaalverzoeken: de app verstuurt zelf geen geld; je betaalt met je eigen bank of betaallink -----------
+const bedragTekst = (centen) => new Intl.NumberFormat(navigator.language || "nl-NL", { style: "currency", currency: "EUR" }).format(centen / 100);
+function ibanGoed(iban) {
+  const s = String(iban || "").replace(/\s+/g, "").toUpperCase();
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(s)) return false;
+  const omgezet = (s.slice(4) + s.slice(0, 4)).replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
+  let rest = 0; for (const c of omgezet) rest = (rest * 10 + Number(c)) % 97;
+  return rest === 1;
+}
+const ibanMooi = (iban) => String(iban || "").replace(/\s+/g, "").toUpperCase().replace(/(.{4})/g, "$1 ").trim();
+function veiligeLink(link) {
+  try { const u = new URL(String(link || "").trim()); return u.protocol === "https:" ? u : null; } catch (e) { return null; }
+}
+const bewaard = (k) => { try { return localStorage.getItem("c-" + k) || ""; } catch (e) { return ""; } };
+const bewaren = (k, w) => { try { localStorage.setItem("c-" + k, w); } catch (e) { /* privé venster */ } };
+
 const VERDWIJNEN = { 0: "Uit", 3600: "1 uur", 86400: "24 uur", 604800: "7 dagen", 7776000: "90 dagen" };
 
 const ICOON = {
@@ -204,9 +259,10 @@ const ICOON = {
   kopie: '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg>',
   weg: '<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>',
   delen: '<svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 12v7a1 1 0 001 1h12a1 1 0 001-1v-7"/></svg>',
+  geld: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v.01M18 15v.01"/></svg>',
 };
 const EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
-const SKIP = new Set(["reactie", "emoji", "stem"]);
+const SKIP = new Set(["reactie", "emoji", "stem", "betaald"]);
 const KLEUREN = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
 function avatar(naam, groot = false) {
   let h = 0; for (const c of String(naam || "?")) h = (h * 31 + c.charCodeAt(0)) >>> 0;
@@ -235,6 +291,8 @@ function voorbeeldTekst(st, g, m, afzender) {
   if (m.t === "emoji") return m.emoji ? wie.replace(/: $/, " ") + T("reageerde {}", m.emoji) : "";
   if (m.t === "stem") return wie.replace(/: $/, " ") + T("stemde");
   if (m.t === "vrij") return wie + T("Wanneer ik kan");
+  if (m.t === "betaal") return wie + T("Betaalverzoek: {}", bedragTekst(m.bedrag));
+  if (m.t === "betaald") return wie.replace(/: $/, " ") + T("heeft betaald");
   if (m.t === "reactie") return wie.replace(/: $/, " ") + (m.antwoord === "ja" ? T("zet de afspraak in de agenda") : T("kan niet op die afspraak"));
   return "";
 }
@@ -498,6 +556,7 @@ function korteInhoud(m, vertaal = T) {
   if (m.t === "afspraak") return vertaal("Afspraak: {}", m.titel);
   if (m.t === "peiling") return vertaal("Peiling: {}", m.vraag);
   if (m.t === "vrij") return vertaal("Wanneer ik kan");
+  if (m.t === "betaal") return vertaal("Betaalverzoek: {}", bedragTekst(m.bedrag));
   return "";
 }
 
@@ -525,7 +584,11 @@ function berichtHtml(st, g, b, vorige) {
     const m = b.bericht;
     const citaat = m.antwoord ? `<button class="c-citaat" data-a="naar" data-b="${Number(m.antwoord.id) || 0}">
       <b>${esc(m.antwoord.naam)}</b><span>${esc(m.antwoord.tekst)}</span></button>` : "";
-    if (m.t === "tekst") inhoud = citaat + tekstHtml(g, m.tekst);
+    if (m.t === "tekst") {
+      inhoud = citaat + tekstHtml(g, m.tekst);
+      const gevonden = datumHerkennen(m.tekst);
+      if (gevonden) inhoud += `<button class="c-chip" data-a="tekst-agenda" data-b="${b.id}">${ICOON.agenda}<span>${esc(T("In agenda"))} · ${esc(wanneer(gevonden.start))}</span></button>`;
+    }
     else if (m.t === "foto") inhoud = `<img src="${esc(m.data)}" alt="${esc(T("Foto"))}">${m.tekst ? `<div>${esc(m.tekst)}</div>` : ""}`;
     else if (m.t === "afspraak") {
       kaart = true;
@@ -554,6 +617,15 @@ function berichtHtml(st, g, b, vorige) {
       kaart = true;
       inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>${mijn ? T("Wanneer ik kan") : T("Wanneer {} kan", esc(afzender ? afzender.naam : ""))}</span></div>
         <div class="c-rij c-wrap">${m.momenten.map((x) => `<button class="c-pil" data-a="kies" data-m="${esc(x)}">${esc(wanneer(x))}</button>`).join("")}</div></div>`;
+    } else if (m.t === "betaal") {
+      kaart = true;
+      const betaald = st.betaald.get(m.id) || [];
+      const ikBetaalde = betaald.some((x) => x.id === st.ik);
+      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.geld}<span>${T("Betaalverzoek")}</span></div>
+        <b class="c-bedrag">${esc(bedragTekst(m.bedrag))}</b>${m.omschrijving ? `<div>${esc(m.omschrijving)}</div>` : ""}
+        <small>${esc(T("Aan {}", m.naam || (afzender ? afzender.naam : "")))}</small>
+        ${betaald.length ? `<small class="c-groen">✓ ${esc(T("Betaald door {}", betaald.map((x) => x.naam || T("Jij")).join(", ")))}</small>` : ""}
+        ${mijn || ikBetaalde ? "" : `<div class="c-rij"><button class="c-knop c-hoofd" data-a="betalen" data-b="${b.id}">${T("Betalen")}</button></div>`}</div>`;
     } else inhoud = `<i class="c-grijs">${T("Onbekend bericht.")}</i>`;
   }
   const anderen = g.leden.filter((l) => l.id !== st.ik && l.status === "lid");
@@ -594,8 +666,12 @@ function toonGesprek(st) {
   const hadFocus = veldOud && st.wortel.contains(document.activeElement) && document.activeElement === veldOud;
   const waarde = (id) => (st.wortel.querySelector(id) || {}).value;
   if (st.paneel === "afspraak" && st.wortel.querySelector("#c-a-titel")) {
-    st.voorstel = { titel: waarde("#c-a-titel"), start: waarde("#c-a-start"), duur: Number(waarde("#c-a-duur")), plaats: waarde("#c-a-plaats") };
+    st.voorstel = { ...st.voorstel, titel: waarde("#c-a-titel"), start: waarde("#c-a-start"), duur: Number(waarde("#c-a-duur")), plaats: waarde("#c-a-plaats") };
   }
+  if (st.paneel === "betaal" && st.wortel.querySelector("#c-b-bedrag")) {
+    st.betaalConcept = { bedrag: waarde("#c-b-bedrag"), oms: waarde("#c-b-oms"), iban: waarde("#c-b-iban"), naam: waarde("#c-b-naam"), link: waarde("#c-b-link") };
+  }
+  const bc = st.paneel === "betaal" ? (st.betaalConcept || {}) : {};
   if (st.paneel === "peiling" && st.wortel.querySelector("#c-p-vraag")) peilingBewaren(st);
   const sub = g.community ? g.community_naam || "" : g.soort === "groep" ? T("{} deelnemers", g.leden.length) : (ander && ander.gebruikersnaam ? "@" + ander.gebruikersnaam : "");
   const terug = g.community ? `<button class="c-ikoon" data-a="community" data-id="${g.community}" aria-label="${esc(T("Terug"))}">${ICOON.terug}</button>` : terugKnop("lijst");
@@ -622,7 +698,26 @@ function toonGesprek(st) {
       <div class="c-rij"><label>${T("Wanneer")}<input class="c-veld" id="c-a-start" type="datetime-local" value="${esc(st.voorstel.start || "")}"></label>
       <label class="c-smal">${T("Hoe lang")}<select class="c-veld" id="c-a-duur">${[30, 60, 90, 120, 180].map((m) => `<option value="${m}" ${m === (st.voorstel.duur || 60) ? "selected" : ""}>${m < 60 ? T("{} min", m) : T("{} uur", m / 60)}</option>`).join("")}</select></label></div>
       <label>${T("Waar (optioneel)")}<input class="c-veld" id="c-a-plaats" value="${esc(st.voorstel.plaats || "")}"></label>
-      <div class="c-rij"><button class="c-knop c-hoofd" data-a="stuur-afspraak">${T("Voorstellen")}</button><button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>` : ""}
+      <div class="c-rij">${st.voorstel.eigen ? `<button class="c-knop c-hoofd" data-a="eigen-agenda">${T("In mijn agenda")}</button>`
+        : `<button class="c-knop c-hoofd" data-a="stuur-afspraak">${T("Voorstellen")}</button>`}<button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>` : ""}
+    ${st.paneel === "betaal" ? `<div class="c-paneel">
+      <b>${T("Betaalverzoek")}</b>
+      <div class="c-rij"><label class="c-smal">${T("Bedrag")}<input class="c-veld" id="c-b-bedrag" inputmode="decimal" placeholder="12,50" value="${esc(bc.bedrag || "")}"></label>
+        <label>${T("Waarvoor")}<input class="c-veld" id="c-b-oms" maxlength="80" placeholder="${esc(T("Bijvoorbeeld: pizza"))}" value="${esc(bc.oms || "")}"></label></div>
+      <label>${T("Jouw IBAN")}<input class="c-veld" id="c-b-iban" autocomplete="off" value="${esc(bc.iban ?? bewaard("iban"))}" placeholder="NL00 BANK 0123 4567 89"></label>
+      <label>${T("Naam op je rekening")}<input class="c-veld" id="c-b-naam" value="${esc(bc.naam ?? bewaard("rekeningnaam"))}"></label>
+      <label>${T("Betaallink (optioneel)")}<input class="c-veld" id="c-b-link" inputmode="url" value="${esc(bc.link ?? bewaard("betaallink"))}" placeholder="https://bunq.me/... of https://tikkie.me/..."></label>
+      <small>${T("De app verstuurt zelf geen geld. De ander betaalt met de eigen bank of via jouw betaallink.")}</small>
+      <div class="c-rij"><button class="c-knop c-hoofd" data-a="stuur-betaal">${T("Versturen")}</button><button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>` : ""}
+    ${st.paneel === "betalen" && st.betaalBericht ? (() => { const m = st.betaalBericht.bericht; const link = veiligeLink(m.link);
+      return `<div class="c-paneel">
+      <b>${esc(T("{} betalen aan {}", bedragTekst(m.bedrag), m.naam || ""))}</b>
+      ${link ? `<a class="c-knop c-hoofd c-breed c-link-knop" href="${esc(link.href)}" target="_blank" rel="noopener noreferrer">${esc(T("Betalen via {}", link.hostname))}</a>` : ""}
+      ${m.iban ? `<div class="c-kopie-rij"><span><small>${T("IBAN")}</small><b>${esc(ibanMooi(m.iban))}</b></span><button class="c-knop" data-a="kopieer" data-w="${esc(String(m.iban).replace(/\s+/g, ""))}">${T("Kopieer")}</button></div>
+        <div class="c-kopie-rij"><span><small>${T("Bedrag")}</small><b>${esc(bedragTekst(m.bedrag))}</b></span><button class="c-knop" data-a="kopieer" data-w="${esc((m.bedrag / 100).toFixed(2).replace(".", ","))}">${T("Kopieer")}</button></div>
+        ${m.omschrijving ? `<div class="c-kopie-rij"><span><small>${T("Omschrijving")}</small><b>${esc(m.omschrijving)}</b></span><button class="c-knop" data-a="kopieer" data-w="${esc(m.omschrijving)}">${T("Kopieer")}</button></div>` : ""}
+        <small>${T("Open je bankapp, maak een overboeking en plak de gegevens.")}</small>` : ""}
+      <div class="c-rij"><button class="c-knop c-hoofd" data-a="ik-betaalde">${T("Ik heb betaald")}</button><button class="c-knop" data-a="sluit">${T("Later")}</button></div></div>`; })() : ""}
     ${st.paneel === "peiling" ? `<div class="c-paneel">
       <b>${T("Peiling")}</b>
       <input class="c-veld" id="c-p-vraag" placeholder="${esc(T("Vraag"))}" value="${esc(st.peiling.vraag || "")}" maxlength="200">
@@ -634,7 +729,8 @@ function toonGesprek(st) {
       <button class="c-plus-knop" data-a="foto"><span>📷</span>${T("Foto")}</button>
       <button class="c-plus-knop" data-a="afspraak"><span>📅</span>${g.community ? T("Evenement") : T("Afspraak")}</button>
       ${g.soort === "groep" ? `<button class="c-plus-knop" data-a="peiling"><span>📊</span>${T("Peiling")}</button>` : ""}
-      <button class="c-plus-knop" data-a="vrij"><span>🕒</span>${T("Wanneer ik kan")}</button></div>` : ""}
+      <button class="c-plus-knop" data-a="vrij"><span>🕒</span>${T("Wanneer ik kan")}</button>
+      ${g.community ? "" : `<button class="c-plus-knop" data-a="betaal"><span>💶</span>${T("Betaalverzoek")}</button>`}</div>` : ""}
     ${st.antwoord && magSchrijven ? `<div class="c-antwoord-balk"><div><b>${esc(st.antwoord.naam)}</b><span>${esc(st.antwoord.tekst)}</span></div>
       <button class="c-mini" data-a="antwoord-weg" aria-label="${esc(T("Niet beantwoorden"))}">×</button></div>` : ""}
     ${magSchrijven ? `<div class="c-vermeld-rij"></div><div class="c-invoer"><button class="c-rond" data-a="plus" aria-label="${esc(T("Meer"))}">${ICOON.plus}</button>
@@ -806,6 +902,11 @@ async function berichtenLaden(st) {
       if (b.bericht.emoji) per.set(b.afzender, String(b.bericht.emoji).slice(0, 8)); else per.delete(b.afzender);
       st.emoji.set(Number(b.bericht.op), per);
     }
+    if (b.bericht && b.bericht.t === "betaald") {
+      const lid = st.gesprek.leden.find((l) => l.id === b.afzender) || {};
+      const lijst = st.betaald.get(b.bericht.op) || [];
+      if (!lijst.some((x) => x.id === b.afzender)) st.betaald.set(b.bericht.op, [...lijst, { id: b.afzender, naam: b.afzender === st.ik ? "" : lid.naam || "" }]);
+    }
     if (b.bericht && b.bericht.t === "stem") {
       const per = st.stemmen.get(b.bericht.op) || new Map();
       per.set(b.afzender, Number(b.bericht.keuze));
@@ -845,7 +946,7 @@ async function openen(st, id) {
   st.gesprek = st.gesprekken.find((g) => g.id === id)
     || (kanaal ? { id, naam: kanaal.naam, community: kanaal.community, community_naam: kanaal.community_naam, leden: [], soort: "groep", status: "lid" }
               : { id, leden: [], soort: "twee", status: "lid" });
-  st.berichten = []; st.reacties = new Map(); st.emoji = new Map(); st.stemmen = new Map(); st.scherm = "gesprek"; st.paneel = null; st.naarOnder = true;
+  st.berichten = []; st.reacties = new Map(); st.emoji = new Map(); st.stemmen = new Map(); st.betaald = new Map(); st.scherm = "gesprek"; st.paneel = null; st.naarOnder = true;
   st.menu = null; st.antwoord = null; st.vastStap = 0; st.blad = null;
   st.sleutelsVeranderd = false; st.sleutelLijst = null; st.concept = "";
   toon(st);
@@ -1114,6 +1215,51 @@ async function actie(st, a, el) {
       if (!titel || !begin) { melding(st, T("Vul in wat en wanneer.")); return; }
       return versturen(st, { t: "afspraak", id: b64(rnd(9)), titel, start: begin, minuten: Number(v("#c-a-duur")) || 60, plaats: v("#c-a-plaats").trim() });
     }
+    if (a === "tekst-agenda") {
+      const b = st.berichten.find((x) => x.id === Number(el.dataset.b));
+      const gevonden = b && b.bericht && datumHerkennen(b.bericht.tekst);
+      if (!gevonden) return;
+      const van = (st.gesprek.leden.find((l) => l.id === b.afzender) || {}).naam || "";
+      st.voorstel = { titel: gevonden.titel, start: gevonden.start, duur: 60, plaats: "", eigen: true, met: b.afzender === st.ik ? gesprekNaam(st, st.gesprek) : van };
+      st.paneel = "afspraak"; return toon(st);
+    }
+    if (a === "eigen-agenda") {
+      const titel = v("#c-a-titel").trim() || T("Afspraak");
+      const begin = v("#c-a-start");
+      if (!begin) return melding(st, T("Kies wanneer."));
+      st.zet("agenda", { titel, start: begin, minuten: Number(v("#c-a-duur")) || 60, plaats: v("#c-a-plaats").trim(),
+                         met: (st.voorstel && st.voorstel.met) || "", n: Date.now() });
+      st.paneel = null; st.voorstel = {}; melding(st, T("Staat in je agenda.")); return toon(st);
+    }
+    if (a === "betaal") { st.paneel = "betaal"; st.betaalConcept = null; return toon(st); }
+    if (a === "stuur-betaal") {
+      const bedrag = Math.round(Number(v("#c-b-bedrag").replace(/[^\d,.]/g, "").replace(/\.(?=\d{3}\b)/g, "").replace(",", ".")) * 100);
+      const iban = v("#c-b-iban").replace(/\s+/g, "").toUpperCase();
+      const link = v("#c-b-link").trim();
+      if (!(bedrag > 0 && bedrag <= 1000000)) return melding(st, T("Vul een bedrag in."));
+      if (iban && !ibanGoed(iban)) return melding(st, T("Dit IBAN klopt niet."));
+      if (link && !veiligeLink(link)) return melding(st, T("De betaallink moet met https:// beginnen."));
+      if (!iban && !link) return melding(st, T("Vul je IBAN of een betaallink in."));
+      const naam = v("#c-b-naam").trim().slice(0, 70);
+      bewaren("iban", iban); bewaren("rekeningnaam", naam); bewaren("betaallink", link);
+      st.paneel = null;
+      return versturen(st, { t: "betaal", id: b64(rnd(9)), bedrag, omschrijving: v("#c-b-oms").trim().slice(0, 80), iban, naam, link });
+    }
+    if (a === "betalen") {
+      st.betaalBericht = st.berichten.find((x) => x.id === Number(el.dataset.b));
+      if (!st.betaalBericht || !st.betaalBericht.bericht) return;
+      st.paneel = "betalen"; return toon(st);
+    }
+    if (a === "kopieer") {
+      try { await navigator.clipboard.writeText(el.dataset.w); melding(st, T("Gekopieerd.")); } catch (e) { melding(st, el.dataset.w); }
+      return;
+    }
+    if (a === "ik-betaalde") {
+      const m = st.betaalBericht && st.betaalBericht.bericht;
+      st.paneel = null;
+      if (!m) return toon(st);
+      return versturen(st, { t: "betaald", op: m.id });
+    }
     if (a === "agenda" || a === "kanniet") {
       const b = st.berichten.find((x) => x.id === Number(el.dataset.b));
       if (!b || !b.bericht) return;
@@ -1287,7 +1433,7 @@ export default function (component) {
     st = parentElement.__chat = {
       url: data.url, key: data.key, naam: data.naam, token: data.token, label: data.label, wortel,
       scherm: "lijst", gesprekken: [], communities: [], berichten: [], reacties: new Map(), emoji: new Map(), stemmen: new Map(),
-      voorbeelden: new Map(), peiling: { vraag: "", opties: ["", ""] },
+      voorbeelden: new Map(), betaald: new Map(), peiling: { vraag: "", opties: ["", ""] },
       vrij: data.vrij || [], open: data.open || null, contacten: null,
     };
     wortel.addEventListener("input", (e) => {

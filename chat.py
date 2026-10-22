@@ -37,6 +37,16 @@ CSS = """
 .c-fab { position: absolute; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom)); width: 56px; height: 56px;
   border-radius: 18px; border: 0; background: var(--c-hoofd); color: #fff; display: grid; place-items: center;
   box-shadow: 0 4px 14px rgba(0,0,0,.2); cursor: pointer; z-index: 3; }
+.c-chip { display: flex; width: fit-content; align-items: center; gap: 6px; margin-top: 6px; font: inherit; font-size: 13px;
+  padding: 5px 10px; border-radius: 999px; border: 0; background: rgba(128,128,128,.14); color: inherit; cursor: pointer; }
+.c-chip svg { width: 15px; height: 15px; }
+.c-bedrag { font-size: 24px; }
+.c-groen { color: #16a34a; opacity: 1 !important; }
+.c-kopie-rij { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.c-kopie-rij span { display: flex; flex-direction: column; min-width: 0; }
+.c-kopie-rij b { overflow-wrap: anywhere; }
+.c-kopie-rij small { opacity: .6; }
+.c-link-knop { display: block; text-align: center; text-decoration: none; box-sizing: border-box; }
 .c-fab:active { transform: scale(.96); }
 .c-wortel svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;
   stroke-linejoin: round; flex: none; }
