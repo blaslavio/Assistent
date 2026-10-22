@@ -281,5 +281,14 @@ def installeren() -> None:
             setattr(st, naam, getattr(st._main, naam))
     st.toast = _omhul(st.toast, "eerste")
     oud_dialoog = st.dialog
-    st.dialog = lambda title, *a, **k: oud_dialoog(_t(title), *a, **k)
+
+    def dialoog(title, *a, **k):
+        # De titel pas vertalen als het venster opengaat: bij het laden van de app is de taal nog niet bekend.
+        def maak(functie):
+            @functools.wraps(functie)
+            def open_venster(*fa, **fk):
+                return oud_dialoog(_t(title), *a, **k)(functie)(*fa, **fk)
+            return open_venster
+        return maak
+    st.dialog = dialoog
     DeltaGenerator._taal_klaar = True

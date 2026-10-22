@@ -3012,8 +3012,49 @@ def welkom_voorkeuren() -> None:
     if st.button("Klaar", type="primary", width="stretch"):
         opslag.instellingen_bijwerken(onderdelen_uit=[o for o in ONDERDELEN if o not in (gekozen or [])],
                                       voorbeeldvragen=voorbeelden)
+        st.session_state.rondleiding = True
         st.rerun()
     st.caption("Alles is later aan of uit te zetten bij Instellingen › Weergave.")
+
+
+RONDLEIDING = [
+    (":material/today:", "Vandaag", "Je dag in één oogopslag: afspraken, taken en het weer."),
+    (":material/calendar_month:", "Agenda", "Plan afspraken en taken. Je agenda is privé: anderen zien alleen wat jij deelt."),
+    (":material/chat:", "Chat", "Veilig chatten, versleuteld van begin tot eind. Zet afspraken met één tik in je agenda en "
+                                "stuur betaalverzoeken."),
+    (":material/assistant:", "Assistent", "Typ of zeg wat je wilt, de assistent helpt je verder. "
+                                          "Voor slimme antwoorden koppel je een AI bij Instellingen."),
+    (":material/settings:", "Instellingen", "Kies je taal, zet onderdelen aan of uit en maak de app van jou."),
+]
+
+
+@st.dialog("Rondleiding")
+def rondleiding() -> None:
+    """Korte uitleg bij de eerste keer: vijf stappen, overslaan kan altijd."""
+    opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
+    stap = min(st.session_state.get("rl_stap", 0), len(RONDLEIDING) - 1)
+    icoon, titel, uitleg = RONDLEIDING[stap]
+    st.markdown(f"### {icoon} {taal.t(titel)}")
+    st.write(uitleg)
+    st.caption(" ".join("●" if i == stap else "○" for i in range(len(RONDLEIDING))))
+
+    def klaar() -> None:
+        opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
+        opslag.instellingen_bijwerken(rondleiding_gezien=True)
+        st.session_state.pop("rl_stap", None)
+        st.session_state.pop("rondleiding", None)
+
+    with st.container(horizontal=True):
+        if stap < len(RONDLEIDING) - 1:
+            if st.button("Volgende", type="primary"):
+                st.session_state.rl_stap = stap + 1
+                st.rerun(scope="fragment")
+            if st.button("Overslaan", type="tertiary"):
+                klaar()
+                st.rerun()
+        elif st.button("Aan de slag", type="primary"):
+            klaar()
+            st.rerun()
 
 
 def avatar_instellingen() -> None:
@@ -3187,6 +3228,10 @@ def instellingen_weergave() -> None:
         st.caption("De assistent antwoordt ook in deze taal. Wat nog niet vertaald is, blijft Nederlands.")
     with st.expander("Toegankelijkheid"):
         toegankelijkheid_instellingen()
+    if st.button("Rondleiding opnieuw bekijken", icon=":material/tour:", type="tertiary"):
+        st.session_state.rl_stap = 0
+        st.session_state.rondleiding = True
+        st.rerun()
     with st.expander("Voorpagina en menu"):
         voorpagina_instellingen()
     with st.expander("Thuisadres" + ("" if inst.get("thuisadres") else " (nog invullen)"),
@@ -4062,6 +4107,10 @@ def main() -> None:
                    "Instellingen › Account › Beveiliging.", icon="⚠️")
     if st.session_state.pop("welkom", False):
         welkom_voorkeuren()
+    elif st.session_state.get("rondleiding") or (not opslag.instellingen().get("rondleiding_gezien")
+                                                 and not st.session_state.get("rl_later")):
+        st.session_state.rl_later = True  # niet bij elke klik opnieuw; na sluiten pas volgende keer
+        rondleiding()
 
     # Het invoerveld onderaan: "morgen 9u tandarts" komt meteen in de agenda (ook zonder Claude),
     # al het andere gaat naar het gesprek met de assistent.
