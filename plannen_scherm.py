@@ -696,12 +696,15 @@ def boek_dialoog() -> None:
         oud = p["soorten"][i] if i < len(p["soorten"]) else {"naam": "", "minuten": 30}
         with st.container(horizontal=True, vertical_alignment="bottom", gap="small", key=f"boeksoort_{i}"):
             naam = st.text_input("Naam", value=oud["naam"], key=f"boeksoort_naam_{i}", label_visibility="collapsed",
-                                 placeholder="Bijvoorbeeld: Kennismaking" if i == 0 else "Nog een soort (optioneel)")
+                                 placeholder="Bijvoorbeeld: Personal training" if i == 0 else "Nog een soort (optioneel)")
             minuten = st.selectbox("Duur", MINUTEN, key=f"boeksoort_min_{i}", label_visibility="collapsed", width=120,
                                    index=MINUTEN.index(oud["minuten"]) if oud["minuten"] in MINUTEN else 2,
                                    format_func=_duur)
+            prijs = st.number_input("Prijs (€)", min_value=0.0, max_value=10000.0, step=5.0, format="%.2f",
+                                    value=(oud.get("prijs") or 0) / 100, key=f"boeksoort_prijs_{i}",
+                                    label_visibility="collapsed", width=110, help="Prijs in euro. 0 = geen prijs.")
         if naam.strip():
-            soorten.append({"naam": naam.strip(), "minuten": minuten})
+            soorten.append({"naam": naam.strip(), "minuten": minuten, "prijs": round(prijs * 100)})
     dagen_nu = [int(d) for d, blokken in p["uren"].items() if blokken]
     eerste = next((blokken[0] for blokken in p["uren"].values() if blokken), ["09:00", "17:00"])
     dagen = st.pills("Op welke dagen?", range(1, 8), selection_mode="multi", default=sorted(dagen_nu),
@@ -724,13 +727,21 @@ def boek_dialoog() -> None:
         vooruit = k2.selectbox("Tot hoe ver vooruit", [7, 14, 30, 60, 90], format_func=lambda d: f"{d} dagen",
                                index=[7, 14, 30, 60, 90].index(p["vooruit"]) if p["vooruit"] in [7, 14, 30, 60, 90] else 2)
         adres = st.text_input("Linknaam", value=p["adres"], max_chars=40, help="Letters, cijfers en streepjes.")
+    with st.expander("Betalen"):
+        st.caption("Wie via de chat boekt, ziet deze gegevens om te betalen. De app verplaatst zelf geen geld.")
+        betalen = p.get("betalen") or {}
+        iban = st.text_input("Jouw IBAN", value=betalen.get("iban", ""), placeholder="NL00 BANK 0123 4567 89")
+        rekeningnaam = st.text_input("Naam op je rekening", value=betalen.get("naam", ""), max_chars=70)
+        betaallink = st.text_input("Betaallink (optioneel)", value=betalen.get("link", ""),
+                                   placeholder="https://bunq.me/... of https://tikkie.me/...")
     if st.button("Opslaan", type="primary", width="stretch", disabled=not soorten or not dagen or van >= tot):
         try:
             boekpagina.instellen({"aan": aan, "adres": adres.strip().lower(), "titel": titel.strip(), "intro": intro.strip(),
                                   "soorten": soorten, "locatie": locatie.strip(), "bevestigen": bevestigen,
                                   "uren": {str(d): [[van.strftime("%H:%M"), tot.strftime("%H:%M")]] for d in dagen},
                                   "buffer": buffer, "min_vooraf": min_vooraf, "vooruit": vooruit,
-                                  "max_per_dag": int(max_per_dag)})
+                                  "max_per_dag": int(max_per_dag),
+                                  "betalen": {"iban": iban.strip(), "naam": rekeningnaam.strip(), "link": betaallink.strip()}})
         except samen.Fout as fout:
             st.error(str(fout))
             return

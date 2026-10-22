@@ -305,6 +305,43 @@ def _naar_agenda(a: dict | None) -> None:
     st.toast(f"{titel} staat in je agenda.")
 
 
+def _boeking(a: dict | None) -> None:
+    """Je boekte via de chat: elke keer komt in je eigen agenda (en we onthouden welke, om later op te ruimen)."""
+    if not isinstance(a, dict) or a.get("n") == st.session_state.get("_chat_boeking"):
+        return
+    st.session_state._chat_boeking = a.get("n")
+    minuten = min(480, max(10, int(a.get("minuten") or 60)))
+    titel = str(a.get("titel") or "Afspraak")[:120]
+    notitie = f"Geboekt via de chat bij {str(a.get('met') or '')[:60]}".strip()
+    if a.get("status") == "aangevraagd":
+        les = str((a.get("ids") or [""])[0]).startswith("les:")
+        notitie += ". Je staat op de wachtlijst." if les else ". Wacht op bevestiging."
+    gekoppeld = dict(opslag.instellingen().get("chat_boekingen") or {})
+    for boeking_id, start in list(zip(a.get("ids") or [], a.get("starts") or []))[:12]:
+        try:
+            begin = datetime.fromisoformat(str(start)).astimezone()
+        except ValueError:
+            continue
+        afspraak = opslag.afspraak_toevoegen(titel, begin.strftime("%Y-%m-%dT%H:%M"),
+                                             (begin + timedelta(minutes=minuten)).strftime("%Y-%m-%dT%H:%M"),
+                                             notitie=notitie, locatie=str(a.get("plaats") or "")[:200], soort="afspraak")
+        gekoppeld[str(boeking_id)] = afspraak["id"]
+    opslag.instellingen_bijwerken(chat_boekingen=gekoppeld)
+
+
+def _boeking_weg(a: dict | None) -> None:
+    """Afgewezen of geannuleerd: die keren gaan uit je agenda."""
+    if not isinstance(a, dict) or a.get("n") == st.session_state.get("_chat_boeking_weg"):
+        return
+    st.session_state._chat_boeking_weg = a.get("n")
+    gekoppeld = dict(opslag.instellingen().get("chat_boekingen") or {})
+    weg = [gekoppeld.pop(str(i)) for i in a.get("ids") or [] if str(i) in gekoppeld]
+    for afspraak_id in weg:
+        opslag.afspraak_verwijderen(afspraak_id)
+    if weg:
+        opslag.instellingen_bijwerken(chat_boekingen=gekoppeld)
+
+
 def _open() -> int | None:
     """Een gesprek om meteen te openen: via een melding op je telefoon (?gesprek=nummer) of vanuit de app."""
     gesprek = st.query_params.pop("gesprek", None) or st.session_state.pop("chat_open", None)
@@ -330,7 +367,9 @@ def pagina() -> None:
         "key": os.environ.get("SUPABASE_KEY", opslag.SUPABASE_PUBLISHABLE_KEY),
         "naam": st.session_state.get("naam", ""), "token": st.session_state.get("wachtwoord", ""),
         "label": apparaat_naam(), "vrij": vrij, "open": _open(), "taal": taal.chat_teksten(),
-    }, on_agenda_change=lambda: None)
+    }, on_agenda_change=lambda: None, on_boeking_change=lambda: None, on_boekingweg_change=lambda: None)
     _naar_agenda(getattr(resultaat, "agenda", None) if resultaat is not None else None)
+    _boeking(getattr(resultaat, "boeking", None) if resultaat is not None else None)
+    _boeking_weg(getattr(resultaat, "boekingweg", None) if resultaat is not None else None)
     # Zo blijft het aantal in de kopbalk kloppen nadat je berichten hebt gelezen.
     _ongelezen.pop(f"{opslag._naam.get()}|{opslag._wachtwoord.get()}", None)

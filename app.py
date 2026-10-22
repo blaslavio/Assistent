@@ -65,11 +65,13 @@ import verbeteren
 import ander_brein
 import chat
 import taal
+import zaak
+import zaak_scherm
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, ander_brein, spraak, verbeteren, chat, taal):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -1996,7 +1998,10 @@ ONDERDELEN = {"Chat": "Chat (end-to-end versleuteld)", "Documenten": "Documenten
               "Scannen": "Foto scannen", "VR-ruimtes": "VR-ruimtes (projecten in 3D)",
               "Boodschappen": "Boodschappen",
               "Lijstjes": "Kooplijst en wenslijst", "Marktplaats": "Marktplaats (kopen en verkopen bij elkaar)",
-              "Budget": "Budget (uitgaven, vaste lasten, sparen)", "Beleggen": "Beleggen (alleen meekijken)"}
+              "Budget": "Budget (uitgaven, vaste lasten, sparen)", "Beleggen": "Beleggen (alleen meekijken)",
+              "Zakelijk": "Zakelijk (gym, club, trainer of dienstverlener)"}
+# Nieuwe onderdelen die voor bestaande gebruikers uit staan tot ze ze zelf aanzetten.
+NIEUW_UIT = ["Zakelijk"]
 VOORPAGINA_KORT = {"ochtend": "Ochtendoverzicht", "weer": "Weer", "startpunt": "Snel aan de slag", "afspraken": "Dagschema",
                    "meldingen": "Meldingen", "saldo": "Saldo marktplaats", "budget": "Budget", "taken": "Taken",
                    "seintjes": "Seintjes", "woning": "Apple Woning"}
@@ -2050,6 +2055,8 @@ def vandaag_overzicht() -> None:
         startpunt()
     if keuze["afspraken"]:
         dagschema()
+    if samen.beschikbaar() and "Zakelijk" not in onderdelen_uit():
+        zaak_vandaag()
     if samen.beschikbaar():
         nieuw = samen_scherm.nieuw_kort()
         if keuze["meldingen"]:
@@ -2064,6 +2071,21 @@ def vandaag_overzicht() -> None:
         woning.knoppen(woning.scenes(), "vandaag")
     if keuze["seintjes"]:
         seintjes(nu)
+
+
+def zaak_vandaag() -> None:
+    """Voor wie een zaak heeft: de lessen van vandaag en wat er nog af te vinken is."""
+    try:
+        if zaak.instellingen()["groepslessen"]:
+            for les in zaak.lessen(date.today(), date.today()):
+                start = datetime.fromisoformat(les["start"]).astimezone()
+                st.page_link(PAGINA["zakelijk"], label=f"{start:%H:%M} {les['naam']} · {les['ingeschreven']}/{les['plekken']}",
+                             icon=":material/groups:")
+        zaak_scherm.afvink_lijst(kort=True)
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        pass
 
 
 def budget_blok() -> None:
@@ -2965,6 +2987,7 @@ def onderdelen_uit() -> list[str]:
     uit = inst.get("onderdelen_uit", inst.get("tabbladen_uit", []))
     # Oudere instellingen bewaarden de namen met een emoji ervoor ("🏪 Marktplaats").
     uit = [re.sub(r"^[^\w]+", "", o) for o in uit]
+    uit += [o for o in NIEUW_UIT if o not in inst.get("onderdelen_bekend", []) and o not in uit]
     return ["Leren" if o == "Leren en schrijven" else o for o in uit]
 
 
@@ -2987,7 +3010,7 @@ def voorpagina_instellingen() -> None:
                    format_func=lambda o: KORT.get(o, o), key="menu_onderdelen", label_visibility="collapsed")
     nieuw_uit = [o for o in ONDERDELEN if o not in aan]
     if sorted(nieuw_uit) != sorted(uit):
-        opslag.instellingen_bijwerken(onderdelen_uit=nieuw_uit)
+        opslag.instellingen_bijwerken(onderdelen_uit=nieuw_uit, onderdelen_bekend=NIEUW_UIT)
         st.rerun()
     st.markdown("**Bij de assistent**")
     aan = opslag.instellingen().get("voorbeeldvragen", True)
@@ -3011,6 +3034,7 @@ def welkom_voorkeuren() -> None:
     voorbeelden = st.toggle("Voorbeeldvragen bij de assistent", value=True, key="welkom_voorbeelden")
     if st.button("Klaar", type="primary", width="stretch"):
         opslag.instellingen_bijwerken(onderdelen_uit=[o for o in ONDERDELEN if o not in (gekozen or [])],
+                                      onderdelen_bekend=NIEUW_UIT,
                                       voorbeeldvragen=voorbeelden)
         st.session_state.rondleiding = True
         st.rerun()
@@ -3910,6 +3934,8 @@ def paginas() -> list:
           als(online and "Budget" not in uit, geld_scherm.budget_pagina, "Budget", ":material/account_balance_wallet:",
               "budget"),
           als("Beleggen" not in uit, geld_scherm.beleggen_pagina, "Beleggen", ":material/trending_up:", "beleggen"))
+    groep("Zakelijk",
+          als(online and "Zakelijk" not in uit, zaak_scherm.pagina, "Zakelijk", ":material/business_center:", "zakelijk"))
     groep("Thuis en handig",
           als(bool(lijstjes_delen()), lijstjes, "Lijstjes", ":material/shopping_cart:", "lijstjes"),
           als(bool(handig_delen()), handig, "Hulpmiddelen", ":material/build:", "hulpmiddelen"))
@@ -3923,7 +3949,13 @@ def kopbalk() -> None:
     # Iets compacter, zodat de vier knoppen ook op een telefoon op één regel passen.
     st.html("<style>.st-key-kopbalk{gap:2px}.st-key-kopbalk a{padding-left:6px;padding-right:6px}"
             ".st-key-kopbalk{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}"
-            ".st-key-kopbalk > div:not(:last-child) a > span:has([data-testid=stIconMaterial]){display:none}</style>")
+            ".st-key-kopbalk > div:not(:last-child) a > span:has([data-testid=stIconMaterial]){display:none}"
+            # Alles op één lijn, ook het tandwiel (dat heeft geen tekst en was daardoor lager en kleiner).
+            ".st-key-kopbalk{align-items:center;padding:3px 0}"
+            ".st-key-kopbalk a{height:32px;display:inline-flex;align-items:center;box-sizing:border-box}"
+            ".st-key-kopbalk > div:last-child a{width:36px;justify-content:center;padding:0}"
+            ".st-key-kopbalk > div:last-child a [data-testid=stIconMaterial]{font-size:22px;margin:0}"
+            ".st-key-kopbalk > div:last-child [data-testid=stMarkdownContainer]:empty{display:none}</style>")
     with st.container(horizontal=True, gap="small", key="kopbalk"):
         # Vaste volgorde: Vandaag, Agenda, Chat en de assistent altijd als laatste.
         for url, label in (("vandaag", "Vandaag"), ("agenda", "Agenda")):

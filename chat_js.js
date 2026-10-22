@@ -238,6 +238,9 @@ const ibanMooi = (iban) => String(iban || "").replace(/\s+/g, "").toUpperCase().
 function veiligeLink(link) {
   try { const u = new URL(String(link || "").trim()); return u.protocol === "https:" ? u : null; } catch (e) { return null; }
 }
+const duurTekst = (m) => (m >= 60 && m % 60 === 0 ? T("{} uur", m / 60) : T("{} min", m));
+const dienstTekst = (d) => [d.naam, duurTekst(d.minuten), d.prijs > 0 ? bedragTekst(d.prijs) : ""].filter(Boolean).join(" · ");
+const HERHAAL = { "": "Eenmalig", week: "Elke week", twee_weken: "Elke 2 weken" };
 const bewaard = (k) => { try { return localStorage.getItem("c-" + k) || ""; } catch (e) { return ""; } };
 const bewaren = (k, w) => { try { localStorage.setItem("c-" + k, w); } catch (e) { /* privé venster */ } };
 
@@ -293,6 +296,8 @@ function voorbeeldTekst(st, g, m, afzender) {
   if (m.t === "vrij") return wie + T("Wanneer ik kan");
   if (m.t === "betaal") return wie + T("Betaalverzoek: {}", bedragTekst(m.bedrag));
   if (m.t === "betaald") return wie.replace(/: $/, " ") + T("heeft betaald");
+  if (m.t === "diensten") return wie + T("Diensten: {}", m.titel || (m.soorten || []).map((d) => d.naam).join(", "));
+  if (m.t === "boeking") return wie + T("Boeking: {}", m.soort);
   if (m.t === "reactie") return wie.replace(/: $/, " ") + (m.antwoord === "ja" ? T("zet de afspraak in de agenda") : T("kan niet op die afspraak"));
   return "";
 }
@@ -557,6 +562,8 @@ function korteInhoud(m, vertaal = T) {
   if (m.t === "peiling") return vertaal("Peiling: {}", m.vraag);
   if (m.t === "vrij") return vertaal("Wanneer ik kan");
   if (m.t === "betaal") return vertaal("Betaalverzoek: {}", bedragTekst(m.bedrag));
+  if (m.t === "diensten") return vertaal("Diensten: {}", m.titel || (m.soorten || []).map((d) => d.naam).join(", "));
+  if (m.t === "boeking") return vertaal("Boeking: {}", m.soort);
   return "";
 }
 
@@ -626,6 +633,17 @@ function berichtHtml(st, g, b, vorige) {
         <small>${esc(T("Aan {}", m.naam || (afzender ? afzender.naam : "")))}</small>
         ${betaald.length ? `<small class="c-groen">✓ ${esc(T("Betaald door {}", betaald.map((x) => x.naam || T("Jij")).join(", ")))}</small>` : ""}
         ${mijn || ikBetaalde ? "" : `<div class="c-rij"><button class="c-knop c-hoofd" data-a="betalen" data-b="${b.id}">${T("Betalen")}</button></div>`}</div>`;
+    } else if (m.t === "diensten") {
+      kaart = true;
+      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>${T("Diensten")}</span></div>
+        ${m.titel ? `<b>${esc(m.titel)}</b>` : ""}${(m.soorten || []).map((d) => `<div>${esc(dienstTekst(d))}</div>`).join("")}
+        ${m.locatie ? `<small>${esc(m.locatie)}</small>` : ""}
+        ${mijn ? `<small>${T("Anderen kiezen hier zelf een vrij moment.")}</small>` : `<div class="c-rij c-wrap">
+          ${(m.soorten || []).length ? `<button class="c-knop c-hoofd" data-a="boek-open" data-b="${b.id}">${T("Boeken")}</button>` : ""}
+          ${m.lessen ? `<button class="c-knop ${(m.soorten || []).length ? "" : "c-hoofd"}" data-a="boek-rooster" data-b="${b.id}">${T("Lesrooster")}</button>` : ""}</div>`}</div>`;
+    } else if (m.t === "boeking") {
+      kaart = true;
+      inhoud = boekingKaart(st, b, m, mijn, afzender);
     } else inhoud = `<i class="c-grijs">${T("Onbekend bericht.")}</i>`;
   }
   const anderen = g.leden.filter((l) => l.id !== st.ik && l.status === "lid");
@@ -673,6 +691,9 @@ function toonGesprek(st) {
   }
   const bc = st.paneel === "betaal" ? (st.betaalConcept || {}) : {};
   if (st.paneel === "peiling" && st.wortel.querySelector("#c-p-vraag")) peilingBewaren(st);
+  if (st.paneel === "boeken" && st.boek && st.wortel.querySelector("#c-bk-herhaal")) {
+    st.boek.herhaal = waarde("#c-bk-herhaal"); st.boek.aantal = Number(waarde("#c-bk-aantal")) || 4; st.boek.notitie = waarde("#c-bk-notitie");
+  }
   const sub = g.community ? g.community_naam || "" : g.soort === "groep" ? T("{} deelnemers", g.leden.length) : (ander && ander.gebruikersnaam ? "@" + ander.gebruikersnaam : "");
   const terug = g.community ? `<button class="c-ikoon" data-a="community" data-id="${g.community}" aria-label="${esc(T("Terug"))}">${ICOON.terug}</button>` : terugKnop("lijst");
   const beeld = g.community ? `<span class="c-hekje">#</span>` : g.soort === "groep" ? `<span class="c-avatar c-groep c-klein">${ICOON.groep}</span>` : avatar(gesprekNaam(st, g));
@@ -718,6 +739,8 @@ function toonGesprek(st) {
         ${m.omschrijving ? `<div class="c-kopie-rij"><span><small>${T("Omschrijving")}</small><b>${esc(m.omschrijving)}</b></span><button class="c-knop" data-a="kopieer" data-w="${esc(m.omschrijving)}">${T("Kopieer")}</button></div>` : ""}
         <small>${T("Open je bankapp, maak een overboeking en plak de gegevens.")}</small>` : ""}
       <div class="c-rij"><button class="c-knop c-hoofd" data-a="ik-betaalde">${T("Ik heb betaald")}</button><button class="c-knop" data-a="sluit">${T("Later")}</button></div></div>`; })() : ""}
+    ${st.paneel === "boeken" && st.boek ? boekPaneel(st) : ""}
+    ${st.paneel === "rooster" && st.rooster ? roosterPaneel(st) : ""}
     ${st.paneel === "peiling" ? `<div class="c-paneel">
       <b>${T("Peiling")}</b>
       <input class="c-veld" id="c-p-vraag" placeholder="${esc(T("Vraag"))}" value="${esc(st.peiling.vraag || "")}" maxlength="200">
@@ -730,7 +753,8 @@ function toonGesprek(st) {
       <button class="c-plus-knop" data-a="afspraak"><span>📅</span>${g.community ? T("Evenement") : T("Afspraak")}</button>
       ${g.soort === "groep" ? `<button class="c-plus-knop" data-a="peiling"><span>📊</span>${T("Peiling")}</button>` : ""}
       <button class="c-plus-knop" data-a="vrij"><span>🕒</span>${T("Wanneer ik kan")}</button>
-      ${g.community ? "" : `<button class="c-plus-knop" data-a="betaal"><span>💶</span>${T("Betaalverzoek")}</button>`}</div>` : ""}
+      ${g.community ? "" : `<button class="c-plus-knop" data-a="betaal"><span>💶</span>${T("Betaalverzoek")}</button>`}
+      ${g.community ? "" : `<button class="c-plus-knop" data-a="diensten"><span>🗓️</span>${T("Mijn diensten")}</button>`}</div>` : ""}
     ${st.antwoord && magSchrijven ? `<div class="c-antwoord-balk"><div><b>${esc(st.antwoord.naam)}</b><span>${esc(st.antwoord.tekst)}</span></div>
       <button class="c-mini" data-a="antwoord-weg" aria-label="${esc(T("Niet beantwoorden"))}">×</button></div>` : ""}
     ${magSchrijven ? `<div class="c-vermeld-rij"></div><div class="c-invoer"><button class="c-rond" data-a="plus" aria-label="${esc(T("Meer"))}">${ICOON.plus}</button>
@@ -915,6 +939,7 @@ async function berichtenLaden(st) {
     st.berichten.push(b);
     nieuw = true;
   }
+  if (await boekStatusLaden(st, r.berichten.some((b) => b.bericht && b.bericht.t === "boeking"))) nieuw = true;
   const laatste = [...st.berichten].reverse().find((b) => b.bericht || b.weg);
   if (laatste && r.berichten.length) {
     const v = { id: laatste.id, tekst: laatste.weg ? T("Bericht verwijderd") : voorbeeldTekst(st, st.gesprek, laatste.bericht, laatste.afzender) };
@@ -947,6 +972,7 @@ async function openen(st, id) {
     || (kanaal ? { id, naam: kanaal.naam, community: kanaal.community, community_naam: kanaal.community_naam, leden: [], soort: "groep", status: "lid" }
               : { id, leden: [], soort: "twee", status: "lid" });
   st.berichten = []; st.reacties = new Map(); st.emoji = new Map(); st.stemmen = new Map(); st.betaald = new Map(); st.scherm = "gesprek"; st.paneel = null; st.naarOnder = true;
+  st.boekStatus = new Map(); st.boekTijd = 0; st.boek = null;
   st.menu = null; st.antwoord = null; st.vastStap = 0; st.blad = null;
   st.sleutelsVeranderd = false; st.sleutelLijst = null; st.concept = "";
   toon(st);
@@ -954,6 +980,213 @@ async function openen(st, id) {
   if (st.gesprek.status === "lid") await sleutelsLaden(st).catch(() => {});
   st.naarOnder = true;
   toon(st);
+}
+
+// --- Diensten boeken via de chat (trainer, kapper, bijles...) ---------------------------------------------------------
+// De aanbieder deelt zijn diensten; de klant kiest een vrij moment (eventueel elke week) en betaalt met de eigen bank
+// of de betaallink van de aanbieder. De boeking zelf staat in de database; de chat laat de stand ervan zien.
+
+async function boekStatusLaden(st, nu) {
+  const ids = st.berichten.filter((b) => b.bericht && b.bericht.t === "boeking").flatMap((b) => (b.bericht.ids || []).map(Number));
+  if (!ids.length || (!nu && Date.now() - (st.boekTijd || 0) < 30000)) return false;
+  st.boekTijd = Date.now();
+  const r = await rpc(st, "chat_boeking_status", { p_ids: ids });
+  const voor = JSON.stringify([...st.boekStatus]);
+  st.boekStatus = new Map(r.boekingen.map((x) => [x.id, x]));
+  // Afgewezen of geannuleerd? Dan haalt de app die keren ook uit je eigen agenda.
+  st.wegGemeld = st.wegGemeld || new Set();
+  const weg = r.boekingen.filter((x) => !x.aanbieder && ["afgewezen", "geannuleerd"].includes(x.status) && !st.wegGemeld.has(x.id)).map((x) => x.id);
+  if (weg.length) { weg.forEach((id) => st.wegGemeld.add(id)); st.zet("boekingweg", { ids: weg, n: Date.now() }); }
+  return JSON.stringify([...st.boekStatus]) !== voor;
+}
+
+function boekingKaart(st, b, m, mijn, afzender) {
+  const ids = (m.ids || []).map(Number);
+  const status = ids.map((id) => st.boekStatus.get(id)).filter(Boolean);
+  const actief = status.filter((x) => ["aangevraagd", "bevestigd"].includes(x.status));
+  const aanbieder = status.length ? status[0].aanbieder : !mijn;
+  const kort = (x, start) => {
+    const s = x ? x.status : m.status;
+    const teken = x && x.afgevinkt === "gekomen" ? "✓ " : x && x.afgevinkt === "niet_gekomen" ? "✗ " : "";
+    const tekst = esc(teken + wanneer(start));
+    return ["afgewezen", "geannuleerd"].includes(s) ? `<s class="c-grijs">${tekst}</s>` : tekst;
+  };
+  const starts = m.starts || [];
+  const regels = starts.slice(0, 4).map((x, k) => `<div>${kort(st.boekStatus.get(ids[k]), x)}</div>`).join("")
+    + (starts.length > 4 ? `<small>${esc(T("en nog {} keer", starts.length - 4))}</small>` : "");
+  const wacht = actief.some((x) => x.status === "aangevraagd") || (!status.length && m.status === "aangevraagd");
+  const allesWeg = status.length && !actief.length && status.every((x) => ["afgewezen", "geannuleerd"].includes(x.status));
+  const stand = allesWeg ? T(status[0].status === "afgewezen" ? "Afgewezen" : "Geannuleerd")
+    : wacht ? T("Wacht op bevestiging") : T("Bevestigd");
+  const totaal = (m.prijs || 0) * (status.length ? actief.length || 0 : starts.length);
+  const betaald = (st.betaald.get(m.id) || []).length || status.some((x) => x.betaald);
+  const saldo = status.length ? status[0].saldo : null;
+  const saldoTekst = saldo > 0 ? T("Tegoed: {}", bedragTekst(saldo)) : saldo < 0 ? T("Nog te betalen: {}", bedragTekst(-saldo)) : "";
+  const betalen = status.length && status[0].betalen;
+  const wie = mijn ? T("bij {}", m.naam || "") : (afzender ? afzender.naam : "");
+  const knoppen = [];
+  if (!aanbieder) {
+    if (!allesWeg && totaal > 0 && betalen && !betaald) knoppen.push(`<button class="c-knop c-hoofd" data-a="boek-betalen" data-b="${b.id}">${T("Betalen")}</button>`);
+    if (actief.some((x) => new Date(x.start) > new Date())) knoppen.push(`<button class="c-knop" data-a="boek-annuleer" data-b="${b.id}">${T("Annuleren")}</button>`);
+  } else {
+    if (actief.some((x) => x.status === "aangevraagd")) {
+      knoppen.push(`<button class="c-knop c-hoofd" data-a="boek-ja" data-b="${b.id}">${T("Bevestigen")}</button>`);
+      knoppen.push(`<button class="c-knop" data-a="boek-nee" data-b="${b.id}">${T("Afwijzen")}</button>`);
+    }
+    if (betaald && totaal > 0 && !status.some((x) => x.ontvangen) && !st.ontvangen?.has(m.id)) knoppen.push(`<button class="c-knop" data-a="boek-ontvangen" data-b="${b.id}">${T("Geld ontvangen")}</button>`);
+  }
+  return `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>${T("Boeking")} · ${esc(stand)}</span></div>
+    <b>${esc(m.soort)}</b><small>${esc(wie)}${m.locatie ? ` · ${esc(m.locatie)}` : ""}</small>${regels}
+    ${totaal > 0 ? `<div>${esc(T("Totaal {}", bedragTekst(totaal)))}${starts.length > 1 ? ` <small>(${esc(T("{} per keer", bedragTekst(m.prijs)))})</small>` : ""}</div>` : ""}
+    ${status.some((x) => x.ontvangen) ? `<small class="c-groen">✓ ${esc(T("Betaling ontvangen"))}</small>`
+      : betaald ? `<small class="c-groen">✓ ${esc(aanbieder ? T("De klant heeft betaald") : T("Je hebt betaald"))}</small>` : ""}
+    ${saldoTekst && !aanbieder ? `<small>${esc(saldoTekst)}</small>` : ""}
+    ${knoppen.length ? `<div class="c-rij c-wrap">${knoppen.join("")}</div>` : ""}</div>`;
+}
+
+function boekPaneel(st) {
+  const bk = st.boek;
+  const d = bk.soorten[bk.soort] || bk.soorten[0];
+  const dagLabel = (x) => { const dt = new Date(x + "T12:00"); return dag(dt); };
+  return `<div class="c-paneel">
+    <b>${esc(T("Boeken bij {}", bk.naam || ""))}</b>
+    ${bk.soorten.length > 1 ? `<div class="c-pillen">${bk.soorten.map((x, k) => `<button class="c-pil ${k === bk.soort ? "c-pil-aan" : ""}" data-a="boek-soort" data-k="${k}">${esc(dienstTekst(x))}</button>`).join("")}</div>`
+      : `<div>${esc(dienstTekst(d))}</div>`}
+    ${bk.dagen === null ? `<small>${T("Vrije momenten zoeken...")}</small>` : !bk.dagen.length ? `<small>${T("Er zijn op dit moment geen vrije momenten.")}</small>` : `
+      <div class="c-pillen">${bk.dagen.slice(0, 14).map((x) => `<button class="c-pil ${x === bk.dag ? "c-pil-aan" : ""}" data-a="boek-dag" data-d="${esc(x)}">${esc(dagLabel(x))}</button>`).join("")}</div>
+      ${bk.tijden === null ? `<small>${T("Tijden laden...")}</small>` : `<div class="c-rij c-wrap">${bk.tijden.map((x) => `<button class="c-pil ${x === bk.tijd ? "c-pil-aan" : ""}" data-a="boek-tijd" data-t="${esc(x)}">${esc(tijd(new Date(x)))}</button>`).join("") || `<small>${T("Op deze dag is niets meer vrij.")}</small>`}</div>`}`}
+    <div class="c-rij"><label>${T("Hoe vaak")}<select class="c-veld" id="c-bk-herhaal">${Object.entries(HERHAAL).map(([k, w]) => `<option value="${k}" ${k === (bk.herhaal || "") ? "selected" : ""}>${T(w)}</option>`).join("")}</select></label>
+      <label class="c-smal">${T("Aantal keer")}<select class="c-veld" id="c-bk-aantal">${[2, 3, 4, 6, 8, 10, 12].map((n) => `<option value="${n}" ${n === (bk.aantal || 4) ? "selected" : ""}>${n}</option>`).join("")}</select></label></div>
+    <input class="c-veld" id="c-bk-notitie" maxlength="300" placeholder="${esc(T("Opmerking (optioneel)"))}" value="${esc(bk.notitie || "")}">
+    <div class="c-rij"><button class="c-knop c-hoofd" data-a="boek-stuur" ${bk.tijd ? "" : "disabled"}>${T("Boeken")}</button><button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>`;
+}
+
+function roosterPaneel(st) {
+  const r = st.rooster;
+  const knop = (les) => {
+    if (les.mijn === "ingeschreven") return `<button class="c-knop" data-a="boek-les" data-id="${les.id}">${T("Afmelden")}</button>`;
+    if (les.mijn === "wachtlijst") return `<button class="c-knop" data-a="boek-les" data-id="${les.id}">${T("Van wachtlijst af")}</button>`;
+    const vol = les.ingeschreven >= les.plekken;
+    return `<button class="c-knop c-hoofd" data-a="boek-les" data-id="${les.id}">${vol ? T("Wachtlijst") : T("Inschrijven")}</button>`;
+  };
+  return `<div class="c-paneel" style="max-height:55vh;overflow-y:auto">
+    <b>${esc(T("Lesrooster van {}", r.naam || ""))}</b>
+    ${r.lessen === null ? `<small>${T("Laden...")}</small>` : !r.lessen.length ? `<small>${T("Geen lessen in de komende twee weken.")}</small>`
+      : r.lessen.map((les) => `<div class="c-kopie-rij"><span><b>${esc(les.naam)}</b>
+        <small>${esc([wanneer(les.start), duurTekst(les.minuten), les.prijs ? bedragTekst(les.prijs) : "",
+                      les.mijn === "ingeschreven" ? T("Je doet mee") : les.mijn === "wachtlijst" ? T("Op de wachtlijst")
+                      : T("{} plekken vrij", Math.max(0, les.plekken - les.ingeschreven))].filter(Boolean).join(" · "))}</small></span>${knop(les)}</div>`).join("")}
+    <div class="c-rij"><button class="c-knop" data-a="sluit">${T("Sluiten")}</button></div></div>`;
+}
+
+async function boekDagen(st) {
+  const bk = st.boek;
+  bk.dagen = null; bk.tijden = null; bk.tijd = null; toon(st);
+  const r = await rpc(st, "chat_dienst_bekijken", { p_adres: bk.adres, p_soort: bk.soort });
+  bk.dagen = r.dagen || []; bk.naam = r.naam || bk.naam;
+  bk.dag = bk.dagen[0] || null;
+  if (bk.dag) await boekTijden(st); else toon(st);
+}
+
+async function boekTijden(st) {
+  const bk = st.boek;
+  bk.tijden = null; bk.tijd = null; toon(st);
+  const r = await rpc(st, "chat_dienst_tijden", { p_adres: bk.adres, p_soort: bk.soort, p_datum: bk.dag });
+  bk.tijden = r.tijden || [];
+  toon(st);
+}
+
+async function boekActie(st, a, el, v) {
+  const b = el.dataset.b ? st.berichten.find((x) => x.id === Number(el.dataset.b)) : null;
+  const m = b && b.bericht;
+  if (a === "diensten") {
+    const r = await rpc(st, "chat_diensten");
+    return versturen(st, { t: "diensten", id: b64(rnd(9)), adres: r.adres, titel: r.titel || "", soorten: r.soorten, locatie: r.locatie || "", lessen: !!r.lessen });
+  }
+  if (a === "boek-open") {
+    if (!m) return;
+    st.boek = { adres: m.adres, soorten: m.soorten || [], soort: 0, naam: gesprekNaam(st, st.gesprek), herhaal: "", aantal: 4, notitie: "" };
+    st.paneel = "boeken"; st.naarOnder = true;
+    return boekDagen(st);
+  }
+  if (a === "boek-rooster") {
+    if (!m) return;
+    st.rooster = { adres: m.adres, naam: gesprekNaam(st, st.gesprek), lessen: null };
+    st.paneel = "rooster"; st.naarOnder = true; toon(st);
+    const r = await rpc(st, "chat_rooster", { p_adres: m.adres });
+    st.rooster.lessen = r.lessen; st.rooster.naam = r.naam || st.rooster.naam;
+    return toon(st);
+  }
+  if (a === "boek-les" && st.rooster) {
+    const les = (st.rooster.lessen || []).find((x) => x.id === Number(el.dataset.id));
+    if (!les) return;
+    const aan = !les.mijn || les.mijn === "afgemeld";
+    const r = await rpc(st, "chat_les", { p_les: les.id, p_aan: aan });
+    Object.assign(les, r.les, { mijn: r.status });
+    if (aan) {
+      st.zet("boeking", { n: Date.now(), titel: `${les.naam} · ${st.rooster.naam}`, starts: [les.start], ids: [`les:${les.id}`],
+                          minuten: les.minuten, plaats: les.locatie || "", met: st.rooster.naam, status: r.status === "wachtlijst" ? "aangevraagd" : "bevestigd" });
+      melding(st, r.status === "wachtlijst" ? T("De les is vol. Je staat op de wachtlijst.") : T("Ingeschreven en in je agenda gezet."));
+    } else {
+      st.zet("boekingweg", { n: Date.now(), ids: [`les:${les.id}`] });
+      melding(st, T("Afgemeld."));
+    }
+    return toon(st);
+  }
+  if (!st.boek && ["boek-soort", "boek-dag", "boek-tijd", "boek-stuur"].includes(a)) return;
+  if (a === "boek-soort") { st.boek.soort = Number(el.dataset.k); return boekDagen(st); }
+  if (a === "boek-dag") { st.boek.dag = el.dataset.d; return boekTijden(st); }
+  if (a === "boek-tijd") { st.boek.tijd = el.dataset.t; return toon(st); }
+  if (a === "boek-stuur") {
+    const bk = st.boek;
+    const herhaal = v("#c-bk-herhaal"); const aantal = herhaal ? Number(v("#c-bk-aantal")) || 4 : 1;
+    const r = await rpc(st, "chat_boeken", { p_adres: bk.adres, p_soort: bk.soort, p_start: bk.tijd, p_herhaal: herhaal,
+                                             p_aantal: aantal, p_notitie: v("#c-bk-notitie").trim() });
+    st.paneel = null; st.boek = null;
+    st.zet("boeking", { n: Date.now(), titel: `${r.soort} · ${r.naam}`, starts: r.starts, ids: r.ids, minuten: r.minuten,
+                        plaats: r.locatie || "", met: r.naam, status: r.status });
+    st.boekTijd = 0;
+    const id = b64(rnd(9));
+    await versturen(st, { t: "boeking", id, adres: bk.adres, ids: r.ids, starts: r.starts, soort: r.soort, minuten: r.minuten,
+                          prijs: r.prijs, naam: r.naam, locatie: r.locatie || "", status: r.status });
+    melding(st, r.overgeslagen.length ? T("Geboekt. {} keer was niet vrij en is overgeslagen.", r.overgeslagen.length)
+      : r.status === "aangevraagd" ? T("Aangevraagd. Je krijgt bericht als het bevestigd is.") : T("Geboekt en in je agenda gezet."));
+    if (r.prijs > 0 && r.betalen) {
+      st.betaalBericht = { boekingIds: r.ids, bericht: { id, bedrag: r.prijs * r.ids.length, naam: r.betalen.naam, iban: r.betalen.iban,
+                                                          link: r.betalen.link, omschrijving: `${r.soort} ${r.starts.length > 1 ? `${r.starts.length}x` : dag(new Date(r.starts[0]))}`.slice(0, 80) } };
+      st.paneel = "betalen"; toon(st);
+    }
+    return;
+  }
+  if (!m) return;
+  const ids = (m.ids || []).map(Number);
+  if (a === "boek-betalen") {
+    const s = ids.map((id) => st.boekStatus.get(id)).filter(Boolean);
+    const actief = s.filter((x) => ["aangevraagd", "bevestigd"].includes(x.status));
+    const info = s.length && s[0].betalen;
+    if (!info) return melding(st, T("Vraag de aanbieder hoe je kunt betalen."));
+    st.betaalBericht = { boekingIds: ids, bericht: { id: m.id, bedrag: (m.prijs || 0) * actief.length, naam: info.naam, iban: info.iban, link: info.link,
+                                                      omschrijving: `${m.soort} ${ids.length > 1 ? `${actief.length}x` : dag(new Date(m.starts[0]))}`.slice(0, 80) } };
+    st.paneel = "betalen"; return toon(st);
+  }
+  if (a === "boek-annuleer") {
+    if (!confirm(T("Alle komende keren annuleren?"))) return;
+    const r = await rpc(st, "chat_boeking_klant", { p_ids: ids, p_actie: "annuleren" });
+    st.boekTijd = 0; await boekStatusLaden(st, true);
+    melding(st, T("{} keer geannuleerd.", r.aantal)); return toon(st);
+  }
+  if (a === "boek-ja" || a === "boek-nee") {
+    const r = await rpc(st, "chat_boeking_afhandelen", { p_ids: ids, p_actie: a === "boek-ja" ? "bevestigen" : "afwijzen" });
+    await boekStatusLaden(st, true);
+    melding(st, a === "boek-ja" ? T("Bevestigd. Het staat in je agenda.") : T("Afgewezen."));
+    if (r.ok) await versturen(st, { t: "tekst", tekst: a === "boek-ja" ? T("Je boeking is bevestigd: {}", m.soort) : T("Je boeking kan helaas niet doorgaan: {}", m.soort) });
+    return toon(st);
+  }
+  if (a === "boek-ontvangen") {
+    await rpc(st, "zaak_betaling_ontvangen", { p_ids: ids, p_bedrag: null });
+    st.ontvangen = st.ontvangen || new Set(); st.ontvangen.add(m.id);
+    melding(st, T("Staat in je boekhouding.")); return toon(st);
+  }
 }
 
 async function versturen(st, bericht) {
@@ -1258,8 +1491,13 @@ async function actie(st, a, el) {
       const m = st.betaalBericht && st.betaalBericht.bericht;
       st.paneel = null;
       if (!m) return toon(st);
+      if (st.betaalBericht.boekingIds) {
+        await rpc(st, "chat_boeking_klant", { p_ids: st.betaalBericht.boekingIds, p_actie: "betaald" });
+        st.boekTijd = 0;
+      }
       return versturen(st, { t: "betaald", op: m.id });
     }
+    if (a.startsWith("boek-") || a === "diensten") return boekActie(st, a, el, v);
     if (a === "agenda" || a === "kanniet") {
       const b = st.berichten.find((x) => x.id === Number(el.dataset.b));
       if (!b || !b.bericht) return;
