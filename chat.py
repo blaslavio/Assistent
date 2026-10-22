@@ -22,6 +22,22 @@ CSS = """
   font-family: inherit; color: var(--c-tekst); display: flex; flex-direction: column; position: relative;
   height: calc(100dvh - 8.5rem); min-height: 320px; font-size: 16px; overflow: hidden; overscroll-behavior: contain;
   border: 1px solid var(--c-rand); border-radius: 18px; background: var(--c-achter); }
+.c-wortel [hidden] { display: none !important; }
+.c-wortel.c-vol { border: 0; border-radius: 0; }
+.c-lijst-kop { padding: 8px 14px 6px; display: flex; flex-direction: column; gap: 10px; background: var(--c-achter); }
+.c-rij-kop { display: flex; align-items: center; justify-content: space-between; min-height: 40px; }
+.c-rij-kop .c-groot-titel { font-size: 28px; font-weight: 700; padding-left: 0; }
+.c-lijst-zoek { font: inherit; font-size: 16px; border: 0; outline: 0; background: var(--c-zacht); border-radius: 12px;
+  padding: 9px 12px; width: 100%; box-sizing: border-box; color: inherit; -webkit-appearance: none; }
+.c-pillen { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.c-pillen::-webkit-scrollbar { display: none; }
+.c-pillen .c-pil { flex: none; background: var(--c-zacht); border-color: transparent; }
+.c-pillen .c-pil-aan { background: color-mix(in srgb, var(--c-hoofd) 16%, transparent); color: var(--c-hoofd); font-weight: 600; }
+.c-lijst .c-avatar { width: 52px; height: 52px; }
+.c-fab { position: absolute; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom)); width: 56px; height: 56px;
+  border-radius: 18px; border: 0; background: var(--c-hoofd); color: #fff; display: grid; place-items: center;
+  box-shadow: 0 4px 14px rgba(0,0,0,.2); cursor: pointer; z-index: 3; }
+.c-fab:active { transform: scale(.96); }
 .c-wortel svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;
   stroke-linejoin: round; flex: none; }
 .c-wortel label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; flex: 1; }

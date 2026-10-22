@@ -277,7 +277,8 @@ function itemHtml(st, g) {
   const v = st.voorbeelden.get(g.id);
   const onder = g.status === "verzoek" ? `<span class="c-accent">${T("Wil met je chatten")}</span>`
     : esc(v && v.id === g.laatste_id ? v.tekst : (g.laatste_id ? T("Versleuteld bericht") : (g.soort === "groep" ? T("{} deelnemers", g.leden.length) : T("Nog geen berichten"))));
-  return `<button class="c-item" data-a="open" data-id="${g.id}">
+  return `<button class="c-item" data-a="open" data-id="${g.id}" data-naam="${esc(naam.toLowerCase())}"
+      data-soort="${g.soort === "groep" ? "groep" : "prive"}" data-ongelezen="${g.ongelezen || g.status === "verzoek" ? 1 : 0}">
       ${g.soort === "groep" ? `<span class="c-avatar c-groep">${ICOON.groep}</span>` : avatar(naam)}
       <span class="c-item-tekst"><b>${esc(naam)}</b><small>${onder}</small></span>
       <span class="c-item-rechts"><small class="${g.ongelezen ? "c-accent" : ""}">${esc(kortTijd(g.laatst))}</small>
@@ -290,7 +291,8 @@ function communityItemHtml(st, c) {
   const onder = c.status === "uitgenodigd" ? `<span class="c-accent">${esc(c.door ? T("Uitnodiging van {}", c.door) : T("Uitnodiging"))}</span>`
     : `${c.kanalen.length === 1 ? T("1 kanaal") : T("{} kanalen", c.kanalen.length)} · ${leden(c.leden)}`;
   const laatst = c.kanalen.reduce((m, k) => (k.laatst > m ? k.laatst : m), "");
-  return `<button class="c-item" data-a="community" data-id="${c.id}">${communityAvatar(c.naam)}
+  return `<button class="c-item" data-a="community" data-id="${c.id}" data-naam="${esc(c.naam.toLowerCase())}"
+      data-soort="community" data-ongelezen="${ongelezen || c.status === "uitgenodigd" ? 1 : 0}">${communityAvatar(c.naam)}
       <span class="c-item-tekst"><b>${esc(c.naam)}</b><small>${onder}</small></span>
       <span class="c-item-rechts"><small class="${ongelezen ? "c-accent" : ""}">${esc(kortTijd(laatst))}</small>
         ${ongelezen ? `<span class="c-badge">${ongelezen}</span>` : "<span></span>"}</span></button>`;
@@ -311,19 +313,51 @@ function toonLijst(st) {
   const rest = [...st.gesprekken.filter((g) => g.status !== "verzoek").map((g) => [g.laatst || "", itemHtml(st, g)]),
                 ...communities.filter((c) => c.status === "lid").map((c) => [laatstC(c), communityItemHtml(st, c)])]
     .sort((a, b) => (a[0] < b[0] ? 1 : -1)).map((x) => x[1]);
+  const filter = st.lijstFilter || "alles";
+  const pil = (f, tekst) => `<button class="c-pil ${filter === f ? "c-pil-aan" : ""}" data-a="lijstfilter" data-f="${f}">${tekst}</button>`;
+  const actief = st.wortel.getRootNode().activeElement;
+  const zocht = actief && actief.id === "c-lijst-zoek" ? actief.selectionStart : null;
   st.wortel.innerHTML = `
-    ${kop("", `<b class='c-groot-titel'>${T("Chats")}</b>`,
-      `<button class="c-ikoon" data-a="apparaten" aria-label="${esc(T("Beveiliging"))}">${ICOON.slot}</button>
-       <button class="c-ikoon" data-a="blad" aria-label="${esc(T("Nieuw"))}">${ICOON.nieuw}</button>`)}
-    <div class="c-inhoud">
+    <div class="c-lijst-kop">
+      <div class="c-rij-kop"><b class="c-groot-titel">${T("Chats")}</b>
+        <button class="c-ikoon" data-a="apparaten" aria-label="${esc(T("Beveiliging"))}">${ICOON.slot}</button></div>
+      <input id="c-lijst-zoek" class="c-lijst-zoek" type="search" placeholder="${esc(T("Zoeken"))}" value="${esc(st.lijstZoek || "")}"
+        autocomplete="off" enterkeyhint="search">
+      <div class="c-pillen">${pil("alles", T("Alles"))}${pil("ongelezen", T("Ongelezen"))}${pil("groep", T("Groepen"))}${pil("community", T("Communities"))}</div>
+    </div>
+    <div class="c-inhoud c-lijst">
       ${verzoeken.length ? `<div class="c-sectie">${T("Verzoeken en uitnodigingen")}</div>${verzoeken.join("")}
         <div class="c-sectie">${T("Gesprekken")}</div>` : ""}
       ${rest.join("") || (verzoeken.length ? "" : `<div class="c-leeg">${T("Nog geen gesprekken.")}<br>
         <button class="c-knop c-hoofd" data-a="blad">${T("Begin een gesprek")}</button></div>`)}
+      <div class="c-leeg c-niets" hidden>${T("Niets gevonden.")}</div>
       <div class="c-voet">${ICOON.slot} ${T("Berichten zijn end-to-end versleuteld")}</div>
     </div>
+    <button class="c-fab" data-a="blad" aria-label="${esc(T("Nieuw gesprek"))}">${ICOON.nieuw}</button>
     ${tabs(st)}
     ${st.blad === "nieuw" ? nieuwBlad() : ""}`;
+  lijstFilteren(st);
+  if (zocht !== null) {
+    const veld = st.wortel.querySelector("#c-lijst-zoek");
+    veld.focus(); veld.setSelectionRange(zocht, zocht);
+  }
+}
+
+function lijstFilteren(st) {
+  // Zoeken en filteren zonder opnieuw te tekenen, zodat het toetsenbord open blijft.
+  const zoek = (st.lijstZoek || "").trim().toLowerCase();
+  const filter = st.lijstFilter || "alles";
+  let zichtbaar = 0;
+  for (const el of st.wortel.querySelectorAll(".c-lijst .c-item")) {
+    const past = (!zoek || el.dataset.naam.includes(zoek))
+      && (filter === "alles" || (filter === "ongelezen" ? el.dataset.ongelezen === "1" : el.dataset.soort === filter));
+    el.hidden = !past;
+    zichtbaar += past ? 1 : 0;
+  }
+  const items = st.wortel.querySelectorAll(".c-lijst .c-item").length;
+  const niets = st.wortel.querySelector(".c-niets");
+  if (niets) niets.hidden = !(items && !zichtbaar);
+  for (const sectie of st.wortel.querySelectorAll(".c-lijst .c-sectie")) sectie.hidden = !!(zoek || filter !== "alles");
 }
 
 function toonCommunity(st) {
@@ -865,6 +899,7 @@ async function actie(st, a, el) {
     if (a !== "blad") st.blad = null;
     if (a === "blad") { st.blad = "nieuw"; return toon(st); }
     if (a === "blad-dicht") return toon(st);
+    if (a === "lijstfilter") { st.lijstFilter = el.dataset.f; return toon(st); }
     if (a === "cnieuw") { st.scherm = "cnieuw"; return toon(st); }
     if (a === "community") {
       st.communityId = Number(el.dataset.id); st.scherm = "community"; st.gesprek = null; toon(st);
@@ -1176,28 +1211,69 @@ function bijhouden(st) {
 // Zoals WhatsApp: de pagina zelf schuift niet, alleen de berichten. Het chatvenster vult precies de ruimte
 // onder de kopbalk, ook als het toetsenbord opent (visualViewport).
 function vastzetten(wortel) {
+  // Zoals een echte chat-app: het venster staat vast op het scherm, alleen de berichten schuiven.
+  // Op iPhone helpt overflow: hidden niet genoeg; daarom staat het venster vast (position: fixed) en houden we
+  // veegbewegingen tegen die niet in een lijst met berichten of gesprekken vallen.
   const scrollers = [document.documentElement, document.body,
     ...document.querySelectorAll('[data-testid="stMain"], [data-testid="stAppViewContainer"], section.main')];
   const oud = scrollers.map((el) => [el, el.style.overflow, el.style.overscrollBehavior]);
   for (const el of scrollers) { el.scrollTop = 0; el.style.overflow = "hidden"; el.style.overscrollBehavior = "none"; }
   window.scrollTo(0, 0);
+  const plek = wortel.parentElement;
   const passen = () => {
-    const vv = window.visualViewport;
-    const onder = vv ? vv.offsetTop + vv.height : window.innerHeight;
-    const hoogte = Math.max(320, Math.floor(onder - wortel.getBoundingClientRect().top - 8));
-    wortel.style.height = hoogte + "px";
     if (window.scrollY) window.scrollTo(0, 0);
+    const vv = window.visualViewport;
+    const kop = document.querySelector(".st-key-kopbalk");
+    const kopOnder = kop ? kop.getBoundingClientRect().bottom + 6 : 0;
+    const boven = Math.max(kopOnder, vv ? vv.offsetTop : 0);
+    const onder = vv ? vv.offsetTop + vv.height : window.innerHeight;
+    const smal = window.innerWidth < 700;
+    const r = plek.getBoundingClientRect();
+    Object.assign(wortel.style, {
+      position: "fixed", top: boven + "px", height: Math.max(240, Math.floor(onder - boven)) + "px",
+      left: (smal ? 0 : r.left) + "px", width: (smal ? window.innerWidth : r.width) + "px", zIndex: 50,
+    });
+    wortel.classList.toggle("c-vol", smal);
   };
+  const scrolltNog = (e, dy) => {
+    for (const el of e.composedPath()) {
+      if (el === wortel || !(el instanceof Element)) break;
+      const s = getComputedStyle(el);
+      if (/(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 1) {
+        if (dy < 0 && el.scrollTop + el.clientHeight >= el.scrollHeight - 1) return false;  // al onderaan
+        if (dy > 0 && el.scrollTop <= 0) return false;  // al bovenaan
+        return true;
+      }
+      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return true;
+    }
+    return false;
+  };
+  let startX = 0, startY = 0;
+  const begin = (e) => { startX = e.touches[0].clientX; startY = e.touches[0].clientY; };
+  const beweeg = (e) => {
+    if (e.touches.length > 1) return;  // inzoomen mag
+    const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY;
+    if (Math.abs(dx) > Math.abs(dy)) return;  // opzij vegen (zoals door de filters) mag
+    if (!scrolltNog(e, dy)) e.preventDefault();
+  };
+  wortel.addEventListener("touchstart", begin, { passive: true });
+  wortel.addEventListener("touchmove", beweeg, { passive: false });
   passen();
   const vv = window.visualViewport;
   window.addEventListener("resize", passen);
+  window.addEventListener("scroll", passen);
   if (vv) { vv.addEventListener("resize", passen); vv.addEventListener("scroll", passen); }
-  const later = setTimeout(passen, 300);
+  const later = [setTimeout(passen, 300), setTimeout(passen, 1200)];
   return () => {
-    clearTimeout(later);
+    later.forEach(clearTimeout);
+    wortel.removeEventListener("touchstart", begin);
+    wortel.removeEventListener("touchmove", beweeg);
     window.removeEventListener("resize", passen);
+    window.removeEventListener("scroll", passen);
     if (vv) { vv.removeEventListener("resize", passen); vv.removeEventListener("scroll", passen); }
     for (const [el, overflow, overscroll] of oud) { el.style.overflow = overflow; el.style.overscrollBehavior = overscroll; }
+    for (const k of ["position", "top", "height", "left", "width", "zIndex"]) wortel.style[k] = "";
+    wortel.classList.remove("c-vol");
   };
 }
 
@@ -1214,6 +1290,9 @@ export default function (component) {
       voorbeelden: new Map(), peiling: { vraag: "", opties: ["", ""] },
       vrij: data.vrij || [], open: data.open || null, contacten: null,
     };
+    wortel.addEventListener("input", (e) => {
+      if (e.target.id === "c-lijst-zoek") { st.lijstZoek = e.target.value; lijstFilteren(st); }
+    });
     wortel.addEventListener("click", (e) => {
       const el = e.target.closest("[data-a]");
       if (el && !el.disabled) actie(st, el.dataset.a, el);
