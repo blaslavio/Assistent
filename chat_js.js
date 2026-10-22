@@ -300,7 +300,28 @@ const ICOON = {
 const EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 const SKIP = new Set(["reactie", "emoji", "stem", "betaald"]);
 const KLEUREN = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
-function avatar(naam, groot = false) {
+// Profielfoto's (alleen van wie jou dat toestaat). Id -> data-URL, of "" als er geen is.
+const FOTOS = new Map();
+
+async function fotosLaden(st, ids) {
+  const nieuw = [...new Set(ids.map(Number))].filter((id) => id && !FOTOS.has(id)).slice(0, 200);
+  if (!nieuw.length) return false;
+  nieuw.forEach((id) => FOTOS.set(id, ""));
+  const r = await rpc(st, "chat_fotos", { p_ids: nieuw });
+  const fotos = Object.entries(r.fotos || {});
+  for (const [id, foto] of fotos) FOTOS.set(Number(id), foto);
+  return fotos.length > 0;
+}
+
+function fotosBijwerken(st, ids) {
+  fotosLaden(st, ids).then((ja) => { if (ja) toon(st); }).catch(() => {});
+}
+
+const anderId = (st, g) => (g && g.soort !== "groep" && !g.community ? ((g.leden || []).find((l) => l.id !== st.ik) || {}).id : null);
+
+function avatar(naam, groot = false, id = null) {
+  const foto = id != null && FOTOS.get(Number(id));
+  if (foto) return `<img class="c-avatar c-foto${groot ? " c-groot" : ""}" src="${esc(foto)}" alt="">`;
   let h = 0; for (const c of String(naam || "?")) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return `<span class="c-avatar${groot ? " c-groot" : ""}" style="background:${KLEUREN[h % KLEUREN.length]}">${esc(String(naam || "?").trim().slice(0, 1).toUpperCase())}</span>`;
 }
@@ -375,7 +396,7 @@ function itemHtml(st, g) {
     : esc(v && v.id === g.laatste_id ? v.tekst : (g.laatste_id ? T("Versleuteld bericht") : (g.soort === "groep" ? T("{} deelnemers", g.leden.length) : T("Nog geen berichten"))));
   return `<button class="c-item" data-a="open" data-id="${g.id}" data-naam="${esc(naam.toLowerCase())}"
       data-soort="${g.soort === "groep" ? "groep" : "prive"}" data-ongelezen="${g.ongelezen || g.status === "verzoek" ? 1 : 0}">
-      ${g.soort === "groep" ? `<span class="c-avatar c-groep">${ICOON.groep}</span>` : avatar(naam)}
+      ${g.soort === "groep" ? `<span class="c-avatar c-groep">${ICOON.groep}</span>` : avatar(naam, false, anderId(st, g))}
       <span class="c-item-tekst"><b>${esc(naam)}</b><small>${onder}</small></span>
       <span class="c-item-rechts"><small class="${g.ongelezen ? "c-accent" : ""}">${esc(kortTijd(g.laatst))}</small>
         ${g.ongelezen ? `<span class="c-badge">${g.ongelezen}</span>` : (g.stil ? `<small>${T("stil")}</small>` : "<span></span>")}</span>
@@ -518,7 +539,7 @@ function toonCommunityInfo(st) {
         <input class="c-veld" id="c-c-omschr" value="${esc(c.omschrijving)}" placeholder="${esc(T("Omschrijving"))}" maxlength="300">
         <button class="c-knop" data-a="c-opslaan">${T("Opslaan")}</button>` : ""}
       <div class="c-sectie">${T("Deelnemers")}</div>
-      ${(c.deelnemers || []).map((d) => `<div class="c-lid">${avatar(d.naam)}<span>${esc(d.naam)}${d.id === st.ik ? ` (${T("jij")})` : ""}
+      ${(c.deelnemers || []).map((d) => `<div class="c-lid">${avatar(d.naam, false, d.id)}<span>${esc(d.naam)}${d.id === st.ik ? ` (${T("jij")})` : ""}
           <br><small>${d.status === "uitgenodigd" ? T("uitgenodigd") : rolNaam[d.rol]}</small></span>${keuzes(d)}</div>`).join("")}
       <div class="c-rij c-wrap">${c.rol === "eigenaar" ? `<button class="c-knop c-rood" data-a="c-opheffen">${T("Community opheffen")}</button>`
         : `<button class="c-knop c-rood" data-a="c-verlaten">${T("Community verlaten")}</button>`}</div>
@@ -551,14 +572,13 @@ function toonContacten(st) {
       <div class="c-zoek"><input class="c-veld" id="c-nieuw-contact" type="search" placeholder="${esc(T("Naam, gebruikersnaam of telefoonnummer"))}" autocapitalize="none" autocomplete="off">
         <button class="c-knop c-hoofd" data-a="contact-toevoegen">${T("Toevoegen")}</button></div>
       <div id="c-suggesties" class="c-suggesties"></div>
-      <div class="c-uitleg">${T("Met je contacten app je direct. Iemand die jou niet als contact heeft, stuurt eerst een verzoek.")}</div>
       ${lijst.length ? lijst.map((c) => `
         <div class="c-item c-contact">
           <button class="c-item-knop" data-a="chat-met" data-naam="${esc(c.gebruikersnaam || "")}" ${c.chat ? "" : "disabled"}>
-            ${avatar(c.naam)}<span class="c-item-tekst"><b>${esc(c.naam)}</b>
+            ${avatar(c.naam, false, c.id)}<span class="c-item-tekst"><b>${esc(c.naam)}</b>
             <small>${c.chat ? "@" + esc(c.gebruikersnaam || "") : T("Gebruikt de chat nog niet")}</small></span></button>
           <button class="c-mini" data-a="contact-weg" data-id="${c.id}" data-naam="${esc(c.naam)}" aria-label="${esc(T("Weghalen"))}">×</button>
-        </div>`).join("") : `<div class="c-leeg">${T("Nog geen contacten. Vul hierboven een gebruikersnaam in.")}</div>`}
+        </div>`).join("") : `<div class="c-leeg">${T("Nog geen contacten.")}</div>`}
     </div>
     ${tabs(st)}`;
   const veld = st.wortel.querySelector("#c-nieuw-contact");
@@ -594,7 +614,7 @@ function toonGroep(st) {
     <div class="c-inhoud c-vulling">
       <label>${T("Naam van de groep")}<input class="c-veld" id="c-groep" placeholder="${esc(T("Bijvoorbeeld: Familie"))}"></label>
       <div class="c-sectie">${T("Wie doet er mee?")}</div>
-      ${lijst.map((c) => `<label class="c-vink">${avatar(c.naam)}<span>${esc(c.naam)}</span>
+      ${lijst.map((c) => `<label class="c-vink">${avatar(c.naam, false, c.id)}<span>${esc(c.naam)}</span>
         <input type="checkbox" class="c-groep-lid" value="${esc(c.gebruikersnaam || "")}"></label>`).join("")
         || `<div class="c-leeg">${T("Voeg eerst contacten toe.")}</div>`}
       <button class="c-knop c-hoofd c-breed" data-a="groep">${T("Groep maken")}</button>
@@ -694,7 +714,7 @@ function berichtHtml(st, g, b, vorige) {
       inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>${T("Diensten")}</span></div>
         ${m.titel ? `<b>${esc(m.titel)}</b>` : ""}${(m.soorten || []).map((d) => `<div>${esc(dienstTekst(d))}</div>`).join("")}
         ${m.locatie ? `<small>${esc(m.locatie)}</small>` : ""}
-        ${mijn ? `<small>${T("Anderen kiezen hier zelf een vrij moment.")}</small>` : `<div class="c-rij c-wrap">
+        ${mijn ? "" : `<div class="c-rij c-wrap">
           ${(m.soorten || []).length ? `<button class="c-knop c-hoofd" data-a="boek-open" data-b="${b.id}">${T("Boeken")}</button>` : ""}
           ${m.lessen ? `<button class="c-knop ${(m.soorten || []).length ? "" : "c-hoofd"}" data-a="boek-rooster" data-b="${b.id}">${T("Lesrooster")}</button>` : ""}</div>`}</div>`;
     } else if (m.t === "boeking") {
@@ -752,7 +772,7 @@ function toonGesprek(st) {
   }
   const sub = g.community ? g.community_naam || "" : g.soort === "groep" ? T("{} deelnemers", g.leden.length) : (ander && ander.gebruikersnaam ? "@" + ander.gebruikersnaam : "");
   const terug = g.community ? `<button class="c-ikoon" data-a="community" data-id="${g.community}" aria-label="${esc(T("Terug"))}">${ICOON.terug}</button>` : terugKnop("lijst");
-  const beeld = g.community ? `<span class="c-hekje">#</span>` : g.soort === "groep" ? `<span class="c-avatar c-groep c-klein">${ICOON.groep}</span>` : avatar(gesprekNaam(st, g));
+  const beeld = g.community ? `<span class="c-hekje">#</span>` : g.soort === "groep" ? `<span class="c-avatar c-groep c-klein">${ICOON.groep}</span>` : avatar(gesprekNaam(st, g), false, anderId(st, g));
   const vastIds = (g.vast || []).filter((id) => st.berichten.some((x) => x.id === id && x.bericht));
   const vastId = vastIds.length ? vastIds[(st.vastStap || 0) % vastIds.length] : null;
   const vastBericht = vastId ? st.berichten.find((x) => x.id === vastId) : null;
@@ -884,7 +904,7 @@ async function toonInfo(st) {
   st.wortel.innerHTML = `
     ${kop(terugKnop("terug"), `<b>${T("Info")}</b>`)}
     <div class="c-inhoud c-vulling">
-      <div class="c-profiel">${g.soort === "groep" ? `<span class="c-avatar c-groep c-groot">${ICOON.groep}</span>` : avatar(gesprekNaam(st, g), true)}
+      <div class="c-profiel">${g.soort === "groep" ? `<span class="c-avatar c-groep c-groot">${ICOON.groep}</span>` : avatar(gesprekNaam(st, g), true, anderId(st, g))}
         <b>${esc(gesprekNaam(st, g))}</b>${ander && ander.gebruikersnaam ? `<small>@${esc(ander.gebruikersnaam)}</small>` : ""}
         ${ander && !ander.contact ? `<button class="c-knop" data-a="als-contact" data-naam="${esc(ander.gebruikersnaam || "")}">${T("Aan contacten toevoegen")}</button>` : ""}</div>
       ${ander && code ? `<div class="c-kaart"><b>${ICOON.slot} ${T("Beveiligingscode")}</b>
@@ -895,7 +915,7 @@ async function toonInfo(st) {
         `<option value="${k}" ${Number(k) === (g.verdwijnen || 0) ? "selected" : ""}>${T(v)}</option>`).join("")}</select></label>
       <label class="c-vink"><span>${T("Geen meldingen voor dit gesprek")}</span><input type="checkbox" id="c-stil" ${g.stil ? "checked" : ""}></label>
       ${g.soort === "groep" ? `<div class="c-sectie">${T("Deelnemers")}</div>
-        ${g.leden.map((l) => `<div class="c-lid">${avatar(l.naam)}<span>${esc(l.naam)}${l.id === st.ik ? ` (${T("jij")})` : ""}</span>
+        ${g.leden.map((l) => `<div class="c-lid">${avatar(l.naam, false, l.id)}<span>${esc(l.naam)}${l.id === st.ik ? ` (${T("jij")})` : ""}</span>
           <small>${l.beheerder ? T("beheerder") : ""}${l.status === "verzoek" ? T("uitgenodigd") : ""}</small></div>`).join("")}
         ${g.beheerder ? `<div class="c-zoek"><input class="c-veld" id="c-toevoegen" placeholder="${esc(T("Gebruikersnaam"))}" autocapitalize="none"><button class="c-knop" data-a="toevoegen">${T("Toevoegen")}</button></div>` : ""}` : ""}
       <div class="c-rij c-wrap"><button class="c-knop c-rood" data-a="verlaten">${g.soort === "groep" ? T("Groep verlaten") : T("Gesprek verwijderen")}</button>
@@ -925,10 +945,12 @@ async function gesprekkenLaden(st) {
   const r = await rpc(st, "chat_gesprekken");
   st.gesprekken = r.gesprekken; st.communities = r.communities || [];
   voorbeeldenBijwerken(st).catch(() => {});
+  fotosBijwerken(st, st.gesprekken.filter((g) => g.soort !== "groep").flatMap((g) => (g.leden || []).map((l) => l.id)));
 }
 
 async function contactenLaden(st) {
   st.contacten = (await rpc(st, "chat_contacten")).contacten;
+  fotosBijwerken(st, st.contacten.map((c) => c.id));
 }
 
 // Het laatste bericht van elk gesprek, hier ontsleuteld, als voorbeeld in de lijst. Blijft op dit apparaat.

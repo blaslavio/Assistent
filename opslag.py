@@ -296,6 +296,15 @@ def telefoon_instellen(telefoon: str, vindbaar: bool) -> str | None:
     return _rpc_ik("telefoon_instellen", p_telefoon=telefoon, p_vindbaar=vindbaar).get("fout")
 
 
+def profielfoto_instellen(foto: str | None = None, zichtbaar: str | None = None) -> str | None:
+    """Profielfoto (data-URL van een kleine jpeg; "" haalt hem weg) en wie hem ziet: iedereen, contacten of niemand."""
+    return _rpc_ik("profielfoto_instellen", p_foto=foto, p_zichtbaar=zichtbaar).get("fout")
+
+
+def profielfoto(gebruiker_id: int) -> str | None:
+    return _rpc_ik("chat_fotos", p_ids=[gebruiker_id]).get("fotos", {}).get(str(gebruiker_id))
+
+
 def email_instellen(email: str) -> str | None:
     """Slaat het mailadres op. Geeft een foutmelding, of None."""
     if not online():

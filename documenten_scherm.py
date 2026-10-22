@@ -197,8 +197,7 @@ def eerdere_versies(document_id: int) -> None:
             st.rerun()
         lijst = documenten.versies(document_id)
         if not lijst:
-            st.caption("Nog geen eerdere versies. Terwijl je schrijft, bewaart de app hooguit elke tien minuten een "
-                       "versie (de laatste 30).")
+            st.caption("Nog geen eerdere versies.")
         for v in lijst:
             kol1, kol2 = st.columns([4, 1], vertical_alignment="center")
             kol1.markdown(f"{wanneer(v['bewaard'])}" + (f" · {v['apparaat']}" if v["apparaat"] else "")

@@ -347,8 +347,7 @@ def aanvraag_versturen_stap(k: dict) -> None:
         if plek.get("website"):
             st.link_button("Website", plek["website"], icon=":material/open_in_new:")
     if not plek["email"]:
-        st.caption("Geen mailadres bekend. Bel of reserveer via de website en tik daarna bij Mijn reserveringen "
-                   "op Geregeld.")
+        st.caption("Geen mailadres bekend.")
     if st.button("Klaar", width="stretch"):
         st.session_state.pop("aanvraag_klaar", None)
         st.session_state.plannen_melding = f"Aanvraag bij {plek['naam']} staat in je agenda."

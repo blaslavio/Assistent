@@ -192,7 +192,7 @@ def rooster_deel() -> None:
         st.error(str(fout))
         return
     if not lijst:
-        st.caption("Geen lessen deze week. Maak er een met Les.")
+        st.caption("Geen lessen deze week.")
     for les in lijst:
         les_kaart(les)
     st.caption("Leden schrijven zich in via de chat: deel je lessen met het plusje en dan Mijn diensten.")
@@ -264,7 +264,7 @@ def klanten_deel() -> None:
         betaling_formulier(o["saldi"])
     saldi = o["saldi"]
     if not saldi:
-        st.caption("Nog geen klanten. Ze verschijnen hier zodra je iets afvinkt of een betaling boekt.")
+        st.caption("Nog geen klanten.")
         return
     open_ = sum(-s["saldo"] for s in saldi if s["saldo"] < 0)
     if open_:

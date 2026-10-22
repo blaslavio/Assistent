@@ -1361,7 +1361,7 @@ def takenlijst() -> None:
 
     taken = opslag.open_taken()
     if not taken:
-        st.caption("Geen open taken. Tik op Nieuw of typ onderaan \"vrijdag belasting, 1 uur\".")
+        st.caption("Geen open taken.")
         return
     vandaag = date.today()
     nu = datetime.now().isoformat(timespec="minutes")
@@ -1390,16 +1390,15 @@ def takenlijst() -> None:
                 taak_rij(t, gepland.get(t["id"]))
     niet_gepland = [t for t in taken if t["id"] not in gepland]
     if niet_gepland:
-        st.caption(f"{len(niet_gepland)} {'taak staat' if len(niet_gepland) == 1 else 'taken staan'} nog niet in je "
-                   "agenda. Tik op Inplannen om ze in je vrije tijd te zetten.")
+        st.caption(f"{len(niet_gepland)} nog niet ingepland.")
 
 
 def agenda_overzicht() -> None:
-    """Dag- of weekoverzicht met bovenaan één rij knoppen; de extra's samen onderaan."""
+    """Maand-, week- of dagoverzicht (standaard maand) met bovenaan één rij knoppen; de extra's samen onderaan."""
     sport_overzicht(datetime.now(), toon_week=False)
     with st.container(horizontal=True, vertical_alignment="center"):
-        weergave = st.segmented_control("Weergave", ["Dag", "Week", "Maand"], default="Week", key="agenda_weergave",
-                                        label_visibility="collapsed") or "Week"
+        weergave = st.segmented_control("Weergave", ["Maand", "Week", "Dag"], default="Maand", key="agenda_weergave",
+                                        label_visibility="collapsed") or "Maand"
         vanaf = st.date_input("Vanaf", value=date.today(), format="DD-MM-YYYY", label_visibility="collapsed",
                               width=150, key="agenda_vanaf")
         with st.popover("Nieuw", icon=":material/add:"):
@@ -1459,7 +1458,7 @@ def agenda_overzicht() -> None:
     # Sport staat bij Samen.
     with st.expander("Tijdsbesteding"):
         if not tijdsbesteding_overzicht(date.today()):
-            st.caption("Nog niets vastgelegd. Gebruik op Vandaag de knoppen \"Ik vertrek nu\" en \"Ik ben er\".")
+            st.caption("Nog niets vastgelegd.")
 
 
 def blok_tekst(blok: dict) -> str:
@@ -1721,7 +1720,7 @@ def sport_tabblad(nu: datetime) -> None:
     """Sportdoelen met voortgang, en wat je de afgelopen week deed."""
     doelen = opslag.sportdoelen()
     if not doelen:
-        st.caption("Nog geen doelen. Stel er hieronder een, of vraag de assistent om een opbouwschema.")
+        st.caption("Nog geen doelen.")
     for doel in doelen:
         v = tijd.doel_voortgang(doel)
         with st.container(border=True):
@@ -2424,7 +2423,7 @@ def leerdoelen_onderdeel() -> None:
     doelen = opslag.leerdoelen()
     werk_scherm.totaal_voortgang(doelen)
     if not doelen:
-        st.caption("Nog geen leerdoelen. Start er hieronder een; de assistent maakt het leerplan en overhoort je.")
+        st.caption("Nog geen leerdoelen.")
     for d in doelen:
         with st.container(border=True):
             st.markdown(f"**{d['onderwerp']}**" + (f"  \n:material/flag: {d['doel']}" if d.get("doel") else ""))
@@ -2538,7 +2537,7 @@ def schrijfproject_kaart(project: dict) -> None:
                     st.rerun()
         with st.expander(f"Bronnen ({len(project['bronnen'])})"):
             if not project["bronnen"]:
-                st.caption("Nog geen bronnen. Tik op Bronnen zoeken.")
+                st.caption("Nog geen bronnen.")
             bronnen = sorted(project["bronnen"], key=lambda b: b.get("apa", b["titel"]).lower())
             for b in bronnen:
                 kol1, kol2 = st.columns([8, 1], vertical_alignment="center")
@@ -2706,7 +2705,7 @@ def geheugen_instellingen() -> None:
     """Wat de assistent heeft onthouden; je kunt feiten toevoegen of laten vergeten."""
     feiten = opslag.geheugen()
     if not feiten:
-        st.caption("Nog niets. De assistent onthoudt vanzelf je voorkeuren en gewoontes als je ermee praat.")
+        st.caption("Nog niets.")
     for f in sorted(feiten, key=lambda f: (f["onderwerp"], f["id"])):
         kol1, kol2 = st.columns([6, 1], vertical_alignment="center")
         kol1.markdown(f"{f['feit']}  \n:gray[{f['onderwerp']}]")
@@ -3616,7 +3615,7 @@ def boodschappen_tabblad() -> None:
                               format_func=lambda k: f"{k} km", key="max_km") if buurt else None
     dichtbij = {c for c, v in buurt.items() if v["afstand_km"] <= max_km} if buurt else None
     if buurt and not any(w["code"] in dichtbij for w in winkels):
-        st.caption(f"Geen bekende supermarkt binnen {max_km} km. Hieronder alle supermarkten.")
+        st.caption(f"Geen bekende supermarkt binnen {max_km} km.")
         dichtbij = None
     samenvatting_tonen(boodschappen.samenvatting(winkels, list(nog_nodig), dichtbij), buurt)
 

@@ -564,7 +564,7 @@ def bestellingen() -> None:
     biedingen()
     lijst = samen.mijn_bestellingen()
     if not lijst:
-        st.caption("Nog geen bestellingen. Bij Zoeken tik je op Kopen of Bestellen.")
+        st.caption("Nog geen bestellingen.")
         return
     for b in lijst:
         bestelling_kaart(b)
@@ -664,7 +664,7 @@ def boekingen() -> None:
 def berichten() -> None:
     gesprekken = samen.gesprekken()
     if not gesprekken:
-        st.caption("Nog geen berichten. Stuur een bericht vanuit een aanbod bij Zoeken.")
+        st.caption("Nog geen berichten.")
         return
     sleutels = [(g["aanbod_id"], g["ander_id"]) for g in gesprekken]
     namen = {(g["aanbod_id"], g["ander_id"]): f"{g['ander']} · {g['titel']}" + (f" · {g['ongelezen']} nieuw" if g["ongelezen"] else "")
@@ -791,8 +791,7 @@ def mijn_webshop() -> None:
     st.markdown("**Producten in je winkel**")
     producten = [p for p in m["producten"] if not p["geblokkeerd"] and (p["actief"] or p["voorraad"] is not None)]
     if not producten:
-        st.caption("Nog geen producten. Plaats een product bij Verkopen, met betalen via de app en verzenden of "
-                   "ophalen. Daarna zet je het hier in je winkel.")
+        st.caption("Nog geen producten.")
     for p in producten:
         with st.container(border=True):
             st.markdown(f"**{p['titel']}** · {samen.euro(p['prijs'])}" + (" · 🏬 in de winkel" if p["in_winkel"] else ""))
@@ -972,8 +971,7 @@ def winkel_reviews() -> None:
     if m is None:
         return
     if not m["reviews"]:
-        st.caption("Nog geen reviews. Klanten die via de app bestellen kunnen na afloop een review geven. Was iemand "
-                   "in je winkel? Geef een bezoekcode (Marketing › Bezoekcode).")
+        st.caption("Nog geen reviews.")
     gemiddeld = sum(r["sterren"] for r in m["reviews"]) / len(m["reviews"]) if m["reviews"] else None
     if gemiddeld:
         st.markdown(f"{sterren(gemiddeld)} **{gemiddeld:.1f}**".replace(".", ",") + f" uit {len(m['reviews'])} reviews")
@@ -1112,8 +1110,7 @@ def winkelkaart_tonen(winkels: list[dict], zoek: str) -> None:
 
     st.markdown(f"**⭐ In de app** ({len(eigen)})")
     if not eigen:
-        st.caption("Nog geen winkels in de app hier. Heb je zelf een winkel? Open hem gratis bij Mijn webshop "
-                   "(accounttype Verkoper of Ondernemer).")
+        st.caption("Nog geen winkels in de app hier.")
     for w in eigen[:30]:
         with st.container(border=True):
             k1, k2 = st.columns([3, 1], vertical_alignment="center")
@@ -1297,6 +1294,54 @@ def webshop_formulier(w: dict, p: dict) -> None:
 
 # --- Account en beheer ---------------------------------------------------------------
 
+FOTO_ZICHTBAAR = {"contacten": "Mijn contacten", "iedereen": "Iedereen", "niemand": "Niemand"}
+
+
+def _foto_klein(bestand) -> str:
+    """Vierkant bijsnijden en verkleinen tot 128 bij 128, als jpeg (een paar kB)."""
+    import base64
+    import io
+
+    from PIL import Image, ImageOps
+    beeld = ImageOps.exif_transpose(Image.open(bestand)).convert("RGB")
+    beeld = ImageOps.fit(beeld, (128, 128))
+    uit = io.BytesIO()
+    beeld.save(uit, "JPEG", quality=82)
+    return "data:image/jpeg;base64," + base64.b64encode(uit.getvalue()).decode()
+
+
+def profielfoto_instellingen(gebruiker: dict) -> None:
+    with st.expander("Profielfoto"):
+        foto = opslag.profielfoto(gebruiker["id"]) if gebruiker.get("heeft_foto") else None
+        if foto:
+            st.image(foto, width=96)
+        nieuw = st.file_uploader("Foto kiezen", type=["jpg", "jpeg", "png", "webp"], key="profielfoto_kiezen",
+                                 label_visibility="collapsed")
+        if nieuw is not None and st.session_state.get("profielfoto_klaar") != nieuw.file_id:
+            try:
+                klein = _foto_klein(nieuw)
+            except Exception:
+                st.error("Deze foto kan de app niet lezen. Kies een andere.")
+            else:
+                if fout := opslag.profielfoto_instellen(klein):
+                    st.error(fout)
+                else:
+                    st.session_state.profielfoto_klaar = nieuw.file_id
+                    _gebruiker_verversen()
+                    st.rerun()
+        huidig = gebruiker.get("foto_zichtbaar") or "contacten"
+        wie = st.segmented_control("Wie ziet je foto", list(FOTO_ZICHTBAAR), default=huidig, format_func=FOTO_ZICHTBAAR.get,
+                                   key="profielfoto_wie")
+        if wie and wie != huidig:
+            opslag.profielfoto_instellen(None, wie)
+            _gebruiker_verversen()
+            st.rerun()
+        if foto and st.button("Foto weghalen", type="tertiary", icon=":material/delete:"):
+            opslag.profielfoto_instellen("")
+            _gebruiker_verversen()
+            st.rerun()
+
+
 def telefoon_instellingen(gebruiker: dict) -> None:
     """Inloggen met je nummer en, als je wilt, vindbaar zijn voor mensen die je nummer al hebben."""
     eind = gebruiker.get("telefoon_eind")
@@ -1364,6 +1409,7 @@ def account_instellingen() -> None:
                                                               st.session_state.wachtwoord)
                         st.success("Opgeslagen.")
     if samen.beschikbaar():
+        profielfoto_instellingen(gebruiker)
         telefoon_instellingen(gebruiker)
     if samen.beschikbaar():
         niveau = gebruiker.get("niveau") or "particulier"
@@ -1447,7 +1493,7 @@ def verkoopoverzicht() -> None:
         for t in o["top"]:
             st.markdown(f"{t['titel']} · {t['aantal']}× · {samen.euro(t['omzet'])}")
     if not o["maanden"] and not o["open"]:
-        st.caption("Nog niets verkocht. Zet iets online bij Verkopen.")
+        st.caption("Nog niets verkocht.")
     if not ondernemer:
         st.caption("Ben je een bedrijf of zzp'er? Kies Ondernemer bij Instellingen › Account voor facturen en een "
                    "klantenoverzicht.")

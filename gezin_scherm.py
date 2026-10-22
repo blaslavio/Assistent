@@ -77,7 +77,7 @@ def _antwoord(gezin_id: int, antwoord: str, melding: str) -> None:
 
 def maken_formulier() -> None:
     with st.form("gezin_maken", border=False):
-        naam = st.text_input("Naam", placeholder="Bijvoorbeeld: Gezin André")
+        naam = st.text_input("Naam", placeholder="Bijvoorbeeld: Gezin van Sanne")
         kinderen = st.text_input("Kinderen (optioneel)", placeholder="Namen, met komma's")
         if st.form_submit_button("Gezinsagenda maken", type="primary"):
             try:

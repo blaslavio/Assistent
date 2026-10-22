@@ -92,6 +92,7 @@ CSS = """
   font-weight: 600; font-size: 19px; flex: none; }
 .c-avatar.c-groep { background: var(--c-zacht); color: var(--c-hoofd); }
 .c-avatar.c-groot { width: 84px; height: 84px; font-size: 34px; }
+.c-avatar.c-foto { object-fit: cover; display: block; background: var(--c-zacht); }
 .c-titel .c-avatar, .c-avatar.c-klein, .c-lid .c-avatar, .c-vink .c-avatar { width: 36px; height: 36px; font-size: 15px; }
 .c-badge { background: var(--c-hoofd); color: #fff; border-radius: 999px; font-size: 12px; min-width: 20px; height: 20px;
   display: grid; place-items: center; padding: 0 6px; box-sizing: border-box; font-weight: 600; }

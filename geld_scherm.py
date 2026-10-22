@@ -449,7 +449,7 @@ def verwacht_overzicht() -> None:
     elif v["posten"]:
         st.caption("Vul bij Plannen je saldo in, dan zie je hoe het verloopt.")
     if not v["posten"]:
-        st.caption("Nog niets verwacht. Zet je vaste lasten en inkomsten bij Plannen.")
+        st.caption("Nog niets verwacht.")
     regels = []
     for p in v["posten"]:
         bedrag = f":green[+{euro(p['bedrag'])}]" if p["bedrag"] > 0 else euro(p["bedrag"])
