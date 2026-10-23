@@ -351,6 +351,7 @@ function voorbeeldTekst(st, g, m, afzender) {
   if (m.t === "betaal") return wie + T("Betaalverzoek: {}", bedragTekst(m.bedrag));
   if (m.t === "betaald") return wie.replace(/: $/, " ") + T("heeft betaald");
   if (m.t === "diensten") return wie + T("Diensten: {}", m.titel || (m.soorten || []).map((d) => d.naam).join(", "));
+  if (m.t === "winkel") return wie + T("Webshop: {}", m.naam);
   if (m.t === "boeking") return wie + T("Boeking: {}", m.soort);
   if (m.t === "reactie") return wie.replace(/: $/, " ") + (m.antwoord === "ja" ? T("zet de afspraak in de agenda") : T("kan niet op die afspraak"));
   return "";
@@ -639,6 +640,7 @@ function korteInhoud(m, vertaal = T) {
   if (m.t === "vrij") return vertaal("Wanneer ik kan");
   if (m.t === "betaal") return vertaal("Betaalverzoek: {}", bedragTekst(m.bedrag));
   if (m.t === "diensten") return vertaal("Diensten: {}", m.titel || (m.soorten || []).map((d) => d.naam).join(", "));
+  if (m.t === "winkel") return vertaal("Webshop: {}", m.naam);
   if (m.t === "boeking") return vertaal("Boeking: {}", m.soort);
   return "";
 }
@@ -720,6 +722,11 @@ function berichtHtml(st, g, b, vorige) {
     } else if (m.t === "boeking") {
       kaart = true;
       inhoud = boekingKaart(st, b, m, mijn, afzender);
+    } else if (m.t === "winkel") {
+      kaart = true;
+      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.geld}<span>${T("Webshop")}</span></div>
+        <b>${esc(m.naam || "")}</b>${m.omschrijving ? `<div>${esc(m.omschrijving)}</div>` : ""}
+        <div class="c-rij"><button class="c-knop c-hoofd" data-a="winkel-open" data-adres="${esc(m.adres || "")}">${T("Bekijken en bestellen")}</button></div></div>`;
     } else inhoud = `<i class="c-grijs">${T("Onbekend bericht.")}</i>`;
   }
   const anderen = g.leden.filter((l) => l.id !== st.ik && l.status === "lid");
@@ -830,7 +837,8 @@ function toonGesprek(st) {
       ${g.soort === "groep" ? `<button class="c-plus-knop" data-a="peiling"><span>📊</span>${T("Peiling")}</button>` : ""}
       <button class="c-plus-knop" data-a="vrij"><span>🕒</span>${T("Wanneer ik kan")}</button>
       ${g.community ? "" : `<button class="c-plus-knop" data-a="betaal"><span>💶</span>${T("Betaalverzoek")}</button>`}
-      ${g.community ? "" : `<button class="c-plus-knop" data-a="diensten"><span>🗓️</span>${T("Mijn diensten")}</button>`}</div>` : ""}
+      ${g.community ? "" : `<button class="c-plus-knop" data-a="diensten"><span>🗓️</span>${T("Mijn diensten")}</button>`}
+      ${st.winkel ? `<button class="c-plus-knop" data-a="winkel"><span>🛍️</span>${T("Mijn webshop")}</button>` : ""}</div>` : ""}
     ${st.antwoord && magSchrijven ? `<div class="c-antwoord-balk"><div><b>${esc(st.antwoord.naam)}</b><span>${esc(st.antwoord.tekst)}</span></div>
       <button class="c-mini" data-a="antwoord-weg" aria-label="${esc(T("Niet beantwoorden"))}">×</button></div>` : ""}
     ${magSchrijven ? `<div class="c-vermeld-rij"></div><div class="c-invoer"><button class="c-rond" data-a="plus" aria-label="${esc(T("Meer"))}">${ICOON.plus}</button>
@@ -1628,6 +1636,12 @@ async function actie(st, a, el) {
       return versturen(st, { t: "betaald", op: m.id });
     }
     if (a.startsWith("boek-") || a === "diensten") return boekActie(st, a, el, v);
+    if (a === "winkel" && st.winkel) {
+      st.paneel = null;
+      return versturen(st, { t: "winkel", id: b64(rnd(9)), adres: st.winkel.adres, naam: st.winkel.naam,
+                             omschrijving: (st.winkel.omschrijving || "").slice(0, 140) });
+    }
+    if (a === "winkel-open") { if (el.dataset.adres) st.zet("winkel", { adres: el.dataset.adres, n: Date.now() }); return; }
     if (a === "agenda" || a === "kanniet") {
       const b = st.berichten.find((x) => x.id === Number(el.dataset.b));
       if (!b || !b.bericht) return;
@@ -1831,6 +1845,7 @@ export default function (component) {
   }
   st.wortel = wortel;
   st.vrij = data.vrij || [];
+  st.winkel = data.winkel || null;
   if (st.klaar && JSON.stringify(taalVoor) !== JSON.stringify(TAAL)) toon(st);  // andere taal: meteen opnieuw tekenen
   st.zet = setTriggerValue;
   bijhouden(st);

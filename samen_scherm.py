@@ -583,6 +583,7 @@ def bestelling_kaart(b: dict) -> None:
                     f"{samen.LEVERING[b['levering']]}")
         if v := samen.vertrouwen_tekst(b.get("vertrouwen_ander")):
             st.caption(v)
+        verzenden_regel(b)
         if b.get("webshop") and not koper and b.get("commissie") is not None:
             st.caption(f"Webshopcommissie {samen.euro(b['commissie'])}, je ontvangt "
                        f"{samen.euro(b['bedrag'] - b['commissie'])}.")
@@ -604,8 +605,9 @@ def bestelling_kaart(b: dict) -> None:
                 knoppen.append(("Betaling ontvangen", "betaling_ontvangen"))
             if b["status"] == "geaccepteerd" and app:
                 st.caption("Wacht op de betaling van de koper via de app.")
-            if b["status"] == "betaald" or (b["status"] == "geaccepteerd" and b["betaalwijze"] == "contant"):
-                knoppen.append(("Verzonden of overhandigd", "geleverd"))
+            if (b["status"] == "betaald" or (b["status"] == "geaccepteerd" and b["betaalwijze"] == "contant")) \
+                    and b["levering"] != "verzenden":
+                knoppen.append(("Overhandigd", "geleverd"))
         kolommen = st.columns(max(len(knoppen), 1))
         for kolom, (label, actie) in zip(kolommen, knoppen):
             if kolom.button(label, key=f"best_{actie}_{b['id']}", width="stretch",
@@ -620,6 +622,8 @@ def bestelling_kaart(b: dict) -> None:
                 elif _fout(samen.bestelling_stap, b["id"], actie) is not None:
                     _vergeet_nieuw()
                     st.rerun()
+        if b["levering"] == "verzenden":
+            verzenden_knop(b, koper)
         if url := st.session_state.get(f"betaallink_{b['id']}"):
             st.link_button("Naar de betaalpagina (iDEAL, Apple Pay, kaart)", url, type="primary", width="stretch")
         if koper and b["status"] in ("betaald", "geleverd"):
@@ -629,14 +633,72 @@ def bestelling_kaart(b: dict) -> None:
                     if st.form_submit_button("Melden") and reden.strip():
                         if _fout(samen.bestelling_stap, b["id"], "probleem", reden.strip()) is not None:
                             st.success("Gemeld. Het geld blijft vastgehouden tot de beheerder heeft besloten.")
-        if b["status"] == "afgerond" and not b["beoordeeld"]:
-            with st.popover("Beoordelen"):
-                with st.form(f"beoordeel_{b['id']}", border=False):
-                    sterren = st.feedback("stars")
-                    tekst = st.text_input("Korte toelichting (optioneel)")
-                    if st.form_submit_button("Opslaan") and sterren is not None:
-                        if _fout(samen.beoordelen, b["id"], sterren + 1, tekst.strip()) is not None:
-                            st.rerun()
+        if koper and b["status"] == "afgerond" and not b["beoordeeld"]:
+            # Reviews maken de winkelstraat eerlijk; daarom staat dit open en niet achter een knop.
+            with st.form(f"beoordeel_{b['id']}", border=False):
+                st.markdown(f"**Hoe was je aankoop bij {b['ander']}?**")
+                sterren_ = st.feedback("stars")
+                tekst = st.text_input("Toelichting (optioneel)", placeholder="Alleen de verkoper leest dit")
+                if st.form_submit_button("Beoordeling geven", type="primary"):
+                    if sterren_ is None:
+                        st.error("Kies eerst het aantal sterren.")
+                    elif _fout(samen.beoordelen, b["id"], sterren_ + 1, tekst.strip()) is not None:
+                        _vergeet_nieuw()
+                        st.toast("Bedankt voor je beoordeling.")
+                        st.rerun()
+
+
+def _moment(van: str, tot: str) -> str:
+    v, t = datetime.fromisoformat(van).astimezone(), datetime.fromisoformat(tot).astimezone()
+    return f"{samen.tijd_tekst(van)}-{t.strftime('%H:%M')}" if v.date() == t.date() else samen.tijd_tekst(van)
+
+
+def verzenden_regel(b: dict) -> None:
+    """Track en trace en het verwachte bezorgmoment, met een knop om het pakket te volgen."""
+    if b["levering"] != "verzenden" or not (b.get("track_code") or b.get("bezorgen_van")):
+        return
+    delen = [samen.VERVOERDERS.get(b.get("vervoerder") or "", ""), b.get("track_code") or ""]
+    if b.get("bezorgen_van"):
+        delen.append(f"verwacht {_moment(b['bezorgen_van'], b['bezorgen_tot'])}")
+    with st.container(horizontal=True, vertical_alignment="center"):
+        st.caption(" · ".join(filter(None, delen)))
+        if link := samen.volg_link(b):
+            st.link_button("Volgen", link, icon=":material/local_shipping:", type="tertiary")
+
+
+def verzenden_knop(b: dict, koper: bool) -> None:
+    """Verkoper: verzenden met track en trace. Koper: het bezorgmoment invullen zodra de vervoerder het noemt."""
+    if b["status"] not in ("betaald", "geleverd") and (koper or b["status"] != "geaccepteerd"
+                                                       or b["betaalwijze"] != "contant"):
+        return
+    titel = ("Bezorgmoment" if koper else "Verzenden" if b["status"] != "geleverd" else "Verzending aanpassen")
+    with st.popover(titel, icon=":material/local_shipping:", width="stretch"):
+        with st.form(f"verzend_{b['id']}", border=False):
+            vervoerder, code = "", ""
+            if not koper:
+                vervoerders = list(samen.VERVOERDERS)
+                vervoerder = st.selectbox("Vervoerder", vervoerders, format_func=samen.VERVOERDERS.get,
+                                          index=vervoerders.index(b["vervoerder"]) if b.get("vervoerder") in vervoerders else 0)
+                code = st.text_input("Track-en-tracecode", value=b.get("track_code") or "", max_chars=300,
+                                     placeholder="Of de link van de vervoerder")
+            bekend = st.toggle("Bezorgmoment bekend", value=koper or bool(b.get("bezorgen_van")))
+            oud = datetime.fromisoformat(b["bezorgen_van"]).astimezone() if b.get("bezorgen_van") else None
+            oud_tot = datetime.fromisoformat(b["bezorgen_tot"]).astimezone() if b.get("bezorgen_tot") else None
+            dag = st.date_input("Dag", value=oud.date() if oud else date.today() + timedelta(days=1),
+                                min_value=date.today() - timedelta(days=1), format="DD-MM-YYYY")
+            k1, k2 = st.columns(2)
+            van = k1.time_input("Van", value=oud.time() if oud else datetime.strptime("09:00", "%H:%M").time(), step=900)
+            tot = k2.time_input("Tot", value=oud_tot.time() if oud_tot else datetime.strptime("17:00", "%H:%M").time(),
+                                step=900)
+            if st.form_submit_button("Opslaan" if koper or b["status"] == "geleverd" else "Verzonden", type="primary"):
+                begin, einde = (datetime.combine(dag, van), datetime.combine(dag, tot)) if bekend else (None, None)
+                if (code.strip() or begin) and _fout(samen.verzending, b["id"], vervoerder, code.strip(), begin,
+                                                     einde) is None:
+                    return
+                if not koper and b["status"] != "geleverd":
+                    _fout(samen.bestelling_stap, b["id"], "geleverd")
+                _vergeet_nieuw()
+                st.rerun()
 
 
 def boekingen() -> None:
@@ -966,7 +1028,7 @@ img{{width:110mm;height:110mm;margin:10mm 0 4mm;image-rendering:pixelated}}.s{{f
 
 
 def winkel_reviews() -> None:
-    """De reviews over jouw winkel, met reageren en melden."""
+    """De reviews over jouw winkel. Alleen jij leest de tekst; anderen zien de sterren."""
     m = _fout(samen.mijn_marketing)
     if m is None:
         return
@@ -976,7 +1038,7 @@ def winkel_reviews() -> None:
     if gemiddeld:
         st.markdown(f"{sterren(gemiddeld)} **{gemiddeld:.1f}**".replace(".", ",") + f" uit {len(m['reviews'])} reviews")
     for r in m["reviews"]:
-        review_kaart(r, False, verkoper=True)
+        review_kaart(r)
 
 
 def naar_winkel(adres: str) -> None:
@@ -1001,9 +1063,9 @@ def winkelstraat() -> None:
         return
     alle = samen.winkels_zoeken("")
     zoek = zoekveld.zoekveld("winkels_zoek", "Zoek een winkel of product", [
-        zoekveld.suggestie(w["naam"], w.get("winkeladres") or "Winkel in de app", "🏬",
+        zoekveld.suggestie(w["naam"], w.get("winkeladres") or "Winkel in de app",
                            zoek=w.get("omschrijving", "")) for w in alle[:200]])
-    winkels = samen.winkels_zoeken(zoek) if zoek else alle
+    winkels = sorted(samen.winkels_zoeken(zoek) if zoek else alle, key=lambda w: -samen.score(w.get("vertrouwen")))
     if ik() and (nieuws := (_fout(samen.mijn_winkelnieuws) or {}).get("nieuws")):
         with st.container(border=True):
             st.markdown("**Nieuws van winkels die je volgt**")
@@ -1031,9 +1093,11 @@ def winkelstraat() -> None:
             st.markdown(f"**{w['naam']}**")
             if w["omschrijving"]:
                 st.caption(w["omschrijving"][:140] + ("..." if len(w["omschrijving"]) > 140 else ""))
-            st.caption(f"{w['verkoper']} · {w['producten']} producten"
-                       + (f" · :material/location_on: {w['winkeladres']}" if w.get("winkeladres") else " · 🌐 online")
-                       + (" · 🏢 zakelijk" if samen.zakelijk(w.get("vertrouwen")) else ""))
+            v = w.get("vertrouwen") or {}
+            st.caption(" · ".join(filter(None, [
+                f"★ {str(v['sterren']).replace('.', ',')} ({v['beoordelingen']})" if v.get("beoordelingen") else "",
+                w["verkoper"], f"{w['producten']} producten", w.get("winkeladres") or "online",
+                "zakelijk" if samen.zakelijk(v) else ""])))
             if st.button("Binnenlopen", key=f"open_{w['adres']}", width="stretch"):
                 st.session_state.open_winkel = w["adres"]
                 st.rerun()
@@ -1221,54 +1285,38 @@ def reviews_blok(w: dict, adres: str, reviews: dict, ingelogd: bool) -> None:
     st.markdown(f"**Reviews** · {sterren(reviews.get('sterren'))} "
                 + (f"{str(reviews['sterren']).replace('.', ',')} uit {reviews['aantal']}" if reviews.get("aantal")
                    else "nog geen reviews"))
-    st.caption("Alleen echte klanten kunnen een review schrijven: na een bestelling, een reservering of met een bezoekcode "
-               "die je in de winkel krijgt. Zo blijft het eerlijk, voor klanten en voor de verkoper.")
+    st.caption("Alleen echte klanten beoordelen. De tekst leest alleen de verkoper.")
     if ingelogd:
         for bezoek in [b for b in (_fout(samen.mijn_bezoeken) or []) if b["adres"] == adres]:
             with st.container(border=True):
                 st.markdown("**Hoe was je bezoek?**")
                 with st.form(f"review_{bezoek['id']}", border=False):
                     keuze = st.feedback("stars")
-                    tekst = st.text_area("Wat ging goed, wat kan beter? (optioneel)", max_chars=500, height=80)
+                    tekst = st.text_area("Wat ging goed, wat kan beter? (optioneel)", max_chars=500, height=80,
+                                         placeholder="Alleen de verkoper leest dit")
                     if st.form_submit_button("Review plaatsen", type="primary"):
                         if keuze is None:
                             st.error("Kies eerst het aantal sterren.")
                         elif _fout(samen.winkel_beoordelen, bezoek["id"], keuze + 1, tekst.strip()) is not None:
                             st.toast("Bedankt voor je review!", icon="⭐")
                             st.rerun()
-    lijst = reviews.get("reviews") or []
-    for r in lijst[:5]:
-        review_kaart(r, ingelogd and w.get("verkoper_id") != ik().get("id"))
-    if len(lijst) > 5:
-        with st.expander(f"Alle {len(lijst)} reviews"):
-            for r in lijst[5:]:
-                review_kaart(r, ingelogd and w.get("verkoper_id") != ik().get("id"))
 
 
-def review_kaart(r: dict, mag_melden: bool, verkoper: bool = False) -> None:
+def review_kaart(r: dict) -> None:
+    """Een review voor de verkoper, met melden als iets niet klopt."""
     with st.container(border=True):
         st.markdown(f"{sterren(r['sterren'])} **{r['door']}** · "
-                    f"{'🧾 aankoop' if r['soort'] == 'aankoop' else '🚶 bezoek'} · {r['datum'][:10]}")
+                    f"{'aankoop' if r['soort'] == 'aankoop' else 'bezoek'} · {r['datum'][:10]}")
         if r["tekst"]:
             st.write(r["tekst"])
         if r.get("antwoord"):
             st.caption(f"Reactie van de winkel: {r['antwoord']}")
-        if verkoper:
-            with st.popover("Reageren" if not r.get("antwoord") else "Reactie aanpassen"):
-                with st.form(f"antw_{r['soort']}_{r['id']}", border=False):
-                    tekst = st.text_area("Je reactie (iedereen ziet die)", value=r.get("antwoord", ""), max_chars=500)
-                    st.caption("Tip: bedank, blijf vriendelijk en bied bij een klacht een oplossing aan.")
-                    if st.form_submit_button("Opslaan"):
-                        if _fout(samen.review_antwoorden, r["soort"], r["id"], tekst.strip()) is not None:
-                            st.rerun()
-        if mag_melden or verkoper:
-            with st.popover("Melden"):
-                with st.form(f"meld_{r['soort']}_{r['id']}", border=False, clear_on_submit=True):
-                    reden = st.text_area("Wat klopt er niet? (bijvoorbeeld beledigend of niet over deze winkel)")
-                    st.caption("De review blijft staan tot de beheerder ernaar heeft gekeken.")
-                    if st.form_submit_button("Melden") and reden.strip():
-                        if _fout(samen.review_melden, r["soort"], r["id"], reden.strip()) is not None:
-                            st.success("Gemeld. De beheerder kijkt ernaar.")
+        with st.popover("Melden"):
+            with st.form(f"meld_{r['soort']}_{r['id']}", border=False, clear_on_submit=True):
+                reden = st.text_area("Wat klopt er niet? (bijvoorbeeld beledigend of niet over deze winkel)")
+                if st.form_submit_button("Melden") and reden.strip():
+                    if _fout(samen.review_melden, r["soort"], r["id"], reden.strip()) is not None:
+                        st.success("Gemeld. De beheerder kijkt ernaar.")
 
 
 def webshop_formulier(w: dict, p: dict) -> None:

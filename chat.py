@@ -14,6 +14,7 @@ from pathlib import Path
 import streamlit as st
 
 import opslag
+import samen
 import taal
 
 CSS = """
@@ -338,6 +339,33 @@ def _boeking(a: dict | None) -> None:
     opslag.instellingen_bijwerken(chat_boekingen=gekoppeld)
 
 
+def _mijn_winkel() -> dict | None:
+    """Je eigen open webshop, om in een gesprek te delen (vijf minuten bewaard)."""
+    bewaard = st.session_state.get("_chat_winkel")
+    if not bewaard or time.time() - bewaard[0] > 300:
+        try:
+            w = samen.mijn_winkel().get("winkel")
+        except opslag.GeenToegang:
+            raise
+        except Exception:
+            w = None
+        w = {k: w[k] for k in ("adres", "naam", "omschrijving")} if w and w.get("open") else None
+        bewaard = (time.time(), w)
+        st.session_state._chat_winkel = bewaard
+    return bewaard[1]
+
+
+def _naar_winkel(a: dict | None) -> None:
+    """Webshop openen vanuit een kaartje in de chat: binnen de app, waar je ook bestelt en betaalt."""
+    if not isinstance(a, dict) or a.get("n") == st.session_state.get("_chat_winkel_open") or not a.get("adres"):
+        return
+    st.session_state._chat_winkel_open = a.get("n")
+    st.session_state.open_winkel = str(a["adres"])[:60]
+    st.session_state.pop("webshop_betalen", None)
+    st.session_state.ga_naar = "winkels"
+    st.rerun()
+
+
 def _boeking_weg(a: dict | None) -> None:
     """Afgewezen of geannuleerd: die keren gaan uit je agenda."""
     if not isinstance(a, dict) or a.get("n") == st.session_state.get("_chat_boeking_weg"):
@@ -375,10 +403,12 @@ def pagina() -> None:
         "url": os.environ.get("SUPABASE_URL", opslag.SUPABASE_URL).rstrip("/"),
         "key": os.environ.get("SUPABASE_KEY", opslag.SUPABASE_PUBLISHABLE_KEY),
         "naam": st.session_state.get("naam", ""), "token": st.session_state.get("wachtwoord", ""),
-        "label": apparaat_naam(), "vrij": vrij, "open": _open(), "taal": taal.chat_teksten(),
-    }, on_agenda_change=lambda: None, on_boeking_change=lambda: None, on_boekingweg_change=lambda: None)
+        "label": apparaat_naam(), "vrij": vrij, "open": _open(), "taal": taal.chat_teksten(), "winkel": _mijn_winkel(),
+    }, on_agenda_change=lambda: None, on_boeking_change=lambda: None, on_boekingweg_change=lambda: None,
+        on_winkel_change=lambda: None)
     _naar_agenda(getattr(resultaat, "agenda", None) if resultaat is not None else None)
     _boeking(getattr(resultaat, "boeking", None) if resultaat is not None else None)
     _boeking_weg(getattr(resultaat, "boekingweg", None) if resultaat is not None else None)
+    _naar_winkel(getattr(resultaat, "winkel", None) if resultaat is not None else None)
     # Zo blijft het aantal in de kopbalk kloppen nadat je berichten hebt gelezen.
     _ongelezen.pop(f"{opslag._naam.get()}|{opslag._wachtwoord.get()}", None)

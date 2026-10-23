@@ -317,8 +317,15 @@ def item_bijwerken(item_id: int, klaar: bool | None = None, titel: str | None = 
 
 # --- Marktplaats -----------------------------------------------------------------
 
+DIENSTEN = ("training", "les", "dienst")
+
+
 def aanbod_zoeken(zoekterm: str = "", soort: str = "") -> list[dict]:
-    return opslag._rpc_ik("aanbod_zoeken", p_zoekterm=zoekterm.strip(), p_soort=soort)["aanbod"]
+    """Bij diensten (training, les, dienst) staan de best beoordeelde bovenaan."""
+    lijst = opslag._rpc_ik("aanbod_zoeken", p_zoekterm=zoekterm.strip(), p_soort=soort)["aanbod"]
+    if soort in DIENSTEN:
+        lijst.sort(key=lambda a: -score(a.get("vertrouwen")))
+    return lijst
 
 
 def mijn_aanbod() -> list[dict]:
@@ -433,7 +440,8 @@ def vertrouwen_tekst(v: dict | None) -> str:
         return ""
     delen = []
     if bedrijf := zakelijk(v):
-        delen.append(f"🏢 Zakelijk: {bedrijf['naam']} (KvK {bedrijf['kvk']})")
+        delen.append(" ".join(filter(None, ["Zakelijk", bedrijf.get("naam") or "",
+                                            f"(KvK {bedrijf['kvk']})" if bedrijf.get("kvk") else ""])))
     if v.get("geverifieerd"):
         delen.append("✅ geverifieerd")
     if v.get("beoordelingen"):
@@ -476,6 +484,57 @@ def bestelling_stap(bestelling_id: int, actie: str, toelichting: str = "") -> st
 
 def mijn_bestellingen() -> list[dict]:
     return opslag._rpc_ik("mijn_bestellingen")["bestellingen"]
+
+
+VERVOERDERS = {"postnl": "PostNL", "dhl": "DHL", "dpd": "DPD", "gls": "GLS", "ups": "UPS", "anders": "Anders"}
+_VOLGEN = {"postnl": "https://postnl.nl/tracktrace/?B={}&D=NL&T=C",
+           "dhl": "https://www.dhl.com/nl-nl/home/tracking.html?tracking-id={}",
+           "dpd": "https://www.dpdgroup.com/nl/mydpd/my-parcels/incoming?parcelNumber={}",
+           "gls": "https://gls-group.com/NL/nl/volg-je-pakket?match={}",
+           "ups": "https://www.ups.com/track?loc=nl_NL&tracknum={}"}
+
+
+def volg_link(b: dict) -> str:
+    """De pagina van de vervoerder om het pakket te volgen (bij Anders mag de code zelf een link zijn)."""
+    code = (b.get("track_code") or "").strip()
+    if not code:
+        return ""
+    if code.startswith("https://"):
+        return code
+    sjabloon = _VOLGEN.get(b.get("vervoerder") or "")
+    return sjabloon.format(quote_plus(code)) if sjabloon else ""
+
+
+def verzending(bestelling_id: int, vervoerder: str = "", code: str = "", van: datetime | None = None,
+               tot: datetime | None = None) -> None:
+    """Verkoper: track en trace (en eventueel bezorgmoment). Koper: alleen het bezorgmoment."""
+    _ok(opslag._rpc_ik("bestelling_verzending", p_id=bestelling_id, p_vervoerder=vervoerder, p_code=code,
+                       p_van=van.astimezone().isoformat() if van else None,
+                       p_tot=tot.astimezone().isoformat() if tot else None))
+
+
+def bezorgingen_in_agenda(bestellingen: list[dict]) -> None:
+    """Zodra het bezorgmoment van iets wat je koopt bekend is, staat het in je agenda (en verschuift het mee)."""
+    afspraken = {a.get("bestelling_id"): a for a in opslag.laden()["afspraken"] if a.get("bestelling_id")}
+    for b in bestellingen:
+        if b["rol"] != "koper" or not b.get("bezorgen_van") or b["status"] not in ("betaald", "geleverd"):
+            continue
+        start = datetime.fromisoformat(b["bezorgen_van"]).astimezone().strftime("%Y-%m-%dT%H:%M")
+        einde = datetime.fromisoformat(b["bezorgen_tot"]).astimezone().strftime("%Y-%m-%dT%H:%M")
+        notitie = " ".join(filter(None, [VERVOERDERS.get(b.get("vervoerder") or "", ""), b.get("track_code") or ""]))
+        if a := afspraken.get(b["id"]):
+            if (a["start"], a.get("einde")) != (start, einde) or a.get("notitie") != notitie:
+                opslag.afspraak_bijwerken(a["id"], start=start, einde=einde, notitie=notitie)
+        else:
+            nieuw = opslag.afspraak_toevoegen(f"Bezorging: {b['titel']}", start, einde, notitie, soort="bezorging")
+            opslag.afspraak_bijwerken(nieuw["id"], bestelling_id=b["id"])
+
+
+def score(vertrouwen: dict | None) -> float:
+    """Om de beste bovenaan te zetten: het gemiddelde, gewogen naar het aantal reviews (weinig reviews telt minder)."""
+    v = vertrouwen or {}
+    n = v.get("beoordelingen") or 0
+    return ((v.get("sterren") or 0) * n + 3.5 * 3) / (n + 3)
 
 
 def beoordelen(bestelling_id: int, sterren: int, tekst: str = "") -> None:
@@ -701,8 +760,17 @@ def nieuw() -> dict:
             elif b["status"] == "geleverd":
                 wacht += 1
                 meldingen.append(("bestellingen", f"📦 **{b['titel']}** is onderweg, bevestig als het binnen is"))
+            elif b["status"] == "afgerond" and not b["beoordeeld"]:
+                wacht += 1
+                meldingen.append(("bestellingen", f"⭐ Geef **{b['titel']}** een beoordeling"))
             if b["status"] in ("betaald", "geleverd", "afgerond") and bijgewerkt[:7] == maand:
                 saldo["uitgegeven"] += float(b["bedrag"]) + float(b.get("kosten") or 0)
+    try:
+        bezorgingen_in_agenda(bestellingen)
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        pass
     ongelezen = sum(not b["gelezen"] for b in alle_berichten)
     gedeeld = len(met_mij)
     if ongelezen:
