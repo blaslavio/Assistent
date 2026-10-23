@@ -5,6 +5,7 @@ from urllib.parse import quote, urlsplit
 import streamlit as st
 
 import kort
+import ontwerp
 import ruimte
 import wereld
 import zoekveld
@@ -80,16 +81,21 @@ def pagina() -> None:
     if (bouw_id := st.session_state.get("bouw_ruimte")) is not None:
         bouwer(bouw_id)
         return
+    if (ontwerp_id := st.session_state.get("open_ontwerp")) is not None:
+        studio(ontwerp_id)
+        return
     if (open_id := st.session_state.get("open_ruimte")) is not None:
         if st.button("Alle werelden", icon=":material/arrow_back:", type="tertiary"):
             st.session_state.pop("open_ruimte", None)
             st.rerun()
         bekijken(open_id)
         return
-    keuze = st.segmented_control("Ruimtes", ["Ontdekken", "Mijn werelden"], default="Ontdekken",
+    keuze = st.segmented_control("Ruimtes", ["Ontdekken", "Mijn werelden", "3D-studio"], default="Ontdekken",
                                  key="ruimtes_keuze", label_visibility="collapsed") or "Ontdekken"
     if keuze == "Mijn werelden":
         mijn_ruimtes()
+    elif keuze == "3D-studio":
+        mijn_ontwerpen()
     else:
         ontdekken()
 
@@ -195,7 +201,11 @@ def bouwer(ruimte_id: int) -> None:
         st.error("Je kunt alleen je eigen werelden bouwen.")
         return
     breed()
-    st.iframe(wereld.html(r, "bouwen", hoogte=640), height=640)
+    try:
+        ontwerpen = ontwerp.mijn_ontwerpen(met_delen=True)
+    except Exception:
+        ontwerpen = []
+    st.iframe(wereld.html(r, "bouwen", hoogte=640, ontwerpen=ontwerpen), height=640)
     st.caption("Tik op + Toevoegen en kies iets. Tik op een ding om het te verplaatsen, draaien, kleuren of weg te halen; "
                "sleep het met je vinger. Eén vinger draait het beeld, twee vingers zoomen en schuiven. "
                "Alles wordt vanzelf bewaard.")
@@ -240,3 +250,68 @@ def foto_en_modellen(r: dict) -> None:
         if k3.button("", icon=":material/delete:", key=f"dweg_{d['id']}", help="Weghalen"):
             _fout(ruimte.item_weg, d["id"])
             st.rerun()
+
+
+# --- 3D-studio -------------------------------------------------------------------------------------------------------
+
+def _ontwerp_fout(functie, *args, **kwargs):
+    try:
+        return functie(*args, **kwargs)
+    except ontwerp.Fout as fout:
+        st.error(str(fout))
+    return None
+
+
+def mijn_ontwerpen() -> None:
+    """Je eigen 3D-ontwerpen: een robot, raket, meubel of wat je maar wilt."""
+    with st.popover("Nieuw ontwerp", icon=":material/add:", type="primary"):
+        with st.form("nieuw_ontwerp", border=False):
+            titel = st.text_input("Naam", max_chars=80, placeholder="Bijv. Mijn robot")
+            if st.form_submit_button("Maken en gaan ontwerpen", type="primary"):
+                if (nieuw := _ontwerp_fout(ontwerp.maken, titel.strip())) is not None:
+                    st.session_state.open_ontwerp = nieuw
+                    st.rerun()
+    ontwerpen = ontwerp.mijn_ontwerpen()
+    if not ontwerpen:
+        st.caption("Maak je eigen 3D-ontwerp uit vormen: draai eromheen, rek, kleur en bekijk het in je kamer. "
+                   "Zet het daarna in je wereld of print het met een 3D-printer.")
+    kolommen = st.columns(2)
+    for i, o in enumerate(ontwerpen):
+        with kolommen[i % 2].container(border=True):
+            if o.get("omslag"):
+                st.image(f"data:image/jpeg;base64,{o['omslag']}", width="stretch")
+            st.markdown(f"**{o['titel']}**")
+            st.caption(f"{o['aantal']} vormen")
+            k1, k2 = st.columns(2)
+            if k1.button("Openen", key=f"ontwerp_{o['id']}", width="stretch", type="primary"):
+                st.session_state.open_ontwerp = o["id"]
+                st.rerun()
+            with k2.popover("Meer", width="stretch"):
+                with st.form(f"naam_ontwerp_{o['id']}", border=False):
+                    naam = st.text_input("Naam", value=o["titel"], max_chars=80)
+                    if st.form_submit_button("Opslaan"):
+                        _ontwerp_fout(ontwerp.maken, naam.strip(), o["id"])
+                        st.rerun()
+                if st.button("Kopie maken", key=f"ontwerp_kopie_{o['id']}"):
+                    _ontwerp_fout(ontwerp.kopie, o["id"])
+                    st.rerun()
+                if st.toggle("Verwijderen", key=f"ontwerp_weg_vraag_{o['id']}"):
+                    if st.button("Ja, dit ontwerp verwijderen", key=f"ontwerp_weg_{o['id']}", type="primary"):
+                        _ontwerp_fout(ontwerp.weg, o["id"])
+                        st.rerun()
+
+
+def studio(ontwerp_id: int) -> None:
+    if st.button("Mijn ontwerpen", icon=":material/arrow_back:", type="tertiary"):
+        st.session_state.pop("open_ontwerp", None)
+        st.rerun()
+    try:
+        o = ontwerp.lezen(ontwerp_id)
+    except ontwerp.Fout as fout:
+        st.error(str(fout))
+        st.session_state.pop("open_ontwerp", None)
+        return
+    breed()
+    st.iframe(ontwerp.html(o, hoogte=640), height=640)
+    st.caption("Tik op + Vorm. Tik op een vorm en sleep aan de pijlen, bogen of blokjes om te verplaatsen, draaien "
+               "of de maat te veranderen. Eén vinger draait om je ontwerp, twee vingers zoomen. Alles wordt vanzelf bewaard.")

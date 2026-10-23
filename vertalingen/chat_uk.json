@@ -381,5 +381,17 @@
 "{} uit de community halen?": "Вилучити {} зі спільноти?",
 "{} uit je contacten halen? Een nieuw bericht van diegene komt dan eerst als verzoek binnen.": "Вилучити {} зі своїх контактів? Нове повідомлення від цієї людини спершу прийде як запит.",
 "{} uur": "{} год",
-"{} weren? Diegene kan dan ook niet terug met de code.": "Заблокувати {}? Ця людина не зможе повернутися й за кодом."
+"{} weren? Diegene kan dan ook niet terug met de code.": "Заблокувати {}? Ця людина не зможе повернутися й за кодом.",
+"Opties": "Варіанти",
+"Stel een vraag": "Поставте запитання",
+"Optie toevoegen": "Додати варіант",
+"Meerdere antwoorden toestaan": "Дозволити кілька відповідей",
+"Kies een of meer": "Виберіть один або кілька",
+"Kies er een": "Виберіть один",
+"Stuur": "Надіслати",
+"Betaald": "Оплачено",
+"Wijzigen": "Змінити",
+"Waarvoor? (optioneel)": "За що? (необов'язково)",
+"Naar {}": "На {}",
+"Dit onthoudt de app voor de volgende keer.": "Застосунок запам'ятає це наступного разу."
 }

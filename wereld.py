@@ -12,10 +12,15 @@ import opslag
 
 THREE = "https://cdn.jsdelivr.net/npm/three@0.170.0"
 _JS = Path(__file__).with_name("wereld_js.js")
+_VORMEN = Path(__file__).with_name("vormen_js.js")  # gedeeld met de 3D-studio
 
 
-def html(ruimte: dict, modus: str = "spelen", hoogte: int = 620, met_sessie: bool = True) -> str:
-    """De hele wereld als losse webpagina. modus: 'bouwen' (alleen de maker) of 'spelen'."""
+def html(ruimte: dict, modus: str = "spelen", hoogte: int = 620, met_sessie: bool = True,
+         ontwerpen: list[dict] | None = None) -> str:
+    """De hele wereld als losse webpagina. modus: 'bouwen' (alleen de maker) of 'spelen'.
+
+    ontwerpen: je eigen 3D-ontwerpen (met delen), om in de bouwer neer te zetten.
+    """
     url = os.environ.get("SUPABASE_URL", opslag.SUPABASE_URL).rstrip("/")
     sleutel = os.environ.get("SUPABASE_KEY", opslag.SUPABASE_PUBLISHABLE_KEY)
     token = opslag._wachtwoord.get() or ""
@@ -28,9 +33,11 @@ def html(ruimte: dict, modus: str = "spelen", hoogte: int = 620, met_sessie: boo
                   for d in ruimte.get("dingen", [])],
         "api": {"url": url, "key": sleutel, "naam": opslag._naam.get() or "", "token": token} if ingelogd else None,
         "api_url": url, "api_key": sleutel,
+        "three": THREE,
+        "ontwerpen": [{k: o.get(k) for k in ("id", "titel", "omslag", "delen")} for o in (ontwerpen or [])],
     }
     data = json.dumps(gegevens).replace("</", "<\\/")
-    js = _JS.read_text().replace("__DATA__", data)
+    js = _JS.read_text().replace("__VORMEN__", _VORMEN.read_text()).replace("__DATA__", data)
     return (PAGINA.replace("__THREE__", THREE).replace("__HOOGTE__", str(hoogte))
             .replace("__JS__", js.replace("</script", "<\\/script")))
 

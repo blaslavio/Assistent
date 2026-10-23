@@ -381,5 +381,17 @@
 "{} uit de community halen?": "将 {} 移出社区？",
 "{} uit je contacten halen? Een nieuw bericht van diegene komt dan eerst als verzoek binnen.": "将 {} 从联系人中移除？对方的新消息将先作为请求送达。",
 "{} uur": "{} 小时",
-"{} weren? Diegene kan dan ook niet terug met de code.": "封禁 {}？对方也无法再通过邀请码回来。"
+"{} weren? Diegene kan dan ook niet terug met de code.": "封禁 {}？对方也无法再通过邀请码回来。",
+"Opties": "选项",
+"Stel een vraag": "提出问题",
+"Optie toevoegen": "添加选项",
+"Meerdere antwoorden toestaan": "允许多选",
+"Kies een of meer": "选择一个或多个",
+"Kies er een": "选择一个",
+"Stuur": "发送",
+"Betaald": "已支付",
+"Wijzigen": "更改",
+"Waarvoor? (optioneel)": "用途？（可选）",
+"Naar {}": "至 {}",
+"Dit onthoudt de app voor de volgende keer.": "应用会记住这些信息，下次使用。"
 }

@@ -12,6 +12,8 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const D = __DATA__;
+
+__VORMEN__
 const BOUWEN = D.modus === "bouwen";
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -40,6 +42,7 @@ const CATALOGUS = [
 const NAMEN = Object.fromEntries(CATALOGUS.flatMap((c) => c.dingen.map(([v, ic, n]) => [v, { icoon: ic, naam: n }])));
 NAMEN.foto = { icoon: "🖼️", naam: "Foto" };
 NAMEN.model = { icoon: "🧊", naam: "3D-model" };
+NAMEN.ontwerp = { icoon: "🧩", naam: "Ontwerp" };
 
 // Standaardwaarden per vorm: kleur, maat en of je ertegen botst.
 const STANDAARD = {
@@ -54,7 +57,7 @@ const STANDAARD = {
   start: { k: "#22c55e", vast: false }, munt: { k: "#fbbf24", vast: false }, ster: { k: "#facc15", vast: false },
   finish: { k: "#111827", vast: false }, checkpoint: { k: "#3b82f6", vast: false }, springkussen: { k: "#a855f7" },
   lava: { k: "#ef4444", s: [2, 1, 2] }, vraag: { k: "#6366f1", vraag: { v: "Hoeveel is 6 × 7?", opties: ["36", "42", "48"], goed: 1 } },
-  portaal: { k: "#8b5cf6", vast: false }, foto: { k: "#1f2937" }, model: { k: "#ffffff" },
+  portaal: { k: "#8b5cf6", vast: false }, foto: { k: "#1f2937" }, model: { k: "#ffffff" }, ontwerp: { k: "#ffffff" },
 };
 const KLEUREN = ["#ef4444", "#f97316", "#facc15", "#22c55e", "#14b8a6", "#3b82f6", "#6366f1", "#a855f7", "#ec4899",
                  "#ffffff", "#d6d3d1", "#78716c", "#1f2937", "#c08457", "#92400e", "#fef3c7"];
@@ -85,7 +88,10 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
 const scene = new THREE.Scene();
+omgevingLicht(renderer, scene, 0.35);  // zachte weerspiegelingen, zodat glans en metaal echt ogen
 const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 600);
 const rig = new THREE.Group();  // de speler: camera erin, zodat VR en lopen samengaan
 rig.add(camera);
@@ -321,6 +327,7 @@ const BOUWERS = {
     const p = deel(g, geo("vlak", () => new THREE.PlaneGeometry(1, 1)), beeld, 0, 0.3 + h / 2 + 0.6, 0.035, { s: [b, h, 1], schaduw: false });
     p.userData.info = true;
   },
+  ontwerp: (g, k, d) => { g.add(ontwerpGroep(d.delen || [], true)); },
   model: (g, k, d) => {
     const it = ITEMS.get(d.i);
     const plek = deel(g, BOX(), mat("#9ca3af", { transparent: true, opacity: 0.25 }), 0, 0.5, 0, { schaduw: false });
@@ -770,7 +777,7 @@ let testen = false;
 let gekozen = null;  // id
 const kader = new THREE.BoxHelper(undefined, 0xfacc15);
 kader.visible = false; scene.add(kader);
-const baan = { doel: new THREE.Vector3(0, 0, 0), afstand: 16, hoek: 0.6, hoogte: 0.75 };
+const baan = { doel: new THREE.Vector3(0, 0, 0), afstand: 15, hoek: 0.6, hoogte: 0.48 };
 const terug = [], vooruitStapels = [];
 let bewaarTimer = null, bewaarStatus = "opgeslagen";
 
@@ -954,7 +961,7 @@ function paneelTonen() {
   $("#toevoegen").hidden = !!d || testen;
   if (!d || testen) { p.hidden = true; return; }
   const n = NAMEN[d.v] || { icoon: "", naam: d.v };
-  const it = d.i ? ITEMS.get(d.i) : null;
+  const it = d.i ? ITEMS.get(d.i) : { titel: d.v === "ontwerp" ? d.t : "" };
   const s = d.s || [1, 1, 1];
   const vastAan = vast(d);
   p.hidden = false;
@@ -969,8 +976,8 @@ function paneelTonen() {
       <div class="rij"><button class="knop" data-a="draai-">⟲ Draai</button><button class="knop" data-a="draai+">Draai ⟳</button>
       <button class="knop" data-a="kleiner">Kleiner</button><button class="knop" data-a="groter">Groter</button></div>
       <div class="rij maten">${["Breedte", "Hoogte", "Diepte"].map((naam, k) => `<label>${naam}<span><button class="knop mini" data-a="maat" data-k="${k}" data-d="-1">−</button><b>${s[k].toFixed(2).replace(/\.?0+$/, "")}</b><button class="knop mini" data-a="maat" data-k="${k}" data-d="1">+</button></span></label>`).join("")}</div></div>
-    <div class="groep"><span class="label">Kleur</span><div class="kleuren">${KLEUREN.map((k) => `<button class="kleur ${k === d.k ? "aan" : ""}" data-a="kleur" data-k="${k}" style="background:${k}" aria-label="Kleur ${k}"></button>`).join("")}
-      <input type="color" id="eigen-kleur" value="${esc(d.k || "#cccccc")}" aria-label="Eigen kleur"></div></div>
+    ${["foto", "model", "ontwerp"].includes(d.v) ? "" : `<div class="groep"><span class="label">Kleur</span><div class="kleuren">${KLEUREN.map((k) => `<button class="kleur ${k === d.k ? "aan" : ""}" data-a="kleur" data-k="${k}" style="background:${k}" aria-label="Kleur ${k}"></button>`).join("")}
+      <input type="color" id="eigen-kleur" value="${esc(d.k || "#cccccc")}" aria-label="Eigen kleur"></div></div>`}
     <div class="groep"><span class="label">Gedrag</span>
       <div class="rij">${Object.entries(BEWEGINGEN).map(([k, naam]) => `<button class="knop pil ${(d.g || "") === k ? "aan" : ""}" data-a="beweging" data-k="${k}">${naam}</button>`).join("")}</div>
       ${d.g ? `<div class="rij"><label class="schuif">Snelheid <input type="range" min="0.25" max="3" step="0.25" value="${d.snel || 1}" id="snel"></label>
@@ -1020,17 +1027,21 @@ function paneelActie(a, data) {
 function catalogusTonen(tab = 0) {
   const c = $("#catalogus");
   const fotos = (D.items || []).filter((i) => i.soort === "foto" || i.soort === "model");
-  const tabs = [...CATALOGUS.map((x) => x.naam), "Mijn foto's"];
+  const ontwerpen = D.ontwerpen || [];
+  const tabs = [...CATALOGUS.map((x) => x.naam), "Mijn ontwerpen", "Mijn foto's"];
   c.hidden = false;
   c.innerHTML = `<div class="kop"><b>Toevoegen</b><button class="knop" data-a="dicht">Sluiten</button></div>
     <div class="tabs">${tabs.map((t, k) => `<button class="knop pil ${k === tab ? "aan" : ""}" data-tab="${k}">${t}</button>`).join("")}</div>
     <div class="tegels">${tab < CATALOGUS.length ? CATALOGUS[tab].dingen.map(([v, ic, n]) => `<button class="tegel" data-v="${v}"><span>${ic}</span>${n}</button>`).join("")
+      : tab === CATALOGUS.length ? (ontwerpen.length ? ontwerpen.map((o, k) => `<button class="tegel" data-v="ontwerp" data-o="${k}">${o.omslag ? `<img src="data:image/jpeg;base64,${o.omslag}" alt="">` : `<span>🧩</span>`}${esc(o.titel || "Ontwerp")}</button>`).join("")
+        : `<p class="klein">Nog geen 3D-ontwerpen. Maak er een in de 3D-studio (VR en games › 3D-studio).</p>`)
       : fotos.length ? fotos.map((f) => `<button class="tegel" data-v="${f.soort}" data-i="${f.id}">${f.soort === "foto" && (f.klein || f.data) ? `<img src="data:image/jpeg;base64,${f.klein || f.data}" alt="">` : `<span>🧊</span>`}${esc(f.titel || (f.soort === "foto" ? "Foto" : "3D-model"))}</button>`).join("")
       : `<p class="klein">Nog geen foto's of 3D-modellen. Voeg ze toe onder de bouwer, bij "Foto's en 3D-modellen".</p>`}</div>
     ${tab === 4 ? `<p class="klein">Spel: munten en sterren geven punten, de finish beëindigt het spel, een checkpoint onthoudt waar je was, lava stuurt je terug en een portaal brengt je naar het volgende portaal.</p>` : ""}`;
   c.querySelector("[data-a=dicht]").onclick = () => { c.hidden = true; };
   c.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => catalogusTonen(Number(b.dataset.tab)));
-  c.querySelectorAll("[data-v]").forEach((b) => b.onclick = () => toevoegen(b.dataset.v, b.dataset.i ? { i: Number(b.dataset.i) } : {}));
+  c.querySelectorAll("[data-v]").forEach((b) => b.onclick = () => toevoegen(b.dataset.v, b.dataset.i ? { i: Number(b.dataset.i) }
+    : b.dataset.o ? { delen: delenOpschonen(ontwerpen[Number(b.dataset.o)].delen), t: String(ontwerpen[Number(b.dataset.o)].titel || "").slice(0, 80) } : {}));
 }
 function blad(id, html, bind) {
   const b = $(id); b.hidden = false; b.innerHTML = html; bind(b);
@@ -1224,6 +1235,7 @@ function opschonen(b) {
     p: Array.isArray(d.p) && d.p.length === 3 ? d.p.map((x) => Number(x) || 0) : [0, 0, 0],
     s: Array.isArray(d.s) && d.s.length === 3 ? d.s.map((x) => THREE.MathUtils.clamp(Number(x) || 1, 0.05, 40)) : [1, 1, 1],
     k: /^#[0-9a-fA-F]{6}$/.test(d.k || "") ? d.k : (STANDAARD[d.v] || {}).k,
+    ...(d.v === "ontwerp" ? { delen: delenOpschonen(d.delen) } : {}),
   }));
   return uit;
 }

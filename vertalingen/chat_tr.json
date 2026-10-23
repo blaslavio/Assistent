@@ -381,5 +381,17 @@
 "{} uit de community halen?": "{} topluluktan çıkarılsın mı?",
 "{} uit je contacten halen? Een nieuw bericht van diegene komt dan eerst als verzoek binnen.": "{} kişilerinden çıkarılsın mı? Bu kişiden gelen yeni mesaj önce istek olarak gelir.",
 "{} uur": "{} sa",
-"{} weren? Diegene kan dan ook niet terug met de code.": "{} yasaklansın mı? Bu kişi kodla da geri dönemez."
+"{} weren? Diegene kan dan ook niet terug met de code.": "{} yasaklansın mı? Bu kişi kodla da geri dönemez.",
+"Opties": "Seçenekler",
+"Stel een vraag": "Bir soru sor",
+"Optie toevoegen": "Seçenek ekle",
+"Meerdere antwoorden toestaan": "Birden fazla cevaba izin ver",
+"Kies een of meer": "Bir veya daha fazlasını seç",
+"Kies er een": "Birini seç",
+"Stuur": "Gönder",
+"Betaald": "Ödendi",
+"Wijzigen": "Değiştir",
+"Waarvoor? (optioneel)": "Ne için? (isteğe bağlı)",
+"Naar {}": "{} hesabına",
+"Dit onthoudt de app voor de volgende keer.": "Uygulama bunu bir dahaki sefere hatırlar."
 }

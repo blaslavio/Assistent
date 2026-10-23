@@ -41,7 +41,52 @@ CSS = """
 .c-chip { display: flex; width: fit-content; align-items: center; gap: 6px; margin-top: 6px; font: inherit; font-size: 13px;
   padding: 5px 10px; border-radius: 999px; border: 0; background: rgba(128,128,128,.14); color: inherit; cursor: pointer; }
 .c-chip svg { width: 15px; height: 15px; }
-.c-bedrag { font-size: 24px; }
+.c-bedrag { font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
+.c-betaal-kaart { align-items: flex-start; }
+.c-betaal-kaart .c-breed { margin-top: 4px; }
+.c-bedrag-groot { font-size: 40px; font-weight: 700; text-align: center; padding: 6px 0; letter-spacing: -.01em; }
+.c-bedrag-veld { display: flex; align-items: baseline; justify-content: center; gap: 6px; font-size: 40px; font-weight: 700; padding: 4px 0; }
+.c-bedrag-veld input { font: inherit; border: 0; outline: 0; background: transparent; color: inherit; width: 5.5ch; text-align: left; padding: 0; }
+.c-midden { text-align: center; }
+.c-klein { font-size: 14px; align-self: center; }
+/* Bladen (peiling, betaalverzoek): kop met Annuleren, titel en Stuur, zoals op een iPhone. */
+.c-paneel.c-blad { gap: 8px; max-height: 70%; overflow-y: auto; background: color-mix(in srgb, var(--c-tekst) 5%, var(--c-achter));
+  border-top: 0; border-radius: 16px 16px 0 0; box-shadow: 0 -4px 18px rgba(0,0,0,.1); }
+.c-blad .c-link { text-decoration: none; }
+.c-blad-kop { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin: -2px 0 4px; }
+.c-blad-kop b { font-size: 16px; }
+.c-blad-kop > :first-child { justify-self: start; } .c-blad-kop > :last-child { justify-self: end; }
+.c-link { font: inherit; font-size: 16px; border: 0; background: transparent; color: var(--c-hoofd); cursor: pointer; padding: 6px 2px; }
+.c-vet { font-weight: 700; }
+.c-sectie { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; opacity: .55; margin: 6px 4px -2px; }
+.c-groep-velden { display: flex; flex-direction: column; background: var(--c-achter); border-radius: 12px; overflow: hidden; }
+.c-groep-velden > * + * { border-top: 1px solid var(--c-rand); }
+.c-groep-velden .c-veld { border: 0; border-radius: 0; background: transparent; }
+.c-blad > .c-veld { background: var(--c-achter); border: 0; border-radius: 12px; padding: 11px 12px; }
+.c-blad .c-bedrag-veld + .c-veld { margin-top: 2px; }
+.c-schakel-rij { flex-direction: row !important; align-items: center; justify-content: space-between; font-size: 16px !important;
+  padding: 10px 12px; }
+.c-schakel { -webkit-appearance: none; appearance: none; width: 51px; height: 31px; border-radius: 999px; background: rgba(120,120,128,.24);
+  position: relative; cursor: pointer; transition: background .2s; flex: none; margin: 0; }
+.c-schakel::before { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,.25); transition: transform .2s; }
+.c-schakel:checked { background: #34c759; } .c-schakel:checked::before { transform: translateX(20px); }
+/* Peiling in het gesprek */
+.c-peiling { gap: 4px; }
+.c-peiling .c-vraag { font-size: 16px; }
+.c-poll { display: flex; align-items: flex-start; gap: 10px; width: 100%; font: inherit; font-size: 15px; color: inherit; text-align: left;
+  border: 0; background: transparent; padding: 7px 0 3px; cursor: pointer; }
+.c-rondje { flex: 0 0 22px; height: 22px; border-radius: 50%; border: 1.5px solid rgba(128,128,128,.5); display: grid; place-items: center;
+  font-size: 13px; font-weight: 700; margin-top: 1px; }
+.c-poll.c-meer .c-rondje { border-radius: 6px; }
+.c-poll.c-aan .c-rondje { background: var(--c-hoofd); border-color: var(--c-hoofd); color: #fff; }
+.c-poll-midden { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.c-poll-tekst { display: flex; justify-content: space-between; gap: 8px; }
+.c-poll-tekst b { font-weight: 600; opacity: .7; }
+.c-poll-balk { height: 6px; border-radius: 999px; background: rgba(128,128,128,.18); overflow: hidden; }
+.c-poll-balk i { display: block; height: 100%; border-radius: 999px; background: var(--c-hoofd); transition: width .3s; }
+.c-poll em { font-style: normal; font-size: 12px; opacity: .6; }
+.c-poll-voet { text-align: center; padding-top: 6px; border-top: 1px solid var(--c-rand); margin-top: 4px; }
 .c-groen { color: #16a34a; opacity: 1 !important; }
 .c-kopie-rij { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
 .c-kopie-rij span { display: flex; flex-direction: column; min-width: 0; }
@@ -115,8 +160,8 @@ CSS = """
 .c-titel small { opacity: .6; font-size: 12px; }
 .c-berichten { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 3px; padding: 10px 10px 12px;
   -webkit-overflow-scrolling: touch; background: color-mix(in srgb, var(--c-hoofd) 5%, var(--c-achter)); }
-.c-e2e { align-self: center; max-width: 85%; text-align: center; font-size: 12px; line-height: 1.4; padding: 6px 12px;
-  border-radius: 10px; background: color-mix(in srgb, #f59e0b 14%, var(--c-achter)); margin: 4px 0 8px; }
+.c-e2e { align-self: center; max-width: 85%; text-align: center; font-size: 12px; line-height: 1.4; padding: 4px 12px;
+  opacity: .55; margin: 4px 0 8px; }
 .c-e2e svg { width: 13px; height: 13px; vertical-align: -2px; }
 .c-dag { align-self: center; font-size: 12px; font-weight: 600; opacity: .7; background: var(--c-achter);
   border-radius: 8px; padding: 3px 10px; margin: 8px 0 4px; box-shadow: 0 1px 1px rgba(0,0,0,.06); }
@@ -124,14 +169,18 @@ CSS = """
   padding: 7px 12px 6px; line-height: 1.35; overflow-wrap: anywhere; box-shadow: 0 1px 1px rgba(0,0,0,.07);
   -webkit-user-select: text; user-select: text; -webkit-touch-callout: none; }
 .c-mijn { align-self: flex-end; background: var(--c-hoofd); color: #fff; border-radius: 18px 18px 6px 18px; }
-.c-met-kaart { padding: 6px; }
+/* Kaarten (peiling, betaalverzoek, afspraak...) staan los, zonder gekleurde ballon eromheen: rustig, zoals iMessage. */
+.c-met-kaart { padding: 0; background: transparent !important; box-shadow: none; color: var(--c-tekst); min-width: min(270px, 78%); }
+.c-met-kaart .c-tijd { opacity: .5; margin: 3px 4px 0; }
+.c-met-kaart .c-naam { margin: 0 0 3px 4px; }
 .c-bericht img { max-width: 100%; max-height: 320px; border-radius: 12px; display: block; }
 .c-naam { font-size: 13px; font-weight: 600; color: var(--c-hoofd); margin-bottom: 1px; }
 .c-tijd { font-size: 11px; opacity: .65; float: right; margin: 6px 0 -2px 10px; white-space: nowrap; }
 .c-gelezen { color: #7dd3fc; font-weight: 700; }
 .c-bericht:not(.c-mijn) .c-gelezen { color: var(--c-hoofd); }
-.c-kaart { display: flex; flex-direction: column; gap: 6px; border-radius: 14px; padding: 10px 12px; line-height: 1.4;
-  background: var(--c-achter); color: var(--c-tekst); border: 1px solid var(--c-rand); }
+.c-kaart { display: flex; flex-direction: column; gap: 6px; border-radius: 18px; padding: 12px 14px; line-height: 1.4;
+  background: var(--c-achter); color: var(--c-tekst); box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1px rgba(128,128,128,.12); }
+.c-mijn .c-kaart { box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1.5px color-mix(in srgb, var(--c-hoofd) 35%, transparent); }
 .c-kaart-kop { display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: .7; }
 .c-kaart-kop svg, .c-kaart b svg { width: 16px; height: 16px; }
 .c-kaart small { opacity: .65; }
@@ -414,6 +463,22 @@ def _boeking_weg(a: dict | None) -> None:
         opslag.instellingen_bijwerken(chat_boekingen=gekoppeld)
 
 
+def _betaalgegevens() -> dict:
+    """Je eigen rekeninggegevens voor betaalverzoeken, zodat ze vooraf ingevuld zijn (op al je apparaten)."""
+    g = opslag.instellingen().get("betaalgegevens") or {}
+    return {k: str(g.get(k) or "")[:120] for k in ("iban", "naam", "link")}
+
+
+def _betaal_bewaren(a: dict | None) -> None:
+    if not isinstance(a, dict) or a.get("n") == st.session_state.get("_chat_betaal"):
+        return
+    st.session_state._chat_betaal = a.get("n")
+    nieuw = {"iban": str(a.get("iban") or "").replace(" ", "").upper()[:34], "naam": str(a.get("naam") or "")[:70],
+             "link": str(a.get("link") or "")[:300] if str(a.get("link") or "").startswith("https://") else ""}
+    if nieuw != _betaalgegevens():
+        opslag.instellingen_bijwerken(betaalgegevens=nieuw)
+
+
 def _open() -> int | None:
     """Een gesprek om meteen te openen: via een melding op je telefoon (?gesprek=nummer) of vanuit de app."""
     gesprek = st.query_params.pop("gesprek", None) or st.session_state.pop("chat_open", None)
@@ -439,12 +504,14 @@ def pagina() -> None:
         "key": os.environ.get("SUPABASE_KEY", opslag.SUPABASE_PUBLISHABLE_KEY),
         "naam": st.session_state.get("naam", ""), "token": st.session_state.get("wachtwoord", ""),
         "label": apparaat_naam(), "vrij": vrij, "open": _open(), "taal": taal.chat_teksten(), "winkel": _mijn_winkel(),
-    }, on_agenda_change=lambda: None, on_boeking_change=lambda: None, on_boekingweg_change=lambda: None,
+        "betaal": _betaalgegevens(),
+    }, on_agenda_change=lambda: None, on_betaal_change=lambda: None, on_boeking_change=lambda: None, on_boekingweg_change=lambda: None,
         on_winkel_change=lambda: None, on_open_change=lambda: None)
     _naar_agenda(getattr(resultaat, "agenda", None) if resultaat is not None else None)
     _boeking(getattr(resultaat, "boeking", None) if resultaat is not None else None)
     _boeking_weg(getattr(resultaat, "boekingweg", None) if resultaat is not None else None)
     _naar_winkel(getattr(resultaat, "winkel", None) if resultaat is not None else None)
     _openen_vanuit_profiel(getattr(resultaat, "open", None) if resultaat is not None else None)
+    _betaal_bewaren(getattr(resultaat, "betaal", None) if resultaat is not None else None)
     # Zo blijft het aantal in de kopbalk kloppen nadat je berichten hebt gelezen.
     _ongelezen.pop(f"{opslag._naam.get()}|{opslag._wachtwoord.get()}", None)

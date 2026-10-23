@@ -381,5 +381,17 @@
 "{} uit de community halen?": "{} aus der Community entfernen?",
 "{} uit je contacten halen? Een nieuw bericht van diegene komt dan eerst als verzoek binnen.": "{} aus deinen Kontakten entfernen? Eine neue Nachricht von dieser Person kommt dann zuerst als Anfrage an.",
 "{} uur": "{} Std.",
-"{} weren? Diegene kan dan ook niet terug met de code.": "{} sperren? Die Person kann dann auch nicht mit dem Code zurückkommen."
+"{} weren? Diegene kan dan ook niet terug met de code.": "{} sperren? Die Person kann dann auch nicht mit dem Code zurückkommen.",
+"Opties": "Optionen",
+"Stel een vraag": "Stell eine Frage",
+"Optie toevoegen": "Option hinzufügen",
+"Meerdere antwoorden toestaan": "Mehrere Antworten erlauben",
+"Kies een of meer": "Wähle eine oder mehrere",
+"Kies er een": "Wähle eine",
+"Stuur": "Senden",
+"Betaald": "Bezahlt",
+"Wijzigen": "Ändern",
+"Waarvoor? (optioneel)": "Wofür? (optional)",
+"Naar {}": "An {}",
+"Dit onthoudt de app voor de volgende keer.": "Die App merkt sich das für das nächste Mal."
 }

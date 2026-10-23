@@ -269,6 +269,7 @@ function ibanGoed(iban) {
   let rest = 0; for (const c of omgezet) rest = (rest * 10 + Number(c)) % 97;
   return rest === 1;
 }
+const ibanKort = (iban) => { const s = String(iban || "").replace(/\s+/g, "").toUpperCase(); return `${s.slice(0, 4)} •••• ${s.slice(-4)}`; };
 const ibanMooi = (iban) => String(iban || "").replace(/\s+/g, "").toUpperCase().replace(/(.{4})/g, "$1 ").trim();
 function veiligeLink(link) {
   try { const u = new URL(String(link || "").trim()); return u.protocol === "https:" ? u : null; } catch (e) { return null; }
@@ -716,11 +717,16 @@ function berichtHtml(st, g, b, vorige) {
       const tel = (k) => [...stemmen.values()].filter((x) => x.includes(k)).length;
       const namen = (k) => g.soort === "twee" || m.anoniem ? "" : [...stemmen].filter(([, x]) => x.includes(k))
         .map(([id]) => id === st.ik ? T("Jij") : ((g.leden.find((l) => l.id === id) || {}).naam || "")).join(", ");
-      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.peiling}<span>${m.meer ? T("Peiling, meerdere keuzes") : T("Peiling")}</span></div><b>${esc(m.vraag)}</b>
-        ${(m.opties || []).map((o, k) => { const n = tel(k); const pct = totaal ? Math.round((n / totaal) * 100) : 0;
-          return `<button class="c-optie ${mijnKeuze.includes(k) ? "c-aan" : ""}" data-a="stem" data-b="${b.id}" data-k="${k}">
-            <i style="width:${gestemd ? pct : 0}%"></i><span>${esc(o)}${gestemd && namen(k) ? `<em>${esc(namen(k))}</em>` : ""}</span><small>${gestemd ? n : ""}</small></button>`; }).join("")}
-        <small>${totaal === 1 ? T("1 stem") : T("{} stemmen", totaal)}${gestemd ? "" : ` · ${T("tik om te stemmen")}`}${m.anoniem ? ` · ${T("anoniem")}` : ""}</small></div>`;
+      const hoogste = Math.max(1, ...(m.opties || []).map((_, k) => tel(k)));
+      inhoud = `<div class="c-kaart c-peiling"><b class="c-vraag">${esc(m.vraag)}</b>
+        <small>${m.meer ? T("Kies een of meer") : T("Kies er een")}${m.anoniem ? ` · ${T("anoniem")}` : ""}</small>
+        ${(m.opties || []).map((o, k) => { const n = tel(k); const aan = mijnKeuze.includes(k);
+          return `<button class="c-poll ${aan ? "c-aan" : ""} ${m.meer ? "c-meer" : ""}" data-a="stem" data-b="${b.id}" data-k="${k}">
+            <span class="c-rondje">${aan ? "✓" : ""}</span>
+            <span class="c-poll-midden"><span class="c-poll-tekst"><span>${esc(o)}</span><b>${n || ""}</b></span>
+              <span class="c-poll-balk"><i style="width:${totaal ? Math.round((n / hoogste) * 100) : 0}%"></i></span>
+              ${namen(k) ? `<em>${esc(namen(k))}</em>` : ""}</span></button>`; }).join("")}
+        <small class="c-poll-voet">${totaal === 1 ? T("1 stem") : T("{} stemmen", totaal)}</small></div>`;
     } else if (m.t === "lijstje") {
       kaart = true;
       const vinkjes = st.vinkjes.get(m.id) || new Map();
@@ -752,11 +758,9 @@ function berichtHtml(st, g, b, vorige) {
       kaart = true;
       const betaald = st.betaald.get(m.id) || [];
       const ikBetaalde = betaald.some((x) => x.id === st.ik);
-      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.geld}<span>${T("Betaalverzoek")}</span></div>
-        <b class="c-bedrag">${esc(bedragTekst(m.bedrag))}</b>${m.omschrijving ? `<div>${esc(m.omschrijving)}</div>` : ""}
-        <small>${esc(T("Aan {}", m.naam || (afzender ? afzender.naam : "")))}</small>
-        ${betaald.length ? `<small class="c-groen">✓ ${esc(T("Betaald door {}", betaald.map((x) => x.naam || T("Jij")).join(", ")))}</small>` : ""}
-        ${mijn || ikBetaalde ? "" : `<div class="c-rij"><button class="c-knop c-hoofd" data-a="betalen" data-b="${b.id}">${T("Betalen")}</button></div>`}</div>`;
+      inhoud = `<div class="c-kaart c-betaal-kaart"><b class="c-bedrag">${esc(bedragTekst(m.bedrag))}</b>${m.omschrijving ? `<small>${esc(m.omschrijving)}</small>` : ""}
+        ${betaald.length ? `<small class="c-groen">✓ ${esc(g.soort === "twee" ? T("Betaald") : T("Betaald door {}", betaald.map((x) => x.naam || T("Jij")).join(", ")))}</small>` : ""}
+        ${mijn || ikBetaalde ? "" : `<button class="c-knop c-hoofd c-breed" data-a="betalen" data-b="${b.id}">${T("Betalen")}</button>`}</div>`;
     } else if (m.t === "diensten") {
       kaart = true;
       inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>${T("Diensten")}</span></div>
@@ -863,24 +867,27 @@ function toonGesprek(st) {
       <label>${T("Waar (optioneel)")}<input class="c-veld" id="c-a-plaats" value="${esc(st.voorstel.plaats || "")}"></label>
       <div class="c-rij">${st.voorstel.eigen ? `<button class="c-knop c-hoofd" data-a="eigen-agenda">${T("In mijn agenda")}</button>`
         : `<button class="c-knop c-hoofd" data-a="stuur-afspraak">${T("Voorstellen")}</button>`}<button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>` : ""}
-    ${st.paneel === "betaal" ? `<div class="c-paneel">
-      <b>${T("Betaalverzoek")}</b>
-      <div class="c-rij"><label class="c-smal">${T("Bedrag")}<input class="c-veld" id="c-b-bedrag" inputmode="decimal" placeholder="12,50" value="${esc(bc.bedrag || "")}"></label>
-        <label>${T("Waarvoor")}<input class="c-veld" id="c-b-oms" maxlength="80" placeholder="${esc(T("Bijvoorbeeld: pizza"))}" value="${esc(bc.oms || "")}"></label></div>
-      <label>${T("Jouw IBAN")}<input class="c-veld" id="c-b-iban" autocomplete="off" value="${esc(bc.iban ?? bewaard("iban"))}" placeholder="NL00 BANK 0123 4567 89"></label>
-      <label>${T("Naam op je rekening")}<input class="c-veld" id="c-b-naam" value="${esc(bc.naam ?? bewaard("rekeningnaam"))}"></label>
-      <label>${T("Betaallink (optioneel)")}<input class="c-veld" id="c-b-link" inputmode="url" value="${esc(bc.link ?? bewaard("betaallink"))}" placeholder="https://bunq.me/... of https://tikkie.me/..."></label>
-      <small>${T("De app verstuurt zelf geen geld. De ander betaalt met de eigen bank of via jouw betaallink.")}</small>
-      <div class="c-rij"><button class="c-knop c-hoofd" data-a="stuur-betaal">${T("Versturen")}</button><button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>` : ""}
+    ${st.paneel === "betaal" ? (() => {
+      const std = st.betaalStandaard || {};
+      const iban = bc.iban ?? (std.iban || bewaard("iban")), rnaam = bc.naam ?? (std.naam || bewaard("rekeningnaam")), link = bc.link ?? (std.link || bewaard("betaallink"));
+      const bekend = (ibanGoed(iban) || veiligeLink(link)) && !st.betaalWijzig;
+      return `<div class="c-paneel c-blad">
+      <div class="c-blad-kop"><button class="c-link" data-a="sluit">${T("Annuleren")}</button><b>${T("Betaalverzoek")}</b><button class="c-link c-vet" data-a="stuur-betaal">${T("Stuur")}</button></div>
+      <div class="c-bedrag-veld"><span>€</span><input id="c-b-bedrag" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${esc(bc.bedrag || "")}"></div>
+      <input class="c-veld c-midden" id="c-b-oms" maxlength="80" placeholder="${esc(T("Waarvoor? (optioneel)"))}" value="${esc(bc.oms || "")}">
+      ${bekend ? `<input type="hidden" id="c-b-iban" value="${esc(iban)}"><input type="hidden" id="c-b-naam" value="${esc(rnaam)}"><input type="hidden" id="c-b-link" value="${esc(link)}">
+        <button class="c-link c-klein" data-a="betaal-wijzig">${esc(T("Naar {}", ibanGoed(iban) ? ibanKort(iban) : veiligeLink(link).hostname))} · ${T("Wijzigen")}</button>`
+      : `<label>${T("Jouw IBAN")}<input class="c-veld" id="c-b-iban" autocomplete="off" value="${esc(iban)}" placeholder="NL00 BANK 0123 4567 89"></label>
+        <label>${T("Naam op je rekening")}<input class="c-veld" id="c-b-naam" value="${esc(rnaam)}"></label>
+        <label>${T("Betaallink (optioneel)")}<input class="c-veld" id="c-b-link" inputmode="url" value="${esc(link)}" placeholder="https://bunq.me/... of https://tikkie.me/..."></label>
+        <small>${T("Dit onthoudt de app voor de volgende keer.")}</small>`}</div>`; })() : ""}
     ${st.paneel === "betalen" && st.betaalBericht ? (() => { const m = st.betaalBericht.bericht; const link = veiligeLink(m.link);
-      return `<div class="c-paneel">
-      <b>${esc(T("{} betalen aan {}", bedragTekst(m.bedrag), m.naam || ""))}</b>
+      return `<div class="c-paneel c-blad">
+      <div class="c-blad-kop"><button class="c-link" data-a="sluit">${T("Later")}</button><b>${T("Betalen")}</b><span class="c-blad-leeg"></span></div>
+      <div class="c-bedrag-groot">${esc(bedragTekst(m.bedrag))}</div>
       ${link ? `<a class="c-knop c-hoofd c-breed c-link-knop" href="${esc(link.href)}" target="_blank" rel="noopener noreferrer">${esc(T("Betalen via {}", link.hostname))}</a>` : ""}
-      ${m.iban ? `<div class="c-kopie-rij"><span><small>${T("IBAN")}</small><b>${esc(ibanMooi(m.iban))}</b></span><button class="c-knop" data-a="kopieer" data-w="${esc(String(m.iban).replace(/\s+/g, ""))}">${T("Kopieer")}</button></div>
-        <div class="c-kopie-rij"><span><small>${T("Bedrag")}</small><b>${esc(bedragTekst(m.bedrag))}</b></span><button class="c-knop" data-a="kopieer" data-w="${esc((m.bedrag / 100).toFixed(2).replace(".", ","))}">${T("Kopieer")}</button></div>
-        ${m.omschrijving ? `<div class="c-kopie-rij"><span><small>${T("Omschrijving")}</small><b>${esc(m.omschrijving)}</b></span><button class="c-knop" data-a="kopieer" data-w="${esc(m.omschrijving)}">${T("Kopieer")}</button></div>` : ""}
-        <small>${T("Open je bankapp, maak een overboeking en plak de gegevens.")}</small>` : ""}
-      <div class="c-rij"><button class="c-knop c-hoofd" data-a="ik-betaalde">${T("Ik heb betaald")}</button><button class="c-knop" data-a="sluit">${T("Later")}</button></div></div>`; })() : ""}
+      ${m.iban ? `<div class="c-kopie-rij"><span><b>${esc(ibanMooi(m.iban))}</b><small>${esc(m.naam || "")}</small></span><button class="c-knop" data-a="kopieer" data-w="${esc(String(m.iban).replace(/\s+/g, ""))}">${T("Kopieer")}</button></div>` : ""}
+      <button class="c-knop c-breed ${link ? "" : "c-hoofd"}" data-a="ik-betaalde">${T("Ik heb betaald")}</button></div>`; })() : ""}
     ${st.paneel === "boeken" && st.boek ? boekPaneel(st) : ""}
     ${st.paneel === "rooster" && st.rooster ? roosterPaneel(st) : ""}
     ${st.paneel === "lijstje" ? `<div class="c-paneel">
@@ -898,15 +905,16 @@ function toonGesprek(st) {
         <button class="c-knop" data-a="plek-adres">${T("Sturen")}</button></div>
       <small>${T("Je locatie wordt één keer gedeeld, niet live gevolgd.")}</small>
       <div class="c-rij"><button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>` : ""}
-    ${st.paneel === "peiling" ? `<div class="c-paneel">
-      <b>${T("Peiling")}</b>
-      <input class="c-veld" id="c-p-vraag" placeholder="${esc(T("Vraag"))}" value="${esc(st.peiling.vraag || "")}" maxlength="200">
-      ${st.peiling.opties.map((o, k) => `<input class="c-veld c-p-optie" placeholder="${esc(T("Keuze {}", k + 1))}" value="${esc(o)}" maxlength="80">`).join("")}
-      <label class="c-keus"><input type="checkbox" id="c-p-meer" ${st.peiling.meer ? "checked" : ""}> ${T("Meerdere keuzes toestaan")}</label>
-      ${g.soort === "twee" ? "" : `<label class="c-keus"><input type="checkbox" id="c-p-anoniem" ${st.peiling.anoniem ? "checked" : ""}> ${T("Anoniem stemmen")}</label>`}
-      <div class="c-rij c-wrap"><button class="c-knop c-hoofd" data-a="stuur-peiling">${T("Versturen")}</button>
-      ${st.peiling.opties.length < 8 ? `<button class="c-knop" data-a="optie-erbij">${T("Keuze erbij")}</button>` : ""}
-      <button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>` : ""}
+    ${st.paneel === "peiling" ? `<div class="c-paneel c-blad">
+      <div class="c-blad-kop"><button class="c-link" data-a="sluit">${T("Annuleren")}</button><b>${T("Peiling")}</b><button class="c-link c-vet" data-a="stuur-peiling">${T("Stuur")}</button></div>
+      <span class="c-sectie">${T("Vraag")}</span>
+      <input class="c-veld" id="c-p-vraag" placeholder="${esc(T("Stel een vraag"))}" value="${esc(st.peiling.vraag || "")}" maxlength="200">
+      <span class="c-sectie">${T("Opties")}</span>
+      <div class="c-groep-velden">${[...st.peiling.opties.filter((o) => o.trim()), ""].slice(0, 12).map((o) => `<input class="c-veld c-p-optie" placeholder="${esc(T("Optie toevoegen"))}" value="${esc(o)}" maxlength="80">`).join("")}</div>
+      <div class="c-groep-velden">
+        <label class="c-schakel-rij">${T("Meerdere antwoorden toestaan")}<input type="checkbox" class="c-schakel" id="c-p-meer" ${st.peiling.meer ? "checked" : ""}></label>
+        ${g.soort === "twee" ? "" : `<label class="c-schakel-rij">${T("Anoniem stemmen")}<input type="checkbox" class="c-schakel" id="c-p-anoniem" ${st.peiling.anoniem ? "checked" : ""}></label>`}
+      </div></div>` : ""}
     ${st.paneel === "plus" ? `<div class="c-paneel c-plus">
       <button class="c-plus-knop" data-a="foto"><span>📷</span>${T("Foto")}</button>
       <button class="c-plus-knop" data-a="afspraak"><span>📅</span>${g.community ? T("Evenement") : T("Afspraak")}</button>
@@ -941,6 +949,16 @@ function toonGesprek(st) {
     veld.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !/iPhone|iPad|Android/.test(navigator.userAgent)) { e.preventDefault(); actie(st, "stuur"); } });
     if (st.focus || hadFocus) { veld.focus({ preventScroll: true }); st.focus = false; }
   }
+  const optiesVak = st.wortel.querySelector(".c-groep-velden");
+  if (optiesVak && st.paneel === "peiling") optiesVak.addEventListener("input", (e) => {
+    if (!e.target.classList.contains("c-p-optie")) return;
+    const velden = [...optiesVak.querySelectorAll(".c-p-optie")];
+    if (velden[velden.length - 1].value.trim() && velden.length < 12) {
+      const nieuw = document.createElement("input");
+      nieuw.className = "c-veld c-p-optie"; nieuw.maxLength = 80; nieuw.placeholder = T("Optie toevoegen");
+      optiesVak.appendChild(nieuw);
+    }
+  });
   const foto = st.wortel.querySelector("#c-foto");
   foto.addEventListener("change", async () => {
     if (!foto.files || !foto.files[0]) return;
@@ -1762,7 +1780,8 @@ async function actie(st, a, el) {
                          met: (st.voorstel && st.voorstel.met) || "", n: Date.now() });
       st.paneel = null; st.voorstel = {}; melding(st, T("Staat in je agenda.")); return toon(st);
     }
-    if (a === "betaal") { st.paneel = "betaal"; st.betaalConcept = null; return toon(st); }
+    if (a === "betaal") { st.paneel = "betaal"; st.betaalConcept = null; st.betaalWijzig = false; return toon(st); }
+    if (a === "betaal-wijzig") { st.betaalWijzig = true; return toon(st); }
     if (a === "stuur-betaal") {
       const bedrag = Math.round(Number(v("#c-b-bedrag").replace(/[^\d,.]/g, "").replace(/\.(?=\d{3}\b)/g, "").replace(",", ".")) * 100);
       const iban = v("#c-b-iban").replace(/\s+/g, "").toUpperCase();
@@ -1773,6 +1792,11 @@ async function actie(st, a, el) {
       if (!iban && !link) return melding(st, T("Vul je IBAN of een betaallink in."));
       const naam = v("#c-b-naam").trim().slice(0, 70);
       bewaren("iban", iban); bewaren("rekeningnaam", naam); bewaren("betaallink", link);
+      const std = st.betaalStandaard || {};
+      if (iban !== (std.iban || "") || naam !== (std.naam || "") || link !== (std.link || "")) {
+        st.betaalStandaard = { iban, naam, link };  // in je account bewaard, zodat het ook op je andere apparaten klaarstaat
+        st.zet("betaal", { iban, naam, link, n: Date.now() });
+      }
       st.paneel = null;
       return versturen(st, { t: "betaal", id: b64(rnd(9)), bedrag, omschrijving: v("#c-b-oms").trim().slice(0, 80), iban, naam, link });
     }
@@ -2319,6 +2343,7 @@ export default function (component) {
   st.wortel = wortel;
   st.vrij = data.vrij || [];
   st.winkel = data.winkel || null;
+  if (data.betaal && !st.betaalStandaard) st.betaalStandaard = data.betaal;
   if (st.klaar && JSON.stringify(taalVoor) !== JSON.stringify(TAAL)) toon(st);  // andere taal: meteen opnieuw tekenen
   st.zet = setTriggerValue;
   bijhouden(st);

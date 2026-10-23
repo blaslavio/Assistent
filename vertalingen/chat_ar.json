@@ -381,5 +381,17 @@
 "{} uit de community halen?": "إزالة {} من المجتمع؟",
 "{} uit je contacten halen? Een nieuw bericht van diegene komt dan eerst als verzoek binnen.": "إزالة {} من جهات اتصالك؟ ستصلك رسالته الجديدة أولًا كطلب.",
 "{} uur": "{} س",
-"{} weren? Diegene kan dan ook niet terug met de code.": "حظر {}؟ ولن يتمكن من العودة بالرمز أيضًا."
+"{} weren? Diegene kan dan ook niet terug met de code.": "حظر {}؟ ولن يتمكن من العودة بالرمز أيضًا.",
+"Opties": "الخيارات",
+"Stel een vraag": "اطرح سؤالاً",
+"Optie toevoegen": "أضف خياراً",
+"Meerdere antwoorden toestaan": "السماح بعدة إجابات",
+"Kies een of meer": "اختر واحداً أو أكثر",
+"Kies er een": "اختر واحداً",
+"Stuur": "إرسال",
+"Betaald": "مدفوع",
+"Wijzigen": "تغيير",
+"Waarvoor? (optioneel)": "مقابل ماذا؟ (اختياري)",
+"Naar {}": "إلى {}",
+"Dit onthoudt de app voor de volgende keer.": "سيتذكر التطبيق هذا في المرة القادمة."
 }
