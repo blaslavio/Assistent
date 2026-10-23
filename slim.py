@@ -75,6 +75,10 @@ def marketingtekst(client: anthropic.Anthropic, winkel: str, omschrijving: str, 
 
 
 def foutmelding(fout: anthropic.APIError) -> str:
+    if isinstance(fout, anthropic.APIStatusError) and "/functions/v1/ai" in str(fout.request.url):
+        # Via het platform (geen eigen sleutel): de functie geeft zelf een begrijpelijke melding.
+        melding = fout.body.get("error", {}).get("message", "") if isinstance(fout.body, dict) else ""
+        return str(melding) or "De assistent is even niet bereikbaar. Probeer het zo opnieuw."
     if isinstance(fout, anthropic.AuthenticationError):
         return "De Anthropic-sleutel klopt niet. Vervang hem bij ⚙️ Instellingen."
     if isinstance(fout, anthropic.RateLimitError):

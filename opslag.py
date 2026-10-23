@@ -817,6 +817,20 @@ def contacten_zoeken(zoekterm: str = "") -> list[dict]:
     return [c for c in laden().get("contacten", []) if zoekterm in json.dumps(c, ensure_ascii=False).lower()]
 
 
+def bekende_plekken(aantal: int = 30) -> list[str]:
+    """Plekken die je vaker gebruikt (uit je agenda), je thuisadres en adressen van contacten; vaakst eerst."""
+    van, tot = (date.today() - timedelta(days=180)).isoformat(), (date.today() + timedelta(days=60)).isoformat()
+    teller: dict[str, int] = {}
+    for a in afspraken_tussen(van, tot, extern=False):
+        if plek := (a.get("locatie") or "").strip():
+            teller[plek] = teller.get(plek, 0) + 1
+    plekken = sorted(teller, key=lambda p: -teller[p])
+    if thuis := (instellingen().get("thuisadres") or "").strip():
+        plekken.insert(0, thuis)
+    plekken += [c["adres"].strip() for c in laden().get("contacten", []) if (c.get("adres") or "").strip()]
+    return list(dict.fromkeys(plekken))[:aantal]
+
+
 def contact(contact_id: int | None) -> dict | None:
     return next((c for c in laden().get("contacten", []) if c["id"] == contact_id), None)
 

@@ -92,7 +92,7 @@ def activiteit_formulier(gelegenheid: str, online: bool) -> None:
                            step=900, key=f"{k}_tijd", width=110)
         uren = st.number_input("Uren", min_value=0.5, max_value=24.0, value=2.0 if gelegenheid != "Uitje" else 4.0,
                                step=0.5, key=f"{k}_uren", width=90)
-    waar = st.text_input("Waar", placeholder="Optioneel", key=f"{k}_waar")
+    waar = zoekveld.plek_kiezen("Waar", key=f"{k}_waar")
     wie = st.text_input("Wie vraag je mee?", placeholder="Gebruikersnamen", key=f"{k}_wie",
                         help="Zij krijgen een uitnodiging en antwoorden met ja, nee of misschien.") if online else ""
     gekozen_extras = st.pills("Extra", extras, selection_mode="multi",

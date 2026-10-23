@@ -5,7 +5,8 @@
 // De Stripe-sleutels staan in de database (private.platform) of als geheim van deze functie; nooit in de code.
 //
 // Acties (POST, JSON): verkoper_aanmelden, verkoper_status, afrekenen, ontvangen, geschil_besluiten,
-// boeking_afrekenen, boekingen_verrekenen.
+// boeking_afrekenen, boekingen_verrekenen, en voor extra opslag (per maand): abonnement_afsluiten,
+// abonnement_bijwerken, abonnement_opzeggen, abonnement_beheren, abonnement_stoppen.
 // Stripe stuurt gebeurtenissen (webhook) naar dezelfde URL, met de kop stripe-signature.
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -238,6 +239,116 @@ async function boekingenVerrekenen(body: Record<string, unknown>) {
   return { verrekend: await verrekenen(g.id) };
 }
 
+// --- Extra opslag (abonnement per maand) ------------------------------------------------------
+
+type Aanbod = Record<string, { naam: string; prijs: number; gb: number }>;
+
+async function klant(id: number) {
+  const k = await rpc("abonnement_klant", { p_gebruiker: id });
+  if (!k) throw new Fout("Geen toegang. Log opnieuw in.");
+  if (!k.klant) {
+    const nieuw = await stripe("POST", "/v1/customers", { email: k.email ?? undefined, metadata: { gebruiker: id } },
+                               `klant-${id}`);
+    await rpc("abonnement_klant_opslaan", { p_gebruiker: id, p_klant: nieuw.id });
+    k.klant = (await rpc("abonnement_klant", { p_gebruiker: id })).klant;
+  }
+  return k as { id: number; klant: string; aanbod: Aanbod; app_adres: string;
+                abonnementen: { plan: string; status: string; stripe_abonnement: string }[] };
+}
+
+// De prijs bij Stripe voor dit plan en dit bedrag; bestaat hij nog niet, dan wordt hij gemaakt.
+// Verandert de prijs in de database, dan krijgt het plan vanzelf een nieuwe prijs bij Stripe.
+async function prijs(plan: string, aanbod: Aanbod) {
+  const p = aanbod[plan];
+  if (!p) throw new Fout("Onbekend abonnement.");
+  const sleutel = `abonnement_${plan}_${centen(p.prijs)}`;
+  const gevonden = await stripe("GET", `/v1/prices?active=true&lookup_keys[]=${encodeURIComponent(sleutel)}`);
+  if (gevonden.data?.length) return gevonden.data[0].id as string;
+  const nieuw = await stripe("POST", "/v1/prices", {
+    currency: "eur", unit_amount: centen(p.prijs), recurring: { interval: "month" }, lookup_key: sleutel,
+    product_data: { name: `Extra opslag ${p.naam}` }, metadata: { plan },
+  }, `prijs-${sleutel}`);
+  return nieuw.id as string;
+}
+
+const planVan = (sub: Record<string, any>) => {
+  const item = sub.items?.data?.[0] ?? {};
+  return /^abonnement_(.+)_\d+$/.exec(item.price?.lookup_key ?? "")?.[1] ?? item.price?.metadata?.plan ?? sub.metadata?.plan;
+};
+
+async function opslaan(sub: Record<string, any>) {
+  const tot = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end;
+  await rpc("abonnement_opslaan", { p_klant: sub.customer, p_abonnement: sub.id, p_plan: planVan(sub) ?? "",
+    p_status: sub.status, p_tot: tot ? new Date(tot * 1000).toISOString() : null,
+    p_opzeggen: Boolean(sub.cancel_at_period_end) });
+}
+
+const actief = (k: Awaited<ReturnType<typeof klant>>) =>
+  k.abonnementen.filter((a) => ["active", "trialing", "past_due"].includes(a.status));
+
+async function abonnementAfsluiten(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  const k = await klant(g.id);
+  const plan = String(body.plan ?? "");
+  const prijsId = await prijs(plan, k.aanbod);
+  const lopend = actief(k)[0];
+  if (lopend) {
+    // Al een opslagabonnement: wisselen, met verrekening van wat je al betaalde.
+    const sub = await stripe("GET", `/v1/subscriptions/${lopend.stripe_abonnement}`);
+    const bijgewerkt = await stripe("POST", `/v1/subscriptions/${sub.id}`, {
+      items: { 0: { id: sub.items.data[0].id, price: prijsId } }, proration_behavior: "create_prorations",
+      cancel_at_period_end: false, metadata: { plan },
+    });
+    await opslaan(bijgewerkt);
+    return { gewijzigd: true };
+  }
+  const { app_adres } = await instellingen();
+  const sessie = await stripe("POST", "/v1/checkout/sessions", {
+    mode: "subscription", customer: k.klant, line_items: { 0: { price: prijsId, quantity: 1 } },
+    subscription_data: { metadata: { gebruiker: g.id, plan } }, metadata: { gebruiker: g.id, plan },
+    success_url: `${app_adres}/?abonnement=klaar`, cancel_url: `${app_adres}/?abonnement=stop`,
+  });
+  return { url: sessie.url };
+}
+
+async function abonnementBijwerken(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  const k = await rpc("abonnement_klant", { p_gebruiker: g.id });
+  if (!k?.klant) return { ok: true };
+  const lijst = await stripe("GET", `/v1/subscriptions?customer=${encodeURIComponent(k.klant)}&status=all&limit=20`);
+  for (const sub of lijst.data ?? []) await opslaan(sub);
+  return { ok: true };
+}
+
+// Opzeggen gaat in aan het eind van de betaalde maand; terug = toch doorgaan.
+async function abonnementOpzeggen(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  const k = await klant(g.id);
+  const lopend = actief(k)[0];
+  if (!lopend) throw new Fout("Je hebt geen abonnement.");
+  await opslaan(await stripe("POST", `/v1/subscriptions/${lopend.stripe_abonnement}`,
+                             { cancel_at_period_end: body.terug !== true }));
+  return { ok: true };
+}
+
+async function abonnementBeheren(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  const k = await klant(g.id);
+  const sessie = await stripe("POST", "/v1/billing_portal/sessions",
+                              { customer: k.klant, return_url: `${k.app_adres.replace(/\/$/, "")}/?abonnement=klaar` });
+  return { url: sessie.url };
+}
+
+// Bij het verwijderen van je account: meteen stoppen, zodat er niets meer wordt afgeschreven.
+async function abonnementStoppen(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  const k = await rpc("abonnement_klant", { p_gebruiker: g.id });
+  for (const a of (k?.abonnementen ?? []) as { stripe_abonnement: string }[]) {
+    await opslaan(await stripe("DELETE", `/v1/subscriptions/${a.stripe_abonnement}`));
+  }
+  return { ok: true };
+}
+
 // --- Webhook --------------------------------------------------------------------------------
 
 async function handtekeningKlopt(payload: string, kop: string, geheim: string) {
@@ -268,6 +379,8 @@ async function webhook(payload: string, kop: string) {
              && object.payment_status === "paid" && object.metadata?.boekingen) {
     const r = await rpc("stripe_boeking_betaald", { p_sessie: object.id, p_betaling: object.payment_intent });
     if (r?.terug) await verrekenen(null);
+  } else if (gebeurtenis.type.startsWith("customer.subscription.")) {
+    await opslaan(object);
   } else if (gebeurtenis.type === "account.updated") {
     await rpc("stripe_account_klaar", { p_account: object.id,
                                         p_klaar: Boolean(object.details_submitted && object.payouts_enabled) });
@@ -283,6 +396,11 @@ const ACTIES: Record<string, (body: Record<string, unknown>) => Promise<unknown>
   geschil_besluiten: geschilBesluiten,
   boeking_afrekenen: boekingAfrekenen,
   boekingen_verrekenen: boekingenVerrekenen,
+  abonnement_afsluiten: abonnementAfsluiten,
+  abonnement_bijwerken: abonnementBijwerken,
+  abonnement_opzeggen: abonnementOpzeggen,
+  abonnement_beheren: abonnementBeheren,
+  abonnement_stoppen: abonnementStoppen,
 };
 
 // De chat in de app roept deze functie rechtstreeks vanuit de browser aan.

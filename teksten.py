@@ -40,7 +40,12 @@ def voorwaarden() -> str:
    terugbetalen aan de koper of uitbetalen aan de verkoper. Verkopers die via de app betalingen ontvangen, laten hun
    identiteit door Stripe controleren en gaan akkoord met de voorwaarden van Stripe. Bij betalen buiten de app is er
    geen kopersbescherming.
-6. **Kosten.** De app zelf is gratis, net als alle accounttypes. Je betaalt alleen in deze gevallen:
+6. **Kosten.** De app zelf is gratis, net als alle tools, alle accounttypes en de assistent. De gratis assistent
+   heeft een redelijke maandgrens per persoon; is die op, dan kan het de volgende maand weer (of je gebruikt een
+   eigen sleutel). Je betaalt alleen in deze gevallen:
+   - **Extra opslag:** iedereen heeft gratis opslag voor bestanden. Meer ruimte is een abonnement per maand,
+     vooraf betaald via Stripe en per maand opzegbaar. Na opzeggen loopt het tot het eind van de betaalde maand;
+     je bestanden blijven daarna staan, maar nieuwe passen alleen als je weer onder de gratis ruimte zit.
    - **Kopen via de app op de marktplaats:** de koper betaalt € 0,50 plus 3% van het bedrag voor kopersbescherming.
      De verkoper betaalt niets.
    - **Verkopen via je eigen webshop in de app:** de verkoper betaalt 5% van het

@@ -9,6 +9,7 @@ import gezondheid
 import opslag
 import samen
 import tijd
+import zoekveld
 
 DAG = ["ma", "di", "wo", "do", "vr", "za", "zo"]
 
@@ -155,26 +156,32 @@ def trainingen(nu: datetime) -> None:
 
 
 def plannen_formulier(nu: datetime) -> None:
-    with st.form("training_plannen", border=False, clear_on_submit=True):
-        sport = st.selectbox("Sport", tijd.SPORTEN, index=tijd.SPORTEN.index("hardlopen"),
-                             format_func=str.capitalize)
-        eigen = st.text_input("Of typ een andere sport", placeholder="Optioneel")
-        k1, k2 = st.columns(2)
-        dag = k1.date_input("Dag", value=nu.date() + timedelta(days=1), min_value=nu.date(), format="DD-MM-YYYY")
-        om = k2.time_input("Hoe laat", value=kloktijd(19, 0), step=900)
-        k1, k2 = st.columns(2)
-        duur = k1.number_input("Minuten", 10, 600, 60, step=5)
-        weken = k2.number_input("Elke week, aantal keer", 1, 26, 1, help="1 = alleen deze keer")
-        waar = st.text_input("Waar", placeholder="Optioneel")
-        if st.form_submit_button("Plannen", type="primary"):
-            naam = (eigen.strip() or sport).lower()
-            for w in range(int(weken)):
-                begin = datetime.combine(dag + timedelta(weeks=w), om)
-                opslag.afspraak_toevoegen(naam.capitalize(), begin.isoformat(timespec="minutes"),
-                                          (begin + timedelta(minutes=int(duur))).isoformat(timespec="minutes"),
-                                          locatie=waar.strip(), sport=naam, soort="sport")
-            st.session_state.sport_melding = "Gepland." if weken == 1 else f"{int(weken)} trainingen gepland."
-            st.rerun()
+    # Geen st.form: dan verschijnt het veld voor een eigen sport meteen als je "Overig" kiest.
+    r = st.session_state.get("sp_ronde", 0)
+    sport = st.selectbox("Sport", [*tijd.SPORTEN, "overig"], index=tijd.SPORTEN.index("hardlopen"),
+                         format_func=str.capitalize, key=f"sp_sport_{r}")
+    eigen = st.text_input("Welke sport?", key=f"sp_eigen_{r}") if sport == "overig" else ""
+    k1, k2 = st.columns(2)
+    dag = k1.date_input("Dag", value=nu.date() + timedelta(days=1), min_value=nu.date(), format="DD-MM-YYYY",
+                        key=f"sp_dag_{r}")
+    om = k2.time_input("Hoe laat", value=kloktijd(19, 0), step=900, key=f"sp_om_{r}")
+    k1, k2 = st.columns(2)
+    duur = k1.number_input("Minuten", 10, 600, 60, step=5, key=f"sp_duur_{r}")
+    weken = k2.number_input("Elke week, aantal keer", 1, 26, 1, help="1 = alleen deze keer", key=f"sp_weken_{r}")
+    waar = zoekveld.plek_kiezen("Waar", key=f"sp_waar_{r}")
+    if st.button("Plannen", type="primary", key=f"sp_plan_{r}"):
+        naam = (eigen.strip() if sport == "overig" else sport).lower()
+        if not naam:
+            st.error("Typ welke sport.")
+            return
+        for w in range(int(weken)):
+            begin = datetime.combine(dag + timedelta(weeks=w), om)
+            opslag.afspraak_toevoegen(naam.capitalize(), begin.isoformat(timespec="minutes"),
+                                      (begin + timedelta(minutes=int(duur))).isoformat(timespec="minutes"),
+                                      locatie=waar.strip(), sport=naam, soort="sport")
+        st.session_state.sport_melding = "Gepland." if weken == 1 else f"{int(weken)} trainingen gepland."
+        st.session_state.sp_ronde = r + 1
+        st.rerun()
 
 
 # --- Koppelen -----------------------------------------------------------------------------------------------------

@@ -16,6 +16,7 @@ import pydeck as pdk
 import streamlit as st
 
 import activiteiten
+import toegang
 import agendas
 import agent
 import avatar
@@ -26,6 +27,8 @@ import boodschappen
 import budget
 import documenten
 import documenten_scherm
+import bestanden
+import bestanden_scherm
 import editor
 import events
 import feestdagen
@@ -86,7 +89,7 @@ import browser  # niet in de herlaadlijst: bevat onderdelen (components)
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, gezondheid, sport_scherm):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, toegang, bestanden, bestanden_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, gezondheid, sport_scherm):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -106,7 +109,8 @@ opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("w
 
 
 def anthropic_sleutel() -> str:
-    return opslag.instellingen().get("anthropic_sleutel", "")
+    """Je eigen sleutel, of de gratis toegang via het platform (zie toegang.py)."""
+    return toegang.sleutel()
 
 
 def sleutel_werkt(sleutel: str) -> str | None:
@@ -256,30 +260,26 @@ def inlogformulier() -> None:
 
 
 # Altijd zichtbaar bij inloggen en account maken. Microsoft en Face ID staan onder "Andere manier".
-EXTERN_BOVENAAN = ["apple", "google"]
+EXTERN = ["apple", "google", "azure"]
 
 
 def extern_knoppen(doel: str) -> None:
-    """Doorgaan met Apple, Google of een andere manier. Wie nog geen account heeft, krijgt er meteen een."""
+    """Doorgaan met Apple, Google of Microsoft, en als laatste een andere manier (Face ID of Touch ID).
+    Wie nog geen account heeft, krijgt er meteen een."""
     aan = extern_inloggen.aanbieders()
     adres = str(st.context.url or "").split("?")[0]
-
-    def knop(a: str, key: str) -> None:
+    for a in EXTERN:
         label = f"Doorgaan met {extern_inloggen.AANBIEDERS[a]}"
         if a in aan:
             st.link_button(label, extern_inloggen.start(a, adres), icon=extern_inloggen.ICONEN[a], width="stretch")
-        elif st.button(label, icon=extern_inloggen.ICONEN[a], width="stretch", key=key):
+        elif st.button(label, icon=extern_inloggen.ICONEN[a], width="stretch", key=f"ext_{doel}_{a}"):
             nog_niet_aan(extern_inloggen.AANBIEDERS[a])
-
-    for a in EXTERN_BOVENAAN:
-        knop(a, f"ext_{doel}_{a}")
-    with st.popover("Andere manier", icon=":material/more_horiz:", width="stretch"):
-        knop("azure", f"ext_{doel}_azure")
-        if doel == "Inloggen" and (r := toegangssleutel.inlogknop(apparaat())):
-            if r.get("token"):
-                ingelogd(r.get("naam", ""), r["token"])
-            st.error(r.get("fout") or "Dit lukte niet. Log in met je wachtwoord.")
-        if doel == "Inloggen":
+    if doel == "Inloggen":
+        with st.popover("Andere manier", icon=":material/more_horiz:", width="stretch"):
+            if r := toegangssleutel.inlogknop(apparaat()):
+                if r.get("token"):
+                    ingelogd(r.get("naam", ""), r["token"])
+                st.error(r.get("fout") or "Dit lukte niet. Log in met je wachtwoord.")
             st.caption("Face ID of Touch ID zet je aan na het inloggen, bij Instellingen › Account › Beveiliging.")
     if doel == "Account maken":
         st.caption("Zo ga je akkoord met de voorwaarden en de privacy (onderaan) en ben je 16 of ouder.")
@@ -804,8 +804,8 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
         eind = kol3.time_input("Einde", value=einde.time() if einde else None, step=900)
         hele_dag = st.checkbox("Hele dag", value=bool(a.get("start")) and "T" not in a["start"],
                                help="Bijvoorbeeld een verjaardag; begin en einde tellen dan niet.")
-        locatie = st.text_input("Adres (straat, huisnummer, plaats)", value=a.get("locatie", ""),
-                                help="Met een adres berekent de app je reistijd en vertrektijd.")
+        locatie = zoekveld.plek_kiezen("Waar", key=f"{sleutel}_plek", waarde=a.get("locatie", ""))
+        st.caption("Met een adres berekent de app je reistijd en vertrektijd.")
         gasten = ""
         if not afspraak and samen.beschikbaar():
             gasten = st.text_input("Uitnodigen", placeholder="Gebruikersnamen",
@@ -966,7 +966,7 @@ def extern_bediening(afspraak: dict) -> None:
                 van = kol1.time_input("Van", value=None if hele_dag else kloktijd.fromisoformat(afspraak["start"][11:16]))
                 tot = kol2.time_input("Tot", value=kloktijd.fromisoformat(afspraak["einde"][11:16])
                                       if afspraak.get("einde") and "T" in afspraak["einde"] else None)
-                plek = st.text_input("Plaats", value=afspraak.get("locatie", ""))
+                plek = zoekveld.plek_kiezen("Waar", key=f"extern_plek_{sleutel}", waarde=afspraak.get("locatie", ""))
                 if st.form_submit_button("Opslaan", type="primary"):
                     start = f"{dag.isoformat()}T{van:%H:%M}" if van else dag.isoformat()
                     einde = f"{dag.isoformat()}T{tot:%H:%M}" if van and tot else None
@@ -3352,7 +3352,7 @@ GROEP_UITLEG = {
                                                    "Betalen gaat veilig via de app."),
     "Afspreken": (":material/event_available:", "Laat anderen een tijd bij je boeken, prik samen een datum of "
                                                  "kijk wat er in je buurt gebeurt."),
-    "Leren en werk": (":material/school:", "Leren, schrijven, documenten en mail op één plek."),
+    "Leren en werk": (":material/school:", "Leren, schrijven, documenten, bestanden en mail op één plek."),
     "Geld": (":material/account_balance_wallet:", "Je uitgaven, facturen en spaardoelen. De app betaalt nooit zelf."),
     "Zakelijk": (":material/work:", "Lessen, klanten en je boekhouding als je een eigen zaak hebt."),
     "Sport en gezondheid": (":material/directions_run:", "Je trainingen, boekingen en doelen. Koppel je sportapps."),
@@ -3501,6 +3501,7 @@ INSTELLING_GROEPEN = {
     "Koppelingen": (":material/link:", "Meldingen, agenda, mail, Siri"),
     "Werk": (":material/work:", "Beroep en zakelijke tools"),
     "Account": (":material/person:", "Profiel, beveiliging, privacy"),
+    "Opslag": (":material/cloud:", "Ruimte voor je bestanden"),
     "Idee of probleem": (":material/lightbulb:", "Zeg wat beter kan"),
     "Rondleiding": (":material/tour:", "Alle onderdelen uitgelegd"),
 }
@@ -3523,7 +3524,7 @@ def instellingen_tabblad() -> None:
             st.button("Terug", icon=":material/arrow_back:", type="tertiary", on_click=kies, args=(None,))
             st.markdown(f"**{groep}**")
         {"Assistent": instellingen_assistent, "Weergave": instellingen_weergave,
-         "Koppelingen": instellingen_koppelingen, "Account": instellingen_account, "Werk": zaak_scherm.beroep_instellingen,
+         "Koppelingen": instellingen_koppelingen, "Account": instellingen_account, "Opslag": opslag_instellingen, "Werk": zaak_scherm.beroep_instellingen,
          "Idee of probleem": idee_of_probleem}[groep]()
         return
     gebruiker = samen_scherm.ik()
@@ -3585,10 +3586,92 @@ def instellingen_assistent() -> None:
         namens_instellingen()
     with st.expander(f"Wat de assistent over je weet ({len(opslag.geheugen())})"):
         geheugen_instellingen()
-    with st.expander("Anthropic-sleutel (het brein van de assistent)"):
+    eigen = bool(opslag.instellingen().get("anthropic_sleutel"))
+    gratis = toegang.status().get("ai_platform")
+    with st.expander("Eigen Anthropic-sleutel" + (" (niet nodig)" if gratis and not eigen else "")):
+        if gratis:
+            st.caption("De assistent is gratis en werkt zonder eigen sleutel. Met een eigen sleutel heb je geen "
+                       "maandgrens; je betaalt dan zelf bij Anthropic.")
         if sleutel := sleutel_formulier("Nieuwe sleutel opslaan"):
             opslag.instellingen_bijwerken(anthropic_sleutel=sleutel)
             st.success("Opgeslagen.")
+        if eigen and st.button("Eigen sleutel weghalen", type="tertiary"):
+            opslag.instellingen_bijwerken(anthropic_sleutel="")
+            st.rerun()
+    if samen_scherm.ik().get("id") == 1:
+        with st.expander("Gratis voor iedereen (alleen de eigenaar)"):
+            gratis_instellingen()
+
+
+def opslag_instellingen() -> None:
+    """Hoeveel ruimte je hebt, en extra opslag per maand (het enige wat in de app een abonnement is)."""
+    s = toegang.status(vers=True)
+    deel = min(s["gebruikt"] / s["opslag"], 1.0) if s["opslag"] else 0
+    st.caption(f"{toegang.leesbaar(s['gebruikt'])} van {toegang.leesbaar(s['opslag'])} gebruikt")
+    st.progress(deel)
+    lopend = (s.get("abonnementen") or [None])[0]
+    aanbod = s.get("aanbod") or {}
+    if lopend:
+        plan = aanbod.get(lopend["plan"], {})
+        tot = str(lopend.get("periode_tot") or "")[:10]
+        tot = f"{tot[8:10]}-{tot[5:7]}-{tot[:4]}" if tot else ""
+        st.markdown(f"Je hebt **{plan.get('naam', lopend['plan'])}** voor {toegang.euro(plan.get('prijs', 0))} per maand.")
+        with st.container(horizontal=True, gap="small"):
+            if lopend.get("opzeggen"):
+                st.caption(f"Opgezegd. Loopt tot {tot}; daarna heb je weer {s.get('gratis_gb', 2):g} GB gratis.")
+                if st.button("Toch doorgaan", key="abo_terug"):
+                    toegang.opzeggen(terug=True)
+                    st.rerun()
+            elif st.button("Opzeggen", key="abo_stop", type="tertiary"):
+                toegang.opzeggen()
+                st.rerun()
+            if st.button("Betaalgegevens en facturen", key="abo_beheer", type="tertiary"):
+                st.session_state.abo_url = toegang.beheren()
+    else:
+        st.caption(f"Iedereen heeft {s.get('gratis_gb', 2):g} GB gratis. Alle tools in de app zijn gratis; "
+                   "alleen extra opslag is een abonnement. Per maand opzegbaar.")
+    if not s.get("betalen_aan"):
+        st.caption("Extra opslag kan binnenkort.")
+        return
+    with st.container(horizontal=True, gap="small"):
+        for naam, plan in aanbod.items():
+            with st.container(border=True, width=200):
+                st.markdown(f"**{plan['naam']}**  \n{toegang.euro(plan['prijs'])} per maand")
+                if lopend and lopend["plan"] == naam:
+                    st.caption("Je huidige opslag")
+                elif st.button("Overstappen" if lopend else "Kiezen", key=f"abo_{naam}", type="primary"):
+                    try:
+                        antwoord = toegang.afsluiten(naam)
+                    except toegang.Fout as fout:
+                        st.error(str(fout))
+                    else:
+                        if antwoord.get("url"):
+                            st.session_state.abo_url = antwoord["url"]
+                        else:
+                            st.rerun()
+    if url := st.session_state.pop("abo_url", None):
+        with st.container(key="buiten_abo"):
+            st.link_button("Verder bij Stripe", url, type="primary", icon=":material/open_in_new:")
+
+
+def gratis_instellingen() -> None:
+    """De eigenaar zet de gratis assistent aan met de sleutel van het platform, en kiest de grenzen per persoon."""
+    s = toegang.status(vers=True)
+    st.caption("Iedereen zonder eigen sleutel gebruikt de assistent met deze sleutel. Jij betaalt het gebruik bij "
+               "Anthropic; de maandgrens per persoon houdt dat in de hand. De sleutel is na opslaan niet meer te zien.")
+    st.markdown(f"Gratis assistent: **{'aan' if s.get('ai_platform') else 'uit'}**")
+    with st.form("gratis_form", border=False):
+        sleutel = st.text_input("Anthropic-sleutel van het platform", type="password",
+                                placeholder="Leeg laten = niet wijzigen")
+        euro = st.number_input("Per persoon per maand (euro, 0 = uit)", 0.0, 20.0,
+                               float(s.get("ai_gratis_euro", 1)), 0.5)
+        gb = st.number_input("Opslag per persoon (GB)", 0.1, 1000.0, float(s.get("gratis_gb", 2)), 0.5)
+        if st.form_submit_button("Opslaan", type="primary"):
+            try:
+                toegang.instellen("".join(sleutel.split()), ai_gratis_euro=euro, gratis_gb=gb)
+                st.success("Opgeslagen.")
+            except toegang.Fout as fout:
+                st.error(str(fout))
 
 
 def instellingen_weergave() -> None:
@@ -3915,7 +3998,7 @@ def zelftest() -> None:
     if not anthropic_sleutel():
         st.write("➖ Claude: nog geen sleutel ingesteld")
         return
-    client = anthropic.Anthropic(api_key=anthropic_sleutel())
+    client = toegang.claude(anthropic_sleutel())
     with st.spinner("Claude controleren..."):
         try:
             tekst = agent.antwoord(client, [{"role": "user", "content": "Zelftest: gebruik geen hulpmiddelen en antwoord alleen met OK."}])
@@ -4196,7 +4279,8 @@ def gesprek() -> None:
     with st.chat_message("assistant", avatar=gezicht):
         if not sleutel:
             tekst = (f"Er is nog geen sleutel voor {brein} ingesteld. Dat doe je bij Instellingen › Assistent."
-                     if brein != "Claude" else "Er is nog geen Anthropic-sleutel ingesteld. Dat doe je bij Instellingen.")
+                     if brein != "Claude" else "De assistent staat nog niet aan. Vul bij Instellingen › Assistent een "
+                     "Anthropic-sleutel in.")
         else:
             status, vak, delen = st.empty(), st.empty(), []
             status.caption("Even denken...")
@@ -4215,7 +4299,7 @@ def gesprek() -> None:
             st.session_state.berichten.append({"role": "user", "content": vraag})
             try:
                 if brein == "Claude":
-                    tekst = agent.antwoord(anthropic.Anthropic(api_key=sleutel), st.session_state.berichten,
+                    tekst = agent.antwoord(toegang.claude(sleutel), st.session_state.berichten,
                                            bij_tekst, bij_hulpmiddel, spraak=ingesproken)
                 else:
                     tekst = ander_brein.antwoord(brein, st.session_state.berichten, bij_tekst, bij_hulpmiddel,
@@ -4312,7 +4396,7 @@ def profielkaart(p: dict) -> None:
 
 def terug_van_stripe() -> None:
     """Na betalen of aanmelden bij Stripe komt de gebruiker terug met ?betaald=... of ?stripe=..."""
-    for sleutel in ("betaald", "stripe", "boeking_betaald"):
+    for sleutel in ("betaald", "stripe", "boeking_betaald", "abonnement"):
         if sleutel in st.query_params:
             st.session_state[f"terug_{sleutel}"] = st.query_params[sleutel]
             del st.query_params[sleutel]
@@ -4362,6 +4446,15 @@ def terug_van_stripe() -> None:
         else:
             st.toast("Betalen afgebroken. Betaal binnen 30 minuten via de chat, anders vervalt de boeking.",
                      icon=":material/info:")
+    if (abo := st.session_state.pop("terug_abonnement", None)) is not None:
+        st.session_state.inst_na = "Opslag"
+        st.session_state.ga_naar = "instellingen"
+        try:
+            toegang.bijwerken()
+        except toegang.Fout:
+            pass
+        if abo == "klaar" and toegang.status(vers=True).get("abonnementen"):
+            st.toast("Je extra opslag staat klaar.", icon=":material/check:")
     betaald = st.session_state.pop("terug_betaald", None)
     stripe_terug = st.session_state.pop("terug_stripe", None)
     if betaald or stripe_terug:
@@ -4479,6 +4572,7 @@ def paginas() -> list:
     groep("Leren en werk",
           als(online and "Documenten" not in uit, documenten_scherm.pagina, "Documenten", ":material/description:",
               "documenten"),
+          als(online and "Bestanden" not in uit, bestanden_scherm.pagina, "Bestanden", ":material/folder:", "bestanden"),
           als("Leren" not in uit, leren_tabblad, "Leren", ":material/school:", "leren"),
           als("Mail" not in uit, mail_tabblad, "Mail", ":material/mail:", "mail"),
           als(online and "Samen" not in uit, samen_scherm.samen_tabblad, "Samen", ":material/group:", "samen",

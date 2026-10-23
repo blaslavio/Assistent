@@ -17,7 +17,7 @@ VOORPAGINA = {"ochtend": "Ochtendoverzicht ('s ochtends, met voorlezen)", "weer"
               "seintjes": "Korte seintjes (herhalen, sportresultaat)",
               "woning": "Knoppen voor Apple Woning (als je scènes hebt ingesteld)"}
 # Wat je in het menu aan of uit kunt zetten (de sleutels staan zo in je instellingen).
-ONDERDELEN = {"Chat": "Chat (end-to-end versleuteld)", "Documenten": "Documenten", "Mail": "Mail", "Leren": "Leren en schrijven", "Samen": "Projecten en delen",
+ONDERDELEN = {"Chat": "Chat (end-to-end versleuteld)", "Documenten": "Documenten", "Bestanden": "Bestanden", "Mail": "Mail", "Leren": "Leren en schrijven", "Samen": "Projecten en delen",
               "DIY": "DIY en hobby", "Hulpmiddelen": "Hulpmiddelen (notities, timer, rekenen)",
               "Scannen": "Foto scannen", "VR-ruimtes": "VR-ruimtes (projecten in 3D)",
               "Boodschappen": "Boodschappen",
@@ -48,7 +48,7 @@ def onderdelen_uit() -> list[str]:
 
 # Alle pagina's die je kunt vastzetten, op url. Dezelfde namen als in het menu.
 PAGINAS = {"agenda": "Agenda", "chat": "Chat", "winkelen": "Winkelen", "zakelijk": "Zakelijk", "boekingen": "Boekingen",
-           "prikken": "Datum prikken", "mail": "Mail", "documenten": "Documenten", "leren": "Leren",
+           "prikken": "Datum prikken", "mail": "Mail", "documenten": "Documenten", "bestanden": "Bestanden", "leren": "Leren",
            "samen": "Samen", "budget": "Budget", "beleggen": "Beleggen", "zoeken": "Marktplaats",
            "winkels": "Winkels", "verkopen": "Verkopen", "bestellingen": "Bestellingen", "berichten": "Berichten",
            "webshop": "Mijn webshop", "verkoopoverzicht": "Verkoopoverzicht", "lijstjes": "Lijstjes",

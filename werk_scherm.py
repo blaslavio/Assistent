@@ -8,6 +8,7 @@ from datetime import date
 import anthropic
 import streamlit as st
 
+import toegang
 import opslag
 import slim
 import zoekveld
@@ -24,13 +25,13 @@ def vraag_assistent(vraag: str, label: str | None = None) -> None:
 
 def met_claude(bezig: str, functie, *args, **kwargs):
     """Voert een klus van Claude uit met een wachtmelding. Geeft het resultaat, of None met een nette fout."""
-    sleutel = opslag.instellingen().get("anthropic_sleutel", "")
+    sleutel = toegang.sleutel()
     if not sleutel:
-        st.warning("Hiervoor is de assistent nodig. Zet je Anthropic-sleutel bij Instellingen › Assistent.")
+        st.warning("De assistent staat nog niet aan. Vul een Anthropic-sleutel in bij Instellingen › Assistent.")
         return None
     try:
         with st.spinner(bezig):
-            return functie(anthropic.Anthropic(api_key=sleutel), *args, **kwargs)
+            return functie(toegang.claude(sleutel), *args, **kwargs)
     except anthropic.APIError as fout:
         st.error(slim.foutmelding(fout))
     except slim.Mislukt as fout:

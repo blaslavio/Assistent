@@ -18,6 +18,7 @@ from datetime import date, datetime, timedelta
 
 import anthropic
 
+import toegang
 import budget
 import inplannen
 import mail
@@ -162,7 +163,7 @@ def achtergrond(api_sleutel: str) -> None:
 
     def werk() -> None:
         try:
-            nieuw = voorstellen(anthropic.Anthropic(api_key=api_sleutel), behalve=behalve)
+            nieuw = voorstellen(toegang.claude(api_sleutel), behalve=behalve)
             _samenvoegen(sleutel, nieuw)
         except Exception as fout:
             with _slot:

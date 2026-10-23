@@ -13,10 +13,18 @@ export default function (component) {
   if (!data.sleutel || window.__bovenSleutel === data.sleutel) return;
   window.__bovenSleutel = data.sleutel;
   let zelf = false;
-  const stop = () => { zelf = true; };
-  ["wheel", "touchstart", "keydown", "mousedown"].forEach((s) => window.addEventListener(s, stop, { once: true, passive: true }));
+  // Alleen echte gebaren tellen: de veeg hieronder (omhoog) is zelf ook een wheel-gebeurtenis.
+  const soorten = ["wheel", "touchstart", "keydown", "mousedown"];
+  const stop = (e) => {
+    if (!e.isTrusted) return;
+    zelf = true;
+    soorten.forEach((s) => window.removeEventListener(s, stop));
+  };
+  soorten.forEach((s) => window.addEventListener(s, stop, { passive: true }));
   const omhoog = () => {
     if (zelf) return;
+    // Ook het venster zelf (bijv. na inloggen, als je op het inlogscherm naar beneden scrolde).
+    if (window.scrollY > 0) window.scrollTo({ top: 0 });
     const vak = document.querySelector('[data-testid="stAppScrollToBottomContainer"]')
       || document.querySelector('[data-testid="stMain"]');
     if (!vak) return;

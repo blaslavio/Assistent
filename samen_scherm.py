@@ -10,6 +10,8 @@ from urllib.parse import quote
 
 import streamlit as st
 
+import bestanden
+import toegang
 import opslag
 import plannen_scherm
 import ruimte
@@ -1029,21 +1031,21 @@ def marketing(w: dict) -> None:
 
 
 def post_schrijven(w: dict, link: str, kanaal: str, onderwerp: str) -> None:
-    """Laat Claude een marketingtekst schrijven (met de Anthropic-sleutel van de verkoper)."""
+    """Laat Claude een marketingtekst schrijven (met je eigen sleutel of de gratis assistent)."""
     import anthropic
 
     import slim
 
-    sleutel = opslag.instellingen().get("anthropic_sleutel", "")
+    sleutel = toegang.sleutel()
     if not sleutel:
-        st.info("Hiervoor heb je een Anthropic-sleutel nodig (Instellingen › Koppelingen).")
+        st.info("De assistent staat nog niet aan. Vul een Anthropic-sleutel in bij Instellingen › Assistent.")
         return
     bewaard = st.session_state.setdefault("marketing_teksten", {})
     sleutel_tekst = f"{kanaal}|{onderwerp}"
     if sleutel_tekst not in bewaard:
         with st.spinner("Even schrijven..."):
             try:
-                bewaard[sleutel_tekst] = slim.marketingtekst(anthropic.Anthropic(api_key=sleutel), w["naam"],
+                bewaard[sleutel_tekst] = slim.marketingtekst(toegang.claude(sleutel), w["naam"],
                                                              w["omschrijving"], kanaal, onderwerp, link)
             except slim.Mislukt as fout:
                 st.error(str(fout))
@@ -1545,6 +1547,16 @@ def account_instellingen() -> None:
             st.warning("Al je gegevens worden gewist en je aanbod gaat offline. Dit kan niet ongedaan worden gemaakt.")
             zeker = st.checkbox("Ja, ik weet het zeker")
             if st.button("Account definitief verwijderen", disabled=not zeker):
+                try:
+                    if toegang.status(vers=True).get("abonnementen"):
+                        toegang.stoppen()  # eerst je opslagabonnement stoppen, zodat er niets meer wordt afgeschreven
+                except toegang.Fout as fout:
+                    st.error(f"Je abonnement kon niet worden gestopt: {fout}")
+                    st.stop()
+                try:
+                    bestanden.opruimen(alles=True)  # en je bestanden echt uit de opslag
+                except toegang.Fout:
+                    pass  # wat blijft staan, ruimt de dagelijkse opruimronde niet meer op; daarom eerst hier
                 if opslag.account_verwijderen():
                     st.session_state.clear()
                     st.session_state.verwijderd = True

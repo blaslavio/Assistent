@@ -165,3 +165,14 @@ def context() -> None:
     except Exception:
         code = st.session_state.get("taal")
     taal.zet(code or taal.uit_browser())
+
+
+def plek_kiezen(label: str, key: str, waarde: str = "") -> str:
+    """Een plek kiezen uit wat je vaker gebruikt (thuis, agenda, contacten), of zelf een nieuwe typen."""
+    plekken = opslag.bekende_plekken()
+    if waarde and waarde not in plekken:
+        plekken.insert(0, waarde)
+    thuis = (opslag.instellingen().get("thuisadres") or "").strip()
+    return st.selectbox(label, plekken, index=plekken.index(waarde) if waarde else None, key=key,
+                        placeholder="Kies een plek of typ een adres", accept_new_options=True,
+                        format_func=lambda p: f"Thuis · {p}" if p == thuis else p) or ""
