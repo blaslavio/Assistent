@@ -132,10 +132,39 @@ def beroep_instellingen() -> None:
                         _klaar("Je webshop staat klaar bij Mijn webshop.")
             else:
                 st.button("Openen", key=f"tool_open_{t}", type="tertiary", on_click=_openen, args=(url, t))
+    klantvragen()
     if st.button("Geen beroep", type="tertiary", icon=":material/close:", key="beroep_wissen"):
         beroep.wissen()
         st.session_state.pop("beroep_keuze", None)
         _klaar("Beroep weggehaald. Je onderdelen blijven aan.")
+
+
+KLANT_STANDEN = {"uit": "Uit", "voorstel": "Voorstellen", "zelf": "Zelf beantwoorden"}
+
+
+def klantvragen() -> None:
+    """De assistent helpt klanten en kopers in de chat: met jouw aanbod, prijzen en diensten."""
+    k = dict(opslag.instellingen().get("klantenchat") or {})
+    with st.expander("Klantvragen in de chat", icon=":material/support_agent:"):
+        stand = st.segmented_control("Hoe helpt de assistent?", list(KLANT_STANDEN), format_func=KLANT_STANDEN.get,
+                                     default=k.get("stand", "uit"), required=True, key="klant_stand") or "uit"
+        st.caption({"uit": "De assistent doet niets in je klantgesprekken.",
+                    "voorstel": "Bij een nieuwe vraag staan er antwoorden klaar. Jij kiest, past aan en verstuurt.",
+                    "zelf": "De assistent antwoordt zelf, na een korte pauze, zolang de app open staat op Chat. "
+                            "Zo'n bericht krijgt een klein label 'met hulp van de assistent'; dat is wettelijk "
+                            "verplicht. Weet hij iets niet, dan zegt hij dat je erop terugkomt en krijg jij een seintje."
+                    }[stand])
+        verzoeken = st.toggle("Nieuwe klanten (chatverzoeken) ook beantwoorden", value=k.get("verzoeken", True),
+                              disabled=stand != "zelf", key="klant_verzoeken")
+        notities = st.text_area("Wat moet de assistent nog weten?", value=k.get("notities", ""), max_chars=2000,
+                                placeholder="Bijv. openingstijden, bezorgen binnen 2 dagen, ruilen binnen 14 dagen, "
+                                            "je tutoyeert klanten.", key="klant_notities")
+        st.caption("De assistent kent je aanbod, prijzen, webshop en diensten uit de app, en verzint niets. "
+                   "Bij de info van een gesprek zet je het als klantgesprek aan of uit.")
+        if st.button("Opslaan", key="klant_opslaan", type="primary"):
+            opslag.instellingen_bijwerken(klantenchat=k | {"stand": stand, "verzoeken": verzoeken,
+                                                           "notities": notities.strip()})
+            _klaar("Opgeslagen.")
 
 
 def zaak_instellen(z: dict) -> None:

@@ -14,6 +14,7 @@ from pathlib import Path
 import anthropic
 import streamlit as st
 
+import beroep
 import opslag
 import samen
 import slim
@@ -296,6 +297,7 @@ CSS = """
 .c-antwoord-balk div { flex: 1; min-width: 0; border-left: 3px solid var(--c-hoofd); padding-left: 8px; display: flex; flex-direction: column; }
 .c-antwoord-balk span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .7; }
 .c-antwoord-balk + .c-invoer { border-top: 0; }
+.c-ai { display: block; font-size: 11px; opacity: .6; margin-top: 3px; }
 .c-hulp { display: flex; align-items: flex-start; gap: 6px; padding: 8px 10px 0; background: var(--c-achter); }
 .c-hulp-lijst { flex: 1; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
 .c-hulp-keuze { flex: 0 0 auto; max-width: 80%; font: inherit; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -511,21 +513,62 @@ def _hulp(a: dict | None) -> None:
     if not isinstance(a, dict) or not a.get("n") or a.get("n") == st.session_state.get("_chat_hulp_n"):
         return
     st.session_state._chat_hulp_n = a["n"]
-    berichten = [{"van": str(b.get("van") or "")[:40], "tekst": str(b.get("tekst") or "")[:500]}
-                 for b in (a.get("berichten") or [])[-12:] if isinstance(b, dict)]
+    berichten = [{"van": str(b.get("van") or "")[:40], "tekst": str(b.get("tekst") or "")[:600]}
+                 for b in (a.get("berichten") or [])[-14:] if isinstance(b, dict)]
     uit = {"n": a["n"], "lijst": [], "fout": ""}
     api = toegang.sleutel()
-    if not api:
+    auto = bool(a.get("auto")) and _klantstand()["stand"] == "zelf"
+    vandaag = date.today().isoformat()
+    teller = st.session_state.setdefault("_chat_auto", {})
+    if auto and teller.get(vandaag, 0) >= AUTO_PER_DAG:
+        uit["fout"] = "limiet"
+    elif not api:
         uit["fout"] = "uit"
     elif not berichten:
         uit["fout"] = "leeg"
     else:
         try:
-            uit["lijst"] = slim.chat_antwoorden(toegang.claude(api), berichten, str(a.get("wie") or ""))
+            # Een klantgesprek: antwoorden met wat klanten over je zaak mogen weten (prijzen, aanbod, diensten).
+            kennis = beroep.klantkennis() if a.get("klant") else {}
+            if kennis:
+                ik = (st.session_state.get("ik") or {}).get("weergavenaam") or st.session_state.get("naam", "")
+                k = slim.klant_antwoord(toegang.claude(api), berichten, kennis, ik, str(a.get("wie") or ""))
+                uit["lijst"] = k["antwoorden"]
+                if not k["zeker"] and k["voor_jou"]:
+                    st.toast(f"{str(a.get('wie') or 'Een klant')[:40]}: {k['voor_jou']}", icon=":material/help:")
+            elif not auto:
+                uit["lijst"] = slim.chat_antwoorden(toegang.claude(api), berichten, str(a.get("wie") or ""))
         except (slim.Mislukt, anthropic.APIError):
             uit["fout"] = "mislukt"
+    if auto and uit["lijst"]:
+        teller[vandaag] = teller.get(vandaag, 0) + 1
     st.session_state.chat_hulp = uit
     st.rerun()
+
+
+AUTO_PER_DAG = 60
+
+
+def _klantstand() -> dict:
+    """Hoe de assistent helpt bij klantvragen (Instellingen › Werk): uit, voorstel of zelf, en welke gesprekken."""
+    k = opslag.instellingen().get("klantenchat") or {}
+    return {"stand": k.get("stand", "uit") if k.get("stand") in ("uit", "voorstel", "zelf") else "uit",
+            "verzoeken": bool(k.get("verzoeken", True)), "gesprekken": [int(x) for x in k.get("gesprekken", [])][-500:]}
+
+
+def _klantgesprek(a: dict | None) -> None:
+    """Een gesprek wel of niet als klantgesprek (schakelaar bij de info van het gesprek)."""
+    if not isinstance(a, dict) or not a.get("n") or a.get("n") == st.session_state.get("_chat_klant_n"):
+        return
+    st.session_state._chat_klant_n = a["n"]
+    try:
+        g = int(a.get("g"))
+    except (TypeError, ValueError):
+        return
+    k = dict(opslag.instellingen().get("klantenchat") or {})
+    lijst = [x for x in k.get("gesprekken", []) if x != g] + ([g] if a.get("aan") else [])
+    k["gesprekken"] = lijst[-500:]
+    opslag.instellingen_bijwerken(klantenchat=k)
 
 
 def _open() -> int | None:
@@ -553,8 +596,8 @@ def pagina() -> None:
         "key": os.environ.get("SUPABASE_KEY", opslag.SUPABASE_PUBLISHABLE_KEY),
         "naam": st.session_state.get("naam", ""), "token": st.session_state.get("wachtwoord", ""),
         "label": apparaat_naam(), "vrij": vrij, "open": _open(), "taal": taal.chat_teksten(), "winkel": _mijn_winkel(),
-        "betaal": _betaalgegevens(), "hulp": st.session_state.get("chat_hulp"),
-    }, on_agenda_change=lambda: None, on_hulp_change=lambda: None, on_betaal_change=lambda: None, on_boeking_change=lambda: None, on_boekingweg_change=lambda: None,
+        "betaal": _betaalgegevens(), "hulp": st.session_state.get("chat_hulp"), "klant": _klantstand(),
+    }, on_agenda_change=lambda: None, on_hulp_change=lambda: None, on_klantgesprek_change=lambda: None, on_betaal_change=lambda: None, on_boeking_change=lambda: None, on_boekingweg_change=lambda: None,
         on_winkel_change=lambda: None, on_open_change=lambda: None)
     _naar_agenda(getattr(resultaat, "agenda", None) if resultaat is not None else None)
     _boeking(getattr(resultaat, "boeking", None) if resultaat is not None else None)
@@ -562,6 +605,7 @@ def pagina() -> None:
     _naar_winkel(getattr(resultaat, "winkel", None) if resultaat is not None else None)
     _openen_vanuit_profiel(getattr(resultaat, "open", None) if resultaat is not None else None)
     _betaal_bewaren(getattr(resultaat, "betaal", None) if resultaat is not None else None)
+    _klantgesprek(getattr(resultaat, "klantgesprek", None) if resultaat is not None else None)
     _hulp(getattr(resultaat, "hulp", None) if resultaat is not None else None)
     # Zo blijft het aantal in de kopbalk kloppen nadat je berichten hebt gelezen.
     _ongelezen.pop(f"{opslag._naam.get()}|{opslag._wachtwoord.get()}", None)

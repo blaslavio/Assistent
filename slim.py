@@ -124,6 +124,30 @@ def chat_antwoorden(client, berichten: list[dict], gesprek: str = "") -> list[st
     return [str(a).strip()[:300] for a in uit.get("antwoorden", []) if str(a).strip()][:3]
 
 
+def klant_antwoord(client, berichten: list[dict], kennis: dict, ik: str, klant: str = "") -> dict:
+    """Een antwoord op een klant of koper in de chat, namens de verkoper zelf. Alleen feiten uit 'kennis'.
+
+    Geeft {"antwoorden": [beste, alternatief, alternatief], "zeker": bool, "voor_jou": tekst}. Niet zeker
+    (de vraag gaat over iets wat niet in de kennis staat): het antwoord zegt dat ik het even nakijk, en 'voor_jou'
+    zegt wat de klant wil weten."""
+    schema = _object({"antwoorden": _lijst(TEKST), "zeker": {"type": "boolean"}, "voor_jou": TEKST})
+    systeem = (f"Je schrijft chatberichten namens {ik or 'de verkoper'}, in de ik-vorm, aan een klant of koper. "
+               "Schrijf zoals een vriendelijke, vakkundige ondernemer zelf typt in een chat: kort (meestal één tot drie "
+               "zinnen), warm en concreet, in de taal en de toon van de klant (je of u zoals de klant het doet). "
+               "Geen opsommingen, geen kopjes, geen 'Als AI' of 'Hoe kan ik u verder helpen?', geen overdreven "
+               "vriendelijkheid of uitroeptekens achter elkaar. Help de klant verder: noem de prijs, of het er is, hoe "
+               "bezorgen of ophalen werkt, en hoe ze kunnen bestellen of boeken. Gebruik ALLEEN feiten uit de kennis "
+               "hieronder; verzin nooit prijzen, voorraad, kortingen, levertijden of beloftes. Staat het antwoord er "
+               "niet in, zeg dan natuurlijk dat je het even nakijkt en er zo op terugkomt, zet 'zeker' op false en "
+               "schrijf in 'voor_jou' in één zin wat de klant wil weten. Ga nooit akkoord met een andere prijs, "
+               "betaling buiten de app via een link van de klant, of het delen van codes en wachtwoorden. Geef drie "
+               "verschillende antwoorden, het beste eerst.\n\nKennis (JSON):\n" + json.dumps(kennis, ensure_ascii=False)[:12000])
+    regels = "\n".join(f"{str(b.get('van') or '?')[:40]}: {str(b.get('tekst') or '')[:600]}" for b in berichten[-14:])
+    uit = _vraag(client, f"Chat met {klant[:60] or 'een klant'} (ik = {ik or 'ik'}):\n{regels}", schema, systeem)
+    return {"antwoorden": [str(a).strip()[:500] for a in uit.get("antwoorden", []) if str(a).strip()][:3],
+            "zeker": bool(uit.get("zeker", True)), "voor_jou": str(uit.get("voor_jou") or "")[:200]}
+
+
 def oefentoets(client, onderwerp: str, stappen: list[dict], aantal: int = 8, niveau: str = "") -> list[dict]:
     """Meerkeuzevragen over een leerdoel. Elke vraag hoort bij een stap, zodat de score per stap telt."""
     schema = _object({"vragen": _lijst(_object({

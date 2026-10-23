@@ -189,3 +189,34 @@ def overzicht() -> dict:
                                         "levering": x["levering"],
                                         "track_en_trace": bool(x.get("track_code"))} for x in te_doen[:10]]
     return uit
+
+
+def klantkennis() -> dict:
+    """Wat een klant mag weten, voor de assistent die klantvragen in de chat beantwoordt: je aanbod met prijzen,
+    je diensten, je webshop en je eigen notities. Nooit omzet, klantgegevens of andere privézaken."""
+    uit: dict = {}
+    b = huidig()
+    if b["soort"]:
+        uit["beroep"] = b["naam"]
+    aanbod = [a for a in (_veilig(samen.mijn_aanbod, standaard=[]) or []) if a.get("actief", True)]
+    if aanbod:
+        uit["aanbod"] = [{k: a[k] for k in ("soort", "titel", "omschrijving", "prijs", "prijs_per", "voorraad", "levering",
+                                             "betaalwijzen", "plaats") if a.get(k) not in (None, "", [])}
+                         for a in aanbod[:40]]
+        for a in uit["aanbod"]:
+            if "omschrijving" in a:
+                a["omschrijving"] = str(a["omschrijving"])[:400]
+    winkel = (_veilig(samen.mijn_winkel, standaard={}) or {}).get("winkel") or {}
+    if winkel.get("open"):
+        uit["webshop"] = {k: winkel[k] for k in ("naam", "omschrijving", "verzendkosten", "gratis_vanaf", "retour")
+                          if winkel.get(k) not in (None, "")}
+    if opslag.instellingen().get("boekpagina"):
+        pagina = (_veilig(boekpagina.mijn, standaard={}) or {}).get("pagina") or {}
+        if pagina.get("aan"):
+            uit["boeken"] = {"diensten": [{k: s[k] for k in ("naam", "minuten", "prijs") if s.get(k) is not None}
+                                          for s in pagina.get("soorten", [])],
+                             "locatie": pagina.get("locatie", ""),
+                             "hoe": "Afspraken boeken kan in deze chat via Mijn diensten of via de boekingspagina."}
+    if notities := str((opslag.instellingen().get("klantenchat") or {}).get("notities", "")).strip():
+        uit["mijn_notities"] = notities[:2000]
+    return uit

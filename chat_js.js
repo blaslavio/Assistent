@@ -714,7 +714,7 @@ function berichtHtml(st, g, b, vorige) {
     const citaat = m.antwoord ? `<button class="c-citaat" data-a="naar" data-b="${Number(m.antwoord.id) || 0}">
       <b>${esc(m.antwoord.naam)}</b><span>${esc(m.antwoord.tekst)}</span></button>` : "";
     if (m.t === "tekst") {
-      inhoud = citaat + tekstHtml(g, m.tekst);
+      inhoud = citaat + tekstHtml(g, m.tekst) + (m.ai ? `<small class="c-ai">✨ ${esc(T("Beantwoord met hulp van de assistent"))}</small>` : "");
       const gevonden = datumHerkennen(m.tekst);
       if (gevonden) inhoud += `<button class="c-chip" data-a="tekst-agenda" data-b="${b.id}">${ICOON.agenda}<span>${esc(T("In agenda"))} · ${esc(wanneer(gevonden.start))}</span></button>`;
     }
@@ -816,6 +816,7 @@ function berichtHtml(st, g, b, vorige) {
 function toonGesprek(st) {
   const g = st.gesprek;
   if (!g) return;
+  klantVoorstel(st);
   const rijen = [];
   let vorigeDag = "", vorige = null;
   for (const b of st.berichten) {
@@ -1067,6 +1068,7 @@ async function toonInfo(st) {
       <label>${T("Verdwijnende berichten")}<select class="c-veld" id="c-verdwijn">${Object.entries(VERDWIJNEN).map(([k, v]) =>
         `<option value="${k}" ${Number(k) === (g.verdwijnen || 0) ? "selected" : ""}>${T(v)}</option>`).join("")}</select></label>
       <label class="c-vink"><span>${T("Geen meldingen voor dit gesprek")}</span><input type="checkbox" id="c-stil" ${g.stil ? "checked" : ""}></label>
+      ${ander && st.klant.stand !== "uit" ? `<label class="c-vink"><span>${T("Klantgesprek: de assistent helpt met antwoorden")}</span><input type="checkbox" id="c-klant" ${isKlant(st, g) ? "checked" : ""}></label>` : ""}
       ${g.soort === "groep" ? `<div class="c-sectie">${T("Deelnemers")}</div>
         ${g.leden.map((l) => `<div class="c-lid">${avatar(l.naam, false, l.id)}<span>${esc(l.naam)}${l.id === st.ik ? ` (${T("jij")})` : ""}</span>
           <small>${l.beheerder ? T("beheerder") : ""}${l.status === "verzoek" ? T("uitgenodigd") : ""}</small></div>`).join("")}
@@ -1076,6 +1078,71 @@ async function toonInfo(st) {
     </div>`;
   st.wortel.querySelector("#c-verdwijn").addEventListener("change", (e) => instellen(st, { p_verdwijnen: Number(e.target.value) }));
   st.wortel.querySelector("#c-stil").addEventListener("change", (e) => instellen(st, { p_stil: e.target.checked }));
+  const klantVak = st.wortel.querySelector("#c-klant");
+  if (klantVak) klantVak.addEventListener("change", (e) => klantZetten(st, g.id, e.target.checked));
+}
+
+// --- Klantvragen: de assistent helpt een ondernemer klanten te antwoorden --------------------------------------
+// Stand "voorstel": bij een nieuwe vraag staan er meteen voorstellen klaar; jij kiest en verstuurt.
+// Stand "zelf": zolang de chat open staat, beantwoordt de assistent klantgesprekken zelf, na een korte pauze zoals
+// een mens. Zo'n bericht krijgt een klein label, zodat de klant weet dat de assistent hielp (dat hoort zo).
+function isKlant(st, g) {
+  return Boolean(g && g.soort === "twee" && !g.community && (st.klant.gesprekken || []).includes(g.id));
+}
+function klantZetten(st, id, aan) {
+  const lijst = new Set(st.klant.gesprekken || []);
+  aan ? lijst.add(id) : lijst.delete(id);
+  st.klant.gesprekken = [...lijst];
+  st.zet("klantgesprek", { g: id, aan, n: Date.now() });
+}
+function tekstBerichten(st, g, lijst) {
+  return lijst.filter((b) => b.bericht && b.bericht.t === "tekst").slice(-14).map((b) => ({
+    van: b.afzender === st.ik ? "ik" : ((g.leden.find((l) => l.id === b.afzender) || {}).naam || "?"), tekst: b.bericht.tekst,
+    ai: Boolean(b.bericht.ai), mijn: b.afzender === st.ik }));
+}
+function hulpVragen(st, g, berichten, extra = {}) {
+  const n = Date.now();
+  st.zet("hulp", { n, berichten: berichten.map(({ van, tekst }) => ({ van, tekst })), wie: gesprekNaam(st, g), klant: isKlant(st, g), ...extra });
+  return n;
+}
+async function versturenNaar(st, g, bericht) {
+  const sleutels = (await rpc(st, "chat_sleutels", { p_gesprek: g.id })).apparaten;
+  const pakket = await versleutel(st, g.id, sleutels, bericht);
+  await rpc(st, "chat_versturen", { p_gesprek: g.id, p_apparaat: st.apparaat, p_inhoud: pakket.inhoud, p_iv: pakket.iv,
+                                    p_epk: pakket.epk, p_sleutels: pakket.sleutels, p_handtekening: pakket.handtekening });
+  if (st.gesprek && st.gesprek.id === g.id && st.scherm === "gesprek") { st.naarOnder = true; await berichtenLaden(st); toon(st); }
+}
+// Zelf beantwoorden: één gesprek tegelijk, alleen als de klant het laatst schreef.
+async function klantAutomatisch(st) {
+  if (st.klant.stand !== "zelf" || st.autoBezig) return;
+  st.autoGedaan = st.autoGedaan || new Map();
+  for (const g of st.gesprekken) {
+    const verzoek = st.klant.verzoeken && g.status === "verzoek" && g.soort === "twee" && !g.community;
+    if (!(isKlant(st, g) && g.status === "lid") && !verzoek) continue;
+    if (!g.ongelezen || (st.autoGedaan.get(g.id) || 0) >= g.laatste_id) continue;
+    st.autoGedaan.set(g.id, g.laatste_id);
+    if (verzoek) {
+      // Een nieuwe klant: het verzoek aannemen, zoals een winkel de deur opendoet.
+      const r = await rpc(st, "chat_antwoorden", { p_gesprek: g.id, p_antwoord: "ja" }).catch(() => null);
+      if (!r || r.fout) continue;
+      g.status = "lid"; klantZetten(st, g.id, true);
+    }
+    const r = await rpc(st, "chat_berichten", { p_gesprek: g.id, p_na: Math.max(0, g.laatste_id - 3000), p_apparaat: st.apparaat });
+    const lijst = [];
+    for (const b of r.berichten || []) {
+      if (!b.inhoud || b.weg) continue;
+      try { lijst.push({ ...b, bericht: (await ontsleutel(st, g.id, b)).bericht }); } catch (e) { /* niet te lezen */ }
+    }
+    const berichten = tekstBerichten(st, r.gesprek || g, lijst);
+    const laatste = berichten[berichten.length - 1];
+    if (!laatste || laatste.mijn) continue;
+    // Na een paar antwoorden van de assistent op rij is het tijd dat de ondernemer zelf even kijkt.
+    let opRij = 0;
+    for (let i = berichten.length - 1; i >= 0; i--) { if (berichten[i].mijn) { if (!berichten[i].ai) break; opRij++; } }
+    if (opRij >= 5) continue;
+    st.autoBezig = { n: hulpVragen(st, r.gesprek || g, berichten, { klant: true, auto: true, g: g.id }), g: r.gesprek || g };
+    return;
+  }
 }
 
 // Privacy en beveiliging: wat anderen van je zien, je apparaten en (onder Geavanceerd) hoe de versleuteling werkt.
@@ -1141,6 +1208,7 @@ async function gesprekkenLaden(st) {
   const hoogste = Math.max(0, ...st.gesprekken.map((g) => g.laatste_id || 0));
   if (hoogste > (st.ontvangenGemeld || 0)) { st.ontvangenGemeld = hoogste; rpc(st, "chat_ontvangen").catch(() => { st.ontvangenGemeld = 0; }); }
   voorbeeldenBijwerken(st).catch(() => {});
+  klantAutomatisch(st).catch(() => { st.autoBezig = null; });
   fotosBijwerken(st, st.gesprekken.filter((g) => g.soort !== "groep").flatMap((g) => (g.leden || []).map((l) => l.id)));
 }
 
@@ -1177,6 +1245,16 @@ async function voorbeeldenBijwerken(st) {
     veranderd = true;
   }
   if (veranderd && st.scherm === "lijst") toon(st);
+}
+
+function klantVoorstel(st) {
+  const g = st.gesprek;
+  if (st.klant.stand === "uit" || !isKlant(st, g) || st.hulp) return;
+  const berichten = tekstBerichten(st, g, st.berichten);
+  const laatste = st.berichten.filter((b) => b.bericht && b.bericht.t === "tekst").pop();
+  if (!laatste || laatste.afzender === st.ik || st.hulpVoor === laatste.id) return;
+  st.hulpVoor = laatste.id;
+  st.hulp = { g: g.id, n: hulpVragen(st, g, berichten), bezig: true, lijst: [] };
 }
 
 async function berichtenLaden(st) {
@@ -1703,11 +1781,8 @@ async function actie(st, a, el) {
     if (a === "hulp" && st.gesprek) {
       const g = st.gesprek;
       // Alleen tekstberichten, en alleen na jouw tik: zo weet je precies wat de assistent meeleest.
-      const berichten = st.berichten.filter((b) => b.bericht && b.bericht.t === "tekst").slice(-12).map((b) => ({
-        van: b.afzender === st.ik ? "ik" : ((g.leden.find((l) => l.id === b.afzender) || {}).naam || "?"), tekst: b.bericht.tekst }));
-      st.hulp = { g: g.id, n: Date.now(), bezig: true, lijst: [] };
+      st.hulp = { g: g.id, n: hulpVragen(st, g, tekstBerichten(st, g, st.berichten)), bezig: true, lijst: [] };
       st.paneel = null;
-      st.zet("hulp", { n: st.hulp.n, berichten, wie: gesprekNaam(st, g) });
       return toon(st);
     }
     if (a === "hulp-kies" && st.hulp) {
@@ -2320,7 +2395,10 @@ function bijhouden(st) {
     if (document.visibilityState === "visible" && st.klaar && !st.bezig) {
       st.bezig = true;
       try {
-        if (st.scherm === "gesprek" && st.gesprek) { if (await berichtenLaden(st)) toon(st); }
+        if (st.scherm === "gesprek" && st.gesprek) {
+          if (await berichtenLaden(st)) toon(st);
+          if (st.klant.stand === "zelf" && Date.now() - (st.autoLaatst || 0) > 20000) { st.autoLaatst = Date.now(); await gesprekkenLaden(st); }
+        }
         else if (st.scherm === "lijst" && !st.blad) { await gesprekkenLaden(st); toon(st); }
         else if (st.scherm === "community") { await gesprekkenLaden(st); toon(st); }
       } catch (e) { /* volgende keer opnieuw */ }
@@ -2442,6 +2520,16 @@ export default function (component) {
   st.vrij = data.vrij || [];
   st.winkel = data.winkel || null;
   if (data.betaal && !st.betaalStandaard) st.betaalStandaard = data.betaal;
+  st.klant = data.klant || { stand: "uit", gesprekken: [] };
+  if (data.hulp && st.autoBezig && data.hulp.n === st.autoBezig.n) {
+    const { g } = st.autoBezig;
+    const tekst = (data.hulp.lijst || [])[0];
+    if (tekst) {
+      // Even wachten, zoals iemand die het bericht leest en typt.
+      setTimeout(() => versturenNaar(st, g, { t: "tekst", tekst, ai: true }).catch(() => {}).finally(() => { st.autoBezig = null; }),
+                 Math.min(25000, 6000 + tekst.length * 90));
+    } else st.autoBezig = null;
+  }
   if (data.hulp && st.hulp && st.hulp.bezig && data.hulp.n === st.hulp.n) {
     st.hulp = { ...st.hulp, bezig: false, lijst: data.hulp.lijst || [], fout: data.hulp.fout || "" };
     if (st.klaar) toon(st);
