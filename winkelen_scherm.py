@@ -12,8 +12,8 @@ import samen_scherm
 import winkelen
 from samen_scherm import _fout, ik
 
-DELEN = {"buurt": "In de buurt", "producten": "Producten", "mandje": "Mandje", "bestellingen": "Bestellingen",
-         "inkopen": "Inkopen", "winkel": "Mijn winkel"}
+DELEN = {"buurt": "Dichtbij", "producten": "Zoeken", "mandje": "Mandje", "bestellingen": "Besteld",
+         "winkel": "Verkoop"}
 FILTERS = {"": "Alles", "restaurant": "Eten bestellen", "winkel": "Winkels"}
 
 
@@ -40,20 +40,24 @@ def pagina() -> None:
     deel = st.segmented_control("Winkelen", delen, key="winkelen_deel", label_visibility="collapsed",
                                 format_func=lambda d: f"{DELEN[d]} ({n})" if d == "mandje" and n else DELEN[d],
                                 default="buurt") or "buurt"
-    if deel in ("buurt", "producten", "inkopen"):
+    if deel in ("buurt", "producten"):
         plek_kiezen()
     if deel == "buurt":
         in_de_buurt()
     elif deel == "producten":
         producten(False)
-    elif deel == "inkopen":
-        producten(True)
     elif deel == "mandje":
         mandje()
     elif deel == "bestellingen":
         samen_scherm.bestellingen()
     else:
-        samen_scherm.mijn_webshop()
+        samen_scherm.mijn_webshop(inkopen=inkopen)
+
+
+def inkopen() -> None:
+    """Inkopen bij groothandels: een eigen plek binnen Mijn winkel (en bij Dienstverlener)."""
+    plek_kiezen()
+    producten(True)
 
 
 def plek_kiezen() -> None:
@@ -94,21 +98,20 @@ def in_de_buurt() -> None:
 
 
 def winkel_regel(w: dict) -> None:
-    with st.container(border=True):
-        k1, k2 = st.columns([3, 1], vertical_alignment="center")
+    """Eén rustige regel per winkel: naam en het belangrijkste, met een pijltje om binnen te gaan."""
+    with st.container(border=True, horizontal=True, vertical_alignment="center"):
         soort = samen.WINKELSOORTEN.get(w.get("soort"), "Winkel")
-        k1.markdown(f'<span style="color:{w["kleur"]}">●</span> **{w["naam"]}**', unsafe_allow_html=True)
         delen = [soort]
         if w.get("afstand_km") is not None:
             delen.append(samen_scherm._km(float(w["afstand_km"])))
         if w.get("bezorgt_hier"):
-            delen.append(winkelen.bezorg_tekst(w))
-        elif w.get("bezorgen") and w.get("afstand_km") is not None:
-            delen.append("Bezorgt niet tot hier")
+            delen.append(f"bezorgt in {w['bezorg_minuten']} min")
         if v := (w.get("vertrouwen") or {}).get("beoordelingen"):
             delen.append(f"★ {str(w['vertrouwen']['sterren']).replace('.', ',')} ({v})")
-        k1.caption(" · ".join(delen))
-        if k2.button("Bekijken", key=f"wl_{w['adres']}", width="stretch"):
+        st.markdown(f'<span style="color:{w["kleur"]}">●</span> **{w["naam"]}**  \n'
+                    f'<span style="color:#6b7280;font-size:14px">{" · ".join(delen)}</span>',
+                    unsafe_allow_html=True, width="stretch")
+        if st.button("", key=f"wl_{w['adres']}", icon=":material/chevron_right:", type="tertiary", help="Bekijken"):
             st.session_state.winkelen_winkel = w["adres"]
             st.rerun()
 

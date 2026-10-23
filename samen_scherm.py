@@ -11,6 +11,7 @@ import streamlit as st
 import opslag
 import plannen_scherm
 import ruimte
+import kort
 import samen
 import teksten
 import winkelen
@@ -794,7 +795,7 @@ def winkel_link(adres: str) -> str:
     return f"{basis}/?winkel={adres}"
 
 
-def mijn_webshop() -> None:
+def mijn_webshop(inkopen=None) -> None:
     """Pagina 🏬 Mijn webshop: winkel instellen, producten en voorraad, en delen."""
     m = samen.mijn_winkel()
     if m["niveau"] not in ("verkoper", "ondernemer"):
@@ -803,8 +804,13 @@ def mijn_webshop() -> None:
         return
     w = m["winkel"]
     if w:
-        deel = st.segmented_control("Onderdeel", ["Winkel", "Reserveren", "Marketing", "Reviews"], default="Winkel",
+        delen = ["Winkel", "Inkopen", "Reserveren", "Marketing", "Reviews"] if inkopen else \
+            ["Winkel", "Reserveren", "Marketing", "Reviews"]
+        deel = st.segmented_control("Onderdeel", delen, default="Winkel",
                                     key="webshop_deel", label_visibility="collapsed") or "Winkel"
+        if deel == "Inkopen":
+            inkopen()
+            return
         if deel == "Reserveren":
             plannen_scherm.zaak_beheer()
             return
@@ -821,14 +827,10 @@ def mijn_webshop() -> None:
         st.warning("Om je winkel te openen, meld je je eerst aan om betalingen via de app te ontvangen "
                    "(Verkopen › 💳).")
     if w and w["open"]:
-        link = winkel_link(w["adres"])
-        st.success(f"Je winkel is open: **{link}**")
-        k1, k2, k3 = st.columns(3)
-        if k1.button("Bekijken", width="stretch"):
+        st.success("Je winkel is open.")
+        kort.deel_blok("winkel", w["adres"], w["naam"], "winkel")
+        if st.button("Bekijken", icon=":material/storefront:"):
             naar_winkel(w["adres"])
-        k2.link_button("WhatsApp", f"https://wa.me/?text={quote(w['naam'] + ': ' + link)}", width="stretch")
-        with k3.popover("▦ QR-code", width="stretch"):
-            st.image(_qr(link), caption="Laat klanten deze code scannen")
         v = m["verkopen"]
         c1, c2 = st.columns(2)
         c1.metric("Verkocht via de webshop", f"{v['aantal']}×", samen.euro(v["omzet"]), delta_color="off")

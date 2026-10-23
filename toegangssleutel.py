@@ -34,6 +34,15 @@ export default function (component) {
                                                                       .replace(/=+$/, "");
   const knop = parentElement.querySelector("button");
   knop.querySelector("span").textContent = data.label;
+  // Face ID als knop alleen in de app (vanaf het beginscherm); in de browser beveilig je met tweestapsverificatie.
+  const losseApp = window.navigator.standalone === true || window.matchMedia?.("(display-mode: standalone)").matches;
+  if (data.alleen_app && !losseApp) {
+    knop.style.display = "none";
+    const vak = parentElement.closest?.("[data-testid=stElementContainer]") || parentElement.parentElement;
+    if (vak) vak.style.display = "none";
+  } else {
+    knop.style.display = "";
+  }
   const st = parentElement.__ts || (parentElement.__ts = {});
   st.data = data;
   const melden = (r) => setTriggerValue("resultaat", { ...r, t: Date.now() });
@@ -95,9 +104,10 @@ def _functie(stap: str, **velden) -> dict:
         return {"fout": "Even niet bereikbaar. Probeer het zo opnieuw."}
 
 
-def _knop(key: str, actie: str, opties: dict, label: str, auto: bool = False) -> dict | None:
+def _knop(key: str, actie: str, opties: dict, label: str, auto: bool = False, alleen_app: bool = False) -> dict | None:
     """Toont de knop; geeft een nieuw resultaat van de browser één keer terug."""
-    r = _onderdeel(key=key, data={"actie": actie, "opties": opties, "label": taal.t(label), "auto": auto},
+    r = _onderdeel(key=key, data={"actie": actie, "opties": opties, "label": taal.t(label), "auto": auto,
+                                  "alleen_app": alleen_app},
                    on_resultaat_change=lambda: None)
     resultaat = getattr(r, "resultaat", None) if r is not None else None
     if not resultaat or resultaat.get("t") == st.session_state.get(f"_{key}_t"):
@@ -128,7 +138,7 @@ def inlogknop(apparaat: str, key: str = "ts_inloggen") -> dict | None:
     """De knop 'Inloggen met Face ID'. Geeft {"token", "naam"} na een gelukte inlog, {"fout"} bij een fout, anders None."""
     if not (opties := inlog_opties()):
         return None
-    resultaat = _knop(key, "inloggen", opties, "Inloggen met Face ID", auto=True)
+    resultaat = _knop(key, "inloggen", opties, "Inloggen met Face ID", auto=True, alleen_app=True)
     if not resultaat:
         return None
     if "antwoord" not in resultaat:

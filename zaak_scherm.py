@@ -10,6 +10,7 @@ import boekpagina
 import opslag
 import plannen_scherm
 import samen
+import winkelen_scherm
 import zaak
 
 _wanneer = plannen_scherm._wanneer
@@ -43,8 +44,9 @@ def pagina() -> None:
         with st.popover("", icon=":material/settings:", help="Instellen"):
             zaak_instellen(z)
     delen = ["Vandaag"] + (["Rooster"] if z["groepslessen"] else []) + (["Afspraken"] if z["afspraken"] else []) \
-        + ["Klanten", "Boekhouding"]
-    deel = st.pills("Deel", delen, default=delen[0], key="zaak_deel", label_visibility="collapsed") or delen[0]
+        + ["Klanten", "Boekhouding"] + (["Inkopen"] if samen.beschikbaar() and winkelen_scherm.verkoper() else [])
+    deel = st.segmented_control("Deel", delen, default=delen[0], key="zaak_deel",
+                                label_visibility="collapsed") or delen[0]
     if deel == "Vandaag":
         vandaag_deel(z)
     elif deel == "Rooster":
@@ -53,6 +55,8 @@ def pagina() -> None:
         afspraken_deel()
     elif deel == "Klanten":
         klanten_deel()
+    elif deel == "Inkopen":
+        winkelen_scherm.inkopen()
     else:
         boekhouding_deel()
 

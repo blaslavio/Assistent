@@ -369,6 +369,24 @@ def _naar_winkel(a: dict | None) -> None:
     st.rerun()
 
 
+def _openen_vanuit_profiel(a: dict | None) -> None:
+    """Vanuit iemands profiel in de chat: diens gedeelde agenda of een VR-ruimte openen."""
+    if not isinstance(a, dict) or a.get("n") == st.session_state.get("_chat_profiel_open"):
+        return
+    st.session_state._chat_profiel_open = a.get("n")
+    if a.get("soort") == "agenda":
+        st.session_state.agenda_deel = "Samen"
+        st.session_state.samen_deel = "Gedeeld met mij"
+        st.session_state.gedeeld_wie = int(a.get("id") or 0)
+        st.session_state.ga_naar = "agenda"
+    elif a.get("soort") == "ruimte":
+        st.session_state.open_ruimte = int(a.get("id") or 0)
+        st.session_state.ga_naar = "ruimtes"
+    else:
+        return
+    st.rerun()
+
+
 def _boeking_weg(a: dict | None) -> None:
     """Afgewezen of geannuleerd: die keren gaan uit je agenda."""
     if not isinstance(a, dict) or a.get("n") == st.session_state.get("_chat_boeking_weg"):
@@ -408,10 +426,11 @@ def pagina() -> None:
         "naam": st.session_state.get("naam", ""), "token": st.session_state.get("wachtwoord", ""),
         "label": apparaat_naam(), "vrij": vrij, "open": _open(), "taal": taal.chat_teksten(), "winkel": _mijn_winkel(),
     }, on_agenda_change=lambda: None, on_boeking_change=lambda: None, on_boekingweg_change=lambda: None,
-        on_winkel_change=lambda: None)
+        on_winkel_change=lambda: None, on_open_change=lambda: None)
     _naar_agenda(getattr(resultaat, "agenda", None) if resultaat is not None else None)
     _boeking(getattr(resultaat, "boeking", None) if resultaat is not None else None)
     _boeking_weg(getattr(resultaat, "boekingweg", None) if resultaat is not None else None)
     _naar_winkel(getattr(resultaat, "winkel", None) if resultaat is not None else None)
+    _openen_vanuit_profiel(getattr(resultaat, "open", None) if resultaat is not None else None)
     # Zo blijft het aantal in de kopbalk kloppen nadat je berichten hebt gelezen.
     _ongelezen.pop(f"{opslag._naam.get()}|{opslag._wachtwoord.get()}", None)

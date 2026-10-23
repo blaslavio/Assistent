@@ -926,12 +926,24 @@ async function toonInfo(st) {
     code = await veiligheidscode(st.sleutelLijst.filter((a) => a.gebruiker === st.ik),
                                  st.sleutelLijst.filter((a) => a.gebruiker === ander.id));
   }
+  // Wat de ander deelt: winkel, boekingspagina, ruimtes, en de agenda als die met jou gedeeld is.
+  let p = null;
+  if (ander) p = st.profielen?.get(ander.id) || await rpc(st, "profiel_bekijken", { p_wie: ander.id }).catch(() => null);
+  if (ander && p) (st.profielen || (st.profielen = new Map())).set(ander.id, p);
+  st.profiel = p;
+  const deelt = p && (p.winkel || p.boek || p.agenda || (p.ruimtes || []).length);
   st.wortel.innerHTML = `
     ${kop(terugKnop("terug"), `<b>${T("Info")}</b>`)}
     <div class="c-inhoud c-vulling">
       <div class="c-profiel">${g.soort === "groep" ? `<span class="c-avatar c-groep c-groot">${ICOON.groep}</span>` : avatar(gesprekNaam(st, g), true, anderId(st, g))}
         <b>${esc(gesprekNaam(st, g))}</b>${ander && ander.gebruikersnaam ? `<small>@${esc(ander.gebruikersnaam)}</small>` : ""}
         ${ander && !ander.contact ? `<button class="c-knop" data-a="als-contact" data-naam="${esc(ander.gebruikersnaam || "")}">${T("Aan contacten toevoegen")}</button>` : ""}</div>
+      ${deelt ? `<div class="c-kaart c-profiel-links">
+        ${p.boek ? `<button class="c-blad-knop" data-a="profiel-boek">${ICOON.agenda || "📅"}<span>${T("Afspraak maken")}<br><small>${esc(p.boek.titel || "")}</small></span></button>` : ""}
+        ${p.winkel ? `<button class="c-blad-knop" data-a="winkel-open" data-adres="${esc(p.winkel.adres)}">🛍️<span>${T("Webshop")}<br><small>${esc(p.winkel.naam)}</small></span></button>` : ""}
+        ${p.agenda ? `<button class="c-blad-knop" data-a="profiel-agenda">🗓️<span>${T("Agenda bekijken")}<br><small>${p.agenda === "details" ? T("met details") : T("alleen bezet of vrij")}</small></span></button>` : ""}
+        ${(p.ruimtes || []).map((r) => `<button class="c-blad-knop" data-a="profiel-ruimte" data-id="${r.id}">🥽<span>${esc(r.titel)}</span></button>`).join("")}
+      </div>` : ""}
       ${ander && code ? `<div class="c-kaart"><b>${ICOON.slot} ${T("Beveiligingscode")}</b>
         <div class="c-code">${esc(code)}</div>
         <small>${T("Vergelijk deze code met die op het scherm van {}, het liefst samen of via een telefoontje. Zijn ze gelijk, dan weet je zeker dat niemand meeleest.", esc(ander.naam))}</small>
@@ -1665,6 +1677,14 @@ async function actie(st, a, el) {
                              omschrijving: (st.winkel.omschrijving || "").slice(0, 140) });
     }
     if (a === "winkel-open") { if (el.dataset.adres) st.zet("winkel", { adres: el.dataset.adres, n: Date.now() }); return; }
+    if (a === "profiel-boek" && st.profiel?.boek) {
+      const pb = st.profiel.boek;
+      st.boek = { adres: pb.adres, soorten: pb.soorten || [], soort: 0, naam: gesprekNaam(st, st.gesprek), herhaal: "", aantal: 4, notitie: "" };
+      st.scherm = "gesprek"; st.paneel = "boeken"; st.naarOnder = true;
+      return boekDagen(st);
+    }
+    if (a === "profiel-agenda" && st.profiel) { st.zet("open", { soort: "agenda", id: st.profiel.id, n: Date.now() }); return; }
+    if (a === "profiel-ruimte") { st.zet("open", { soort: "ruimte", id: Number(el.dataset.id), n: Date.now() }); return; }
     if (a === "agenda" || a === "kanniet") {
       const b = st.berichten.find((x) => x.id === Number(el.dataset.b));
       if (!b || !b.bericht) return;

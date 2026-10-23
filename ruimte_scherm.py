@@ -4,6 +4,7 @@ from urllib.parse import quote, urlsplit
 
 import streamlit as st
 
+import kort
 import ruimte
 import zoekveld
 
@@ -39,7 +40,9 @@ def bekijken(ruimte_id: int, ingelogd: bool = True) -> None:
     if r["omschrijving"]:
         with st.expander("Over deze ruimte"):
             st.write(r["omschrijving"])
-    if r.get("openbaar"):
+    if r.get("openbaar") and r.get("van_mij"):
+        kort.deel_blok("ruimte", str(r["id"]), r["titel"], f"ruimte_{r['id']}")
+    elif r.get("openbaar"):
         adres = link(r["id"])
         k1, k2 = st.columns(2)
         k1.link_button("Delen via WhatsApp", f"https://wa.me/?text={quote(r['titel'] + ': ' + adres)}",

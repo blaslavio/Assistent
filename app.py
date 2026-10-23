@@ -73,12 +73,14 @@ import beroep
 import indeling
 import zoekveld
 import schil
+import extern_inloggen
+import kort
 import toegangssleutel
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -221,10 +223,6 @@ def inlogformulier() -> None:
     if st.session_state.get("herstel"):
         herstel_formulier()
         return
-    if opslag.online() and (r := toegangssleutel.inlogknop(apparaat())):
-        if r.get("token"):
-            ingelogd(r.get("naam", ""), r["token"])
-        st.error(r.get("fout") or "Dit lukte niet. Log in met je wachtwoord.")
     with st.form("inloggen"):
         naam = st.text_input("Gebruikersnaam, mailadres of telefoonnummer", autocomplete="username webauthn",
                              help="Nog nooit een gebruikersnaam gekozen omdat je de app als eerste instelde? Laat dit leeg.")
@@ -238,10 +236,47 @@ def inlogformulier() -> None:
                 st.error(fout)
             elif st.session_state.get("twee_stap_login"):
                 st.rerun()
-    if opslag.online() and toegangssleutel.mail_ingesteld():
-        if st.button("Wachtwoord vergeten?", type="tertiary"):
+    if not opslag.online():
+        return
+    if r := toegangssleutel.inlogknop(apparaat()):
+        if r.get("token"):
+            ingelogd(r.get("naam", ""), r["token"])
+        st.error(r.get("fout") or "Dit lukte niet. Log in met je wachtwoord.")
+    extern_knoppen()
+    with st.container(horizontal=True, horizontal_alignment="distribute"):
+        if toegangssleutel.mail_ingesteld() and st.button("Wachtwoord vergeten?", type="tertiary"):
             st.session_state.herstel = {}
             st.rerun()
+        if st.button("Account maken", type="tertiary", icon=":material/person_add:"):
+            st.session_state.inlogkeuze = "Account maken"
+            st.rerun()
+
+
+def extern_knoppen() -> None:
+    """Inloggen met Google, Apple of Microsoft: alleen de aanbieders die aanstaan."""
+    if not (aan := extern_inloggen.aanbieders()):
+        return
+    adres = str(st.context.url or "").split("?")[0]
+    for a in aan:
+        st.link_button(f"Doorgaan met {extern_inloggen.AANBIEDERS[a]}", extern_inloggen.start(a, adres),
+                       icon=extern_inloggen.ICONEN[a], width="stretch")
+    st.caption("Nieuw? Dan maak je zo een account en ga je akkoord met de voorwaarden (16+).")
+
+
+def extern_terug() -> None:
+    """Terug van Google, Apple of Microsoft met ?extern=...&code=..."""
+    staat = st.query_params.get("extern", "")
+    code = st.query_params.get("code", "")
+    for sleutel in ("extern", "code", "error", "error_code", "error_description"):
+        st.query_params.pop(sleutel, None)
+    if not code:
+        st.info("Inloggen afgebroken.")
+        return
+    antwoord = extern_inloggen.afronden(staat, code, apparaat())
+    if antwoord.get("token"):
+        st.session_state.welkom = bool(antwoord.get("nieuw"))
+        ingelogd(antwoord.get("naam", ""), antwoord["token"])
+    st.error(antwoord.get("fout") or "Inloggen lukte niet.")
 
 
 def herstel_formulier() -> None:
@@ -413,10 +448,13 @@ def wachtwoord_ok() -> bool:
     if apparaat_herkennen():
         return True
     taalkeuze("taal_inlog")
-    keuze = st.segmented_control("Account", ["Inloggen", "Account maken"], default="Inloggen",
-                                 label_visibility="collapsed", key="inlogkeuze")
-    if keuze == "Account maken":
+    if "extern" in st.query_params:
+        extern_terug()
+    if st.session_state.get("inlogkeuze") == "Account maken":
         account_maken_formulier()
+        if st.button("Ik heb al een account", type="tertiary", icon=":material/login:"):
+            st.session_state.inlogkeuze = "Inloggen"
+            st.rerun()
     else:
         inlogformulier()
     return False
@@ -3690,6 +3728,15 @@ def instellingen_koppelingen() -> None:
 
 def instellingen_account() -> None:
     samen_scherm.account_instellingen()
+    if opslag.online() and opslag.is_sessie(st.session_state.get("wachtwoord", "")):
+        with st.expander("Je profiellink", icon=":material/badge:"):
+            st.caption("Eén link naar je winkel, boekingspagina en ruimtes.")
+            links = kort.mijn()
+            if any(l["soort"] == "profiel" for l in links) or st.button("Profiellink maken", type="primary"):
+                kort.deel_blok("profiel", "", (st.session_state.get("ik") or {}).get("weergavenaam") or "Mijn profiel",
+                               "profiel")
+            if links:
+                st.caption("Je korte links: " + ", ".join(f"{l['code']} ({l['kliks']}×)" for l in links[:12]))
     if st.button("Uitloggen"):
         opslag.uitloggen()
         opslag.apparaat_vergeten(st.session_state.get("apparaat_token", ""))
@@ -4090,6 +4137,30 @@ def feedback_vragen_antwoord() -> None:
                 st.rerun()
 
 
+def profielkaart(p: dict) -> None:
+    """Iemands profielkaart via een korte link: winkel, boekingspagina en ruimtes. Ook zonder account."""
+    st.title(p["naam"] or "Profiel")
+    if p.get("gebruikersnaam"):
+        st.caption(f"@{p['gebruikersnaam']}")
+    if w := p.get("winkel"):
+        with st.container(border=True):
+            st.markdown(f"**{w['naam']}**")
+            if w.get("omschrijving"):
+                st.caption(w["omschrijving"][:160])
+            st.link_button("Naar de winkel", f"{kort.basis()}/?winkel={w['adres']}", icon=":material/storefront:", width="stretch")
+    if b := p.get("boek"):
+        with st.container(border=True):
+            st.markdown(f"**{b['titel'] or 'Afspraak maken'}**")
+            if b.get("intro"):
+                st.caption(b["intro"][:160])
+            st.link_button("Kies een moment", f"{kort.basis()}/?boek={b['adres']}", icon=":material/event_available:",
+                           width="stretch")
+    for r in p.get("ruimtes") or []:
+        st.link_button(r["titel"], f"{kort.basis()}/?ruimte={r['id']}", icon=":material/view_in_ar:", width="stretch")
+    if not (p.get("winkel") or p.get("boek") or p.get("ruimtes")):
+        st.caption("Hier staat nog niets.")
+
+
 def terug_van_stripe() -> None:
     """Na betalen of aanmelden bij Stripe komt de gebruiker terug met ?betaald=... of ?stripe=..."""
     for sleutel in ("betaald", "stripe", "boeking_betaald"):
@@ -4267,6 +4338,21 @@ def kopbalk() -> None:
             ".st-key-kopbalk{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}"
             ".st-key-kopbalk > div:not(:last-child) a > span:has([data-testid=stIconMaterial]){display:none}"
             "[data-testid=InputInstructions]{display:none}"  # geen "Press Enter to submit" in invoervelden
+            # Keuzeknoppen (segmented control) altijd op één regel: op een smal scherm kleiner, en anders veegbaar.
+            "[role=radiogroup]:has(> button[data-variant=segmented_control]){flex-wrap:nowrap;overflow-x:auto;"
+            "scrollbar-width:none;max-width:100%}"
+            "[role=radiogroup]:has(> button[data-variant=segmented_control])::-webkit-scrollbar{display:none}"
+            "button[data-variant=segmented_control]{flex:1 0 auto;white-space:nowrap}"
+            "button[data-variant=pills]{border-radius:8px!important}"
+            "button[data-variant=segmented_control] p{white-space:nowrap}"
+            # Lange namen op tegels mogen naar een tweede regel in plaats van afgekapt te worden.
+            "[class*=st-key-tegels_] a *{white-space:normal!important;text-overflow:clip!important;overflow:visible!important}"
+            # Een regel met tekst en knoppen: de tekst krimpt mee, de knoppen blijven heel en binnen beeld.
+            "[class*=st-key-gezin_item_]{flex-wrap:nowrap}"
+            "[class*=st-key-gezin_item_] > div:first-child{min-width:0;flex:1 1 0}"
+            "[class*=st-key-gezin_item_] > div:not(:first-child){flex:0 0 auto}"
+            "@media (max-width:640px){button[data-variant=segmented_control]{padding-left:9px;padding-right:9px;"
+            "min-height:36px}button[data-variant=segmented_control] p{font-size:14px}}"
             # Alles op één lijn, ook het tandwiel (dat heeft geen tekst en was daardoor lager en kleiner).
             ".st-key-kopbalk{align-items:center;padding:3px 0}"
             ".st-key-kopbalk a{height:32px;display:inline-flex;align-items:center;box-sizing:border-box}"
@@ -4353,7 +4439,7 @@ def onderdelen_tegels() -> None:
     for naam, urls in groepen.items():
         st.markdown(f"**{naam}**")
         # Tegels die meeschuiven: twee naast elkaar op een telefoon, meer op een iPad.
-        with st.container(horizontal=True, gap="small"):
+        with st.container(horizontal=True, gap="small", key=f"tegels_{re.sub(r'[^a-z]', '', naam.lower())}"):
             for url in urls:
                 with st.container(border=True, width=168):
                     st.page_link(PAGINA[url], width="stretch")
@@ -4412,6 +4498,18 @@ def main() -> None:
         st.session_state.ochtend_gevraagd = True
         st.session_state.pop("ochtend_weg", None)
         del st.query_params["ochtend"]
+    if (code := st.query_params.get("k")) and opslag.online():
+        # Korte deellink: wordt de gewone link van een winkel, boekingspagina, ruimte of profielkaart.
+        del st.query_params["k"]
+        try:
+            doel = kort.openen(code)
+        except Exception:
+            st.error("Deze link bestaat niet (meer).")
+            return
+        if doel["soort"] == "profiel":
+            profielkaart(doel["profiel"])
+            return
+        st.query_params[doel["soort"]] = doel["sleutel"]
     if (code := st.query_params.get("prik")) and opslag.online():
         # Stemmen op een datum via een gedeelde link; ook zonder account.
         plannen_scherm.prik_pagina(code)

@@ -7,6 +7,7 @@ from urllib.parse import quote, urlsplit
 import streamlit as st
 
 import boekpagina
+import kort
 import ics
 import opslag
 import planning
@@ -756,11 +757,8 @@ def boek_dialoog() -> None:
     _account()
     p = boekpagina.mijn()["pagina"] or dict(boekpagina.STANDAARD, adres=boekpagina.voorstel_adres())
     if p.get("adres") and p.get("aan") and opslag.instellingen().get("boekpagina"):
-        link = boekpagina.link(_basis(), p["adres"])
         st.caption("Anderen kiezen via deze link een vrij moment. Ze zien alleen vrije tijden, nooit je afspraken.")
-        st.code(link, language=None)
-        st.link_button("Delen via WhatsApp", f"https://wa.me/?text={quote(f'Plan een afspraak met mij: {link}')}",
-                       icon=":material/share:", width="stretch")
+        kort.deel_blok("boek", p["adres"], "Plan een afspraak met mij", "boek")
     else:
         st.caption("Maak een link waarmee anderen zelf een afspraak met je inplannen, op momenten dat je vrij bent. "
                    "Ze zien alleen vrije tijden, nooit je afspraken.")
