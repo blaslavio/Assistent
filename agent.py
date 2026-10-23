@@ -9,6 +9,10 @@ from anthropic import beta_tool
 
 import avatar
 import beleggen
+import beroep
+import boekpagina
+import indeling
+import zaak
 import budget
 import documenten
 import opslag
@@ -1441,6 +1445,260 @@ def bericht_sturen(aanbod_id: int, ander_id: int, tekst: str, met_akkoord: bool 
     return "Verstuurd."
 
 
+# --- Instellingen en indeling --------------------------------------------------------------------------------------
+
+STIJL_KEUZES = {"toon": ["Automatisch", "Informeel", "Zakelijk"], "lengte": ["Automatisch", "Kort", "Uitgebreid"],
+                "aanspreken": ["je", "u"], "gevoel": ["Uit", "Rustig", "Normaal", "Sterk"],
+                "humor": ["Geen", "Af en toe", "Veel"], "nadenken": ["Snel", "Normaal", "Grondig"]}
+
+
+@beta_tool
+def instellingen_bekijken() -> str:
+    """De belangrijkste instellingen van de gebruiker: taal, praatstijl, onderdelen in het menu, voorpagina,
+    indeling (bovenaan en favorieten), beroep en thuisadres. Gebruik dit voordat je iets aanpast."""
+    inst = opslag.instellingen()
+    uit = indeling.onderdelen_uit()
+    vp = indeling.voorpagina()
+    ind = indeling.huidig()
+    return _json({
+        "taal": taal.TALEN.get(taal.huidig(), taal.huidig()), "talen": taal.TALEN,
+        "praatstijl": {k: (inst.get("stijl") or {}).get(k, v[0] if k not in ("gevoel", "nadenken") else
+                                                         ("Normaal" if k == "gevoel" else "Grondig"))
+                       for k, v in STIJL_KEUZES.items()},
+        "onderdelen_aan": [o for o in indeling.ONDERDELEN if o not in uit],
+        "onderdelen_uit": [o for o in indeling.ONDERDELEN if o in uit],
+        "voorpagina_aan": [indeling.VOORPAGINA_KORT[k] for k in indeling.VOORPAGINA if vp.get(k)],
+        "voorpagina_uit": [indeling.VOORPAGINA_KORT[k] for k in indeling.VOORPAGINA if not vp.get(k)],
+        "bovenaan": ["Vandaag"] + [indeling.PAGINAS[u] for u in ind["bovenaan"]] + ["assistent", "Instellingen"],
+        "favorieten": [indeling.PAGINAS[u] for u in ind["favorieten"]],
+        "groepen_volgorde": ind["groepen"],
+        "beroep": beroep.huidig()["naam"] or None,
+        "thuisadres": inst.get("thuisadres") or None,
+        "voorbeeldvragen": inst.get("voorbeeldvragen", True),
+        "alleen_in_de_app": "Wachtwoord, twee-staps-verificatie, sleutels, bank, namens-jou-rechten en account "
+                            "verwijderen regelt de gebruiker zelf bij Instellingen."})
+
+
+def _onderdeel(naam: str) -> str | None:
+    n = naam.strip().lower()
+    return next((o for o, uitleg in indeling.ONDERDELEN.items() if n in (o.lower(), uitleg.lower())), None) or \
+        next((o for o, uitleg in indeling.ONDERDELEN.items() if n and n in uitleg.lower()), None)
+
+
+@beta_tool
+def onderdelen_aanpassen(aanzetten: list[str] | None = None, uitzetten: list[str] | None = None) -> str:
+    """Zet onderdelen in het menu aan of uit (bijv. Mail, Budget, Zakelijk, Marktplaats). Alleen als de gebruiker
+    erom vraagt. Wat uit staat, kun je in het gesprek nog steeds voor de gebruiker doen.
+
+    Args:
+        aanzetten: Namen van onderdelen die aan moeten.
+        uitzetten: Namen van onderdelen die uit moeten.
+    """
+    uit = indeling.onderdelen_uit()
+    onbekend, aan, weg = [], [], []
+    for naam in aanzetten or []:
+        (aan.append(o) if (o := _onderdeel(naam)) else onbekend.append(naam))
+    for naam in uitzetten or []:
+        (weg.append(o) if (o := _onderdeel(naam)) else onbekend.append(naam))
+    nieuw = [o for o in indeling.ONDERDELEN if (o in uit and o not in aan) or o in weg]
+    bekend = sorted(set(opslag.instellingen().get("onderdelen_bekend", [])) | set(indeling.NIEUW_UIT))
+    opslag.instellingen_bijwerken(onderdelen_uit=nieuw, onderdelen_bekend=bekend)
+    return (f"Aan: {', '.join(aan) or '-'}. Uit: {', '.join(weg) or '-'}."
+            + (f" Niet gevonden: {', '.join(onbekend)}. Kies uit: {', '.join(indeling.ONDERDELEN)}." if onbekend else ""))
+
+
+@beta_tool
+def voorpagina_aanpassen(aanzetten: list[str] | None = None, uitzetten: list[str] | None = None) -> str:
+    """Kies wat er op de voorpagina (Vandaag) staat.
+
+    Args:
+        aanzetten: Blokken die erop moeten: Ochtendoverzicht, Weer, Snel aan de slag, Dagschema, Meldingen,
+            Saldo marktplaats, Budget, Taken, Seintjes, Apple Woning.
+        uitzetten: Blokken die eraf moeten (zelfde namen).
+    """
+    namen = {v.lower(): k for k, v in indeling.VOORPAGINA_KORT.items()} | {k: k for k in indeling.VOORPAGINA}
+    nieuw, onbekend = indeling.voorpagina(), []
+    for lijst, waarde in ((aanzetten or [], True), (uitzetten or [], False)):
+        for naam in lijst:
+            if (k := namen.get(naam.strip().lower())) is None:
+                onbekend.append(naam)
+            else:
+                nieuw[k] = waarde
+    opslag.instellingen_bijwerken(voorpagina=nieuw)
+    return "Voorpagina aangepast." + (f" Niet gevonden: {', '.join(onbekend)}." if onbekend else "")
+
+
+@beta_tool
+def indeling_aanpassen(bovenaan: list[str] | None = None, favorieten: list[str] | None = None,
+                       groepen_volgorde: list[str] | None = None, standaard: bool = False) -> str:
+    """Pas de indeling van de app aan. Laat een lijst weg om die niet te veranderen.
+
+    Args:
+        bovenaan: Pagina's in de balk bovenaan, in volgorde (max 4), tussen Vandaag en de assistent.
+            Bijv. ["Agenda", "Zakelijk", "Mail"]. Vandaag, de assistent en Instellingen staan er altijd.
+        favorieten: Pagina's die als eerste tegels in Instellingen staan (max 8).
+        groepen_volgorde: Volgorde van de groepen in Instellingen: Kopen en verkopen, Afspreken, Leren en werk,
+            Geld, Zakelijk, Thuis en handig.
+        standaard: True om alles terug te zetten naar de standaardindeling.
+    """
+    if standaard:
+        indeling.herstellen()
+        return "Indeling teruggezet naar standaard."
+    onbekend = indeling.bijwerken(bovenaan, favorieten, groepen_volgorde)
+    return ("Indeling aangepast. Het menu verandert na dit antwoord."
+            + (f" Niet gevonden: {', '.join(onbekend)}. Pagina's: {', '.join(indeling.PAGINAS.values())}."
+               if onbekend else ""))
+
+
+@beta_tool
+def taal_kiezen(taal_code: str) -> str:
+    """Zet de taal van de app en de assistent.
+
+    Args:
+        taal_code: nl, en, de, fr, es, it, pt, pl, tr, uk, zh of ar.
+    """
+    code = taal_code.strip().lower()[:2]
+    if code not in taal.TALEN:
+        return f"Die taal is er nog niet. Beschikbaar: {', '.join(f'{c} ({n})' for c, n in taal.TALEN.items())}."
+    opslag.instellingen_bijwerken(taal=code)
+    return f"Taal is nu {taal.TALEN[code]}. De app wisselt na dit antwoord; antwoord vanaf nu in die taal."
+
+
+@beta_tool
+def praatstijl_aanpassen(toon: str = "", lengte: str = "", aanspreken: str = "", gevoel: str = "", humor: str = "",
+                         nadenken: str = "") -> str:
+    """Pas aan hoe de assistent praat. Laat leeg wat niet verandert.
+
+    Args:
+        toon: Automatisch, Informeel of Zakelijk.
+        lengte: Automatisch, Kort of Uitgebreid.
+        aanspreken: je of u.
+        gevoel: Uit, Rustig, Normaal of Sterk.
+        humor: Geen, Af en toe of Veel.
+        nadenken: Snel, Normaal of Grondig.
+    """
+    stijl = dict(opslag.instellingen().get("stijl") or {})
+    fout = []
+    for k, v in {"toon": toon, "lengte": lengte, "aanspreken": aanspreken, "gevoel": gevoel, "humor": humor,
+                 "nadenken": nadenken}.items():
+        if not v:
+            continue
+        keuze = next((o for o in STIJL_KEUZES[k] if o.lower() == v.strip().lower()), None)
+        (stijl.__setitem__(k, keuze) if keuze else fout.append(f"{k}: kies uit {', '.join(STIJL_KEUZES[k])}"))
+    opslag.instellingen_bijwerken(stijl=stijl)
+    return "Opgeslagen." + (" " + "; ".join(fout) if fout else "")
+
+
+# --- Beroep en zaak -------------------------------------------------------------------------------------------------
+
+@beta_tool
+def beroep_kiezen(beroep_naam: str, omschrijving: str = "") -> str:
+    """Stel het beroep van de gebruiker in. Dit zet de passende zakelijke onderdelen aan (nooit iets uit) en
+    bepaalt welke zakelijke hulpmiddelen de assistent aanbiedt.
+
+    Args:
+        beroep_naam: Het beroep in gewone woorden, of een van: kapper, schoonheid, trainer, sportschool, lesgever,
+            bijles, coach, fotograaf, klusser, schoonmaak, hovenier, winkel, horeca, zzp, anders.
+        omschrijving: Eigen omschrijving, vooral bij "anders" (bijv. "hondenuitlaatservice").
+    """
+    sleutel = beroep.zoek(beroep_naam) or beroep.ANDERS
+    aangezet = beroep.instellen(sleutel, omschrijving or (beroep_naam if sleutel == beroep.ANDERS else ""))
+    hulp = ", ".join(beroep.TOOLS[t][0] for t in beroep.tools())
+    return (f"Beroep: {beroep.huidig()['naam']}. Zakelijke hulpmiddelen: {hulp}."
+            + (f" Aangezet in het menu: {', '.join(aangezet)}." if aangezet else "")
+            + " Bied aan om de boekingspagina met passende diensten te maken als die er nog niet is.")
+
+
+@beta_tool
+def zaak_overzicht() -> str:
+    """Hoe de zaak van de gebruiker ervoor staat: boekingen die wachten, lessen vandaag, omzet en kosten deze maand,
+    klanten die nog moeten betalen, bestellingen om te verzenden en de webshop."""
+    if not samen.beschikbaar():
+        return "Zakelijke onderdelen werken alleen in de online versie."
+    try:
+        return _json(beroep.overzicht())
+    except samen.Fout as fout:
+        return str(fout)
+
+
+@beta_tool
+def boekingspagina_diensten(diensten: list[str] | None = None, aanzetten: bool = False) -> str:
+    """Maak de boekingspagina van de gebruiker (of zet nieuwe diensten erop). Zonder diensten neemt hij die van het
+    beroep. Klanten boeken dan zelf een vrij moment; bevestigde boekingen komen in de agenda.
+
+    Args:
+        diensten: Diensten als "naam:minuten", bijv. ["Knippen:30", "Kleuren:90"]. Hooguit 6.
+        aanzetten: True om de pagina meteen open te zetten voor klanten (alleen als de gebruiker dat wil).
+    """
+    lijst = []
+    for d in diensten or []:
+        naam, _, minuten = d.rpartition(":") if ":" in d else (d, "", "30")
+        lijst.append({"naam": naam.strip()[:60], "minuten": max(10, min(480, int(minuten) if minuten.strip().isdigit() else 30))})
+    _, fout = _samen(beroep.boekingspagina_maken, lijst or None, aanzetten)
+    if fout:
+        return fout
+    p = boekpagina.mijn().get("pagina") or {}
+    return (f"Boekingspagina {'staat open' if p.get('aan') else 'is klaar maar staat nog dicht'}, diensten: "
+            + ", ".join(f"{s['naam']} ({s['minuten']} min)" for s in p.get("soorten", []))
+            + ". Werktijden en link staan bij Boekingen.")
+
+
+@beta_tool
+def zaak_boeken(soort: str, bedrag: float, omschrijving: str = "", klant: str = "", btw: int = -1,
+                categorie: str = "", datum: str = "") -> str:
+    """Zet een regel in de zakelijke boekhouding.
+
+    Args:
+        soort: "dienst" (geleverd, klant moet betalen), "betaling" (ontvangen van klant) of "kosten".
+        bedrag: Bedrag in euro inclusief btw.
+        omschrijving: Korte omschrijving.
+        klant: Naam van de klant (bij dienst of betaling).
+        btw: 0, 9 of 21; -1 = standaard van de zaak.
+        categorie: Bij kosten: Huur, Materiaal, Marketing, Verzekering, Software, Vervoer, Opleiding of Overig.
+        datum: YYYY-MM-DD, leeg = vandaag.
+    """
+    if soort not in ("dienst", "betaling", "kosten"):
+        return "Soort moet dienst, betaling of kosten zijn."
+    if bedrag <= 0:
+        return "Het bedrag moet groter dan nul zijn."
+    _, fout = _samen(zaak.post, soort, zaak.centen(bedrag), omschrijving, klant, None,
+                     None if btw not in zaak.BTW else btw, categorie if soort == "kosten" else "",
+                     datetime.fromisoformat(datum).date() if datum else None)
+    return fout or f"Geboekt: {zaak.SOORT_NAAM[soort].lower()} {zaak.bedrag(zaak.centen(bedrag))}."
+
+
+@beta_tool
+def groepsles_plannen(naam: str, start: str, minuten: int = 60, plekken: int = 12, prijs: float = 0,
+                      locatie: str = "", elke_week: bool = False, aantal_weken: int = 12) -> str:
+    """Plan een groepsles in het lesrooster van de zaak; leden schrijven zich in en de les staat in de agenda.
+
+    Args:
+        naam: Naam van de les, bijv. "Bootcamp".
+        start: Begintijd YYYY-MM-DDTHH:MM.
+        minuten: Duur.
+        plekken: Maximaal aantal deelnemers.
+        prijs: Prijs per keer in euro (0 = gratis of via abonnement).
+        locatie: Waar.
+        elke_week: True om de les wekelijks te herhalen.
+        aantal_weken: Hoeveel weken bij herhalen (max 52).
+    """
+    r, fout = _samen(zaak.les_maken, naam, datetime.fromisoformat(start), minuten, plekken, zaak.centen(prijs),
+                     locatie, elke_week, max(1, min(52, aantal_weken)))
+    return fout or f"{r} les{'sen' if r != 1 else ''} gepland."
+
+
+@beta_tool
+def winkel_nieuwtje(tekst: str) -> str:
+    """Plaats een nieuwtje voor de volgers van de webshop (hooguit één per dag). Alleen met akkoord van de gebruiker
+    op de precieze tekst.
+
+    Args:
+        tekst: Het nieuwtje, kort.
+    """
+    _, fout = _samen(samen.winkel_nieuws_plaatsen, tekst)
+    return fout or "Geplaatst; volgers zien het bij Winkels en op hun voorpagina."
+
+
 HULPMIDDELEN = [
     mails_bekijken,
     mail_lezen,
@@ -1517,6 +1775,18 @@ HULPMIDDELEN = [
     bestellingen_bekijken,
     berichten_bekijken,
     bericht_sturen,
+    instellingen_bekijken,
+    onderdelen_aanpassen,
+    voorpagina_aanpassen,
+    indeling_aanpassen,
+    taal_kiezen,
+    praatstijl_aanpassen,
+    beroep_kiezen,
+    zaak_overzicht,
+    boekingspagina_diensten,
+    zaak_boeken,
+    groepsles_plannen,
+    winkel_nieuwtje,
     {"type": "web_search_20260209", "name": "web_search", "max_uses": 5},
     {"type": "web_fetch_20260209", "name": "web_fetch", "max_uses": 5},
 ]
@@ -1547,6 +1817,19 @@ def context() -> str:
     delen.append("Namens de gebruiker reageren: " + "; ".join(
         f"{k}: {'eerst akkoord vragen' if v == 'vragen' else 'zelf reageren aan contacten, anderen eerst vragen' if v == 'bekenden' else 'zelf reageren'}"
         for k, v in namens.items()) + f". Vandaag al {opslag.namens_vandaag()} van maximaal {opslag.NAMENS_PER_DAG} namens hem verstuurd.")
+    b = beroep.huidig()
+    if b["soort"]:
+        delen.append(f"Beroep van de gebruiker: {b['naam']}. Denk mee als ondernemer en bied passende zakelijke hulp "
+                     "aan (zaak_overzicht, boekingspagina_diensten, zaak_boeken, groepsles_plannen, webshop, "
+                     "bestellingen). Zakelijke hulpmiddelen: "
+                     + ", ".join(beroep.TOOLS[t][0] for t in beroep.tools()) + ".")
+    else:
+        delen.append("Beroep onbekend. Vraagt de gebruiker om zakelijke hulp, vraag dan kort wat de gebruiker doet en "
+                     "stel het in met beroep_kiezen.")
+    delen.append("Instellingen kun je bekijken en aanpassen (instellingen_bekijken, onderdelen_aanpassen, "
+                 "voorpagina_aanpassen, indeling_aanpassen, taal_kiezen, praatstijl_aanpassen, thuisadres_instellen) "
+                 "als de gebruiker daarom vraagt. Wachtwoord, beveiliging, sleutels, bank en namens-rechten regelt "
+                 "de gebruiker zelf bij Instellingen.")
     if scenes := woning.scenes():
         delen.append("Scènes in Apple Woning (via woning_bedienen): " + ", ".join(scenes) + ".")
     if (reeks := opslag.leerreeks())["reeks"] or reeks["vandaag"]:

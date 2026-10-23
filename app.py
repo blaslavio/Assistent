@@ -67,12 +67,14 @@ import chat
 import taal
 import zaak
 import zaak_scherm
+import beroep
+import indeling
 import zoekveld
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -2055,38 +2057,16 @@ def events_overzicht() -> None:
                "en betaal je direct, bijvoorbeeld met Apple Pay of iDEAL.")
 
 
-VOORPAGINA = {"ochtend": "Ochtendoverzicht ('s ochtends, met voorlezen)", "weer": "Weer naast de datum", "startpunt": "Snel aan de slag (verkopen, dienst aanbieden, leren, winkels)",
-              "afspraken": "Geplande afspraken (dagschema)",
-              "meldingen": "Meldingen (verkocht, bestellingen, berichten, gedeeld)",
-              "saldo": "Saldo van de marktplaats", "budget": "Budget: wat je deze maand nog vrij kunt besteden",
-              "taken": "Taken",
-              "seintjes": "Korte seintjes (herhalen, sportresultaat)",
-              "woning": "Knoppen voor Apple Woning (als je scènes hebt ingesteld)"}
-# Wat je in het menu aan of uit kunt zetten (de sleutels staan zo in je instellingen).
-ONDERDELEN = {"Chat": "Chat (end-to-end versleuteld)", "Documenten": "Documenten", "Mail": "Mail", "Leren": "Leren en schrijven", "Samen": "Projecten en delen",
-              "DIY": "DIY en hobby", "Hulpmiddelen": "Hulpmiddelen (notities, timer, rekenen)",
-              "Scannen": "Foto scannen", "VR-ruimtes": "VR-ruimtes (projecten in 3D)",
-              "Boodschappen": "Boodschappen",
-              "Lijstjes": "Kooplijst en wenslijst", "Marktplaats": "Marktplaats (kopen en verkopen bij elkaar)",
-              "Budget": "Budget (uitgaven, vaste lasten, sparen)", "Beleggen": "Beleggen (alleen meekijken)",
-              "Zakelijk": "Zakelijk (gym, club, trainer of dienstverlener)"}
-# Nieuwe onderdelen die voor bestaande gebruikers uit staan tot ze ze zelf aanzetten.
-NIEUW_UIT = ["Zakelijk"]
-VOORPAGINA_KORT = {"ochtend": "Ochtendoverzicht", "weer": "Weer", "startpunt": "Snel aan de slag", "afspraken": "Dagschema",
-                   "meldingen": "Meldingen", "saldo": "Saldo marktplaats", "budget": "Budget", "taken": "Taken",
-                   "seintjes": "Seintjes", "woning": "Apple Woning"}
+VOORPAGINA, ONDERDELEN, NIEUW_UIT = indeling.VOORPAGINA, indeling.ONDERDELEN, indeling.NIEUW_UIT
+VOORPAGINA_KORT = indeling.VOORPAGINA_KORT
 # Korte namen voor de knoppen in Instellingen › Weergave.
 KORT = {"Samen": "Projecten", "Lijstjes": "Kooplijst en wenslijst", "DIY": "DIY en hobby", "Scannen": "Foto scannen"}
 # De pagina's van deze beurt, op url; gevuld door paginas().
 PAGINA: dict = {}
 
 
-# Wat standaard uit staat op de voorpagina (aan te zetten bij Instellingen › Weergave).
-VOORPAGINA_UIT = {"startpunt"}
-
-
-def voorpagina() -> dict:
-    return {k: k not in VOORPAGINA_UIT for k in VOORPAGINA} | opslag.instellingen().get("voorpagina", {})
+VOORPAGINA_UIT = indeling.VOORPAGINA_UIT
+voorpagina = indeling.voorpagina
 
 
 def mijn_avatar() -> dict:
@@ -3052,13 +3032,7 @@ def brein_instellingen() -> None:
                "gebruiken altijd Claude. Siri werkt met elk brein via de opdracht bij Koppelingen.")
 
 
-def onderdelen_uit() -> list[str]:
-    inst = opslag.instellingen()
-    uit = inst.get("onderdelen_uit", inst.get("tabbladen_uit", []))
-    # Oudere instellingen bewaarden de namen met een emoji ervoor ("🏪 Marktplaats").
-    uit = [re.sub(r"^[^\w]+", "", o) for o in uit]
-    uit += [o for o in NIEUW_UIT if o not in inst.get("onderdelen_bekend", []) and o not in uit]
-    return ["Leren" if o == "Leren en schrijven" else o for o in uit]
+onderdelen_uit = indeling.onderdelen_uit
 
 
 def voorpagina_instellingen() -> None:
@@ -3089,6 +3063,32 @@ def voorpagina_instellingen() -> None:
         st.rerun()
 
 
+def indeling_instellingen() -> None:
+    """Wat er bovenaan staat, je favorieten en de volgorde van de groepen. Per account bewaard."""
+    huidig = indeling.huidig()
+    keuzes = [u for u in indeling.PAGINAS if u in PAGINA]
+    naam = lambda u: indeling.PAGINAS.get(u, u)  # noqa: E731
+    bovenaan = st.multiselect("Bovenaan", keuzes, default=[u for u in huidig["bovenaan"] if u in keuzes],
+                              format_func=naam, max_selections=indeling.MAX_BOVENAAN, key="indeling_bovenaan")
+    favorieten = st.multiselect("Favorieten", keuzes, default=[u for u in huidig["favorieten"] if u in keuzes],
+                                format_func=naam, max_selections=indeling.MAX_FAVORIETEN, key="indeling_favorieten")
+    groepen = st.multiselect("Volgorde van de groepen", indeling.GROEPEN, default=huidig["groepen"],
+                             key="indeling_groepen")
+    groepen = groepen + [g for g in indeling.GROEPEN if g not in groepen]
+    zichtbaar = {k: [u for u in huidig[k] if u in keuzes] for k in ("bovenaan", "favorieten")}
+    if (bovenaan, favorieten, groepen) != (zichtbaar["bovenaan"], zichtbaar["favorieten"], huidig["groepen"]):
+        # Wat nu niet in je menu staat (onderdeel uit), blijft bewaard voor als je het weer aanzet.
+        verborgen = {k: [u for u in huidig[k] if u not in keuzes] for k in ("bovenaan", "favorieten")}
+        indeling.bijwerken(bovenaan=bovenaan + verborgen["bovenaan"], favorieten=favorieten + verborgen["favorieten"],
+                           groepen=groepen)
+        st.rerun()
+    if opslag.instellingen().get("indeling") and st.button("Standaard", type="tertiary", icon=":material/restart_alt:"):
+        indeling.herstellen()
+        for k in ("indeling_bovenaan", "indeling_favorieten", "indeling_groepen"):
+            st.session_state.pop(k, None)
+        st.rerun()
+
+
 # Wat een nieuwe gebruiker standaard aan heeft staan; de rest zet je zelf aan (bij het aanmelden of later).
 STANDAARD_AAN = ["Chat", "Mail", "Budget", "Boodschappen", "Documenten"]
 
@@ -3101,11 +3101,15 @@ def welkom_voorkeuren() -> None:
     st.caption("Vandaag, Agenda, Taken en de assistent heb je altijd.")
     gekozen = st.pills("Onderdelen", list(ONDERDELEN), selection_mode="multi", default=STANDAARD_AAN,
                        label_visibility="collapsed", key="welkom_onderdelen")
+    werk = st.selectbox("Je werk", ["", *beroep.BEROEPEN], format_func=lambda b: beroep.BEROEPEN[b][0] if b else "Geen of later",
+                        key="welkom_beroep")
     voorbeelden = st.toggle("Voorbeeldvragen bij de assistent", value=True, key="welkom_voorbeelden")
     if st.button("Klaar", type="primary", width="stretch"):
         opslag.instellingen_bijwerken(onderdelen_uit=[o for o in ONDERDELEN if o not in (gekozen or [])],
                                       onderdelen_bekend=NIEUW_UIT,
                                       voorbeeldvragen=voorbeelden)
+        if werk:
+            beroep.instellen(werk)
         st.session_state.rondleiding = True
         st.rerun()
     st.caption("Alles is later aan of uit te zetten bij Instellingen › Weergave.")
@@ -3234,6 +3238,7 @@ INSTELLING_GROEPEN = {
     "Assistent": (":material/smart_toy:", "Naam, stem en wat hij mag"),
     "Weergave": (":material/palette:", "Voorpagina, onderdelen, kleuren"),
     "Koppelingen": (":material/link:", "Meldingen, agenda, mail, Siri"),
+    "Werk": (":material/work:", "Beroep en zakelijke tools"),
     "Account": (":material/person:", "Profiel, beveiliging, privacy"),
     "Idee of probleem": (":material/lightbulb:", "Zeg wat beter kan"),
 }
@@ -3250,7 +3255,7 @@ def instellingen_tabblad() -> None:
             st.button("Terug", icon=":material/arrow_back:", type="tertiary", on_click=kies, args=(None,))
             st.markdown(f"**{groep}**")
         {"Assistent": instellingen_assistent, "Weergave": instellingen_weergave,
-         "Koppelingen": instellingen_koppelingen, "Account": instellingen_account,
+         "Koppelingen": instellingen_koppelingen, "Account": instellingen_account, "Werk": zaak_scherm.beroep_instellingen,
          "Idee of probleem": idee_of_probleem}[groep]()
         return
     gebruiker = samen_scherm.ik()
@@ -3331,6 +3336,8 @@ def instellingen_weergave() -> None:
         st.rerun()
     with st.expander("Voorpagina en menu"):
         voorpagina_instellingen()
+    with st.expander("Indeling"):
+        indeling_instellingen()
     with st.expander("Thuisadres" + ("" if inst.get("thuisadres") else " (nog invullen)"),
                      expanded=not inst.get("thuisadres")):
         thuisadres_instellen()
@@ -3766,6 +3773,8 @@ def product_vergelijken() -> None:
 # --- Assistent ------------------------------------------------------------
 
 BEZIG = {
+    "zaak_overzicht": "Je zaak bekijken...", "beroep_kiezen": "Instellen...", "instellingen_bekijken": "Instellingen bekijken...",
+    "boekingspagina_diensten": "Boekingspagina maken...",
     "marktplaats_zoeken": "Marktplaatsen doorzoeken...", "boeken": "Boeken...", "delen_met": "Delen...",
     "web_search": "Zoeken op internet...", "web_fetch": "Pagina lezen...", "plaats_zoeken": "Plekken zoeken...",
     "dagplanning": "Reistijden berekenen...", "reistijd_berekenen": "Reistijd berekenen...",
@@ -3807,6 +3816,8 @@ def persoonlijke_suggesties() -> dict[str, str]:
         kan(2.5, "Budget", "Hoe sta ik ervoor met mijn budget deze maand?")
     if "Beleggen" not in uit and (inst.get("beleggen") or {}).get("posities"):
         kan(2, "Beleggingen", "Hoe doen mijn beleggingen het vandaag?")
+    if beroep.huidig()["soort"]:
+        kan(4.5, "Mijn zaak", "Hoe staat mijn zaak ervoor? Wat moet ik vandaag nog regelen?")
     if inst.get("boekpagina"):
         kan(3, "Boekingen", "Welke boekingen heb ik deze week en is er nog iets te regelen?")
     if "Boodschappen" not in uit:
@@ -4120,6 +4131,10 @@ def paginas() -> list:
     groep("Thuis en handig",
           als(bool(lijstjes_delen()), lijstjes, "Lijstjes", ":material/shopping_cart:", "lijstjes"),
           als(bool(handig_delen()), handig, "Hulpmiddelen", ":material/build:", "hulpmiddelen"))
+    # Groepen in jouw volgorde (Instellingen › Weergave › Indeling).
+    volgorde = indeling.huidig()["groepen"]
+    for naam in sorted(GROEPEN, key=lambda g: volgorde.index(g) if g in volgorde else len(volgorde)):
+        GROEPEN[naam] = GROEPEN.pop(naam)
     st.session_state._nieuw_totaal = (sum(nieuw.get(k, 0) for k in ("bestellingen", "berichten", "gedeeld"))
                                       + (boekingen_wachten() if online else 0))
     return list(PAGINA.values())
@@ -4140,11 +4155,15 @@ def kopbalk() -> None:
             ".st-key-kopbalk > div:last-child a [data-testid=stIconMaterial]{font-size:22px;margin:0}"
             ".st-key-kopbalk > div:last-child [data-testid=stMarkdownContainer]:empty{display:none}</style>")
     with st.container(horizontal=True, gap="small", key="kopbalk"):
-        # Vaste volgorde: Vandaag, Agenda, Chat en de assistent altijd als laatste.
-        for url, label in (("vandaag", "Vandaag"), ("agenda", "Agenda")):
-            st.page_link(PAGINA[url], label=label, width="content")
-        if "chat" in PAGINA:
-            st.page_link(PAGINA["chat"], label=f"Chat ({n})" if (n := chat.ongelezen()) else "Chat", width="content")
+        # Vandaag eerst en de assistent als laatste; daartussen wat je zelf kiest (standaard Agenda en Chat).
+        st.page_link(PAGINA["vandaag"], label="Vandaag", width="content")
+        for url in indeling.huidig()["bovenaan"]:
+            if url not in PAGINA:
+                continue
+            if url == "chat":
+                st.page_link(PAGINA["chat"], label=f"Chat ({n})" if (n := chat.ongelezen()) else "Chat", width="content")
+            else:
+                st.page_link(PAGINA[url], width="content")
         st.page_link(PAGINA["assistent"], label=mijn_avatar()["naam"], width="content")
         # Instellingen als icoon, zodat alles ook op een telefoon op één regel past.
         st.page_link(PAGINA["instellingen"], label=f"{totaal}" if totaal else " ", icon=":material/settings:",
@@ -4206,8 +4225,11 @@ def taken_openen() -> None:
 
 
 def onderdelen_tegels() -> None:
-    """Alle onderdelen als tegels, per groep (zoals het appmenu van Google)."""
-    for naam, urls in GROEPEN.items():
+    """Alle onderdelen als tegels, per groep (zoals het appmenu van Google). Je favorieten eerst."""
+    groepen = dict(GROEPEN)
+    if favorieten := [u for u in indeling.huidig()["favorieten"] if u in PAGINA]:
+        groepen = {"Favorieten": favorieten} | groepen
+    for naam, urls in groepen.items():
         st.markdown(f"**{naam}**")
         # Tegels die meeschuiven: twee naast elkaar op een telefoon, meer op een iPad.
         with st.container(horizontal=True, gap="small"):

@@ -1,10 +1,12 @@
-"""Zakelijk (gym, club, trainer of dienstverlener): vandaag afvinken, lesrooster, klanten met saldo en boekhouding.
+"""Zakelijk: vandaag afvinken, lesrooster, klanten met saldo en boekhouding.
 Aan te zetten bij Instellingen › Weergave › In het menu. Zie zaak.py."""
 
 from datetime import date, datetime, time, timedelta
 
 import streamlit as st
 
+import beroep
+import boekpagina
 import opslag
 import plannen_scherm
 import samen
@@ -53,6 +55,65 @@ def pagina() -> None:
         klanten_deel()
     else:
         boekhouding_deel()
+
+
+# --- Beroep (Instellingen › Werk) --------------------------------------------------------------------------------------
+
+# Waar een hulpmiddel opent: (pagina, sleutel van het onderdeel op die pagina, welk onderdeel).
+_OPENEN = {"lessen": ("zaak_deel", "Rooster"), "klanten": ("zaak_deel", "Klanten"),
+           "boekhouding": ("zaak_deel", "Boekhouding"), "webshop": ("webshop_deel", "Winkel"),
+           "marketing": ("webshop_deel", "Marketing"), "reviews": ("webshop_deel", "Reviews")}
+
+
+def _openen(url: str, tool: str) -> None:
+    if tool in _OPENEN:
+        st.session_state[_OPENEN[tool][0]] = _OPENEN[tool][1]
+    st.session_state.ga_naar = url
+
+
+def beroep_instellingen() -> None:
+    """Kies je beroep; daaronder je zakelijke hulpmiddelen, elk met één tik open."""
+    _melding()
+    b = beroep.huidig()
+    opties = ["", *beroep.BEROEPEN, beroep.ANDERS]
+    keuze = st.selectbox("Wat doe je?", opties, index=opties.index(b["soort"]) if b["soort"] in opties else 0,
+                         format_func=lambda k: beroep.naam_van(k) if k else "Kies je beroep", key="beroep_keuze")
+    eigen = ""
+    if keuze == beroep.ANDERS:
+        eigen = st.text_input("Omschrijving", value=b["naam"] if b["soort"] == beroep.ANDERS else "", max_chars=60,
+                              placeholder="Bijvoorbeeld: hondenuitlaatservice")
+    if keuze and (keuze != b["soort"] or (keuze == beroep.ANDERS and eigen.strip() and eigen.strip() != b["naam"])):
+        if st.button("Opslaan", type="primary", key="beroep_opslaan"):
+            aangezet = beroep.instellen(keuze, eigen)
+            _klaar("Opgeslagen." + (f" Aangezet: {', '.join(aangezet)}." if aangezet else ""))
+    if not b["soort"]:
+        return
+    try:
+        winkel = samen.mijn_winkel()
+        pagina = boekpagina.mijn().get("pagina")
+    except samen.Fout:
+        winkel, pagina = {}, None
+    st.markdown("**Jouw zakelijke tools**")
+    for t in beroep.tools():
+        naam, url, _ = beroep.TOOLS[t]
+        with st.container(horizontal=True, vertical_alignment="center", key=f"tool_{t}"):
+            st.markdown(naam, width="stretch")
+            if t == "boekingen" and not pagina:
+                if st.button("Maken", key=f"tool_maak_{t}", type="tertiary"):
+                    if _fout(beroep.boekingspagina_maken) is not None:
+                        _klaar("Boekingspagina gemaakt met de diensten van je beroep. Zet hem aan als hij klaar is.")
+            elif url == "webshop" and winkel.get("niveau") not in ("verkoper", "ondernemer"):
+                if st.button("Aanzetten", key=f"tool_maak_{t}", type="tertiary"):
+                    if _fout(samen.niveau_instellen, "verkoper") is not None:
+                        st.session_state.ik = opslag.inloggen(st.session_state.get("naam", ""),
+                                                              st.session_state.wachtwoord) or {}
+                        _klaar("Je webshop staat klaar bij Mijn webshop.")
+            else:
+                st.button("Openen", key=f"tool_open_{t}", type="tertiary", on_click=_openen, args=(url, t))
+    if st.button("Geen beroep", type="tertiary", icon=":material/close:", key="beroep_wissen"):
+        beroep.wissen()
+        st.session_state.pop("beroep_keuze", None)
+        _klaar("Beroep weggehaald. Je onderdelen blijven aan.")
 
 
 def zaak_instellen(z: dict) -> None:
