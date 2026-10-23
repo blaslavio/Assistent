@@ -229,6 +229,9 @@ def inlogformulier() -> None:
     if st.session_state.get("herstel"):
         herstel_formulier()
         return
+    if opslag.online():
+        extern_knoppen("Inloggen")
+        st.caption("of met je gebruikersnaam", text_alignment="center")
     with st.form("inloggen"):
         naam = st.text_input("Gebruikersnaam, mailadres of telefoonnummer", autocomplete="username webauthn",
                              help="Nog nooit een gebruikersnaam gekozen omdat je de app als eerste instelde? Laat dit leeg.")
@@ -244,11 +247,6 @@ def inlogformulier() -> None:
                 st.rerun()
     if not opslag.online():
         return
-    if r := toegangssleutel.inlogknop(apparaat()):
-        if r.get("token"):
-            ingelogd(r.get("naam", ""), r["token"])
-        st.error(r.get("fout") or "Dit lukte niet. Log in met je wachtwoord.")
-    extern_knoppen()
     with st.container(horizontal=True, horizontal_alignment="distribute"):
         if toegangssleutel.mail_ingesteld() and st.button("Wachtwoord vergeten?", type="tertiary"):
             st.session_state.herstel = {}
@@ -258,15 +256,56 @@ def inlogformulier() -> None:
             st.rerun()
 
 
-def extern_knoppen() -> None:
-    """Inloggen met Google, Apple of Microsoft: alleen de aanbieders die aanstaan."""
-    if not (aan := extern_inloggen.aanbieders()):
-        return
+# Altijd zichtbaar bij inloggen en account maken. Microsoft en Face ID staan onder "Andere manier".
+EXTERN_BOVENAAN = ["apple", "google"]
+
+
+def extern_knoppen(doel: str) -> None:
+    """Doorgaan met Apple, Google of een andere manier. Wie nog geen account heeft, krijgt er meteen een."""
+    aan = extern_inloggen.aanbieders()
     adres = str(st.context.url or "").split("?")[0]
-    for a in aan:
-        st.link_button(f"Doorgaan met {extern_inloggen.AANBIEDERS[a]}", extern_inloggen.start(a, adres),
-                       icon=extern_inloggen.ICONEN[a], width="stretch")
-    st.caption("Nieuw? Dan maak je zo een account en ga je akkoord met de voorwaarden (16+).")
+
+    def knop(a: str, key: str) -> None:
+        label = f"Doorgaan met {extern_inloggen.AANBIEDERS[a]}"
+        if a in aan:
+            st.link_button(label, extern_inloggen.start(a, adres), icon=extern_inloggen.ICONEN[a], width="stretch")
+        elif st.button(label, icon=extern_inloggen.ICONEN[a], width="stretch", key=key):
+            nog_niet_aan(extern_inloggen.AANBIEDERS[a])
+
+    for a in EXTERN_BOVENAAN:
+        knop(a, f"ext_{doel}_{a}")
+    with st.popover("Andere manier", icon=":material/more_horiz:", width="stretch"):
+        knop("azure", f"ext_{doel}_azure")
+        if doel == "Inloggen" and (r := toegangssleutel.inlogknop(apparaat())):
+            if r.get("token"):
+                ingelogd(r.get("naam", ""), r["token"])
+            st.error(r.get("fout") or "Dit lukte niet. Log in met je wachtwoord.")
+        if doel == "Inloggen":
+            st.caption("Face ID of Touch ID zet je aan na het inloggen, bij Instellingen › Account › Beveiliging.")
+    if doel == "Account maken":
+        st.caption("Zo ga je akkoord met de voorwaarden en de privacy (onderaan) en ben je 16 of ouder.")
+
+
+@st.dialog("Nog niet beschikbaar")
+def nog_niet_aan(aanbieder: str) -> None:
+    st.write(f"Inloggen met {aanbieder} staat nog niet aan. Gebruik voor nu je gebruikersnaam of mailadres.")
+    if st.button("Oké", type="primary"):
+        st.rerun()
+
+
+def voet() -> None:
+    """Helemaal onderaan het inlogscherm: voorwaarden en privacy, klein en rustig."""
+    st.space("large")
+    with st.container(horizontal=True, horizontal_alignment="center", gap="small"):
+        if st.button("Voorwaarden", type="tertiary", key="voet_voorwaarden"):
+            juridisch("Voorwaarden")
+        if st.button("Privacy", type="tertiary", key="voet_privacy"):
+            juridisch("Privacyverklaring")
+
+
+@st.dialog("Voorwaarden en privacy", width="large")
+def juridisch(welke: str) -> None:
+    st.markdown(teksten.voorwaarden() if welke == "Voorwaarden" else teksten.privacy())
 
 
 def extern_terug() -> None:
@@ -336,7 +375,8 @@ def code_formulier(naam: str, wachtwoord: str) -> None:
 
 
 def account_maken_formulier() -> None:
-    st.caption("Gratis. Je mailadres is nodig om te kunnen kopen en verkopen; anderen zien het niet.")
+    extern_knoppen("Account maken")
+    st.caption("of met je mailadres", text_alignment="center")
     with st.form("account_maken"):
         naam = st.text_input("Kies een gebruikersnaam", placeholder="Bijv. sanne",
                              help="3 tot 30 tekens: kleine letters, cijfers, punt of streepje. Anderen vinden je hiermee.")
@@ -345,7 +385,8 @@ def account_maken_formulier() -> None:
         wachtwoord = st.text_input("Kies een wachtwoord (minstens 10 tekens)", type="password",
                                    autocomplete="new-password")
         herhaling = st.text_input("Herhaal het wachtwoord", type="password", autocomplete="new-password")
-        akkoord = st.checkbox("Ik ben 16 jaar of ouder en ga akkoord met de voorwaarden en de privacyverklaring")
+        akkoord = st.checkbox("Ik ben 16 jaar of ouder en ga akkoord met de voorwaarden en de privacyverklaring "
+                              "(onderaan)")
         if st.form_submit_button("Account maken", type="primary", width="stretch"):
             naam = naam.strip().lower().lstrip("@")
             if wachtwoord != herhaling:
@@ -356,10 +397,7 @@ def account_maken_formulier() -> None:
                 st.session_state.welkom = True
                 if fout := aanmelden(naam, wachtwoord):
                     st.error(fout)
-    with st.expander("Voorwaarden"):
-        st.markdown(teksten.voorwaarden())
-    with st.expander("Privacyverklaring"):
-        st.markdown(teksten.privacy())
+    st.caption("Gratis. Je mailadres is nodig om te kunnen kopen en verkopen; anderen zien het niet.")
 
 
 def taal_bepalen() -> None:
@@ -453,6 +491,7 @@ def wachtwoord_ok() -> bool:
         return False
     if apparaat_herkennen():
         return True
+    boven.bovenaan("inlog-" + st.session_state.get("inlogkeuze", "Inloggen"))
     taalkeuze("taal_inlog")
     if "extern" in st.query_params:
         extern_terug()
@@ -463,6 +502,7 @@ def wachtwoord_ok() -> bool:
             st.rerun()
     else:
         inlogformulier()
+    voet()
     return False
 
 
@@ -3236,31 +3276,124 @@ def welkom_voorkeuren() -> None:
                                       voorbeeldvragen=voorbeelden)
         if werk:
             beroep.instellen(werk)
-        st.session_state.rondleiding = True
+        st.session_state.koppelen_vraag = True
         st.rerun()
     st.caption("Alles is later aan of uit te zetten bij Instellingen › Weergave.")
 
 
-RONDLEIDING = [
-    (":material/today:", "Vandaag", "Je dag in één oogopslag: afspraken, taken en het weer."),
-    (":material/calendar_month:", "Agenda", "Plan afspraken en taken. Je agenda is privé: anderen zien alleen wat jij deelt."),
-    (":material/chat:", "Chat", "Veilig chatten, versleuteld van begin tot eind. Zet afspraken met één tik in je agenda en "
-                                "stuur betaalverzoeken."),
-    (":material/assistant:", "Assistent", "Typ of zeg wat je wilt, de assistent helpt je verder. "
-                                          "Voor slimme antwoorden koppel je een AI bij Instellingen."),
-    (":material/settings:", "Instellingen", "Kies je taal, zet onderdelen aan of uit en maak de app van jou."),
-]
+def koppel_voorstellen() -> list[tuple[str, str, str, str, bool]]:
+    """(sleutel, titel, uitleg, waar naartoe, al gekoppeld) voor wat je nu gebruikt."""
+    uit = onderdelen_uit()
+    brein = ander_brein.keuze()
+    voorstellen = [
+        ("agenda", "Je agenda", "Apple, Google of Outlook. Je afspraken staan dan ook hier.", "Koppelingen",
+         bool(agendas.gekoppeld())),
+        ("ai", "Slimme antwoorden", "Een eigen sleutel van Claude, ChatGPT of Gemini voor de assistent.", "Assistent",
+         bool(anthropic_sleutel() if brein == "Claude" else ander_brein.sleutel(brein))),
+    ]
+    if "Mail" not in uit:
+        voorstellen.append(("mail", "Je mail", "Taken en afspraken uit je mail, en antwoorden laten voorbereiden.",
+                            "Koppelingen", mail.gekoppeld()))
+    if "Budget" not in uit and opslag.online():
+        voorstellen.append(("bank", "Je bank", "Uitgaven en saldo vanzelf bijgewerkt. Alleen meekijken.", "budget",
+                            any(k.get("status") == "actief" for k in bank.status().get("koppelingen", []))))
+    if "sport" in PAGINA:
+        try:
+            sport_aan = bool(gezondheid.status().get("koppelingen"))
+        except Exception:
+            sport_aan = False
+        voorstellen.append(("sport", "Sport en gezondheid", "Strava, Apple Gezondheid, Fitbit, Polar en meer.",
+                            "sport", sport_aan))
+    return voorstellen
+
+
+@st.dialog("Wat wil je koppelen?")
+def koppelen_vragen() -> None:
+    """Na de eerste keer inloggen: voorstellen om apps te koppelen. Daarna volgt de rondleiding."""
+    opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
+    st.caption("Dan haalt de app je gegevens vanzelf op. Je kunt alles later weer loskoppelen.")
+
+    def klaar() -> None:
+        opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
+        opslag.instellingen_bijwerken(koppelen_gezien=True)
+        st.session_state.pop("koppelen_vraag", None)
+
+    for sleutel, titel, uitleg, doel, gekoppeld in koppel_voorstellen():
+        with st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute"):
+            st.markdown(f"**{titel}**", width="content")
+            if gekoppeld:
+                st.markdown(":green[:material/check_circle: Klaar]", width="content")
+                knop = False
+            else:
+                knop = st.button("Koppelen", key=f"kv_{sleutel}", type="tertiary", icon=":material/link:")
+        st.caption(uitleg)
+        if knop:
+            klaar()
+            st.session_state.rl_later = True  # de rondleiding komt de volgende keer
+            if doel == "sport":
+                st.session_state.sport_deel = "Koppelen"
+            if doel in INSTELLING_GROEPEN:
+                st.session_state.inst_na = doel
+                doel = "instellingen"
+            ga_naar(doel)
+    st.caption("Liever hulp? Vraag het de assistent, bijvoorbeeld: koppel mijn agenda.")
+    with st.container(horizontal=True):
+        if st.button("Verder", type="primary"):
+            klaar()
+            st.session_state.rondleiding = True
+            st.rerun()
+        if st.button("Later", type="tertiary"):
+            klaar()
+            st.rerun()
+
+
+# Uitleg per groep in de rondleiding. De pagina's die je hebt aanstaan, komen er vanzelf bij.
+GROEP_UITLEG = {
+    "Kopen en verkopen": (":material/storefront:", "Zoek, koop en verkoop bij mensen en winkels in de buurt. "
+                                                   "Betalen gaat veilig via de app."),
+    "Afspreken": (":material/event_available:", "Laat anderen een tijd bij je boeken, prik samen een datum of "
+                                                 "kijk wat er in je buurt gebeurt."),
+    "Leren en werk": (":material/school:", "Leren, schrijven, documenten en mail op één plek."),
+    "Geld": (":material/account_balance_wallet:", "Je uitgaven, facturen en spaardoelen. De app betaalt nooit zelf."),
+    "Zakelijk": (":material/work:", "Lessen, klanten en je boekhouding als je een eigen zaak hebt."),
+    "Sport en gezondheid": (":material/directions_run:", "Je trainingen, boekingen en doelen. Koppel je sportapps."),
+    "Thuis en handig": (":material/home:", "Lijstjes, hulpmiddelen, de browser en wat in je buurt te doen is."),
+}
+
+
+def rondleiding_stappen() -> list[tuple[str, str, str]]:
+    """Vaste stappen, dan één stap per groep die je gebruikt, en tot slot de assistent als vraagbaak."""
+    stappen = [
+        (":material/today:", "Vandaag", "Je dag in één oogopslag: afspraken, taken en het weer."),
+        (":material/calendar_month:", "Agenda", "Plan afspraken en taken. Je agenda is privé: anderen zien alleen "
+                                                "wat jij deelt."),
+    ]
+    if "chat" in PAGINA:
+        stappen.append((":material/forum:", "Chat", "Veilig chatten, versleuteld van begin tot eind. Zet afspraken "
+                                                    "met één tik in je agenda."))
+    for groep, urls in GROEPEN.items():
+        icoon, uitleg = GROEP_UITLEG.get(groep, (":material/apps:", ""))
+        namen = ", ".join(PAGINA[u].title.split(" (")[0] for u in urls if u in PAGINA)
+        stappen.append((icoon, groep, f"{uitleg}  \n:gray[Hier vind je: {namen}.]"))
+    stappen += [
+        (":material/settings:", "Instellingen", "Alle onderdelen staan hier als tegels. Zet aan of uit wat je wilt, "
+                                                "koppel je apps en bekijk deze rondleiding opnieuw."),
+        (":material/assistant:", "Hulp nodig?", "Vraag het de assistent. Typ of zeg wat je wilt, bijvoorbeeld "
+                                                "\"zoek een tandarts in de buurt\" of \"koppel mijn agenda\"."),
+    ]
+    return stappen
 
 
 @st.dialog("Rondleiding")
 def rondleiding() -> None:
-    """Korte uitleg bij de eerste keer: vijf stappen, overslaan kan altijd."""
+    """Korte uitleg van alle onderdelen. Overslaan kan altijd; opnieuw bekijken via Instellingen."""
     opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
-    stap = min(st.session_state.get("rl_stap", 0), len(RONDLEIDING) - 1)
-    icoon, titel, uitleg = RONDLEIDING[stap]
+    stappen = rondleiding_stappen()
+    stap = min(st.session_state.get("rl_stap", 0), len(stappen) - 1)
+    icoon, titel, uitleg = stappen[stap]
     st.markdown(f"### {icoon} {taal.t(titel)}")
-    st.write(uitleg)
-    st.caption(" ".join("●" if i == stap else "○" for i in range(len(RONDLEIDING))))
+    st.markdown(uitleg)
+    st.caption(f"{stap + 1} van {len(stappen)}")
 
     def klaar() -> None:
         opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
@@ -3269,14 +3402,17 @@ def rondleiding() -> None:
         st.session_state.pop("rondleiding", None)
 
     with st.container(horizontal=True):
-        if stap < len(RONDLEIDING) - 1:
+        if stap < len(stappen) - 1:
             if st.button("Volgende", type="primary"):
                 st.session_state.rl_stap = stap + 1
                 st.rerun(scope="fragment")
-            if st.button("Overslaan", type="tertiary"):
-                klaar()
-                st.rerun()
         elif st.button("Aan de slag", type="primary"):
+            klaar()
+            st.rerun()
+        if stap > 0 and st.button("Vorige"):
+            st.session_state.rl_stap = stap - 1
+            st.rerun(scope="fragment")
+        if stap < len(stappen) - 1 and st.button("Overslaan", type="tertiary"):
             klaar()
             st.rerun()
 
@@ -3367,14 +3503,21 @@ INSTELLING_GROEPEN = {
     "Werk": (":material/work:", "Beroep en zakelijke tools"),
     "Account": (":material/person:", "Profiel, beveiliging, privacy"),
     "Idee of probleem": (":material/lightbulb:", "Zeg wat beter kan"),
+    "Rondleiding": (":material/tour:", "Alle onderdelen uitgelegd"),
 }
 
 
 def instellingen_tabblad() -> None:
     """Rustig zoals bij Google: eerst tegels voor de onderdelen en de instellingen, pas na een keuze de details."""
     def kies(naam: str | None) -> None:
+        if naam == "Rondleiding":
+            st.session_state.rl_stap = 0
+            st.session_state.rondleiding = True
+            return
         st.session_state.inst_groep = naam
 
+    if na := st.session_state.pop("inst_na", None):
+        st.session_state.inst_groep = na  # vanuit "Wat wil je koppelen?"
     groep = st.session_state.get("inst_groep")
     if groep in INSTELLING_GROEPEN:
         with st.container(horizontal=True, vertical_alignment="center"):
@@ -3456,10 +3599,6 @@ def instellingen_weergave() -> None:
         st.caption("De assistent antwoordt ook in deze taal. Wat nog niet vertaald is, blijft Nederlands.")
     with st.expander("Toegankelijkheid"):
         toegankelijkheid_instellingen()
-    if st.button("Rondleiding opnieuw bekijken", icon=":material/tour:", type="tertiary"):
-        st.session_state.rl_stap = 0
-        st.session_state.rondleiding = True
-        st.rerun()
     with st.expander("Voorpagina en menu"):
         voorpagina_instellingen()
     with st.expander("Indeling"):
@@ -4680,6 +4819,10 @@ def main() -> None:
                    "Instellingen › Account › Beveiliging.", icon="⚠️")
     if st.session_state.pop("welkom", False):
         welkom_voorkeuren()
+    elif st.session_state.get("koppelen_vraag") or (not opslag.instellingen().get("koppelen_gezien")
+                                                     and not st.session_state.get("rl_later")):
+        st.session_state.rl_later = True  # niet bij elke klik opnieuw
+        koppelen_vragen()
     elif st.session_state.get("rondleiding") or (not opslag.instellingen().get("rondleiding_gezien")
                                                  and not st.session_state.get("rl_later")):
         st.session_state.rl_later = True  # niet bij elke klik opnieuw; na sluiten pas volgende keer
