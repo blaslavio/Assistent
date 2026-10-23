@@ -637,7 +637,9 @@ function tekstHtml(g, tekst) {
   if (namen.length && html.includes("@")) {
     html = html.replace(/@([a-z0-9._-]+)/gi, (heel, naam) => (namen.includes(naam.toLowerCase()) ? `<span class="c-vermeld">${heel}</span>` : heel));
   }
-  return html;
+  // Links worden aanklikbaar; ze openen in de browser van de app (of op de goede plek in de app).
+  return html.replace(/(^|[\s(>])(https?:\/\/[^\s<]+?)(?=[.,!?)]*(?:\s|<|$))/g,
+    (heel, voor, url) => `${voor}<a class="c-link" href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
 }
 
 function korteInhoud(m, vertaal = T) {

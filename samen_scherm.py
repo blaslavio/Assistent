@@ -2,6 +2,8 @@
 
 import base64
 import html
+import re
+import secrets
 import time
 from datetime import date, datetime, timedelta
 from urllib.parse import quote
@@ -795,6 +797,35 @@ def winkel_link(adres: str) -> str:
     return f"{basis}/?winkel={adres}"
 
 
+def winkel_code(naam: str) -> str:
+    """Een vaste code voor de winkel, gemaakt uit de naam (alleen intern, voor de deellink)."""
+    import unicodedata
+
+    t = unicodedata.normalize("NFKD", naam).encode("ascii", "ignore").decode().lower()
+    t = re.sub(r"[^a-z0-9]+", "-", t).strip("-")[:24].strip("-")
+    return t if len(t) >= 3 else (t + "-winkel").strip("-")
+
+
+def winkel_opslaan(adres: str, naam: str, *rest) -> bool:
+    """Slaat de winkel op. Een nieuwe winkel krijgt vanzelf een code uit de naam; is die bezet, dan met een nummer."""
+    if adres:
+        return _fout(samen.winkel_instellen, adres, naam, *rest) is not None
+    if not naam.strip():
+        st.error("Geef je winkel een naam.")
+        return False
+    basis = winkel_code(naam)
+    for poging in [basis] + [f"{basis}-{i}" for i in range(2, 10)] + [f"{basis}-{secrets.token_hex(3)}"]:
+        try:
+            samen.winkel_instellen(poging, naam, *rest)
+            return True
+        except samen.Fout as fout:
+            if "in gebruik" not in str(fout):
+                st.error(str(fout))
+                return False
+    st.error("Dit lukte niet. Probeer een andere naam.")
+    return False
+
+
 def mijn_webshop(inkopen=None) -> None:
     """Pagina 🏬 Mijn webshop: winkel instellen, producten en voorraad, en delen."""
     m = samen.mijn_winkel()
@@ -820,7 +851,7 @@ def mijn_webshop(inkopen=None) -> None:
         if deel == "Reviews":
             winkel_reviews()
             return
-    st.caption(f"Je eigen winkelpagina met een vast adres, die je kunt delen. Klanten betalen veilig via de app en "
+    st.caption(f"Je eigen winkel in de app, die je kunt delen. Klanten betalen veilig via de app en "
                f"betalen niets extra. Per verkoop betaal je {m['commissie_procent']:g}% commissie (minimaal "
                f"{samen.euro(m['commissie_min'])}), inclusief betaalkosten. Geen abonnement.")
     if not m["kan_betalen"]:
@@ -840,8 +871,6 @@ def mijn_webshop(inkopen=None) -> None:
         w = w or {}
         with st.form("winkel", border=False):
             naam = st.text_input("Naam van je winkel", value=w.get("naam", ""), max_chars=60)
-            adres = st.text_input("Webadres", value=w.get("adres", ""), max_chars=30,
-                                  help="Kleine letters, cijfers en streepjes.")
             omschrijving = st.text_area("Over je winkel", value=w.get("omschrijving", ""), height=90)
             kleur = st.color_picker("Kleur", value=w.get("kleur", "#2563eb"))
             k1, k2 = st.columns(2)
@@ -852,8 +881,8 @@ def mijn_webshop(inkopen=None) -> None:
                                   placeholder="Bijv. verzending met PostNL")
             open_ = st.toggle("Winkel open", value=bool(w.get("open")))
             if st.form_submit_button("Opslaan", type="primary"):
-                if _fout(samen.winkel_instellen, adres, naam, omschrijving, kleur, verzend, gratis or None, retour,
-                         open_) is not None:
+                if winkel_opslaan(w.get("adres", ""), naam, omschrijving, kleur, verzend, gratis or None, retour,
+                                  open_):
                     st.rerun()
     if not w:
         return

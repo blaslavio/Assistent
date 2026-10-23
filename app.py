@@ -78,6 +78,7 @@ import kort
 import pot
 import pot_scherm
 import toegangssleutel
+import browser  # niet in de herlaadlijst: bevat onderdelen (components)
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
@@ -4143,6 +4144,13 @@ def feedback_vragen_antwoord() -> None:
                 st.rerun()
 
 
+def _in_app(soort: str, sleutel: str) -> None:
+    """Opent een winkel, boekingspagina of ruimte in hetzelfde venster: je blijft in de app."""
+    st.query_params.clear()
+    st.query_params[soort] = sleutel
+    st.rerun()
+
+
 def profielkaart(p: dict) -> None:
     """Iemands profielkaart via een korte link: winkel, boekingspagina en ruimtes. Ook zonder account."""
     st.title(p["naam"] or "Profiel")
@@ -4153,16 +4161,18 @@ def profielkaart(p: dict) -> None:
             st.markdown(f"**{w['naam']}**")
             if w.get("omschrijving"):
                 st.caption(w["omschrijving"][:160])
-            st.link_button("Naar de winkel", f"{kort.basis()}/?winkel={w['adres']}", icon=":material/storefront:", width="stretch")
+            if st.button("Naar de winkel", icon=":material/storefront:", width="stretch", key="profiel_winkel"):
+                _in_app("winkel", w["adres"])
     if b := p.get("boek"):
         with st.container(border=True):
             st.markdown(f"**{b['titel'] or 'Afspraak maken'}**")
             if b.get("intro"):
                 st.caption(b["intro"][:160])
-            st.link_button("Kies een moment", f"{kort.basis()}/?boek={b['adres']}", icon=":material/event_available:",
-                           width="stretch")
+            if st.button("Kies een moment", icon=":material/event_available:", width="stretch", key="profiel_boek"):
+                _in_app("boek", b["adres"])
     for r in p.get("ruimtes") or []:
-        st.link_button(r["titel"], f"{kort.basis()}/?ruimte={r['id']}", icon=":material/view_in_ar:", width="stretch")
+        if st.button(r["titel"], icon=":material/view_in_ar:", width="stretch", key=f"profiel_ruimte_{r['id']}"):
+            _in_app("ruimte", str(r["id"]))
     if not (p.get("winkel") or p.get("boek") or p.get("ruimtes")):
         st.caption("Hier staat nog niets.")
 
@@ -4328,7 +4338,8 @@ def paginas() -> list:
           als(online and "Zakelijk" not in uit, zaak_scherm.pagina, "Zakelijk", ":material/business_center:", "zakelijk"))
     groep("Thuis en handig",
           als(bool(lijstjes_delen()), lijstjes, "Lijstjes", ":material/shopping_cart:", "lijstjes"),
-          als(bool(handig_delen()), handig, "Hulpmiddelen", ":material/build:", "hulpmiddelen"))
+          als(bool(handig_delen()), handig, "Hulpmiddelen", ":material/build:", "hulpmiddelen"),
+          als(True, browser.pagina, "Browser", ":material/language:", "browser"))
     # Groepen in jouw volgorde (Instellingen › Weergave › Indeling).
     volgorde = indeling.huidig()["groepen"]
     for naam in sorted(GROEPEN, key=lambda g: volgorde.index(g) if g in volgorde else len(volgorde)):
@@ -4657,6 +4668,11 @@ def main() -> None:
     # Niet op de chatpagina: daar heeft de chat zijn eigen invoerveld.
     if nu_open.url_path != "chat":
         assistent_invoer()
+    # Links naar andere websites openen in de browser van de app; links naar de app zelf op de goede plek.
+    if klik := browser.vanger(app_adres()):
+        browser.openen(klik, app_adres())
+        if st.session_state.pop("_browser_herladen", False):
+            st.rerun()
     doel = st.session_state.pop("ga_naar", None)
     if doel in PAGINA and nu_open.url_path != doel:
         st.switch_page(PAGINA[doel])

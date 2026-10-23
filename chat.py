@@ -207,6 +207,7 @@ CSS = """
   margin-bottom: 4px; cursor: pointer; opacity: .9; }
 .c-citaat span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .8; }
 .c-vermeld { font-weight: 600; }
+.c-link { color: inherit; text-decoration: underline; overflow-wrap: anywhere; }
 .c-bericht:not(.c-mijn) .c-vermeld { color: var(--c-hoofd); }
 .c-flits { outline: 3px solid color-mix(in srgb, var(--c-hoofd) 50%, transparent); }
 .c-vast { display: flex; align-items: center; gap: 8px; font: inherit; font-size: 14px; color: inherit; background: var(--c-achter);
