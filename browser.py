@@ -26,7 +26,8 @@ import streamlit as st
 BUITEN = ("stripe.com", "wa.me", "whatsapp.com", "maps.apple.com", "apps.apple.com", "play.google.com",
           "tikkie.me", "bunq.me", "enablebanking.com", "tilisy.com", "accounts.google.com", "appleid.apple.com",
           "account.apple.com", "supabase.co", "strava.com", "paypal.com", "paypal.me", "ideal.nl", "github.io",
-          "calendar.google.com", "outlook.live.com", "login.microsoftonline.com")
+          "calendar.google.com", "outlook.live.com", "login.microsoftonline.com", "fitbit.com", "polar.com",
+          "withings.com", "ouraring.com")
 AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"
 MAX_GROOT = 3_000_000
 ZOEKEN = "https://html.duckduckgo.com/html/?q="

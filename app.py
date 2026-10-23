@@ -77,13 +77,16 @@ import extern_inloggen
 import kort
 import pot
 import pot_scherm
+import gezondheid
+import sport_scherm
 import toegangssleutel
+import boven
 import browser  # niet in de herlaadlijst: bevat onderdelen (components)
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, gezondheid, sport_scherm):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -577,40 +580,6 @@ def tijdsbesteding_overzicht(vandaag: date) -> bool:
                f" uitloop {_uren(t['uitloop'])}")
     st.markdown(tijdbalk([(t["reistijd"], BLAUW), (t["op_locatie"], GROEN), (t["uitloop"], ROOD)]), unsafe_allow_html=True)
     return True
-
-
-def sport_zonder_resultaat(nu: datetime) -> list[dict]:
-    """Sportafspraken van vandaag die voorbij zijn en nog geen resultaat hebben."""
-    vandaag = nu.date().isoformat()
-    return [a for a in opslag.afspraken_tussen(vandaag, vandaag)
-            if a.get("sport") and not a.get("sport_resultaat")
-            and ("weg" in a.get("tijden", {}) or (a.get("einde") or a["start"]) <= nu.isoformat(timespec="minutes"))]
-
-
-def sport_overzicht(nu: datetime, toon_week: bool = True, vragen: bool = True) -> None:
-    """Resultaat invullen na een sportafspraak, en wat je deze week gesport hebt."""
-    vandaag = nu.date().isoformat()
-    week = tijd.sportoverzicht((nu.date() - timedelta(days=6)).isoformat(), vandaag)
-    klaar = sport_zonder_resultaat(nu) if vragen else []
-    if not klaar and not (toon_week and week["aantal"]):
-        return
-    st.markdown("**Sport**")
-    for a in klaar:
-        with st.expander(f"{tijd.sport_icoon(a['sport'])} Hoe ging {a['titel']}?", expanded=True):
-            with st.form(f"sport_{a['id']}", border=False):
-                minuten = st.number_input("Minuten gesport", 0, 600, tijd.sportminuten(a), step=5)
-                km = st.number_input("Afstand in km (0 als het niet telt)", 0.0, 500.0, 0.0, step=0.5)
-                gevoel = st.select_slider("Hoe voelde het?", options=[1, 2, 3, 4, 5], value=3,
-                                          format_func=lambda g: ["😫", "😕", "🙂", "😀", "🤩"][g - 1])
-                if st.form_submit_button("Opslaan"):
-                    opslag.sport_vastleggen(a["id"], int(minuten), float(km), gevoel)
-                    st.rerun()
-    if toon_week and week["aantal"]:
-        soorten = ", ".join(f"{tijd.sport_icoon(s)} {n}" for s, n in week["per_sport"].items())
-        tekst = f"Afgelopen 7 dagen: {week['aantal']} keer gesport, {_uren(week['minuten'])}"
-        if week["afstand_km"]:
-            tekst += f", {week['afstand_km']} km"
-        st.caption(f"{tekst} ({soorten})")
 
 
 def app_url() -> str:
@@ -1266,14 +1235,12 @@ def samen_agendas() -> None:
     if st.session_state.get("samen_deel") == "Gezin":
         st.session_state.samen_deel = "Thuis"
     opties = ((["Thuis"] if online else []) + (["Gedeeld met mij"] if online and DEELSITUATIE_NU.get("met_mij") else [])
-              + ["Sport", "Vrije tijd"])
+              + ["Vrije tijd"])
     if st.session_state.get("samen_deel") not in opties:
         st.session_state.pop("samen_deel", None)
     keuze = st.segmented_control("Samen", opties, default=opties[0], key="samen_deel",
                                  label_visibility="collapsed") or opties[0]
-    if keuze == "Sport":
-        sport_tabblad(datetime.now())
-    elif keuze == "Vrije tijd":
+    if keuze == "Vrije tijd":
         vrije_tijd()
     elif keuze == "Gedeeld met mij":
         gedeelde_agendas()
@@ -1588,7 +1555,13 @@ def takenlijst() -> None:
 
 def agenda_overzicht() -> None:
     """Maand-, week- of dagoverzicht (standaard maand) met bovenaan één rij knoppen; de extra's samen onderaan."""
-    sport_overzicht(datetime.now(), toon_week=False)
+    if sport_scherm.zonder_resultaat(datetime.now()):
+        with st.container(horizontal=True, vertical_alignment="center"):
+            st.caption("Hoe ging je training?", width="content")
+            if st.button("Invullen", type="tertiary", key="agenda_sport_invullen"):
+                st.session_state.sport_deel = "Overzicht"
+                st.session_state.ga_naar = "sport"
+                st.rerun()
     with st.container(horizontal=True, vertical_alignment="center"):
         weergave = st.segmented_control("Weergave", ["Maand", "Week", "Dag"], default="Maand", key="agenda_weergave",
                                         label_visibility="collapsed") or "Maand"
@@ -1927,8 +1900,27 @@ def sport_kiezen(plek, label: str, huidig: str, leeg: str, sleutel: str) -> str:
     return (eigen.strip() or gekozen or "").lower()
 
 
+def sport_pagina() -> None:
+    """Pagina Sport: overzicht, trainingen (ook boekingen en lessen), doelen en koppelingen."""
+    if m := st.session_state.pop("sport_melding", None):
+        st.toast(m)
+    nu = datetime.now()
+    deel = st.segmented_control("Sport", ["Overzicht", "Training", "Doelen", "Koppelen"], default="Overzicht",
+                                key="sport_deel", label_visibility="collapsed") or "Overzicht"
+    if deel == "Training":
+        sport_scherm.trainingen(nu)
+    elif deel == "Doelen":
+        sport_tabblad(nu)
+    elif deel == "Koppelen":
+        sport_scherm.koppelen(app_adres())
+        if strava.gekoppeld():
+            strava_instellingen()  # een oudere koppeling met eigen Strava-sleutels blijft werken
+    else:
+        sport_scherm.overzicht(nu)
+
+
 def sport_tabblad(nu: datetime) -> None:
-    """Sportdoelen met voortgang, en wat je de afgelopen week deed."""
+    """Sportdoelen met voortgang."""
     doelen = opslag.sportdoelen()
     if not doelen:
         st.caption("Nog geen doelen.")
@@ -1975,9 +1967,6 @@ def sport_tabblad(nu: datetime) -> None:
                     st.rerun()
     for sport in dict.fromkeys(d["sport"] for d in doelen if d["sport"]):
         sport_uitleg(sport, next((d["omschrijving"] for d in doelen if d["sport"] == sport), ""))
-    st.divider()
-    # De vraag "hoe ging het" staat al bovenaan de agenda; hier alleen het weekoverzicht.
-    sport_overzicht(nu, vragen=False)
 
 
 DAGNAMEN = ["ma", "di", "wo", "do", "vr", "za", "zo"]
@@ -2430,8 +2419,8 @@ def seintjes(nu: datetime) -> None:
         delen.append(f"{len(herhalingen)} keer herhalen (Leren)")
     if "Leren" not in uit and (reeks := opslag.leerreeks())["reeks"] and not reeks["vandaag_gehaald"] and nu.hour >= 17:
         delen.append(f"oefen vandaag even, dan blijft je reeks van {reeks['reeks']} dagen staan")
-    if sport_zonder_resultaat(nu):
-        delen.append("hoe ging je training? (Agenda)")
+    if sport_scherm.zonder_resultaat(nu):
+        delen.append("hoe ging je training? (Sport)")
     if "Mail" not in uit and (namens := opslag.namens_vandaag()):
         delen.append(f"{namens} keer namens je gereageerd (Mail)")
     if "Mail" not in uit and (concepten := opslag.mailconcepten()):
@@ -3725,7 +3714,13 @@ def instellingen_koppelingen() -> None:
             geld_scherm.bank_instellen("instellingen")
     with st.expander("Siri en Apple Woning" + (" (ingesteld)" if woning.scenes() else "")):
         siri_en_woning()
-    strava_instellingen()
+    with st.container(border=True, horizontal=True, vertical_alignment="center"):
+        st.markdown("**Sport en gezondheid**  \n:gray[Strava, Fitbit, Polar, Withings, Oura, Apple Gezondheid]",
+                    width="stretch")
+        if st.button("Openen", key="naar_sport_koppelen"):
+            st.session_state.sport_deel = "Koppelen"
+            st.session_state.ga_naar = "sport"
+            st.rerun()
     with st.expander("Events (Ticketmaster)" + (" (gekoppeld)" if events.sleutel() else "")):
         events_instellen()
     with st.expander("Zelftest"):
@@ -4183,6 +4178,11 @@ def terug_van_stripe() -> None:
         if sleutel in st.query_params:
             st.session_state[f"terug_{sleutel}"] = st.query_params[sleutel]
             del st.query_params[sleutel]
+    # Terug van een sport- of gezondheidsapp: ?code=...&state=gz.... (of ?error=...).
+    if st.query_params.get("state", "").startswith("gz."):
+        st.session_state.terug_gezondheid = (st.query_params.get("code", ""), st.query_params["state"])
+        for sleutel in ("code", "state", "error", "error_description", "scope"):
+            st.query_params.pop(sleutel, None)
     # Terug van de bank (Enable Banking): ?code=...&state=... (of ?error=... als je annuleerde).
     if "state" in st.query_params and ("code" in st.query_params or "error" in st.query_params):
         st.session_state.terug_bank = (st.query_params.get("code", ""), st.query_params["state"])
@@ -4190,6 +4190,22 @@ def terug_van_stripe() -> None:
             st.query_params.pop(sleutel, None)
     if not st.session_state.get("wachtwoord"):
         return
+    if terug_gz := st.session_state.pop("terug_gezondheid", None):
+        st.session_state.ga_naar = "sport"
+        st.session_state.sport_deel = "Koppelen"
+        for sleutel in [k for k in st.session_state if str(k).startswith("gz_url_")]:
+            st.session_state.pop(sleutel, None)
+        if not terug_gz[0]:
+            st.session_state.sport_melding = "Verbinden afgebroken."
+        else:
+            try:
+                with st.spinner("Verbinden..."):
+                    k = gezondheid.afmaken(*terug_gz)
+                naam = gezondheid.AANBIEDERS.get(k["aanbieder"], (k["aanbieder"],))[0]
+                st.session_state.sport_melding = f"{naam} is verbonden" + (
+                    f", {k['nieuw']} training(en) overgenomen." if k.get("nieuw") else ".")
+            except gezondheid.Fout as fout:
+                st.session_state.sport_melding = str(fout)
     if terug_bank := st.session_state.pop("terug_bank", None):
         st.session_state.ga_naar = "budget"
         if not terug_bank[0]:
@@ -4336,6 +4352,8 @@ def paginas() -> list:
           als("Beleggen" not in uit, geld_scherm.beleggen_pagina, "Beleggen", ":material/trending_up:", "beleggen"))
     groep("Zakelijk",
           als(online and "Zakelijk" not in uit, zaak_scherm.pagina, "Zakelijk", ":material/business_center:", "zakelijk"))
+    groep("Sport en gezondheid",
+          als(True, sport_pagina, "Sport", ":material/directions_run:", "sport"))
     groep("Thuis en handig",
           als(bool(lijstjes_delen()), lijstjes, "Lijstjes", ":material/shopping_cart:", "lijstjes"),
           als(bool(handig_delen()), handig, "Hulpmiddelen", ":material/build:", "hulpmiddelen"),
@@ -4617,6 +4635,11 @@ def main() -> None:
             bank.vanzelf()
         except Exception:
             pass
+    # Gekoppelde sport- en gezondheidsapps: elke paar uur nieuwe trainingen, stappen en slaap (op de achtergrond).
+    try:
+        gezondheid.vanzelf()
+    except Exception:
+        pass
     # Herinneringen en vertrekwekkers voor de meldingen op je telefoon klaarzetten (op de achtergrond).
     try:
         meldingen.vanzelf()
@@ -4683,6 +4706,8 @@ def main() -> None:
     strava_terugkomst()
     strava_bijwerken()
     st.session_state._pagina = nu_open.url_path
+    # Elke pagina opent bovenaan; alleen de gesprekken blijven onderaan (bij het nieuwste bericht).
+    boven.bovenaan(None if nu_open.url_path in ("assistent", "chat") else nu_open.url_path or "vandaag")
     nu_open.run()
 
 

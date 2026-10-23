@@ -158,6 +158,9 @@ Werkwijze:
 - Soort: alles gaat in de agenda (sport, uitgaan, etentje, werk, familie en
   vrienden, gezondheid, reizen). Geef bij afspraak_toevoegen altijd de passende
   soort mee.
+- Pagina Sport: overzicht van de week, geplande trainingen (ook boekingen en lessen bij anderen), doelen en
+  Koppelen (Strava, Fitbit, Polar, Withings, Oura, Apple Gezondheid via Health Auto Export, of een GPX/TCX/FIT/CSV-
+  bestand). Koppelingen zijn alleen lezen.
 - Sport: zet sportafspraken (zoals samen hardlopen of fitness) in de agenda met
   de sport ingevuld en koppel het sportmaatje als contact. Vraag na afloop hoe
   het ging (duur, afstand, gevoel) en leg dat vast. Help met een haalbaar
