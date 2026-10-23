@@ -96,7 +96,9 @@ async function versleutel(st, gesprek, apparaten, bericht) {
   const epk = pub(await crypto.subtle.exportKey("jwk", tijdelijk.publicKey));
   const sleutels = {};
   for (const a of apparaten) {
-    const hunPub = await crypto.subtle.importKey("jwk", a.ecdh, ECDH, false, []);
+    // Eén toestel met een kapotte sleutel mag de rest niet tegenhouden: dat toestel krijgt dit bericht dan niet.
+    let hunPub;
+    try { hunPub = await crypto.subtle.importKey("jwk", a.ecdh, ECDH, false, []); } catch (e) { continue; }
     const gedeeld = await crypto.subtle.deriveBits({ name: "ECDH", public: hunPub }, tijdelijk.privateKey, 256);
     const inpak = await inpakSleutel(gedeeld, iv, a.id, "encrypt");
     const iv2 = rnd(12);
@@ -296,9 +298,14 @@ const ICOON = {
   weg: '<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>',
   delen: '<svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 12v7a1 1 0 001 1h12a1 1 0 001-1v-7"/></svg>',
   geld: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v.01M18 15v.01"/></svg>',
+  bel: '<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2"/></svg>',
+  video: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg>',
+  stil: '<svg viewBox="0 0 24 24"><path d="M9 5a3 3 0 016 0v6a3 3 0 01-6 0zM5 11a7 7 0 0014 0M12 18v3"/></svg>',
+  ophangen: '<svg viewBox="0 0 24 24"><path d="M3 14c5-5 13-5 18 0l-2.5 2.5-3.5-1.5v-3a10 10 0 00-6 0v3l-3.5 1.5z"/></svg>',
+  draai: '<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0114-5l2-2v6h-6l2.5-2.5A5.5 5.5 0 006.5 12M20 12a8 8 0 01-14 5l-2 2v-6h6l-2.5 2.5A5.5 5.5 0 0017.5 12"/></svg>',
 };
 const EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
-const SKIP = new Set(["reactie", "emoji", "stem", "betaald"]);
+const SKIP = new Set(["reactie", "emoji", "stem", "betaald", "bel"]);
 const KLEUREN = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
 // Profielfoto's (alleen van wie jou dat toestaat). Id -> data-URL, of "" als er geen is.
 const FOTOS = new Map();
@@ -342,6 +349,7 @@ function voorbeeldTekst(st, g, m, afzender) {
   const lid = g.leden.find((l) => l.id === afzender);
   const wie = afzender === st.ik ? T("Jij") + ": " : (g.soort === "groep" && lid ? `${lid.naam}: ` : (m.t === "reactie" && lid ? `${lid.naam} ` : ""));
   if (m.t === "tekst") return wie + m.tekst.slice(0, 80);
+  if (m.t === "bel") return m.fase === "einde" && m.duur ? T("Gesprek van {}", belDuur(m.duur)) : m.fase === "einde" ? T("Gemiste oproep") : T("Oproep");
   if (m.t === "foto") return wie + T("Foto");
   if (m.t === "afspraak") return wie + T("Afspraak: {}", m.titel);
   if (m.t === "peiling") return wie + T("Peiling: {}", m.vraag);
@@ -744,6 +752,12 @@ function toonGesprek(st) {
   const rijen = [];
   let vorigeDag = "", vorige = null;
   for (const b of st.berichten) {
+    if (b.bericht && b.bericht.t === "bel" && b.bericht.fase === "einde") {
+      const m = b.bericht;
+      rijen.push(`<div class="c-dag c-bel-regel">${m.video ? ICOON.video : ICOON.bel} ${esc(m.duur ? T("Gesprek van {}", belDuur(m.duur))
+        : b.afzender === st.ik ? T("Niet opgenomen") : T("Gemiste oproep"))} · ${esc(lokaalTijd(b.aangemaakt))}</div>`);
+      continue;
+    }
     if (b.bericht && SKIP.has(b.bericht.t)) continue;
     const d = dag(b.aangemaakt);
     if (d !== vorigeDag) { rijen.push(`<div class="c-dag">${esc(d)}</div>`); vorigeDag = d; vorige = null; }
@@ -784,9 +798,12 @@ function toonGesprek(st) {
   const vastId = vastIds.length ? vastIds[(st.vastStap || 0) % vastIds.length] : null;
   const vastBericht = vastId ? st.berichten.find((x) => x.id === vastId) : null;
   const magSchrijven = g.status === "lid" && (!g.alleen_beheer || g.beheerder);
+  const belKnoppen = g.soort === "twee" && g.status === "lid" && window.RTCPeerConnection
+    ? `<div class="c-bel-knoppen"><button class="c-ikoon" data-a="bel-video" aria-label="${esc(T("Videobellen"))}">${ICOON.video}</button>
+       <button class="c-ikoon" data-a="bel-audio" aria-label="${esc(T("Bellen"))}">${ICOON.bel}</button></div>` : "";
   st.wortel.innerHTML = `
     ${kop(terug, `<button class="c-titel" data-a="${g.community ? "cinfo" : "info"}">${beeld}
-      <span><b>${esc(g.community ? g.naam : gesprekNaam(st, g))}</b><small>${g.verdwijnen ? `⏱ ${T(VERDWIJNEN[g.verdwijnen] || "")} · ` : ""}${esc(sub)}</small></span></button>`)}
+      <span><b>${esc(g.community ? g.naam : gesprekNaam(st, g))}</b><small>${g.verdwijnen ? `⏱ ${T(VERDWIJNEN[g.verdwijnen] || "")} · ` : ""}${esc(sub)}</small></span></button>`, belKnoppen)}
     ${vastBericht ? `<button class="c-vast" data-a="vast-volgende" data-b="${vastBericht.id}">${ICOON.vast}<span>${esc(korteInhoud(vastBericht.bericht))}</span>
       ${vastIds.length > 1 ? `<small>${((st.vastStap || 0) % vastIds.length) + 1}/${vastIds.length}</small>` : ""}</button>` : ""}
     ${sleutelWaarschuwing}
@@ -977,7 +994,11 @@ async function voorbeeldenBijwerken(st) {
     let tekst = "";
     if (b && b.weg) tekst = T("Bericht verwijderd");
     else if (b && b.inhoud) {
-      try { const o = await ontsleutel(st, g.id, b); tekst = voorbeeldTekst(st, g, o.bericht, b.afzender); } catch (e) { tekst = ""; }
+      try {
+        const o = await ontsleutel(st, g.id, b);
+        tekst = voorbeeldTekst(st, g, o.bericht, b.afzender);
+        if (o.bericht && o.bericht.t === "bel") belBericht(st, g.id, { ...b, bericht: o.bericht }, gesprekNaam(st, g));
+      } catch (e) { tekst = ""; }
     }
     const nieuw = { id: g.laatste_id, tekst: tekst || T("Versleuteld bericht") };
     st.voorbeelden.set(g.id, nieuw);
@@ -1020,6 +1041,7 @@ async function berichtenLaden(st) {
       const lijst = st.betaald.get(b.bericht.op) || [];
       if (!lijst.some((x) => x.id === b.afzender)) st.betaald.set(b.bericht.op, [...lijst, { id: b.afzender, naam: b.afzender === st.ik ? "" : lid.naam || "" }]);
     }
+    if (b.bericht && b.bericht.t === "bel") belBericht(st, g.id, b);
     if (b.bericht && b.bericht.t === "stem") {
       const per = st.stemmen.get(b.bericht.op) || new Map();
       per.set(b.afzender, Number(b.bericht.keuze));
@@ -1364,6 +1386,7 @@ async function actie(st, a, el) {
   const v = (id) => (st.wortel.querySelector(id) || {}).value || "";
   try {
     if (a === "opnieuw") { st.fout = null; return start(st); }
+    if (a === "bel-audio" || a === "bel-video") return belStarten(st, a === "bel-video");
     if (a !== "blad") st.blad = null;
     if (a === "blad") { st.blad = "nieuw"; return toon(st); }
     if (a === "blad-dicht") return toon(st);
@@ -1695,6 +1718,310 @@ async function actie(st, a, el) {
 
 // --- Opstarten en bijhouden --------------------------------------------------------------------------------------
 
+// --- Bellen (spraak en video) ------------------------------------------------------------------------------------
+// Het gesprek zelf gaat rechtstreeks tussen de twee toestellen (WebRTC), versleuteld met DTLS-SRTP. De afspraken om
+// verbinding te maken (aanbod en antwoord, met de vingerafdruk van die versleuteling) gaan als gewone versleutelde,
+// ondertekende chatberichten: de server kan ze niet lezen en er ook niets tussen zetten.
+
+const BEL_ICE = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun.cloudflare.com:3478" }];
+const BEL_GELDIG = 45000;
+
+function belDuur(sec) {
+  sec = Math.max(0, Math.round(sec));
+  return sec < 60 ? T("{} sec", sec) : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+}
+function lokaalTijd(iso) { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+
+// Wacht tot alle verbindingsadressen bekend zijn (hooguit 2,5 seconde), zodat één bericht genoeg is.
+function iceKlaar(pc) {
+  if (pc.iceGatheringState === "complete") return Promise.resolve();
+  return new Promise((klaar) => {
+    const k = () => { if (pc.iceGatheringState === "complete") { pc.removeEventListener("icegatheringstatechange", k); klaar(); } };
+    pc.addEventListener("icegatheringstatechange", k);
+    setTimeout(klaar, 2500);
+  });
+}
+
+const belSleutels = new Map();
+async function belStuur(st, gesprek, bericht) {
+  let lijst = belSleutels.get(gesprek);
+  if (!lijst) { lijst = (await rpc(st, "chat_sleutels", { p_gesprek: gesprek })).apparaten; belSleutels.set(gesprek, lijst); }
+  const p = await versleutel(st, gesprek, lijst, bericht);
+  await rpc(st, "chat_versturen", { p_gesprek: gesprek, p_apparaat: st.apparaat, p_inhoud: p.inhoud, p_iv: p.iv,
+                                    p_epk: p.epk, p_sleutels: p.sleutels, p_handtekening: p.handtekening });
+}
+
+async function belVerbinding(st, video) {
+  const media = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true },
+    video: video ? { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } : false,
+  });
+  const pc = new RTCPeerConnection({ iceServers: BEL_ICE });
+  media.getTracks().forEach((spoor) => pc.addTrack(spoor, media));
+  pc.addEventListener("track", (e) => {
+    const v = st.belScherm && st.belScherm.querySelector(".c-bel-ander");
+    if (v && e.streams[0] && v.srcObject !== e.streams[0]) { v.srcObject = e.streams[0]; v.play().catch(() => {}); }
+  });
+  pc.addEventListener("connectionstatechange", () => {
+    if (!st.bel || st.bel.pc !== pc) return;
+    if (pc.connectionState === "connected" && st.bel.fase !== "verbonden") {
+      st.bel.fase = "verbonden"; st.bel.begin = Date.now(); belTekenen(st);
+    }
+    if (pc.connectionState === "failed") belOphangen(st, "mislukt");
+  });
+  return { pc, media };
+}
+
+async function belStarten(st, video) {
+  if (st.bel || st.binnen) return;
+  const g = st.gesprek;
+  st.bel = { id: b64(rnd(9)), gesprek: g.id, naam: gesprekNaam(st, g), video, rol: "beller", fase: "starten" };
+  belTekenen(st);
+  try {
+    const { pc, media } = await belVerbinding(st, video);
+    if (!st.bel) { media.getTracks().forEach((s) => s.stop()); pc.close(); return; }
+    Object.assign(st.bel, { pc, media });
+    belTekenen(st);
+    await pc.setLocalDescription(await pc.createOffer());
+    await iceKlaar(pc);
+    if (!st.bel) return;
+    st.bel.fase = "bellen";
+    st.bel.na = st.berichten.length ? st.berichten[st.berichten.length - 1].id : 0;
+    await belStuur(st, g.id, { t: "bel", fase: "aanbod", id: st.bel.id, video, sdp: pc.localDescription.sdp });
+    belTekenen(st);
+    belToon(st);
+    st.bel.wacht = setTimeout(() => { if (st.bel && st.bel.fase === "bellen") belOphangen(st, "geen"); }, BEL_GELDIG);
+    belLuisteren(st);
+  } catch (e) {
+    console.warn("bellen:", e);
+    belOpruimen(st);
+    melding(st, e && e.name === "NotAllowedError" ? T("Geef de app toegang tot je microfoon (en camera) om te bellen.")
+      : T("Bellen lukte niet."));
+  }
+}
+
+// Zolang er een oproep loopt, elke seconde kijken of er een antwoord is (ook als het gesprek niet open staat).
+function belLuisteren(st) {
+  clearTimeout(st.belKlok);
+  const huidig = st.bel || st.binnen;
+  if (!huidig || (st.bel && st.bel.fase === "verbonden")) return;
+  st.belKlok = setTimeout(async () => {
+    const nu = st.bel || st.binnen;
+    if (!nu) return;
+    try {
+      const r = await rpc(st, "chat_berichten", { p_gesprek: nu.gesprek, p_na: nu.na || 0, p_apparaat: st.apparaat });
+      for (const b of r.berichten) {
+        nu.na = Math.max(nu.na || 0, b.id);
+        if (b.weg || !b.inhoud) continue;
+        try { const o = await ontsleutel(st, nu.gesprek, b); if (o.bericht && o.bericht.t === "bel") belBericht(st, nu.gesprek, { ...b, ...o }); } catch (e) { /* overslaan */ }
+      }
+    } catch (e) { /* volgende keer */ }
+    belLuisteren(st);
+  }, 1000);
+}
+
+function belBericht(st, gesprek, b, naam) {
+  const m = b.bericht;
+  if (!m || b.apparaat === st.apparaat) return;
+  st.belGezien = st.belGezien || new Set();
+  const sleutel = `${m.id}:${m.fase}:${b.apparaat}`;
+  if (st.belGezien.has(sleutel)) return;
+  st.belGezien.add(sleutel);
+  const vers = Date.now() - new Date(b.aangemaakt).getTime() < BEL_GELDIG;
+  if (m.fase === "aanbod" && b.afzender !== st.ik && vers && !st.bel && !st.binnen && typeof m.sdp === "string") {
+    const g = st.gesprekken.find((x) => x.id === gesprek);
+    st.binnen = { id: m.id, gesprek, sdp: m.sdp, video: !!m.video, van: b.apparaat, na: b.id,
+                  naam: naam || (g ? gesprekNaam(st, g) : "") };
+    belTekenen(st); belBellen(st, true); belLuisteren(st);
+    return;
+  }
+  if (m.fase === "antwoord" && st.bel && st.bel.id === m.id && st.bel.rol === "beller" && m.aan === st.apparaat
+      && st.bel.fase === "bellen" && typeof m.sdp === "string") {
+    clearTimeout(st.bel.wacht);
+    st.bel.fase = "verbinden"; belTekenen(st);
+    st.bel.pc.setRemoteDescription({ type: "answer", sdp: m.sdp }).catch(() => belOphangen(st, "mislukt"));
+    return;
+  }
+  if (m.fase === "antwoord" && st.binnen && st.binnen.id === m.id && b.afzender === st.ik) {
+    belBellen(st, false); st.binnen = null; belTekenen(st);  // op je andere toestel opgenomen
+    return;
+  }
+  if (m.fase === "einde") {
+    if (st.binnen && st.binnen.id === m.id) { belBellen(st, false); st.binnen = null; belTekenen(st); }
+    if (st.bel && st.bel.id === m.id) belOpruimen(st, m.reden === "weiger" ? T("Geweigerd") : T("Opgehangen"));
+  }
+}
+
+async function belOpnemen(st) {
+  const i = st.binnen;
+  if (!i) return;
+  belBellen(st, false);
+  st.binnen = null;
+  st.bel = { id: i.id, gesprek: i.gesprek, naam: i.naam, video: i.video, rol: "gebelde", fase: "verbinden", na: i.na };
+  belTekenen(st);
+  try {
+    const { pc, media } = await belVerbinding(st, i.video);
+    Object.assign(st.bel, { pc, media });
+    belTekenen(st);
+    await pc.setRemoteDescription({ type: "offer", sdp: i.sdp });
+    await pc.setLocalDescription(await pc.createAnswer());
+    await iceKlaar(pc);
+    await belStuur(st, i.gesprek, { t: "bel", fase: "antwoord", id: i.id, aan: i.van, sdp: pc.localDescription.sdp });
+    belLuisteren(st);
+  } catch (e) {
+    console.warn("opnemen:", e);
+    belOphangen(st, "mislukt");
+    melding(st, e && e.name === "NotAllowedError" ? T("Geef de app toegang tot je microfoon (en camera) om te bellen.")
+      : T("Bellen lukte niet."));
+  }
+}
+
+function belWeigeren(st) {
+  const i = st.binnen;
+  if (!i) return;
+  belBellen(st, false);
+  st.binnen = null;
+  belTekenen(st);
+  belStuur(st, i.gesprek, { t: "bel", fase: "einde", id: i.id, reden: "weiger", video: i.video }).catch(() => {});
+}
+
+function belOphangen(st, reden = "klaar") {
+  const b = st.bel;
+  if (!b) return;
+  const duur = b.begin ? Math.round((Date.now() - b.begin) / 1000) : 0;
+  if (b.fase !== "starten") {
+    belStuur(st, b.gesprek, { t: "bel", fase: "einde", id: b.id, reden, duur, video: b.video })
+      .then(() => { if (st.gesprek && st.gesprek.id === b.gesprek) berichtenLaden(st).then((n) => n && toon(st)); })
+      .catch(() => {});
+  }
+  belOpruimen(st, reden === "geen" ? T("Niet opgenomen") : reden === "mislukt" ? T("Verbinding mislukt") : "");
+}
+
+function belOpruimen(st, tekst = "") {
+  const b = st.bel;
+  st.bel = null;
+  clearTimeout(st.belKlok);
+  if (b) {
+    clearTimeout(b.wacht); clearInterval(b.klok);
+    if (b.media) b.media.getTracks().forEach((s) => s.stop());
+    if (b.pc) b.pc.close();
+  }
+  belTekenen(st);
+  if (tekst) melding(st, tekst);
+}
+
+// Een zacht belgeluid (zelf gemaakt met Web Audio) en trillen, zolang er een oproep binnenkomt.
+function belBellen(st, aan) {
+  clearInterval(st.belGeluid);
+  if (!aan) return;
+  const toon1 = () => {
+    try {
+      const ctx = st.belCtx || (st.belCtx = new (window.AudioContext || window.webkitAudioContext)());
+      for (const [freq, start] of [[880, 0], [660, 0.18], [880, 0.6], [660, 0.78]]) {
+        const o = ctx.createOscillator(), v = ctx.createGain();
+        o.frequency.value = freq; o.connect(v); v.connect(ctx.destination);
+        const t0 = ctx.currentTime + start;
+        v.gain.setValueAtTime(0.0001, t0); v.gain.exponentialRampToValueAtTime(0.2, t0 + 0.02);
+        v.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+        o.start(t0); o.stop(t0 + 0.17);
+      }
+    } catch (e) { /* geen geluid mogelijk */ }
+    if (navigator.vibrate) navigator.vibrate([300, 200, 300]);
+  };
+  toon1();
+  st.belGeluid = setInterval(() => { if (!st.binnen) return clearInterval(st.belGeluid); toon1(); }, 2500);
+}
+
+function belToon(st) { belTekenen(st); }
+
+// Het belscherm hangt aan de pagina zelf (buiten de chat), dus het neemt zijn eigen opmaak mee.
+const BEL_CSS = `
+.c-bel-scherm { position: fixed; inset: 0; z-index: 2147483000; background: #0f172a; color: #fff; display: flex;
+  flex-direction: column; align-items: center; justify-content: space-between; font-family: -apple-system, system-ui, sans-serif;
+  padding: calc(48px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.c-bel-scherm [hidden] { display: none !important; }
+.c-bel-ander { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; pointer-events: none; }
+.c-bel-scherm.c-bel-video .c-bel-ander { opacity: 1; }
+.c-bel-scherm.c-bel-video .c-bel-avatar { display: none; }
+.c-bel-scherm.c-bel-video .c-bel-info { text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+.c-bel-ik { position: absolute; right: 16px; top: calc(16px + env(safe-area-inset-top)); width: 96px; height: 136px;
+  object-fit: cover; border-radius: 14px; transform: scaleX(-1); box-shadow: 0 4px 16px rgba(0,0,0,.4); z-index: 2; }
+.c-bel-info { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.c-bel-avatar { width: 112px; height: 112px; border-radius: 50%; overflow: hidden; display: grid; place-items: center;
+  font-size: 44px; font-weight: 600; margin-bottom: 8px; }
+.c-bel-avatar > * { width: 112px !important; height: 112px !important; font-size: 44px !important; display: grid; place-items: center; border-radius: 50%; object-fit: cover; color: #fff; }
+.c-bel-naam { font-size: 26px; font-weight: 600; }
+.c-bel-status { font-size: 16px; opacity: .8; font-variant-numeric: tabular-nums; }
+.c-bel-slot { display: flex; align-items: center; gap: 4px; font-size: 12px; opacity: .6; margin-top: 4px; }
+.c-bel-slot svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; }
+.c-bel-rij { position: relative; z-index: 1; display: flex; gap: 28px; justify-content: center; }
+.c-bel-knop { display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; color: #fff;
+  font: inherit; cursor: pointer; }
+.c-bel-knop svg { width: 64px; height: 64px; padding: 18px; box-sizing: border-box; border-radius: 50%;
+  background: rgba(255,255,255,.18); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.c-bel-knop small { font-size: 12px; opacity: .85; }
+.c-bel-knop.c-bel-aan svg { background: #fff; color: #0f172a; }
+.c-bel-knop.c-bel-rood svg { background: #ef4444; }
+.c-bel-knop.c-bel-groen svg { background: #22c55e; }
+`;
+
+// Het belscherm ligt over de hele app heen (los van de chat, zodat verversen het gesprek niet stoort).
+function belTekenen(st) {
+  const b = st.bel, i = st.binnen;
+  if (!b && !i) { if (st.belScherm) { st.belScherm.remove(); st.belScherm = null; } return; }
+  let s = st.belScherm;
+  if (!s) {
+    if (!document.getElementById("c-bel-stijl")) {
+      const stijl = document.createElement("style");
+      stijl.id = "c-bel-stijl"; stijl.textContent = BEL_CSS;
+      document.head.appendChild(stijl);
+    }
+    s = st.belScherm = document.createElement("div");
+    s.className = "c-bel-scherm";
+    s.innerHTML = `<video class="c-bel-ander" autoplay playsinline></video><video class="c-bel-ik" autoplay playsinline muted></video>
+      <div class="c-bel-info"><div class="c-bel-avatar"></div><b class="c-bel-naam"></b><span class="c-bel-status"></span>
+      <small class="c-bel-slot">${ICOON.slot} ${esc(T("End-to-end versleuteld"))}</small></div><div class="c-bel-rij"></div>`;
+    s.addEventListener("click", (e) => {
+      const el = e.target.closest("[data-bel]");
+      if (!el) return;
+      const a = el.dataset.bel;
+      if (a === "op") belOpnemen(st);
+      if (a === "weiger") belWeigeren(st);
+      if (a === "hang") belOphangen(st);
+      if (a === "stil" && st.bel && st.bel.media) {
+        const spoor = st.bel.media.getAudioTracks()[0];
+        if (spoor) { spoor.enabled = !spoor.enabled; st.bel.stil = !spoor.enabled; belTekenen(st); }
+      }
+      if (a === "camera" && st.bel && st.bel.media) {
+        const spoor = st.bel.media.getVideoTracks()[0];
+        if (spoor) { spoor.enabled = !spoor.enabled; st.bel.cameraUit = !spoor.enabled; belTekenen(st); }
+      }
+    });
+    document.body.appendChild(s);
+  }
+  const video = b ? b.video : i.video;
+  const naam = b ? b.naam : i.naam;
+  s.classList.toggle("c-bel-video", !!video && !!b && b.fase === "verbonden" && !b.cameraUit);
+  s.querySelector(".c-bel-avatar").innerHTML = avatar(naam, true);
+  s.querySelector(".c-bel-naam").textContent = naam;
+  const ik = s.querySelector(".c-bel-ik");
+  if (b && b.media && video && ik.srcObject !== b.media) { ik.srcObject = b.media; ik.play().catch(() => {}); }
+  ik.hidden = !(b && video && b.media && !b.cameraUit);
+  const status = s.querySelector(".c-bel-status");
+  clearInterval(s.klok);
+  if (i) status.textContent = i.video ? T("Videogesprek...") : T("Belt je...");
+  else if (b.fase === "verbonden") {
+    const zet = () => { status.textContent = belDuur((Date.now() - b.begin) / 1000); };
+    zet(); s.klok = setInterval(zet, 1000);
+  } else status.textContent = b.fase === "bellen" ? T("Gaat over...") : T("Verbinden...");
+  const knop = (a, ikoon, label, extra = "") => `<button class="c-bel-knop ${extra}" data-bel="${a}" aria-label="${esc(label)}">${ikoon}<small>${esc(label)}</small></button>`;
+  s.querySelector(".c-bel-rij").innerHTML = i
+    ? knop("weiger", ICOON.ophangen, T("Weigeren"), "c-bel-rood") + knop("op", i.video ? ICOON.video : ICOON.bel, T("Opnemen"), "c-bel-groen")
+    : (knop("stil", ICOON.stil, b.stil ? T("Geluid aan") : T("Dempen"), b.stil ? "c-bel-aan" : "")
+       + (video ? knop("camera", ICOON.video, b.cameraUit ? T("Camera aan") : T("Camera uit"), b.cameraUit ? "c-bel-aan" : "") : "")
+       + knop("hang", ICOON.ophangen, T("Ophangen"), "c-bel-rood"));
+}
+
 async function start(st) {
   try {
     const sleutelNaam = `apparaat:${st.naam || "eigenaar"}`;
@@ -1733,7 +2060,7 @@ function bijhouden(st) {
       st.bezig = false;
     }
     bijhouden(st);
-  }, st.scherm === "gesprek" ? 2500 : 8000);
+  }, st.scherm === "gesprek" ? 2500 : 4000);
 }
 
 // Zoals WhatsApp: de pagina zelf schuift niet, alleen de berichten. Het chatvenster vult precies de ruimte

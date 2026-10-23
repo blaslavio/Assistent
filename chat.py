@@ -231,6 +231,9 @@ CSS = """
 .c-optie.c-aan { border-color: var(--c-hoofd); font-weight: 600; }
 .c-rol { font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--c-rand); background: var(--c-achter);
   color: inherit; max-width: 130px; }
+.c-bel-knoppen { display: flex; gap: 2px; }
+.c-bel-regel { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.c-bel-regel svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; }
 .c-code-groot { font-family: ui-monospace, Menlo, monospace; font-size: 22px; letter-spacing: .08em; text-align: center; padding: 4px 0; }
 """
 
