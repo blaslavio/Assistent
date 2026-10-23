@@ -859,7 +859,7 @@ def boodschappen_opruimen(alleen_gekocht: bool = True) -> None:
 # --- Kooplijst, wenslijst, notities en DIY-projecten ----------------------
 # Kooplijst en wenslijst: dingen die je wilt kopen (geen supermarkt), met prijs, winkel en link.
 
-LIJSTEN = ("kooplijst", "wenslijst", "notities", "diy")
+LIJSTEN = ("kooplijst", "wenslijst", "notities", "diy", "vrije_tijd")
 
 
 def lijst(naam: str) -> list[dict]:

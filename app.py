@@ -712,10 +712,8 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
                                   if (a.get("contact_id") or 0) in opties else 0, format_func=namen.get)
         nieuw_naam = meer.text_input("Naam nieuw contact", placeholder="Alleen bij Nieuw contact")
         nieuw_tel = meer.text_input("Telefoon nieuw contact", placeholder="Optioneel")
-        sporten = SPORTEN + ([a["sport"]] if a.get("sport") and a["sport"] not in SPORTEN else [])
-        sport = (meer.selectbox("Welke sport (bij soort Sport)", sporten, index=sporten.index(a.get("sport") or ""),
-                                format_func=lambda s: s.capitalize() if s else "Geen sport",
-                                accept_new_options=True) or "").strip().lower()
+        sport = sport_kiezen(meer, "Welke sport (bij soort Sport)", a.get("sport") or "", "Geen sport",
+                             f"{sleutel}_sport")
         notitie = meer.text_area("Notitie", value=a.get("notitie", ""), height=68)
         prive = meer.toggle("Privé (niet zichtbaar voor wie meekijkt)", value=bool(a.get("prive")))
         reeks = opslag.reeks(a.get("reeks"))
@@ -1130,15 +1128,71 @@ def agenda_delen_beheer() -> None:
 def samen_agendas() -> None:
     """De gezinsagenda, agenda's die anderen met je delen, en sport (met je doelen)."""
     online = samen.beschikbaar()
-    opties = (["Gezin"] if online else []) + (["Gedeeld met mij"] if online and DEELSITUATIE_NU.get("met_mij") else []) + ["Sport"]
+    opties = ((["Gezin"] if online else []) + (["Gedeeld met mij"] if online and DEELSITUATIE_NU.get("met_mij") else [])
+              + ["Sport", "Vrije tijd"])
     keuze = st.segmented_control("Samen", opties, default=opties[0], key="samen_deel",
                                  label_visibility="collapsed") or opties[0]
     if keuze == "Sport":
         sport_tabblad(datetime.now())
+    elif keuze == "Vrije tijd":
+        vrije_tijd()
     elif keuze == "Gedeeld met mij":
         gedeelde_agendas()
     else:
         gezin_scherm.pagina()
+
+
+VRIJE_TIJD_IDEEEN = ["Lezen", "Wandelen", "Muziek maken", "Koken", "Tuinieren", "Tekenen", "Fotografie", "Gamen",
+                     "Vrienden zien", "Uit eten", "Film of serie", "Museum"]
+VRIJE_SOORTEN = ("vrij", "uitgaan", "etentje", "familie en vrienden", "verjaardag")
+
+
+def vrije_tijd() -> None:
+    """Je hobby's en wat je in je vrije tijd doet: zelf toevoegen en meteen inplannen."""
+    nu = datetime.now()
+    maandag = nu.date() - timedelta(days=nu.weekday())
+    week = [a for a in opslag.afspraken_tussen(maandag.isoformat(), (maandag + timedelta(days=6)).isoformat(), extern=False)
+            if a.get("soort") in VRIJE_SOORTEN]
+    uren = sum(max(0, (datetime.fromisoformat(a["einde"]) - datetime.fromisoformat(a["start"])).total_seconds())
+               for a in week if a.get("einde") and len(a["start"]) > 10) / 3600
+    st.caption(f"Deze week: {len(week)} keer vrije tijd, {f'{uren:.1f}'.replace('.', ',')} uur" if uren
+               else f"Deze week: {len(week)} keer vrije tijd")
+    hobbys = opslag.lijst("vrije_tijd")
+    namen = {h["tekst"].lower() for h in hobbys}
+    with st.form("vrije_tijd_nieuw", clear_on_submit=True, border=False):
+        with st.container(horizontal=True, vertical_alignment="bottom", gap="small"):
+            nieuw = st.text_input("Wat doe je graag?", placeholder="Typ een hobby of activiteit")
+            toevoegen = st.form_submit_button("Toevoegen", icon=":material/add:")
+    if toevoegen and nieuw.strip() and nieuw.strip().lower() not in namen:
+        opslag.lijst_toevoegen("vrije_tijd", tekst=nieuw.strip()[:60])
+        st.rerun()
+    if ideeen := [i for i in VRIJE_TIJD_IDEEEN if i.lower() not in namen]:
+        if keuze := st.pills("Ideeën", ideeen, key="vrije_tijd_idee", label_visibility="collapsed"):
+            opslag.lijst_toevoegen("vrije_tijd", tekst=keuze)
+            st.session_state.pop("vrije_tijd_idee", None)
+            st.rerun()
+    if not hobbys:
+        st.caption("Nog niets toegevoegd.")
+    for h in hobbys:
+        with st.container(horizontal=True, vertical_alignment="center", key=f"hobby_{h['id']}"):
+            st.markdown(f"**{h['tekst']}**")
+            with st.popover("Inplannen", icon=":material/event:"):
+                with st.form(f"hobby_plan_{h['id']}", border=False):
+                    dag = st.date_input("Dag", value=nu.date(), min_value=nu.date(), format="DD-MM-YYYY")
+                    k1, k2 = st.columns(2)
+                    om = k1.time_input("Tijd", value=kloktijd(19, 0), step=900)
+                    duur = k2.selectbox("Hoe lang", [30, 60, 90, 120, 180],
+                                        index=1, format_func=lambda m: f"{m // 60} uur" if m % 60 == 0 else f"{m} min")
+                    if st.form_submit_button("In agenda", type="primary"):
+                        begin = datetime.combine(dag, om)
+                        opslag.afspraak_toevoegen(h["tekst"], begin.strftime("%Y-%m-%dT%H:%M"),
+                                                  (begin + timedelta(minutes=duur)).strftime("%Y-%m-%dT%H:%M"),
+                                                  soort="vrij")
+                        st.toast(f"{h['tekst']} staat in je agenda.")
+                        st.rerun()
+            if st.button("", icon=":material/close:", key=f"hobby_weg_{h['id']}", type="tertiary", help="Weghalen"):
+                opslag.lijst_weg("vrije_tijd", h["id"])
+                st.rerun()
 
 
 def gedeelde_agendas() -> None:
@@ -1716,6 +1770,24 @@ MAATSTAF_TEKST = {"keer_per_week": "Aantal keer per week", "minuten_per_week": "
 SPORTEN = ["", *tijd.SPORTEN]
 
 
+def eigen_sporten() -> list[str]:
+    """Sporten die je zelf hebt ingevuld (bij afspraken en doelen), zodat ze voortaan in de lijst staan."""
+    eigen = {a.get("sport") for a in opslag.laden()["afspraken"]} | {d.get("sport") for d in opslag.sportdoelen()}
+    return sorted(s for s in eigen if s and s not in SPORTEN)
+
+
+def sport_kiezen(plek, label: str, huidig: str, leeg: str, sleutel: str) -> str:
+    """Een sport uit de lijst, of zelf intypen als hij er niet bij staat."""
+    sporten = SPORTEN + eigen_sporten()
+    if huidig and huidig not in sporten:
+        sporten.append(huidig)
+    gekozen = plek.selectbox(label, sporten, index=sporten.index(huidig), key=sleutel,
+                             format_func=lambda s: s.capitalize() if s else leeg)
+    eigen = plek.text_input("Staat hij er niet bij? Typ hem hier", key=f"{sleutel}_eigen",
+                            placeholder="Bijvoorbeeld: sepak takraw")
+    return (eigen.strip() or gekozen or "").lower()
+
+
 def sport_tabblad(nu: datetime) -> None:
     """Sportdoelen met voortgang, en wat je de afgelopen week deed."""
     doelen = opslag.sportdoelen()
@@ -1743,9 +1815,7 @@ def sport_tabblad(nu: datetime) -> None:
     with st.expander("Nieuw doel"):
         with st.form("nieuw_doel", border=False):
             omschrijving = st.text_input("Wat wil je bereiken?", placeholder="Bijvoorbeeld: 10 km hardlopen voor de zomer")
-            sport = st.selectbox("Sport (typ om te zoeken of een eigen sport toe te voegen)", SPORTEN,
-                                 format_func=lambda s: s.capitalize() if s else "Alle sporten",
-                                 accept_new_options=True) or ""
+            sport = sport_kiezen(st, "Sport", "", "Alle sporten", "doel_sport")
             maatstaf = st.selectbox("Hoe meten we het?", list(MAATSTAF_TEKST), format_func=MAATSTAF_TEKST.get)
             waarde = st.number_input("Doel (getal)", min_value=0.5, value=3.0, step=0.5)
             eenheid = st.text_input("Eenheid (bij Zelf bijhouden)", placeholder="Bijv. kg bankdrukken, rondes, tricks, seconden")
@@ -3710,9 +3780,47 @@ BEZIG = {
     "bron_opslaan": "Bron opslaan...", "oefening_vastleggen": "Score vastleggen...",
 }
 # Korte knop -> de vraag die de assistent krijgt.
-SUGGESTIES = {"Mijn dag": "Wat staat er vandaag op de planning?", "Mail": "Welke mails vragen actie?",
-              "Weekmenu": "Stel een gezond weekmenu samen en zet de boodschappen op mijn lijst",
-              "Weekend": "Wat is er dit weekend te doen bij mij in de buurt?"}
+def persoonlijke_suggesties() -> dict[str, str]:
+    """Vier knoppen die passen bij wat iemand gebruikt en aan heeft staan, niet steeds dezelfde.
+
+    Alleen wat bij jouw onderdelen en gegevens hoort komt in aanmerking; wat je vaker kiest, komt eerder."""
+    uit = onderdelen_uit()
+    inst = opslag.instellingen()
+    nu = datetime.now()
+    kandidaten: list[tuple[float, str, str]] = []
+
+    def kan(gewicht: float, kort: str, vraag: str) -> None:
+        kandidaten.append((gewicht, kort, vraag))
+
+    if "Mail" not in uit and mail.gekoppeld():
+        kan(5, "Mail", "Welke mails vragen actie?")
+    if open_ := opslag.open_taken():
+        kan(4 + min(len(open_), 5) / 5, "Taken", "Welke taken moet ik deze week nog doen, en wanneer past dat?")
+    if opslag.sportdoelen():
+        kan(3.5, "Training", "Plan mijn trainingen voor deze week rond mijn afspraken.")
+    if hobbys := opslag.lijst("vrije_tijd"):
+        hobby = hobbys[nu.toordinal() % len(hobbys)]["tekst"]
+        kan(3, hobby, f"Wanneer heb ik deze week tijd voor {hobby.lower()}? Zet het in mijn agenda.")
+    if "Leren" not in uit and (opslag.herhalingen_vandaag() or opslag.leerdoelen()):
+        kan(3.5 if opslag.herhalingen_vandaag() else 2, "Overhoren", "Overhoor me met wat ik vandaag moet herhalen.")
+    if "Budget" not in uit and samen.beschikbaar() and inst.get("budget"):
+        kan(2.5, "Budget", "Hoe sta ik ervoor met mijn budget deze maand?")
+    if "Beleggen" not in uit and (inst.get("beleggen") or {}).get("posities"):
+        kan(2, "Beleggingen", "Hoe doen mijn beleggingen het vandaag?")
+    if inst.get("boekpagina"):
+        kan(3, "Boekingen", "Welke boekingen heb ik deze week en is er nog iets te regelen?")
+    if "Boodschappen" not in uit:
+        kan(1.5 + (nu.weekday() >= 4), "Weekmenu", "Stel een gezond weekmenu samen en zet de boodschappen op mijn lijst")
+    if inst.get("thuisadres"):
+        kan(1 + 2 * (nu.weekday() >= 3), "Weekend", "Wat is er dit weekend te doen bij mij in de buurt?")
+    kan(0.5, "Taken", "Welke taken moet ik deze week nog doen, en wanneer past dat?")
+    gebruik = inst.get("suggesties_gebruik") or {}
+    kandidaten.sort(key=lambda k: -(k[0] + min(gebruik.get(k[1], 0), 10) * 0.3))
+    gekozen = {"Mijn dag": "Wat staat er vandaag op de planning?"}
+    for _, kort, vraag in kandidaten:
+        if len(gekozen) < 4 and kort not in gekozen:
+            gekozen[kort] = vraag
+    return gekozen
 
 
 def vraag_assistent(vraag: str, label: str | None = None) -> None:
@@ -3739,12 +3847,11 @@ def gesprek() -> None:
         st.html('<p style="text-align:center;font-size:1.4rem;margin:12vh 0 1rem">Waarmee kan ik helpen?</p>')
         if opslag.instellingen().get("voorbeeldvragen", True):
             with st.container(horizontal=True, horizontal_alignment="center", gap="small"):
-                suggesties = {k: v for k, v in SUGGESTIES.items()
-                              if k != "Mail" or (mail.gekoppeld() and "Mail" not in onderdelen_uit())}
-                if "Mail" not in suggesties:
-                    suggesties["Taken"] = "Welke taken moet ik deze week nog doen, en wanneer past dat?"
-                for i, (kort_, vraag_) in enumerate(suggesties.items()):
+                for i, (kort_, vraag_) in enumerate(persoonlijke_suggesties().items()):
                     if st.button(kort_, key=f"suggestie_{i}"):
+                        gebruik = dict(opslag.instellingen().get("suggesties_gebruik") or {})
+                        gebruik[kort_] = gebruik.get(kort_, 0) + 1
+                        opslag.instellingen_bijwerken(suggesties_gebruik=gebruik)
                         st.session_state.vooraf_vraag = vraag_
     gezicht = avatar.plaatje(mijn_avatar())
     for rol, tekst in st.session_state.chat:
