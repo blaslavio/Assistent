@@ -75,12 +75,14 @@ import zoekveld
 import schil
 import extern_inloggen
 import kort
+import pot
+import pot_scherm
 import toegangssleutel
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -1260,8 +1262,12 @@ def agenda_delen_beheer() -> None:
 def samen_agendas() -> None:
     """De gezinsagenda, agenda's die anderen met je delen, en sport (met je doelen)."""
     online = samen.beschikbaar()
-    opties = ((["Gezin"] if online else []) + (["Gedeeld met mij"] if online and DEELSITUATIE_NU.get("met_mij") else [])
+    if st.session_state.get("samen_deel") == "Gezin":
+        st.session_state.samen_deel = "Thuis"
+    opties = ((["Thuis"] if online else []) + (["Gedeeld met mij"] if online and DEELSITUATIE_NU.get("met_mij") else [])
               + ["Sport", "Vrije tijd"])
+    if st.session_state.get("samen_deel") not in opties:
+        st.session_state.pop("samen_deel", None)
     keuze = st.segmented_control("Samen", opties, default=opties[0], key="samen_deel",
                                  label_visibility="collapsed") or opties[0]
     if keuze == "Sport":
@@ -3993,9 +3999,9 @@ def persoonlijke_suggesties() -> dict[str, str]:
     gebruik = inst.get("suggesties_gebruik") or {}
     kandidaten.sort(key=lambda k: -(k[0] + min(gebruik.get(k[1], 0), 10) * 0.3))
     gekozen = {"Mijn dag": "Wat staat er vandaag op de planning?"}
-    for _, kort, vraag in kandidaten:
-        if len(gekozen) < 4 and kort not in gekozen:
-            gekozen[kort] = vraag
+    for _, kop, vraag in kandidaten:
+        if len(gekozen) < 4 and kop not in gekozen:
+            gekozen[kop] = vraag
     return gekozen
 
 
@@ -4301,6 +4307,8 @@ def paginas() -> list:
           als(online and "Marktplaats" not in uit and ik().get("niveau") in ("verkoper", "ondernemer"),
               samen_scherm.verkoopoverzicht, "Verkoopoverzicht", ":material/bar_chart:", "verkoopoverzicht"))
     groep("Afspreken",
+          als(True, plannen_scherm.buurt_pagina, "In de buurt", ":material/near_me:", "buurt"),
+          als(online, pot_scherm.pagina, "Inzamelen", ":material/savings:", "inzamelen"),
           als(online, plannen_scherm.boekingen_pagina, "Boekingen", ":material/event_available:", "boekingen",
               boekingen_wachten() if online else 0),
           als(online, plannen_scherm.prikken_pagina, "Datum prikken", ":material/how_to_vote:", "prikken"))
@@ -4510,6 +4518,10 @@ def main() -> None:
             profielkaart(doel["profiel"])
             return
         st.query_params[doel["soort"]] = doel["sleutel"]
+    if (code := st.query_params.get("pot")) and opslag.online():
+        # Een openbare pot: doneren mag zonder account.
+        pot_scherm.openbare_pagina(code)
+        return
     if (code := st.query_params.get("prik")) and opslag.online():
         # Stemmen op een datum via een gedeelde link; ook zonder account.
         plannen_scherm.prik_pagina(code)

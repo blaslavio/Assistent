@@ -1,4 +1,5 @@
-"""Agenda › Plannen: uitgaan en reserveren. Datum prikken en Boekingen hebben elk een eigen pagina."""
+"""Agenda › Plannen: activiteiten plannen met wie, waar en extra's. In de buurt, Datum prikken en Boekingen hebben
+elk een eigen pagina."""
 
 import time as klok
 from datetime import date, datetime, time, timedelta
@@ -42,16 +43,176 @@ def _melding_tonen() -> None:
 
 # --- Gast ------------------------------------------------------------------------------------------------------------
 
+# Per activiteit: wat je erbij kunt zetten. De rest (titel, wanneer, waar, wie) is voor alles gelijk.
+EXTRAS = {"Verjaardag": ["cadeau"], "Uitje": ["pot", "reserveren"], "Etentje": ["reserveren", "pot"],
+          "Date": ["reserveren"], "Speelafspraak": [], "Afspraak": []}
+EXTRA_TEKST = {"cadeau": "Geld inzamelen voor een cadeau", "pot": "Kosten samen inzamelen",
+               "reserveren": "Plek zoeken in de buurt"}
+TITELS = {"Verjaardag": "Verjaardag ", "Etentje": "Etentje", "Date": "Date", "Uitje": "Uitje",
+          "Speelafspraak": "Speelafspraak", "Afspraak": ""}
+
+
+def _soort(gelegenheid: str) -> str:
+    return "verjaardag" if gelegenheid == "Verjaardag" else R.GELEGENHEDEN.get(gelegenheid, R.GELEGENHEDEN["Afspraak"])[0]
+
+
 def pagina() -> None:
-    """Kies waarvoor je plant, reserveer bij een zaak in de app of zet een plek uit de buurt in je agenda."""
+    """Een activiteit plannen: kies wat, vul in wanneer, waar en met wie, en zet er extra's bij (zoals een
+    cadeaupot bij een verjaardag). Daaronder wat je al gepland hebt, met wie er komt."""
     _melding_tonen()
     online = samen.beschikbaar()
     gekozen = st.pills("Waarvoor?", list(R.GELEGENHEDEN), key="plannen_gelegenheid",
                        label_visibility="collapsed")
+    if gekozen:
+        with st.container(border=True):
+            activiteit_formulier(gekozen, online)
     if online:
         mijn_reserveringen()
         mijn_aanvragen()
-    zoeken(gekozen or "Date", online, bool(gekozen))
+    gepland(online)
+    if st.button("In de buurt", icon=":material/near_me:", type="tertiary"):
+        naar_buurt(gekozen or "Uitje")
+
+
+def naar_buurt(gelegenheid: str) -> None:
+    st.session_state.buurt_gelegenheid = gelegenheid
+    st.session_state.ga_naar = "buurt"
+    st.rerun(scope="app")
+
+
+def activiteit_formulier(gelegenheid: str, online: bool) -> None:
+    extras = EXTRAS.get(gelegenheid, [])
+    k = f"act_{gelegenheid}"
+    titel = st.text_input("Wat", value=TITELS.get(gelegenheid, ""), key=f"{k}_titel",
+                          placeholder="Bijv. verjaardag Sanne" if gelegenheid == "Verjaardag" else "Bijv. etentje")
+    with st.container(horizontal=True, gap="small"):
+        dag = st.date_input("Dag", value=date.today() + timedelta(days=7), min_value=date.today(),
+                            format="DD-MM-YYYY", key=f"{k}_dag", width=150)
+        om = st.time_input("Tijd", value=time(19, 0) if gelegenheid in ("Etentje", "Date") else time(15, 0),
+                           step=900, key=f"{k}_tijd", width=110)
+        uren = st.number_input("Uren", min_value=0.5, max_value=24.0, value=2.0 if gelegenheid != "Uitje" else 4.0,
+                               step=0.5, key=f"{k}_uren", width=90)
+    waar = st.text_input("Waar", placeholder="Optioneel", key=f"{k}_waar")
+    wie = st.text_input("Wie vraag je mee?", placeholder="Gebruikersnamen", key=f"{k}_wie",
+                        help="Zij krijgen een uitnodiging en antwoorden met ja, nee of misschien.") if online else ""
+    gekozen_extras = st.pills("Extra", extras, selection_mode="multi",
+                              format_func=EXTRA_TEKST.get, key=f"{k}_extra", label_visibility="collapsed") if extras \
+        else []
+    doel = iban = None
+    if {"cadeau", "pot"} & set(gekozen_extras):
+        with st.container(horizontal=True, gap="small"):
+            doel = st.number_input("Doel", min_value=0.0, step=5.0, value=None, format="%.0f", key=f"{k}_doel",
+                                   placeholder="Optioneel", width=130)
+            iban = st.text_input("Rekeningnummer", placeholder="Bijv. NL00 BANK 0123…", key=f"{k}_iban")
+    with st.container(horizontal=True):
+        if st.button("Plannen", type="primary", key=f"{k}_ok"):
+            activiteit_opslaan(gelegenheid, titel.strip() or gelegenheid, datetime.combine(dag, om), uren, waar.strip(),
+                               [n.strip().lstrip("@") for n in wie.replace(";", ",").split(",") if n.strip()],
+                               gekozen_extras, doel, iban or "")
+        if "reserveren" in gekozen_extras and st.button("Plek zoeken", icon=":material/near_me:", key=f"{k}_buurt"):
+            naar_buurt(gelegenheid)
+
+
+def activiteit_opslaan(gelegenheid: str, titel: str, start: datetime, uren: float, waar: str, wie: list[str],
+                       extras: list[str], doel: float | None, iban: str) -> None:
+    a = opslag.afspraak_toevoegen(titel, start.strftime("%Y-%m-%dT%H:%M"),
+                                  (start + timedelta(hours=uren)).strftime("%Y-%m-%dT%H:%M"), "", waar,
+                                  soort=_soort(gelegenheid))
+    opslag.afspraak_bijwerken(a["id"], activiteit=gelegenheid)
+    meldingen, fouten = [f"{titel} staat in je agenda."], []
+    gelukt = []
+    for naam in wie[:30]:
+        try:
+            samen.uitnodigen(a["id"], naam)
+            gelukt.append(naam)
+        except samen.Fout as fout:
+            fouten.append(f"{naam}: {fout}")
+    if gelukt:
+        meldingen.append(f"{len(gelukt)} uitgenodigd.")
+    if {"cadeau", "pot"} & set(extras):
+        import pot
+        try:
+            pot.maken(f"Cadeau: {titel}" if "cadeau" in extras else f"Kosten: {titel}",
+                      "cadeau" if "cadeau" in extras else "spaardoel", doel or None, iban=iban, einddatum=start.date(),
+                      leden=gelukt, afspraak=str(a["id"]))
+            meldingen.append("De pot staat klaar.")
+        except samen.Fout as fout:
+            fouten.append(str(fout))
+    for k in [k for k in st.session_state if str(k).startswith(f"act_{gelegenheid}")]:
+        st.session_state.pop(k, None)
+    st.session_state.pop("plannen_gelegenheid", None)
+    st.session_state.plannen_melding = " ".join(meldingen) + (" Niet gelukt: " + "; ".join(fouten) if fouten else "")
+    st.rerun()
+
+
+def gepland(online: bool) -> None:
+    """Wat je de komende weken gepland hebt (je eigen activiteiten), met wie er komt en de pot."""
+    nu = datetime.now()
+    lijst = [a for a in opslag.afspraken_tussen(nu.date().isoformat(), (nu.date() + timedelta(days=60)).isoformat(),
+                                                extern=False)
+             if a.get("activiteit") and str(a.get("start", "")) >= nu.strftime("%Y-%m-%dT%H:%M")][:12]
+    if not lijst:
+        return
+    st.markdown("**Gepland**")
+    gasten = samen.gasten([a["id"] for a in lijst]) if online else {}
+    potten = []
+    if online:
+        import pot
+        try:
+            potten = pot.mijn()
+        except samen.Fout:
+            potten = []
+    for a in lijst:
+        mensen = gasten.get(str(a["id"]), [])
+        p = next((x for x in potten if x["afspraak"] == str(a["id"])), None)
+        ja = sum(1 for g in mensen if g["antwoord"] == "ja")
+        with st.expander(f"{a['titel']} · {_wanneer(a['start'])}" + (f" · {ja}/{len(mensen)} komen" if mensen else "")):
+            if a.get("locatie"):
+                st.caption(a["locatie"])
+            if mensen:
+                st.caption(samen.gasten_tekst(mensen))
+            if online:
+                with st.form(f"act_extra_{a['id']}", border=False, clear_on_submit=True):
+                    with st.container(horizontal=True, vertical_alignment="bottom"):
+                        naam = st.text_input("Meer mensen vragen", placeholder="Gebruikersnaam")
+                        if st.form_submit_button("Vragen") and naam.strip():
+                            try:
+                                samen.uitnodigen(a["id"], naam)
+                                if p:
+                                    import pot
+                                    pot.leden_toevoegen(p["id"], [naam])
+                                st.session_state.plannen_melding = "Uitgenodigd."
+                            except samen.Fout as fout:
+                                st.session_state.plannen_melding = str(fout)
+                            st.rerun()
+            if p:
+                import pot_scherm
+                pot_scherm.kaart(p, key="act")
+            elif online and st.button("Geld inzamelen", key=f"act_pot_{a['id']}", icon=":material/savings:",
+                                      type="tertiary"):
+                import pot
+                try:
+                    pot.maken(f"Cadeau: {a['titel']}" if a.get("activiteit") == "Verjaardag" else f"Kosten: {a['titel']}",
+                              "cadeau" if a.get("activiteit") == "Verjaardag" else "spaardoel",
+                              einddatum=date.fromisoformat(a["start"][:10]),
+                              leden=[g["gebruikersnaam"] for g in mensen if g.get("gebruikersnaam")],
+                              afspraak=str(a["id"]))
+                except samen.Fout as fout:
+                    st.error(str(fout))
+                else:
+                    st.rerun()
+
+
+def buurt_pagina() -> None:
+    """In de buurt: zaken in de app en plekken om je heen, per soort activiteit. Laadt pas als je hier bent."""
+    _melding_tonen()
+    online = samen.beschikbaar()
+    standaard = st.session_state.pop("buurt_gelegenheid", None)
+    if standaard:
+        st.session_state.buurt_keuze = standaard
+    gekozen = st.pills("Waarvoor?", [g for g in R.GELEGENHEDEN if g != "Afspraak"], key="buurt_keuze",
+                       label_visibility="collapsed")
+    zoeken(gekozen or "Uitje", online, True)
 
 
 def prikken_pagina() -> None:

@@ -52,7 +52,8 @@ PAGINAS = {"agenda": "Agenda", "chat": "Chat", "winkelen": "Winkelen", "zakelijk
            "samen": "Samen", "budget": "Budget", "beleggen": "Beleggen", "zoeken": "Marktplaats",
            "winkels": "Winkels", "verkopen": "Verkopen", "bestellingen": "Bestellingen", "berichten": "Berichten",
            "webshop": "Mijn webshop", "verkoopoverzicht": "Verkoopoverzicht", "lijstjes": "Lijstjes",
-           "hulpmiddelen": "Hulpmiddelen", "ruimtes": "VR-ruimtes"}
+           "hulpmiddelen": "Hulpmiddelen", "ruimtes": "VR-ruimtes",
+           "buurt": "In de buurt", "inzamelen": "Inzamelen"}
 GROEPEN = ["Kopen en verkopen", "Afspreken", "Leren en werk", "Geld", "Zakelijk", "Thuis en handig"]
 STANDAARD_BOVENAAN = ["agenda", "chat", "winkelen"]
 MAX_BOVENAAN = 4

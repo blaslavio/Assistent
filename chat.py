@@ -379,6 +379,9 @@ def _openen_vanuit_profiel(a: dict | None) -> None:
         st.session_state.samen_deel = "Gedeeld met mij"
         st.session_state.gedeeld_wie = int(a.get("id") or 0)
         st.session_state.ga_naar = "agenda"
+    elif a.get("soort") == "pot":
+        st.session_state.pot_community = int(a.get("id") or 0)
+        st.session_state.ga_naar = "inzamelen"
     elif a.get("soort") == "ruimte":
         st.session_state.open_ruimte = int(a.get("id") or 0)
         st.session_state.ga_naar = "ruimtes"

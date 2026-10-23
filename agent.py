@@ -25,6 +25,8 @@ import reizen
 import reserveren
 import samen
 import winkelen
+import gezin
+import pot
 import activiteiten
 import boodschappen
 import events
@@ -272,6 +274,17 @@ Werkwijze:
   groothandels (producten_zoeken met inkopen=True), stellen bezorgen in met
   bezorging_instellen (alleen met akkoord) en geven de stand van een bezorging
   door met bezorging_doorgeven.
+- Activiteiten (Agenda › Plannen): plan een verjaardag, etentje, uitje, date of
+  speelafspraak met activiteit_plannen: titel, wanneer, waar en wie (gebruikersnamen
+  krijgen een uitnodiging). Bij een verjaardag kan er een cadeaupot bij.
+- Inzamelen: potten voor een cadeau, spaardoel of donaties (potten_bekijken,
+  pot_maken). De app int zelf geen geld: deelnemers maken over naar het
+  rekeningnummer of betaalverzoek van de maker en tikken op Betaald; de maker
+  vinkt Ontvangen aan. Maak een pot alleen als de gebruiker dat vraagt.
+- Thuis (Agenda › Samen › Thuis): een huishouden (gezin, studentenhuis,
+  samenwonen, vrienden) met agenda, boodschappen, kosten delen, klussenrooster,
+  samen sparen en budget. Gebruik huishouden_bekijken, huis_boodschap_toevoegen
+  en huis_uitgave_toevoegen. Bij kosten delen leg je uit wie wie hoeveel betaalt.
 - Over geld en beleggen geef je algemene informatie, geen persoonlijk
   beleggingsadvies.
 """
@@ -1751,6 +1764,120 @@ def in_mandje_leggen(winkel: str, product_id: int, aantal: int = 1) -> str:
 
 
 @beta_tool
+def potten_bekijken() -> str:
+    """Je potten (inzamelingen): stand, doel, wie meedoen en of het betaald is."""
+    potten, fout = _samen(pot.mijn)
+    if fout:
+        return fout
+    return _json([{k: p[k] for k in ("id", "titel", "soort", "doel", "toegezegd", "ontvangen", "gevers", "gesloten",
+                                     "van_mij", "einddatum")} for p in potten]) if potten else "Nog geen potten."
+
+
+@beta_tool
+def pot_maken(titel: str, soort: str = "cadeau", doel: float = 0, deelnemers: str = "", rekeningnummer: str = "",
+              openbaar: bool = False) -> str:
+    """Maak een pot om samen geld in te zamelen. Alleen als de gebruiker dat vraagt.
+
+    Args:
+        titel: Bijv. "Cadeau voor Sanne".
+        soort: cadeau, spaardoel of donatie.
+        doel: Doelbedrag in euro (0 = geen doel).
+        deelnemers: Gebruikersnamen met komma's; zij krijgen een seintje.
+        rekeningnummer: IBAN van de gebruiker om op te storten (optioneel).
+        openbaar: True als iedereen met de link mag doneren.
+    """
+    nieuw, fout = _samen(pot.maken, titel, soort, doel or None, iban=rekeningnummer,
+                         leden=[d.strip() for d in deelnemers.split(",")], openbaar=openbaar)
+    return fout or f"Pot gemaakt: {titel}. Te zien bij Inzamelen."
+
+
+@beta_tool
+def activiteit_plannen(soort: str, titel: str, start: str, uren: float = 2, waar: str = "", wie: str = "",
+                       cadeaupot: bool = False) -> str:
+    """Plan een activiteit in de agenda en vraag anderen om mee te doen.
+
+    Args:
+        soort: Verjaardag, Etentje, Uitje, Date, Speelafspraak of Afspraak.
+        titel: Bijv. "Verjaardag Sanne".
+        start: Begin, bijv. "2026-11-02T15:00".
+        uren: Hoe lang.
+        waar: Adres of plek (optioneel).
+        wie: Gebruikersnamen met komma's om uit te nodigen (optioneel).
+        cadeaupot: True om meteen een pot voor een cadeau te maken.
+    """
+    try:
+        begin = datetime.fromisoformat(start[:16])
+    except ValueError:
+        return "Geef de begintijd als JJJJ-MM-DDTUU:MM."
+    soort_agenda = "verjaardag" if soort == "Verjaardag" else reserveren.GELEGENHEDEN.get(
+        soort, reserveren.GELEGENHEDEN["Afspraak"])[0]
+    a = opslag.afspraak_toevoegen(titel, begin.strftime("%Y-%m-%dT%H:%M"),
+                                  (begin + timedelta(hours=uren)).strftime("%Y-%m-%dT%H:%M"), "", waar, soort=soort_agenda)
+    opslag.afspraak_bijwerken(a["id"], activiteit=soort if soort in reserveren.GELEGENHEDEN else "Afspraak")
+    namen = [n.strip().lstrip("@") for n in wie.split(",") if n.strip()]
+    gelukt, fouten = [], []
+    for naam in namen[:30]:
+        _, fout = _samen(samen.uitnodigen, a["id"], naam)
+        (fouten if fout else gelukt).append(naam if not fout else f"{naam}: {fout}")
+    tekst = f"{titel} staat in de agenda." + (f" Uitgenodigd: {', '.join(gelukt)}." if gelukt else "")
+    if cadeaupot:
+        _, fout = _samen(pot.maken, f"Cadeau: {titel}", "cadeau", None, einddatum=begin.date(), leden=gelukt,
+                         afspraak=str(a["id"]))
+        tekst += " Cadeaupot gemaakt." if not fout else f" Pot lukte niet: {fout}"
+    return tekst + (f" Niet gelukt: {'; '.join(fouten)}" if fouten else "")
+
+
+@beta_tool
+def huishouden_bekijken() -> str:
+    """Je huishoudens (Thuis): leden, hulpmiddelen, boodschappenlijst en wie wie geld schuldig is."""
+    try:
+        lijst = [g for g in gezin.mijn() if g["status"] == "lid"]
+    except Exception as fout:
+        return f"Lukt nu niet: {fout}"
+    uit = []
+    for g in lijst:
+        info = {"id": g["id"], "naam": g["naam"], "vorm": g.get("vorm"), "hulpmiddelen": g.get("tools"),
+                "leden": [l["naam"] for l in g["leden"] if l["status"] == "lid"]}
+        if "boodschappen" in (g.get("tools") or []):
+            info["boodschappen"] = [i["tekst"] for i in gezin.lijst(g["id"]) if not i["klaar"]]
+        if "kosten" in (g.get("tools") or []):
+            k = gezin.kosten(g["id"])
+            info["verrekenen"] = [f"{v['naam']} betaalt {n['naam']} {samen.euro(b)}"
+                                  for v, n, b in gezin.verrekenen(k["saldo"])]
+        uit.append(info)
+    return _json(uit) if uit else "Je zit nog niet in een huishouden. Maak er een bij Agenda › Samen › Thuis."
+
+
+@beta_tool
+def huis_boodschap_toevoegen(huishouden_id: int, wat: str) -> str:
+    """Zet iets op de gedeelde boodschappenlijst van een huishouden.
+
+    Args:
+        huishouden_id: Id uit huishouden_bekijken.
+        wat: Eén of meer dingen, met komma's.
+    """
+    for t in [x.strip() for x in wat.split(",") if x.strip()][:20]:
+        _, fout = _samen(gezin.lijst_bijwerken, huishouden_id, "erbij", tekst=t)
+        if fout:
+            return fout
+    return "Op de gedeelde lijst gezet."
+
+
+@beta_tool
+def huis_uitgave_toevoegen(huishouden_id: int, bedrag: float, omschrijving: str, categorie: str = "Overig") -> str:
+    """Een uitgave die de gebruiker voor het huishouden betaalde, verdeeld over iedereen.
+
+    Args:
+        huishouden_id: Id uit huishouden_bekijken.
+        bedrag: In euro.
+        omschrijving: Waarvoor.
+        categorie: Boodschappen, Huur, Energie, Internet, Schoonmaak, Uitjes of Overig.
+    """
+    _, fout = _samen(gezin.kosten_toevoegen, huishouden_id, bedrag, omschrijving, categorie)
+    return fout or f"Genoteerd: {samen.euro(bedrag)} voor {omschrijving}, verdeeld over iedereen."
+
+
+@beta_tool
 def mandje_bekijken() -> str:
     """Wat er in het mandje ligt, per winkel, met subtotaal."""
     return _json([{"winkel": a, "naam": m["naam"], "subtotaal": winkelen.subtotaal(a),
@@ -1928,6 +2055,12 @@ HULPMIDDELEN = [
     bestellen_uit_mandje,
     bezorging_doorgeven,
     bezorging_instellen,
+    potten_bekijken,
+    pot_maken,
+    activiteit_plannen,
+    huishouden_bekijken,
+    huis_boodschap_toevoegen,
+    huis_uitgave_toevoegen,
     {"type": "web_search_20260209", "name": "web_search", "max_uses": 5},
     {"type": "web_fetch_20260209", "name": "web_fetch", "max_uses": 5},
 ]
