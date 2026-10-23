@@ -1,4 +1,5 @@
-"""Meldingen op je telefoon via de gratis app ntfy, ook als de app dicht is.
+"""Meldingen op je telefoon, ook als de app dicht is: eigen pushmeldingen via de web-app (sql/webpush.sql) of
+de gratis app ntfy.
 
 De database verstuurt ze (elke minuut, zie sql/meldingen.sql). Deze module zet herinneringen en vertrekwekkers klaar
 voor de komende dagen; meldingen over uitnodigingen, reacties, berichten en reserveringen maakt de database zelf.
@@ -20,7 +21,7 @@ SOORTEN = {"vertrek": "Vertrekwekker", "herinnering": "Herinneringen", "uitnodig
            "aanvraag": "Antwoord van restaurants"}
 APP_STORE = "https://apps.apple.com/app/ntfy/id1625396347"
 PLAY_STORE = "https://play.google.com/store/apps/details?id=io.heckel.ntfy"
-DAGEN_VOORUIT = 3
+DAGEN_VOORUIT = 7
 
 _laatst: dict[str, tuple[float, str]] = {}
 _slot = threading.Lock()
@@ -35,6 +36,21 @@ def instellen(aan: bool = True, kort: bool | None = None, soorten: list[str] | N
     import samen
     return samen._ok(opslag._rpc_ik("push_instellen", p_aan=aan, p_kort=kort, p_soorten=soorten,
                                     p_stil_van=stil_van, p_stil_tot=stil_tot, p_nieuw_topic=nieuw_topic))["push"]
+
+
+def web_code() -> str:
+    import samen
+    return samen._ok(opslag._rpc_ik("push_web_code"))["code"]
+
+
+def toestellen() -> dict:
+    """{"toestellen": [{id, apparaat, aangemaakt, laatst_ok}], "ntfy": bool}"""
+    return opslag._rpc_ik("push_web_toestellen")
+
+
+def toestel_weg(toestel_id: int) -> None:
+    import samen
+    samen._ok(opslag._rpc_ik("push_web_weg", p_id=toestel_id))
 
 
 def testen() -> None:

@@ -70,11 +70,12 @@ import zaak_scherm
 import beroep
 import indeling
 import zoekveld
+import schil
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -3452,63 +3453,77 @@ def agendas_instellen() -> None:
 
 
 def meldingen_instellen() -> None:
-    """Meldingen op je telefoon via de gratis app ntfy."""
+    """Meldingen op je telefoon, ook als de app dicht is. Eigen pushmeldingen via de web-app; ntfy kan ook."""
     try:
         status = meldingen.status()
+        web = meldingen.toestellen()
     except opslag.GeenToegang:
         raise
     except Exception:
         st.caption("Meldingen zijn nu even niet bereikbaar.")
         return
     p = status.get("push")
-    if not p or not p["aan"]:
-        st.caption("Krijg een seintje als je moet vertrekken, als iemand je uitnodigt of reageert, en als een "
-                   "restaurant antwoordt. Ook als de app dicht is.")
-        if st.button("Meldingen aanzetten", type="primary", icon=":material/notifications_active:"):
-            meldingen.instellen(True)
+    toestellen = web.get("toestellen", [])
+    if schil.actief():
+        if st.button("Meldingen op dit toestel", type="primary", icon=":material/notifications_active:"):
+            st.session_state.push_code = meldingen.web_code()
             opslag.instellingen_bijwerken(meldingen_aan=True)
             meldingen.vergeten()
+        if schil.koppelen(st.session_state.get("push_code")):
+            st.session_state.pop("push_code", None)
+            st.toast("Meldingen staan aan")
             st.rerun()
+    elif not toestellen:
+        st.link_button("App op je beginscherm", schil.ADRES, icon=":material/install_mobile:", type="primary")
+        st.caption("Open in Safari, tik op Deel en dan Zet op beginscherm. Zet daar de meldingen aan.")
+    for t in toestellen:
+        with st.container(horizontal=True, vertical_alignment="center", key=f"toestel_{t['id']}"):
+            st.markdown(f":material/smartphone: {t['apparaat'] or 'Toestel'}", width="stretch")
+            if st.button("Weg", key=f"toestel_weg_{t['id']}", type="tertiary"):
+                meldingen.toestel_weg(t["id"])
+                st.rerun()
+    if not p or not p["aan"]:
+        if not toestellen:
+            with st.expander("Via de app ntfy"):
+                if st.button("ntfy gebruiken"):
+                    meldingen.instellen(True)
+                    opslag.instellingen_bijwerken(meldingen_aan=True)
+                    meldingen.vergeten()
+                    st.rerun()
         return
-    st.markdown("**1.** Installeer de gratis app **ntfy**")
-    with st.container(horizontal=True, gap="small"):
-        st.link_button("iPhone en iPad", meldingen.APP_STORE, icon=":material/download:")
-        st.link_button("Android", meldingen.PLAY_STORE, icon=":material/download:")
-    st.markdown("**2.** Tik in ntfy op **+** en vul deze naam in (tik op het kopieer-icoon):")
-    st.code(p["topic"], language=None)
-    st.markdown("**3.** Sta meldingen toe en stuur een test:")
     if st.button("Stuur testmelding", icon=":material/send:"):
         try:
             meldingen.testen()
             st.toast("Testmelding verstuurd")
         except samen.Fout as fout:
             st.error(str(fout))
-    st.caption(f"Komende dagen {status.get('gepland', 0)} herinneringen klaargezet, "
-               f"afgelopen week {status.get('verstuurd', 0)} meldingen verstuurd.")
     with st.form("meldingen_form", border=False):
         soorten = st.pills("Waarover", list(meldingen.SOORTEN), selection_mode="multi", default=p["soorten"],
                            format_func=meldingen.SOORTEN.get)
-        voor = st.select_slider("Herinnering voor een afspraak (zonder reistijd)", [0, 5, 10, 15, 30, 60],
+        voor = st.select_slider("Herinnering voor een afspraak", [0, 5, 10, 15, 30, 60],
                                 value=int(opslag.instellingen().get("melding_voor", 15)),
                                 format_func=lambda m: "geen" if not m else f"{m} min")
-        kort = st.toggle("Alleen 'Je hebt een melding' tonen (geen details op je scherm)", value=p["kort"])
-        stil = st.toggle("Stille uren 's nachts (22:00 tot 7:00)", value=bool(p["stil_van"]),
-                         help="Vertrekwekkers en herinneringen komen altijd.")
+        kort = st.toggle("Geen details op je vergrendelscherm", value=p["kort"])
+        stil = st.toggle("Stil van 22:00 tot 7:00", value=bool(p["stil_van"]))
         if st.form_submit_button("Opslaan"):
             meldingen.instellen(True, kort, soorten or [], "22:00" if stil else None, "07:00" if stil else None)
             opslag.instellingen_bijwerken(melding_voor=voor, meldingen_aan=True)
             meldingen.vergeten()
             st.toast("Opgeslagen")
-    st.caption("Meldingen gaan via de openbare dienst ntfy.sh. Je naam is geheim en alleen jij kent hem. "
-               "Wil je geen details buiten de app, zet dan 'Alleen Je hebt een melding tonen' aan.")
-    with st.container(horizontal=True, gap="small"):
-        if st.button("Nieuwe naam", help="Als iemand anders je naam kent: maak een nieuwe en abonneer opnieuw"):
-            meldingen.instellen(True, nieuw_topic=True)
-            st.rerun()
-        if st.button("Meldingen uit"):
-            meldingen.instellen(False)
-            opslag.instellingen_bijwerken(meldingen_aan=False)
-            st.rerun()
+    if web.get("ntfy", True) and not toestellen:
+        with st.expander("Via de app ntfy"):
+            with st.container(horizontal=True, gap="small"):
+                st.link_button("iPhone en iPad", meldingen.APP_STORE, icon=":material/download:")
+                st.link_button("Android", meldingen.PLAY_STORE, icon=":material/download:")
+            st.caption("Tik in ntfy op + en vul deze naam in:")
+            st.code(p["topic"], language=None)
+            if st.button("Nieuwe naam"):
+                meldingen.instellen(True, nieuw_topic=True)
+                st.rerun()
+    if st.button("Meldingen uit", type="tertiary"):
+        meldingen.instellen(False)
+        opslag.instellingen_bijwerken(meldingen_aan=False)
+        st.rerun()
 
 
 def agenda_feed_instellen() -> None:
@@ -4279,6 +4294,7 @@ def assistent_invoer() -> None:
 
 def main() -> None:
     taal_bepalen()
+    schil.actief()  # onthoudt of de app in de web-app op het beginscherm draait
     if not opslag.online():
         st.caption("Lokale testmodus: gegevens staan in data/gegevens.json.")
     # Siri (app Opdrachten) opent de app met ?zeg=wat je zei. Dat bewaren we tot je ingelogd bent.
@@ -4342,6 +4358,15 @@ def main() -> None:
         return
     taal_bepalen()
     toegankelijkheid_css()
+    # De eigenaar legt het adres van de app vast, zodat de web-app op het beginscherm weet wat hij moet openen.
+    if ik().get("id") == 1 and not st.session_state.get("_adres_gemeld"):
+        st.session_state._adres_gemeld = True
+        try:
+            opslag._rpc_ik("app_adres_onthouden", p_adres=app_adres())
+        except opslag.GeenToegang:
+            raise
+        except Exception:
+            pass
     if sleutel := st.session_state.pop("apparaat_bewaar", None):
         onthouden.bewaren(sleutel)
     # Herhalende afspraken steeds een eindje vooruit in de agenda zetten (doet meestal niets).

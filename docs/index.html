@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Assistent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icoon-180.png">
+<title>Mijn assistent</title>
+<style>
+  :root { --tekst: #1f2937; --rustig: #6b7280; --kleur: #4f46e5; --vlak: #f3f4f6; --achter: #ffffff; }
+  @media (prefers-color-scheme: dark) { :root { --tekst: #f3f4f6; --rustig: #9ca3af; --vlak: #1f2937; --achter: #0b0f19; } }
+  html, body { margin: 0; height: 100%; background: var(--achter); color: var(--tekst);
+               font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: var(--achter); }
+  #leeg { display: none; padding: 40px 16px; text-align: center; color: var(--rustig); }
+  #balk { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); display: none;
+          gap: 12px; align-items: center; padding: 12px 14px; border-radius: 16px; background: var(--vlak);
+          box-shadow: 0 4px 20px rgba(0,0,0,.15); z-index: 10; }
+  #balk span { flex: 1; }
+  #balk button { border: 0; border-radius: 999px; padding: 9px 16px; font: inherit; background: var(--kleur); color: #fff; }
+  #balk button.stil { background: transparent; color: var(--rustig); padding: 9px 6px; }
+</style>
+</head>
+<body>
+<iframe id="app" title="Mijn assistent" allow="microphone; camera; geolocation; clipboard-write; web-share; fullscreen"></iframe>
+<div id="leeg">De app is nog niet bereikbaar. Probeer het later opnieuw.</div>
+<div id="balk"><span id="balk-tekst"></span><button id="balk-knop"></button><button id="balk-dicht" class="stil" aria-label="Sluiten">Later</button></div>
+<script>
+// Een dun laagje om de app heen: een eigen icoon op je beginscherm en pushmeldingen. De app zelf draait in het
+// venster hieronder. Je wachtwoord komt hier nooit langs: de app geeft alleen een eenmalige koppelcode door.
+const SUPABASE = "https://lnjsekmlpjyiwdlzcowa.supabase.co";
+const SLEUTEL = "sb_publishable_Bq-K3J6yt0-B-mHWYj-tnQ_DWD0c9KX";
+
+const rpc = async (functie, parameters = {}) => {
+  const r = await fetch(`${SUPABASE}/rest/v1/rpc/${functie}`, { method: "POST",
+    headers: { apikey: SLEUTEL, "Content-Type": "application/json" }, body: JSON.stringify(parameters) });
+  if (!r.ok) throw new Error(functie);
+  return r.json();
+};
+const opslag = { lees: (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } },
+                 bewaar: (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} } };
+
+const vast = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+let appAdres = "";
+
+async function laden() {
+  appAdres = opslag.lees("app_adres") || "";
+  try {
+    const nieuw = await rpc("app_adres");
+    if (nieuw) { appAdres = nieuw; opslag.bewaar("app_adres", nieuw); }
+  } catch (_) {}
+  if (!appAdres) { document.getElementById("leeg").style.display = "block"; return; }
+  const open = new URLSearchParams(location.search).get("open");
+  let doel = new URL(appAdres + "/");
+  if (open && open.startsWith(appAdres + "/")) doel = new URL(open);
+  doel.searchParams.set("embed", "true");
+  doel.searchParams.set("schil", "1");
+  document.getElementById("app").src = doel.href;
+}
+
+function balk(tekst, knop, actie) {
+  document.getElementById("balk-tekst").textContent = tekst;
+  const k = document.getElementById("balk-knop");
+  k.style.display = knop ? "" : "none";
+  k.textContent = knop || "";
+  k.onclick = actie;
+  document.getElementById("balk").style.display = "flex";
+}
+document.getElementById("balk-dicht").onclick = () => { document.getElementById("balk").style.display = "none"; };
+
+const naarBytes = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)),
+                                          (c) => c.charCodeAt(0));
+
+async function vapidSleutel() {
+  let s = await rpc("push_vapid_publiek");
+  if (!s) { await fetch(`${SUPABASE}/functions/v1/push`, { method: "POST" }); s = await rpc("push_vapid_publiek"); }
+  return s;
+}
+
+function toestelNaam() {
+  const ua = navigator.userAgent;
+  return /iPad|Macintosh.*Mobile/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "iPad"
+    : /iPhone/.test(ua) ? "iPhone" : /Android/.test(ua) ? "Android" : /Mac/.test(ua) ? "Mac" : "Computer";
+}
+
+async function aanzetten(code, bron) {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) throw new Error("geen push");
+    if (await Notification.requestPermission() !== "granted") {
+      balk("Meldingen zijn niet toegestaan. Zet ze aan bij Instellingen › Meldingen.", "", null);
+      return;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    let abonnement = await reg.pushManager.getSubscription();
+    if (!abonnement) {
+      abonnement = await reg.pushManager.subscribe({ userVisibleOnly: true,
+        applicationServerKey: naarBytes(await vapidSleutel()) });
+    }
+    const r = await rpc("push_web_koppelen", { p_code: code, p_abonnement: abonnement.toJSON(), p_apparaat: toestelNaam() });
+    if (r.fout) throw new Error(r.fout);
+    balk("Meldingen staan aan.", "", null);
+    setTimeout(() => { document.getElementById("balk").style.display = "none"; }, 2500);
+    bron.postMessage({ soort: "push-klaar" }, appAdres);
+  } catch (e) {
+    balk(e.message && e.message.length > 20 ? e.message : "Dat lukte niet. Probeer het opnieuw.", "", null);
+  }
+}
+
+window.addEventListener("message", (e) => {
+  if (!appAdres || e.origin !== appAdres || !e.data || e.data.soort !== "push-koppelen") return;
+  const bron = e.source;
+  if (!vast && /iPhone|iPad|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 0) {
+    balk("Zet de app eerst op je beginscherm: tik op Deel en dan Zet op beginscherm.", "", null);
+    return;
+  }
+  // Toestemming vragen mag alleen na een tik op dit scherm zelf.
+  balk("Meldingen op dit toestel?", "Aanzetten", () => aanzetten(e.data.code, bron));
+});
+
+navigator.serviceWorker?.addEventListener("message", (e) => {
+  if (e.data?.soort === "open" && appAdres && String(e.data.link).startsWith(appAdres + "/")) {
+    const doel = new URL(e.data.link);
+    doel.searchParams.set("embed", "true");
+    doel.searchParams.set("schil", "1");
+    document.getElementById("app").src = doel.href;
+  }
+});
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+laden();
+</script>
+</body>
+</html>
