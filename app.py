@@ -3193,6 +3193,7 @@ def instellingen_tabblad() -> None:
     with st.container(horizontal=True, vertical_alignment="center", gap="small"):
         st.markdown(":material/language:", width="content")
         taalkeuze("taal_bovenaan")
+    te_doen_blok()
     onderdelen_tegels()
     st.markdown("**Voorkeuren**")
     with st.container(horizontal=True, gap="small"):
@@ -3665,7 +3666,7 @@ def samenvatting_tonen(s: dict, buurt: dict) -> None:
 def product_vergelijken() -> None:
     """Eén product bij alle supermarkten naast elkaar, met de prijs per kilo, liter of stuk."""
     term = zoekveld.zoekveld("product_zoek", "Welk product? Bijv. halfvolle melk",
-                             [zoekveld.suggestie(p, icoon="🛒") for p in VEEL_GEKOCHT], kop="Veel gekocht")
+                             [zoekveld.suggestie(p, icoon="🛒") for p in VEEL_GEKOCHT])
     if not term:
         st.caption("Typ een product. Je ziet dan per supermarkt wat het kost, ook per kilo of liter.")
         return
@@ -3991,6 +3992,10 @@ def paginas() -> list:
               samen_scherm.mijn_webshop, "Mijn webshop", ":material/inventory_2:", "webshop"),
           als(online and "Marktplaats" not in uit and ik().get("niveau") in ("verkoper", "ondernemer"),
               samen_scherm.verkoopoverzicht, "Verkoopoverzicht", ":material/bar_chart:", "verkoopoverzicht"))
+    groep("Afspreken",
+          als(online, plannen_scherm.boekingen_pagina, "Boekingen", ":material/event_available:", "boekingen",
+              boekingen_wachten() if online else 0),
+          als(online, plannen_scherm.prikken_pagina, "Datum prikken", ":material/how_to_vote:", "prikken"))
     groep("Leren en werk",
           als(online and "Documenten" not in uit, documenten_scherm.pagina, "Documenten", ":material/description:",
               "documenten"),
@@ -4008,7 +4013,8 @@ def paginas() -> list:
     groep("Thuis en handig",
           als(bool(lijstjes_delen()), lijstjes, "Lijstjes", ":material/shopping_cart:", "lijstjes"),
           als(bool(handig_delen()), handig, "Hulpmiddelen", ":material/build:", "hulpmiddelen"))
-    st.session_state._nieuw_totaal = sum(nieuw.get(k, 0) for k in ("bestellingen", "berichten", "gedeeld"))
+    st.session_state._nieuw_totaal = (sum(nieuw.get(k, 0) for k in ("bestellingen", "berichten", "gedeeld"))
+                                      + (boekingen_wachten() if online else 0))
     return list(PAGINA.values())
 
 
@@ -4036,6 +4042,60 @@ def kopbalk() -> None:
         # Instellingen als icoon, zodat alles ook op een telefoon op één regel past.
         st.page_link(PAGINA["instellingen"], label=f"{totaal}" if totaal else " ", icon=":material/settings:",
                      width="content", help="Instellingen")
+
+
+def boekingen_wachten() -> int:
+    """Boekingen die op jouw antwoord wachten; hooguit elke twee minuten opgehaald."""
+    if not opslag.instellingen().get("boekpagina"):
+        return 0
+    bewaard = st.session_state.get("_boek_wacht")
+    if not bewaard or time.time() - bewaard[0] > 120:
+        try:
+            bewaard = (time.time(), len(boekpagina.nieuw(boekpagina.mijn())))
+        except opslag.GeenToegang:
+            raise
+        except Exception:
+            bewaard = (time.time(), 0)
+        st.session_state._boek_wacht = bewaard
+    return bewaard[1]
+
+
+def te_doen() -> list[tuple[str, str, str]]:
+    """Wat er nu op je wacht, kort: (pagina, tekst, icoon). Alleen wat je zelf moet doen."""
+    lijst = []
+    uit = onderdelen_uit()
+    if "chat" in PAGINA and (n := chat.ongelezen()):
+        lijst.append(("chat", f"Ongelezen in Chat ({n})", ":material/forum:"))
+    if "boekingen" in PAGINA and (n := boekingen_wachten()):
+        lijst.append(("boekingen", f"Boekingen goedkeuren ({n})", ":material/event_available:"))
+    if samen.beschikbaar():
+        for pagina, tekst in samen_scherm.nieuw_kort().get("meldingen", []):
+            if pagina in ("bestellingen", "berichten", "samen") or "nodigt je uit" in tekst:
+                lijst.append((pagina, tekst.split(" ", 1)[1], ":material/notifications:"))
+    vandaag = date.today().isoformat()
+    if te_laat := [t for t in opslag.open_taken() if t.get("deadline") and t["deadline"][:10] < vandaag]:
+        lijst.append(("taken", f"Taken te laat ({len(te_laat)})", ":material/task_alt:"))
+    if "Leren" not in uit and (herhalingen := opslag.herhalingen_vandaag()):
+        lijst.append(("leren", f"Herhalen bij Leren ({len(herhalingen)})", ":material/school:"))
+    if "Mail" not in uit and (concepten := opslag.mailconcepten()):
+        lijst.append(("mail", f"Mail klaar om te versturen ({len(concepten)})", ":material/mail:"))
+    return [(p, t, i) for p, t, i in lijst if p in PAGINA or p == "taken"]
+
+
+def te_doen_blok() -> None:
+    if not (lijst := te_doen()):
+        return
+    with st.container(border=True, gap="small"):
+        for pagina, tekst, icoon in lijst[:6]:
+            if pagina == "taken":
+                st.button(tekst, icon=icoon, type="tertiary", key="te_doen_taken", on_click=taken_openen)
+            else:
+                st.page_link(PAGINA[pagina], label=tekst, icon=icoon)
+
+
+def taken_openen() -> None:
+    st.session_state.agenda_deel = "Taken"
+    st.session_state.ga_naar = "agenda"
 
 
 def onderdelen_tegels() -> None:

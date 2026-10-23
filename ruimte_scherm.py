@@ -74,8 +74,7 @@ def pagina() -> None:
 def ontdekken() -> None:
     alle = ruimte.zoeken("")
     zoek = zoekveld.zoekveld("ruimte_zoek", "Zoek een ruimte, project of expositie", [
-        zoekveld.suggestie(r["titel"], r.get("maker") or "", "🖼️", zoek=r.get("omschrijving", "")) for r in alle[:200]],
-        kop="Openbare ruimtes")
+        zoekveld.suggestie(r["titel"], r.get("maker") or "", "🖼️", zoek=r.get("omschrijving", "")) for r in alle[:200]])
     ruimtes = ruimte.zoeken(zoek) if zoek else alle
     if not ruimtes:
         st.caption("Geen ruimtes gevonden." if zoek else

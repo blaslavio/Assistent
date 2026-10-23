@@ -193,7 +193,7 @@ def notities() -> None:
                 st.rerun()
     notities = opslag.lijst("notities")
     zoek = zoekveld.zoekveld("notities_zoek", "Zoeken in notities", [
-        zoekveld.suggestie(n["titel"], icoon="📝", zoek=n["tekst"][:300]) for n in reversed(notities)], kop="Notities")
+        zoekveld.suggestie(n["titel"], icoon="📝", zoek=n["tekst"][:300]) for n in reversed(notities)])
     for n in reversed(notities):
         if zoek and zoek.lower() not in (n["titel"] + n["tekst"]).lower():
             continue

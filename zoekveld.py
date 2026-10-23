@@ -33,8 +33,6 @@ CSS = """
 .zv-lijst .zv-i { width: 22px; text-align: center; flex: none; }
 .zv-lijst .zv-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .zv-lijst small { opacity: .6; white-space: nowrap; }
-.zv-lijst .zv-kop { font-size: 12px; opacity: .6; padding: 6px 10px 2px; cursor: default; }
-.zv-lijst .zv-kop:hover { background: none; }
 """
 
 HTML = """<div class="zv"><div class="zv-rand">
@@ -66,13 +64,13 @@ export default function (component) {
     const toon = () => {
       const q = plat(veld.value.trim());
       const cijfers = veld.value.replace(/[^0-9]/g, "");
-      let gevonden = z.suggesties.filter((s) => !q || plat(s.t + " " + (s.s || "") + " " + (s.z || "")).includes(q)
+      // Pas suggesties als er iets getypt is; een leeg veld blijft rustig.
+      let gevonden = !q ? [] : z.suggesties.filter((s) => plat(s.t + " " + (s.s || "") + " " + (s.z || "")).includes(q)
         || (cijfers.length > 3 && (s.z || "").replace(/[^0-9]/g, "").includes(cijfers)));
-      if (q) gevonden.sort((a, b) => (plat(b.t).startsWith(q) ? 1 : 0) - (plat(a.t).startsWith(q) ? 1 : 0));
+      gevonden.sort((a, b) => (plat(b.t).startsWith(q) ? 1 : 0) - (plat(a.t).startsWith(q) ? 1 : 0));
       gevonden = gevonden.slice(0, 7);
       z.opties = gevonden; z.actief = -1;
-      const kop = !q && z.kop ? `<li class="zv-kop">${esc(z.kop)}</li>` : "";
-      lijst.innerHTML = gevonden.length ? kop + gevonden.map((s, i) =>
+      lijst.innerHTML = gevonden.length ? gevonden.map((s, i) =>
         `<li data-i="${i}"><span class="zv-i">${esc(s.i || "")}</span><span class="zv-t">${esc(s.t)}</span>`
         + `${s.s ? `<small>${esc(s.s)}</small>` : ""}</li>`).join("") : "";
       lijst.hidden = !gevonden.length || document.activeElement !== veld;
@@ -120,7 +118,6 @@ export default function (component) {
   }
   z.set = setStateValue;
   z.suggesties = data.suggesties || [];
-  z.kop = data.kop || "";
   veld.placeholder = data.placeholder || "";
   wis.setAttribute("aria-label", data.wissen || "Wissen");
   if (data.reset && data.reset !== z.reset) {
@@ -144,7 +141,7 @@ def suggestie(tekst: str, onder: str = "", icoon: str = "", waarde: str | None =
     return s
 
 
-def zoekveld(key: str, placeholder: str = "Zoeken", suggesties: list[dict] | None = None, kop: str = "",
+def zoekveld(key: str, placeholder: str = "Zoeken", suggesties: list[dict] | None = None,
              waarde: str = "") -> str:
     """Toont het zoekveld en geeft de huidige zoekterm terug (ook zonder Enter).
 
@@ -152,7 +149,7 @@ def zoekveld(key: str, placeholder: str = "Zoeken", suggesties: list[dict] | Non
     waarde verandert, zodat wat iemand aan het typen is niet verspringt.
     """
     resultaat = _zoekveld(key=key, data={
-        "placeholder": taal.t(placeholder), "suggesties": (suggesties or [])[:300], "kop": taal.t(kop) if kop else "",
+        "placeholder": taal.t(placeholder), "suggesties": (suggesties or [])[:300],
         "waarde": waarde, "reset": waarde or None, "wissen": taal.t("Wissen")}, on_q_change=lambda: None)
     q = getattr(resultaat, "q", None) if resultaat is not None else None
     if q is None:

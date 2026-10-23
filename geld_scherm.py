@@ -563,8 +563,7 @@ def belegging_zoeken(sleutel: str, volg: bool = False) -> None:
     bekend = [zoekveld.suggestie(naam, symbool, "📈", waarde=symbool) for naam, symbool in beleggen.MARKT.items()
               if not symbool.startswith("^") and "=" not in symbool]
     bekend += [zoekveld.suggestie(v["naam"], v["symbool"], "⭐", waarde=v["symbool"]) for v in beleggen.instellingen()["volglijst"]]
-    zoek = zoekveld.zoekveld(f"{sleutel}_zoek", "Zoek op naam of ticker, bijvoorbeeld Vanguard All-World", bekend,
-                             kop="Bekend")
+    zoek = zoekveld.zoekveld(f"{sleutel}_zoek", "Zoek op naam of ticker, bijvoorbeeld Vanguard All-World", bekend)
     gevonden = []
     if zoek.strip():
         try:

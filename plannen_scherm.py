@@ -1,4 +1,4 @@
-"""Agenda › Plannen: samen iets plannen en reserveren. En voor zaken: reserveringen aannemen (Mijn webshop)."""
+"""Agenda › Plannen: uitgaan en reserveren. Datum prikken en Boekingen hebben elk een eigen pagina."""
 
 import time as klok
 from datetime import date, datetime, time, timedelta
@@ -45,21 +45,32 @@ def pagina() -> None:
     """Kies waarvoor je plant, reserveer bij een zaak in de app of zet een plek uit de buurt in je agenda."""
     _melding_tonen()
     online = samen.beschikbaar()
-    gelegenheid = st.pills("Waarvoor?", list(R.GELEGENHEDEN), default="Date", key="plannen_gelegenheid",
-                           format_func=lambda g: f"{R.GELEGENHEDEN[g][1]} {g}", label_visibility="collapsed") or "Date"
+    gekozen = st.pills("Waarvoor?", list(R.GELEGENHEDEN), key="plannen_gelegenheid",
+                       label_visibility="collapsed")
     if online:
-        with st.container(horizontal=True, gap="small"):
-            if st.button("Samen een datum kiezen", icon=":material/how_to_vote:", key="prik_nieuw"):
-                st.session_state.pop("prik_klaar", None)
-                st.session_state.prik_opties = []
-                prik_maken_dialoog(gelegenheid)
-            if st.button("Boekingspagina", icon=":material/event_available:", key="boek_instellen"):
-                boek_dialoog()
-        stemrondes()
-        geboekt_bij_mij()
         mijn_reserveringen()
         mijn_aanvragen()
-    zoeken(gelegenheid, online)
+    zoeken(gekozen or "Date", online, bool(gekozen))
+
+
+def prikken_pagina() -> None:
+    """Datum prikken: een eigen pagina, los van uitgaan en boekingen."""
+    _melding_tonen()
+    if st.button("Nieuwe stemronde", icon=":material/add:", key="prik_nieuw"):
+        st.session_state.pop("prik_klaar", None)
+        st.session_state.prik_opties = []
+        prik_maken_dialoog("Afspraak")
+    if not stemrondes():
+        st.caption("Nog geen stemrondes.")
+
+
+def boekingen_pagina() -> None:
+    """Je boekingspagina en wat er bij jou geboekt is, los van de rest."""
+    _melding_tonen()
+    if st.button("Boekingspagina", icon=":material/tune:", key="boek_instellen"):
+        boek_dialoog()
+    if not geboekt_bij_mij():
+        st.caption("Nog geen boekingen.")
 
 
 def mijn_reserveringen() -> None:
@@ -137,8 +148,8 @@ def _zaken_in_app() -> list[dict]:
 
 
 @st.fragment
-def zoeken(gelegenheid: str, online: bool) -> None:
-    """Zoeken in zaken in de app en plekken in de buurt. Resultaten verschijnen al tijdens het typen."""
+def zoeken(gelegenheid: str, online: bool, gekozen: bool = False) -> None:
+    """Zoeken in zaken in de app en plekken in de buurt. Resultaten pas na typen of na een keuze bij Waarvoor."""
     zoekveld.context()
     zaken = _zaken_in_app() if online else []
     try:
@@ -146,16 +157,16 @@ def zoeken(gelegenheid: str, online: bool) -> None:
         fout = None
     except reizen.AdresNietGevonden:
         alles, fout = [], "adres"
-    suggesties = [zoekveld.suggestie(z["naam"], "Reserveren in de app", "📅",
+    suggesties = [zoekveld.suggestie(z["naam"], "Reserveren in de app",
                                      zoek=" ".join([z["winkeladres"], z["omschrijving"]])) for z in zaken[:30]]
     suggesties += [zoekveld.suggestie(p["naam"], f"{p['soort']} · {str(p['afstand_km']).replace('.', ',')} km",
-                                      p["icoon"], zoek=p.get("adres", "")) for p in (alles or [])[:200]]
-    soorten = {}
-    for p in alles or []:
-        soorten.setdefault(p["soort"].split(",")[0], p["icoon"])
-    suggesties += [zoekveld.suggestie(naam, "Alles in de buurt", icoon) for naam, icoon in soorten.items()]
-    zoek = zoekveld.zoekveld("plannen_zoek", "Zoek een restaurant, uitje of zaak", suggesties, kop="In de buurt")
+                                      zoek=p.get("adres", "")) for p in (alles or [])[:200]]
+    soorten = dict.fromkeys(p["soort"].split(",")[0] for p in alles or [])
+    suggesties += [zoekveld.suggestie(naam, "Alles in de buurt") for naam in soorten]
+    zoek = zoekveld.zoekveld("plannen_zoek", "Zoek een restaurant, uitje of zaak", suggesties)
     woorden = R.zoek_woorden(zoek)
+    if not woorden and not gekozen:  # pas na typen of een keuze, zodat de pagina rustig blijft
+        return
     if woorden:
         zaken = [z for z in zaken if all(w in R._plat(" ".join([z["naam"], z["winkeladres"], z["omschrijving"]]))
                                          for w in woorden)]
@@ -206,14 +217,19 @@ def in_de_buurt(gelegenheid: str, plekken: list[dict], zoek: str = "", met_zaken
         return
     toon = st.session_state.get("plannen_meer", 8)
     for i, p in enumerate(plekken[:toon]):
-        with st.container(horizontal=True, vertical_alignment="center", key=f"plek_{i}"):
-            with st.container(gap=None):
-                st.markdown(f"{p['icoon']} **{p['naam']}**")
-                st.caption(f"{p['soort']} · {str(p['afstand_km']).replace('.', ',')} km")
-            if p.get("website"):
-                st.link_button("", p["website"], icon=":material/open_in_new:", help="Website")
-            if st.button("Plannen", key=f"plan_{i}", width=96):
-                plan_dialoog(p, gelegenheid)
+        with st.container(gap=None, key=f"plek_{i}"):
+            st.markdown(f"**{p['naam']}**")
+            soort = p["soort"] if len(p["soort"]) <= 40 else p["soort"][:40].rsplit(",", 1)[0]
+            st.caption(" · ".join(filter(None, [soort, p.get("adres"),
+                                                f"{str(p['afstand_km']).replace('.', ',')} km"])))
+            with st.container(horizontal=True, gap="small"):
+                if p.get("website"):
+                    st.link_button("Website", p["website"], icon=":material/open_in_new:", type="tertiary")
+                if st.button("Plannen", key=f"plan_{i}", icon=":material/event:", type="tertiary"):
+                    plan_dialoog(p, gelegenheid, "Alleen in agenda")
+                if p.get("reserveren") and st.button("Reserveren", key=f"reserveer_{i}",
+                                                     icon=":material/restaurant:", type="tertiary"):
+                    plan_dialoog(p, gelegenheid, "Reservering aanvragen")
     if len(plekken) > toon and st.button("Meer laten zien", type="tertiary"):
         st.session_state.plannen_meer = toon + 8
         st.rerun(scope="fragment")
@@ -266,10 +282,10 @@ def reserveer_dialoog(z: dict, gelegenheid: str) -> None:
 
 
 @st.dialog("Plannen")
-def plan_dialoog(p: dict, gelegenheid: str) -> None:
+def plan_dialoog(p: dict, gelegenheid: str, hoe: str = "") -> None:
     """Een plek buiten de app: een reservering aanvragen (mail, bellen, website) of alleen in je agenda zetten."""
     _account()
-    st.markdown(f"{p['icoon']} **{p['naam']}**")
+    st.markdown(f"**{p['naam']}**")
     st.caption(" · ".join(filter(None, [p["soort"], p.get("adres"), p.get("telefoon")])))
     klaar = st.session_state.get("aanvraag_klaar")
     if klaar and klaar["plek"]["naam"] == p["naam"]:
@@ -277,7 +293,7 @@ def plan_dialoog(p: dict, gelegenheid: str) -> None:
         return
     st.session_state.pop("aanvraag_klaar", None)
     hoe = st.segmented_control("Hoe", ["Reservering aanvragen", "Alleen in agenda"],
-                               default="Reservering aanvragen" if p.get("reserveren") else "Alleen in agenda",
+                               default=hoe or ("Reservering aanvragen" if p.get("reserveren") else "Alleen in agenda"),
                                label_visibility="collapsed") or "Alleen in agenda"
     k1, k2 = st.columns(2)
     dag = k1.date_input("Dag", value=date.today() + timedelta(days=1), min_value=date.today(), format="DD-MM-YYYY")
@@ -501,16 +517,15 @@ def _stand(o: dict) -> str:
     return f"{o['ja']}× ja" + (f", {o['misschien']}× misschien" if o["misschien"] else "")
 
 
-def stemrondes() -> None:
+def stemrondes() -> bool:
     try:
         lijst = prikker.mijn()
     except opslag.GeenToegang:
         raise
     except Exception:
-        return
+        return False
     if not lijst:
-        return
-    st.markdown("**Stemrondes**")
+        return False
     for p in lijst:
         with st.container(horizontal=True, vertical_alignment="center", key=f"prik_{p['id']}"):
             with st.container(gap=None):
@@ -522,6 +537,7 @@ def stemrondes() -> None:
                     st.caption(f"{len(p['stemmen'])} gestemd" + (f" · beste: {_wanneer(beste['start'])}" if beste else ""))
             if st.button("Open" if p["open"] else "Bekijk", key=f"prik_open_{p['id']}", width=80):
                 prik_dialoog(p)
+    return True
 
 
 @st.dialog("Samen een datum kiezen")
@@ -682,10 +698,10 @@ def _duur(m: int) -> str:
     return f"{m // 60} uur" if m % 60 == 0 else (f"{m // 60} uur {m % 60} min" if m > 60 else f"{m} min")
 
 
-def geboekt_bij_mij() -> None:
+def geboekt_bij_mij() -> bool:
     """Afspraken die anderen via je boekingspagina maakten."""
     if not opslag.instellingen().get("boekpagina"):
-        return
+        return False
     try:
         m = boekpagina.mijn()
         if any(not b["verwerkt"] for b in m["boekingen"]):
@@ -694,12 +710,11 @@ def geboekt_bij_mij() -> None:
     except opslag.GeenToegang:
         raise
     except Exception:
-        return
+        return False
     lijst = [b for b in m["boekingen"] if b["status"] in ("aangevraagd", "bevestigd") and b.get("geld") != "open"
              and datetime.fromisoformat(b["start"]) > datetime.now().astimezone() - timedelta(hours=2)]
     if not lijst:
-        return
-    st.markdown("**Geboekt bij jou**")
+        return False
     for b in lijst:
         with st.container(horizontal=True, vertical_alignment="center", key=f"boeking_{b['id']}"):
             with st.container(gap=None):
@@ -721,6 +736,7 @@ def geboekt_bij_mij() -> None:
                     st.link_button("Mail sturen", f"mailto:{b['email']}?subject={onderwerp}", width="stretch")
                 if b["telefoon"]:
                     st.link_button("Bellen", f"tel:{b['telefoon']}", width="stretch")
+    return True
 
 
 def _boek_actie(b: dict, actie: str, melding: str) -> None:

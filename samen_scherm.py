@@ -285,7 +285,7 @@ def _markt_suggesties() -> list[dict]:
 def zoeken() -> None:
     zoekveld.context()
     zoekterm = zoekveld.zoekveld("markt_zoek", "Bijv. fiets, bijles wiskunde, personal trainer Utrecht",
-                                 _markt_suggesties(), kop="Nu op de marktplaats")
+                                 _markt_suggesties())
     soort = st.pills("Soort", list(samen.SOORTEN_AANBOD), format_func=samen.SOORTEN_AANBOD.get,
                      label_visibility="collapsed", key="markt_soort") or ""
     # Kort onthouden: elke klik op een kaart laat de pagina opnieuw lopen, dan hoeft er niet opnieuw gezocht te worden.
@@ -1002,7 +1002,7 @@ def winkelstraat() -> None:
     alle = samen.winkels_zoeken("")
     zoek = zoekveld.zoekveld("winkels_zoek", "Zoek een winkel of product", [
         zoekveld.suggestie(w["naam"], w.get("winkeladres") or "Winkel in de app", "🏬",
-                           zoek=w.get("omschrijving", "")) for w in alle[:200]], kop="Winkels in de app")
+                           zoek=w.get("omschrijving", "")) for w in alle[:200]])
     winkels = samen.winkels_zoeken(zoek) if zoek else alle
     if ik() and (nieuws := (_fout(samen.mijn_winkelnieuws) or {}).get("nieuws")):
         with st.container(border=True):

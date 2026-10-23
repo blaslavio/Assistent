@@ -102,8 +102,7 @@ def overzicht() -> None:
         alle = documenten.lijst("")
         with st.container(width=240):
             zoek = zoekveld.zoekveld("doc_zoek", "Zoeken", [
-                zoekveld.suggestie(d["titel"] or "Naamloos", (d.get("gewijzigd") or "")[:10], "📄") for d in alle[:200]],
-                kop="Recent")
+                zoekveld.suggestie(d["titel"] or "Naamloos", (d.get("gewijzigd") or "")[:10], "📄") for d in alle[:200]])
 
     lijst = documenten.lijst(zoek) if zoek else alle
     if not lijst:
