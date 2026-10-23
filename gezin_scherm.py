@@ -122,7 +122,7 @@ def kosten_deel(g: dict, ik: int | None) -> None:
         with st.form(f"huis_kosten_{g['id']}", border=False):
             oms = st.text_input("Waarvoor", placeholder="Bijv. boodschappen")
             bedrag = st.number_input("Bedrag", min_value=0.0, step=1.0, value=None, format="%.2f")
-            cat = st.selectbox("Categorie", gezin.CATEGORIEEN)
+            cat = st.selectbox("Categorie", gezin.CATEGORIEEN, accept_new_options=True, placeholder="Kies of typ")
             wie = st.selectbox("Betaald door", list(namen), format_func=namen.get,
                                index=list(namen).index(ik) if ik in namen else 0)
             over = st.multiselect("Verdelen over", list(namen), default=list(namen), format_func=namen.get)

@@ -10,6 +10,7 @@ import boekpagina
 import opslag
 import plannen_scherm
 import samen
+import toegang
 import winkelen_scherm
 import zaak
 
@@ -79,16 +80,33 @@ def beroep_instellingen() -> None:
     """Kies je beroep; daaronder je zakelijke hulpmiddelen, elk met één tik open."""
     _melding()
     b = beroep.huidig()
-    opties = ["", *beroep.BEROEPEN, beroep.ANDERS]
-    keuze = st.selectbox("Wat doe je?", opties, index=opties.index(b["soort"]) if b["soort"] in opties else 0,
-                         format_func=lambda k: beroep.naam_van(k) if k else "Kies je beroep", key="beroep_keuze")
-    eigen = ""
-    if keuze == beroep.ANDERS:
-        eigen = st.text_input("Omschrijving", value=b["naam"] if b["soort"] == beroep.ANDERS else "", max_chars=60,
-                              placeholder="Bijv. hondenuitlaat")
-    if keuze and (keuze != b["soort"] or (keuze == beroep.ANDERS and eigen.strip() and eigen.strip() != b["naam"])):
+    # Kies uit de lijst of typ zelf je beroep; staat het er niet tussen, dan doet de assistent een voorstel.
+    namen = [beroep.naam_van(k) for k in beroep.BEROEPEN]
+    nu = (b["naam"] or beroep.naam_van(b["soort"])) if b["soort"] else None
+    keuze = st.selectbox("Wat doe je?", namen if nu in namen or not nu else [*namen, nu],
+                         index=None if not nu else (namen.index(nu) if nu in namen else len(namen)),
+                         placeholder="Kies of typ je beroep", accept_new_options=True, key="beroep_keuze")
+    if keuze and keuze != nu:
+        sleutel = next((k for k in beroep.BEROEPEN if beroep.naam_van(k) == keuze), None) or beroep.zoek(keuze)
+        if sleutel:
+            st.caption(f"Dit lijkt op: {beroep.naam_van(sleutel)}.")
+        elif toegang.sleutel():
+            st.caption("Staat er niet tussen. De assistent kiest bij Opslaan de tools en diensten die erbij passen.")
         if st.button("Opslaan", type="primary", key="beroep_opslaan"):
-            aangezet = beroep.instellen(keuze, eigen)
+            diensten = None
+            if not sleutel and toegang.sleutel():
+                import anthropic
+
+                import slim
+                with st.spinner("De assistent kijkt wat bij je beroep past..."):
+                    try:
+                        voorstel = slim.beroep_voorstel(toegang.claude(toegang.sleutel()), keuze,
+                                                        {k: v[0] for k, v in beroep.BEROEPEN.items()})
+                        sleutel = voorstel["soort"] if voorstel["soort"] in beroep.BEROEPEN else None
+                        diensten = voorstel["diensten"] or None
+                    except (slim.Mislukt, anthropic.APIError):
+                        pass
+            aangezet = beroep.instellen(sleutel or beroep.ANDERS, keuze if keuze not in namen else "", diensten)
             _klaar("Opgeslagen." + (f" Aangezet: {', '.join(aangezet)}." if aangezet else ""))
     if not b["soort"]:
         return

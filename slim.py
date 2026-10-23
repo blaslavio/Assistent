@@ -96,6 +96,34 @@ def foutmelding(fout: anthropic.APIError) -> str:
 
 # --- Leren ------------------------------------------------------------------------------
 
+def beroep_voorstel(client, beroep_tekst: str, soorten: dict[str, str]) -> dict:
+    """Een beroep dat niet in de lijst staat: welk soort past het best, en welke diensten horen erbij."""
+    schema = _object({"soort": {"type": "string", "enum": [*soorten, "anders"]},
+                      "diensten": _lijst(_object({"naam": TEKST, "minuten": {"type": "integer"}}))})
+    systeem = ("Je helpt een ondernemer de app in te richten. Kies uit de lijst het soort beroep dat qua werkwijze het "
+               "best past (afspraken, lessen, klussen op locatie of verkopen), of 'anders'. Stel daarnaast hooguit "
+               "vier diensten voor die klanten kunnen boeken, met een gebruikelijke duur in minuten (15 tot 480).")
+    lijst = "\n".join(f"- {k}: {v}" for k, v in soorten.items())
+    uit = _vraag(client, f"Beroep: {beroep_tekst}\n\nSoorten:\n{lijst}", schema, systeem)
+    uit["diensten"] = [{"naam": str(d["naam"])[:40], "minuten": max(15, min(480, int(d["minuten"])))}
+                       for d in uit.get("diensten", [])[:4] if d.get("naam")]
+    return uit
+
+
+def chat_antwoorden(client, berichten: list[dict], gesprek: str = "") -> list[str]:
+    """Drie korte antwoorden die je in de chat kunt sturen (je kiest er zelf een en kunt hem aanpassen).
+
+    berichten: [{"van": "ik" of een naam, "tekst": ...}], oudste eerst. Alleen wat je zelf liet meelezen."""
+    schema = _object({"antwoorden": _lijst(TEKST)})
+    systeem = ("Je helpt iemand een chatbericht te beantwoorden. Geef drie verschillende, korte antwoorden die deze "
+               "persoon zelf zou kunnen sturen (bijvoorbeeld: ja, nee of een vraag terug), elk hooguit twee zinnen, "
+               "in de toon en de taal van het gesprek. Schrijf in de ik-vorm namens 'ik'. Beloof niets over geld, "
+               "codes of afspraken die niet al in het gesprek staan en verzin geen feiten.")
+    regels = "\n".join(f"{str(b.get('van') or '?')[:40]}: {str(b.get('tekst') or '')[:500]}" for b in berichten[-12:])
+    uit = _vraag(client, f"Gesprek{' met ' + gesprek[:60] if gesprek else ''}:\n{regels}", schema, systeem)
+    return [str(a).strip()[:300] for a in uit.get("antwoorden", []) if str(a).strip()][:3]
+
+
 def oefentoets(client, onderwerp: str, stappen: list[dict], aantal: int = 8, niveau: str = "") -> list[dict]:
     """Meerkeuzevragen over een leerdoel. Elke vraag hoort bij een stap, zodat de score per stap telt."""
     schema = _object({"vragen": _lijst(_object({

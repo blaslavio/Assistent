@@ -11,11 +11,14 @@ import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+import anthropic
 import streamlit as st
 
 import opslag
 import samen
+import slim
 import taal
+import toegang
 
 CSS = """
 .c-wortel { --c-rand: rgba(128,128,128,.22); --c-zacht: rgba(128,128,128,.09); --c-hoofd: var(--st-primary-color, #4f46e5);
@@ -281,6 +284,11 @@ CSS = """
 .c-antwoord-balk div { flex: 1; min-width: 0; border-left: 3px solid var(--c-hoofd); padding-left: 8px; display: flex; flex-direction: column; }
 .c-antwoord-balk span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .7; }
 .c-antwoord-balk + .c-invoer { border-top: 0; }
+.c-hulp { display: flex; align-items: flex-start; gap: 6px; padding: 8px 10px 0; background: var(--c-achter); }
+.c-hulp-lijst { flex: 1; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.c-hulp-keuze { flex: 0 0 auto; max-width: 80%; font: inherit; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border: 1px solid var(--c-rand); border-radius: 16px; padding: 7px 12px; background: var(--c-zacht); color: inherit; cursor: pointer; }
+.c-hulp-tekst { font-size: 13px; opacity: .65; padding: 7px 2px; }
 .c-vermeld-rij { display: flex; gap: 6px; padding: 6px 10px 0; overflow-x: auto; background: var(--c-achter); }
 .c-vermeld-rij:empty { display: none; }
 .c-alleen { text-align: center; font-size: 13px; opacity: .6; padding: 12px; border-top: 1px solid var(--c-rand);
@@ -486,6 +494,28 @@ def _betaal_bewaren(a: dict | None) -> None:
         opslag.instellingen_bijwerken(betaalgegevens=nieuw)
 
 
+def _hulp(a: dict | None) -> None:
+    """Antwoord voorstellen: alleen als je erom vraagt leest de assistent de laatste berichten mee (al ontsleuteld)."""
+    if not isinstance(a, dict) or not a.get("n") or a.get("n") == st.session_state.get("_chat_hulp_n"):
+        return
+    st.session_state._chat_hulp_n = a["n"]
+    berichten = [{"van": str(b.get("van") or "")[:40], "tekst": str(b.get("tekst") or "")[:500]}
+                 for b in (a.get("berichten") or [])[-12:] if isinstance(b, dict)]
+    uit = {"n": a["n"], "lijst": [], "fout": ""}
+    api = toegang.sleutel()
+    if not api:
+        uit["fout"] = "uit"
+    elif not berichten:
+        uit["fout"] = "leeg"
+    else:
+        try:
+            uit["lijst"] = slim.chat_antwoorden(toegang.claude(api), berichten, str(a.get("wie") or ""))
+        except (slim.Mislukt, anthropic.APIError):
+            uit["fout"] = "mislukt"
+    st.session_state.chat_hulp = uit
+    st.rerun()
+
+
 def _open() -> int | None:
     """Een gesprek om meteen te openen: via een melding op je telefoon (?gesprek=nummer) of vanuit de app."""
     gesprek = st.query_params.pop("gesprek", None) or st.session_state.pop("chat_open", None)
@@ -511,8 +541,8 @@ def pagina() -> None:
         "key": os.environ.get("SUPABASE_KEY", opslag.SUPABASE_PUBLISHABLE_KEY),
         "naam": st.session_state.get("naam", ""), "token": st.session_state.get("wachtwoord", ""),
         "label": apparaat_naam(), "vrij": vrij, "open": _open(), "taal": taal.chat_teksten(), "winkel": _mijn_winkel(),
-        "betaal": _betaalgegevens(),
-    }, on_agenda_change=lambda: None, on_betaal_change=lambda: None, on_boeking_change=lambda: None, on_boekingweg_change=lambda: None,
+        "betaal": _betaalgegevens(), "hulp": st.session_state.get("chat_hulp"),
+    }, on_agenda_change=lambda: None, on_hulp_change=lambda: None, on_betaal_change=lambda: None, on_boeking_change=lambda: None, on_boekingweg_change=lambda: None,
         on_winkel_change=lambda: None, on_open_change=lambda: None)
     _naar_agenda(getattr(resultaat, "agenda", None) if resultaat is not None else None)
     _boeking(getattr(resultaat, "boeking", None) if resultaat is not None else None)
@@ -520,5 +550,6 @@ def pagina() -> None:
     _naar_winkel(getattr(resultaat, "winkel", None) if resultaat is not None else None)
     _openen_vanuit_profiel(getattr(resultaat, "open", None) if resultaat is not None else None)
     _betaal_bewaren(getattr(resultaat, "betaal", None) if resultaat is not None else None)
+    _hulp(getattr(resultaat, "hulp", None) if resultaat is not None else None)
     # Zo blijft het aantal in de kopbalk kloppen nadat je berichten hebt gelezen.
     _ongelezen.pop(f"{opslag._naam.get()}|{opslag._wachtwoord.get()}", None)

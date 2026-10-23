@@ -156,11 +156,10 @@ def trainingen(nu: datetime) -> None:
 
 
 def plannen_formulier(nu: datetime) -> None:
-    # Geen st.form: dan verschijnt het veld voor een eigen sport meteen als je "Overig" kiest.
+    # Geen st.form: zo kun je meteen zelf een sport typen als hij niet in de lijst staat.
     r = st.session_state.get("sp_ronde", 0)
-    sport = st.selectbox("Sport", [*tijd.SPORTEN, "overig"], index=tijd.SPORTEN.index("hardlopen"),
-                         format_func=str.capitalize, key=f"sp_sport_{r}")
-    eigen = st.text_input("Welke sport?", key=f"sp_eigen_{r}") if sport == "overig" else ""
+    sport = st.selectbox("Sport", tijd.SPORTEN, index=tijd.SPORTEN.index("hardlopen"), format_func=str.capitalize,
+                         accept_new_options=True, placeholder="Kies of typ je sport", key=f"sp_sport_{r}") or ""
     k1, k2 = st.columns(2)
     dag = k1.date_input("Dag", value=nu.date() + timedelta(days=1), min_value=nu.date(), format="DD-MM-YYYY",
                         key=f"sp_dag_{r}")
@@ -170,7 +169,7 @@ def plannen_formulier(nu: datetime) -> None:
     weken = k2.number_input("Elke week, aantal keer", 1, 26, 1, help="1 = alleen deze keer", key=f"sp_weken_{r}")
     waar = zoekveld.plek_kiezen("Waar", key=f"sp_waar_{r}")
     if st.button("Plannen", type="primary", key=f"sp_plan_{r}"):
-        naam = (eigen.strip() if sport == "overig" else sport).lower()
+        naam = sport.strip().lower()
         if not naam:
             st.error("Typ welke sport.")
             return

@@ -3268,15 +3268,17 @@ def welkom_voorkeuren() -> None:
     st.caption("Vandaag, Agenda, Taken en de assistent heb je altijd.")
     gekozen = st.pills("Onderdelen", list(ONDERDELEN), selection_mode="multi", default=STANDAARD_AAN,
                        label_visibility="collapsed", key="welkom_onderdelen")
-    werk = st.selectbox("Je werk", ["", *beroep.BEROEPEN], format_func=lambda b: beroep.BEROEPEN[b][0] if b else "Geen of later",
+    werk = st.selectbox("Je werk", list(beroep.BEROEPEN), format_func=lambda b: beroep.naam_van(b) if b in beroep.BEROEPEN else b,
+                        index=None, placeholder="Kies of typ je werk (mag ook later)", accept_new_options=True,
                         key="welkom_beroep")
     voorbeelden = st.toggle("Voorbeeldvragen bij de assistent", value=True, key="welkom_voorbeelden")
     if st.button("Klaar", type="primary", width="stretch"):
         opslag.instellingen_bijwerken(onderdelen_uit=[o for o in ONDERDELEN if o not in (gekozen or [])],
                                       onderdelen_bekend=NIEUW_UIT,
                                       voorbeeldvragen=voorbeelden)
-        if werk:
-            beroep.instellen(werk)
+        if werk and werk.strip():
+            sleutel = werk if werk in beroep.BEROEPEN else beroep.zoek(werk)
+            beroep.instellen(sleutel or beroep.ANDERS, "" if sleutel == werk else werk)
         st.session_state.koppelen_vraag = True
         st.rerun()
     st.caption("Alles is later aan of uit te zetten bij Instellingen › Weergave.")

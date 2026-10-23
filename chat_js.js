@@ -343,6 +343,18 @@ const communityOngelezen = (c) => (c.kanalen || []).reduce((n, k) => n + (k.onge
 const leden = (n) => (n === 1 ? T("1 lid") : T("{} leden", n));
 const codeTekst = (code) => String(code || "").match(/.{1,4}/g)?.join("-") || "";
 
+// Antwoord voorstellen: de assistent stelt drie korte antwoorden voor; jij kiest en past aan voor je stuurt.
+function hulpRij(st) {
+  const h = st.hulp;
+  const fout = { uit: T("Zet eerst de assistent aan bij Instellingen."), leeg: T("Er is nog niets om op te antwoorden."),
+    mislukt: T("Dat lukte nu niet. Probeer het zo nog eens.") }[h.fout];
+  const inhoud = h.bezig ? `<span class="c-hulp-tekst">${T("De assistent leest de laatste berichten één keer mee...")}</span>`
+    : fout ? `<span class="c-hulp-tekst">${esc(fout)}</span>`
+    : h.lijst.map((t, i) => `<button class="c-hulp-keuze" data-a="hulp-kies" data-i="${i}">${esc(t)}</button>`).join("");
+  return `<div class="c-hulp"><div class="c-hulp-lijst">${inhoud}</div>
+    <button class="c-mini" data-a="hulp-weg" aria-label="${esc(T("Sluiten"))}">×</button></div>`;
+}
+
 function gesprekNaam(st, g) {
   if (g.community) return "# " + g.naam;
   if (g.soort === "groep") return g.naam;
@@ -920,6 +932,7 @@ function toonGesprek(st) {
         ${g.soort === "twee" ? "" : `<label class="c-schakel-rij">${T("Anoniem stemmen")}<input type="checkbox" class="c-schakel" id="c-p-anoniem" ${st.peiling.anoniem ? "checked" : ""}></label>`}
       </div></div>` : ""}
     ${st.paneel === "plus" ? `<div class="c-paneel c-plus">
+      <button class="c-plus-knop" data-a="hulp"><span>✨</span>${T("Antwoord voorstellen")}</button>
       <button class="c-plus-knop" data-a="foto"><span>📷</span>${T("Foto")}</button>
       <button class="c-plus-knop" data-a="afspraak"><span>📅</span>${g.community ? T("Evenement") : T("Afspraak")}</button>
       <button class="c-plus-knop" data-a="peiling"><span>📊</span>${T("Peiling")}</button>
@@ -931,6 +944,7 @@ function toonGesprek(st) {
       ${st.winkel ? `<button class="c-plus-knop" data-a="winkel"><span>🛍️</span>${T("Mijn webshop")}</button>` : ""}</div>` : ""}
     ${st.antwoord && magSchrijven ? `<div class="c-antwoord-balk"><div><b>${esc(st.antwoord.naam)}</b><span>${esc(st.antwoord.tekst)}</span></div>
       <button class="c-mini" data-a="antwoord-weg" aria-label="${esc(T("Niet beantwoorden"))}">×</button></div>` : ""}
+    ${magSchrijven && st.hulp && st.hulp.g === g.id ? hulpRij(st) : ""}
     ${magSchrijven ? `<div class="c-vermeld-rij"></div><div class="c-invoer"><button class="c-rond" data-a="plus" aria-label="${esc(T("Meer"))}">${ICOON.plus}</button>
       <textarea id="c-tekst" class="c-veld" rows="1" placeholder="${g.community ? esc(T("Bericht in #{}", g.naam)) : esc(T("Bericht"))}"></textarea>
       <button class="c-rond c-hoofd" data-a="stuur" aria-label="${esc(T("Versturen"))}">${ICOON.stuur}</button></div>`
@@ -1637,6 +1651,24 @@ async function actie(st, a, el) {
       st.wortel.querySelector(".c-vermeld-rij").innerHTML = "";
       return;
     }
+    if (a === "hulp" && st.gesprek) {
+      const g = st.gesprek;
+      // Alleen tekstberichten, en alleen na jouw tik: zo weet je precies wat de assistent meeleest.
+      const berichten = st.berichten.filter((b) => b.bericht && b.bericht.t === "tekst").slice(-12).map((b) => ({
+        van: b.afzender === st.ik ? "ik" : ((g.leden.find((l) => l.id === b.afzender) || {}).naam || "?"), tekst: b.bericht.tekst }));
+      st.hulp = { g: g.id, n: Date.now(), bezig: true, lijst: [] };
+      st.paneel = null;
+      st.zet("hulp", { n: st.hulp.n, berichten, wie: gesprekNaam(st, g) });
+      return toon(st);
+    }
+    if (a === "hulp-kies" && st.hulp) {
+      const veld = st.wortel.querySelector("#c-tekst");
+      st.concept = st.hulp.lijst[Number(el.dataset.i)] || "";
+      if (veld) veld.value = st.concept;
+      st.hulp = null; st.focus = true;
+      return toon(st);
+    }
+    if (a === "hulp-weg") { st.hulp = null; return toon(st); }
     if (a === "peiling") { st.peiling = { vraag: "", opties: ["", ""], meer: false, anoniem: false }; st.paneel = "peiling"; return toon(st); }
     if (a === "lijstje") { st.lijstje = { titel: "", items: ["", "", ""] }; st.paneel = "lijstje"; return toon(st); }
     if (a === "punt-erbij") { lijstjeBewaren(st); st.lijstje.items.push(""); toon(st); const l = st.wortel.querySelectorAll(".c-l-item"); if (l.length) l[l.length - 1].focus(); return; }
@@ -2351,6 +2383,10 @@ export default function (component) {
   st.vrij = data.vrij || [];
   st.winkel = data.winkel || null;
   if (data.betaal && !st.betaalStandaard) st.betaalStandaard = data.betaal;
+  if (data.hulp && st.hulp && st.hulp.bezig && data.hulp.n === st.hulp.n) {
+    st.hulp = { ...st.hulp, bezig: false, lijst: data.hulp.lijst || [], fout: data.hulp.fout || "" };
+    if (st.klaar) toon(st);
+  }
   if (st.klaar && JSON.stringify(taalVoor) !== JSON.stringify(TAAL)) toon(st);  // andere taal: meteen opnieuw tekenen
   st.zet = setTriggerValue;
   bijhouden(st);

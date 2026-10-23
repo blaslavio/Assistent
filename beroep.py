@@ -97,7 +97,7 @@ def zoek(tekst: str) -> str | None:
     return None
 
 
-def instellen(sleutel: str, eigen: str = "") -> list[str]:
+def instellen(sleutel: str, eigen: str = "", diensten: list[dict] | None = None) -> list[str]:
     """Bewaart het beroep en zet de onderdelen aan die erbij horen. Geeft de namen van wat aangezet is.
 
     Uitzetten doet het nooit: wat je al gebruikt, blijft staan."""
@@ -115,7 +115,7 @@ def instellen(sleutel: str, eigen: str = "") -> list[str]:
         _, soort, lessen, afspraken, _, _ = BEROEPEN[sleutel]
         z = z | {"soort": soort, "groepslessen": lessen, "afspraken": afspraken}
     opslag.instellingen_bijwerken(
-        beroep={"soort": sleutel, "naam": eigen or naam_van(sleutel)},
+        beroep={"soort": sleutel, "naam": eigen or naam_van(sleutel), **({"diensten": diensten} if diensten else {})},
         onderdelen_uit=[o for o in uit if o not in nodig],
         onderdelen_bekend=sorted(set(bekend) | {"Zakelijk"}), zaak=z)
     return aangezet
@@ -126,7 +126,10 @@ def wissen() -> None:
 
 
 def diensten_voorstel(sleutel: str | None = None) -> list[dict]:
+    eigen = (opslag.instellingen().get("beroep") or {}).get("diensten") if sleutel is None else None
     sleutel = huidig()["soort"] if sleutel is None else sleutel
+    if eigen:  # voorgesteld door de assistent voor een beroep dat niet in de lijst staat
+        return [{"naam": d["naam"], "minuten": d["minuten"]} for d in eigen]
     lijst = BEROEPEN[sleutel][5] if sleutel in BEROEPEN else []
     return [{"naam": n, "minuten": m} for n, m in lijst] or [dict(s) for s in boekpagina.STANDAARD["soorten"]]
 
