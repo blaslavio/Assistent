@@ -832,7 +832,7 @@ def mijn_webshop(inkopen=None) -> None:
     """Pagina 🏬 Mijn webshop: winkel instellen, producten en voorraad, en delen."""
     m = samen.mijn_winkel()
     if m["niveau"] not in ("verkoper", "ondernemer"):
-        st.info("Een eigen webshop kan met accounttype Verkoper of Ondernemer. Kies dat gratis bij "
+        st.info("Een eigen webshop kan met accounttype 'Privé, verkoopt vaak' of 'Bedrijf of zzp'. Kies dat gratis bij "
                 "Instellingen › Account › Accounttype.")
         return
     w = m["winkel"]
@@ -1167,7 +1167,7 @@ def winkelstraat() -> None:
         return
     if not winkels:
         st.caption("Geen winkels gevonden." if zoek else
-                   "Er zijn nog geen winkels. Heb je accounttype Verkoper of Ondernemer? Open dan je eigen winkel bij "
+                   "Er zijn nog geen winkels. Heb je accounttype 'Privé, verkoopt vaak' of 'Bedrijf of zzp'? Open dan je eigen winkel bij "
                    "Mijn webshop.")
     kolommen = st.columns(2)
     for i, w in enumerate(winkels):
@@ -1596,7 +1596,7 @@ def accounttype(gebruiker: dict) -> None:
         if _fout(samen.niveau_instellen, keuze, bedrijf) is not None:
             st.session_state.ik = opslag.inloggen(st.session_state.get("naam", ""), st.session_state.wachtwoord)
             _vergeet_nieuw()
-            st.toast(f"Je bent nu {samen.NIVEAUS[keuze][0]}.", icon="✅")
+            st.toast(f"Accounttype: {samen.NIVEAUS[keuze][0]}.", icon="✅")
             st.rerun()
 
 
@@ -1622,7 +1622,7 @@ def verkoopoverzicht() -> None:
     if not o["maanden"] and not o["open"]:
         st.caption("Nog niets verkocht.")
     if not ondernemer:
-        st.caption("Ben je een bedrijf of zzp'er? Kies Ondernemer bij Instellingen › Account voor facturen en een "
+        st.caption("Ben je een bedrijf of zzp'er? Kies 'Bedrijf of zzp (KvK)' bij Instellingen › Account voor facturen en een "
                    "klantenoverzicht.")
         return
     bedrijf = ik().get("bedrijf") or {}

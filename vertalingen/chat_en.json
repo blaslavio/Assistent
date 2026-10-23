@@ -393,5 +393,8 @@
 "Wijzigen": "Change",
 "Waarvoor? (optioneel)": "What for? (optional)",
 "Naar {}": "To {}",
-"Dit onthoudt de app voor de volgende keer.": "The app remembers this for next time."
+"Dit onthoudt de app voor de volgende keer.": "The app remembers this for next time.",
+"Gelezen": "Read",
+"Ontvangen": "Delivered",
+"Verzonden": "Sent"
 }

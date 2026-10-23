@@ -176,8 +176,10 @@ CSS = """
 .c-bericht img { max-width: 100%; max-height: 320px; border-radius: 12px; display: block; }
 .c-naam { font-size: 13px; font-weight: 600; color: var(--c-hoofd); margin-bottom: 1px; }
 .c-tijd { font-size: 11px; opacity: .65; float: right; margin: 6px 0 -2px 10px; white-space: nowrap; }
-.c-gelezen { color: #7dd3fc; font-weight: 700; }
-.c-bericht:not(.c-mijn) .c-gelezen { color: var(--c-hoofd); }
+.c-vinkjes { display: inline-block; margin-left: 3px; vertical-align: -1px; }
+.c-wortel .c-vinkjes svg { width: 16px; height: 11px; stroke-width: 1.8; }
+.c-gelezen { color: #7dd3fc; opacity: 1; }
+.c-met-kaart .c-gelezen, .c-bericht:not(.c-mijn) .c-gelezen { color: #0ea5e9; }
 .c-kaart { display: flex; flex-direction: column; gap: 6px; border-radius: 18px; padding: 12px 14px; line-height: 1.4;
   background: var(--c-achter); color: var(--c-tekst); box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1px rgba(128,128,128,.12); }
 .c-mijn .c-kaart { box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1.5px color-mix(in srgb, var(--c-hoofd) 35%, transparent); }
@@ -321,6 +323,11 @@ def ongelezen() -> int:
     # Community's tellen alleen mee met uitnodigingen en mededelingen; gewone kanalen houden de balk rustig.
     for c in alles.get("communities", []):
         aantal += (c.get("status") == "uitgenodigd") + sum(k["ongelezen"] for k in c.get("kanalen", []) if k.get("alleen_beheer"))
+    if aantal:  # de app staat open: nieuwe berichten zijn op dit apparaat aangekomen (twee grijze vinkjes)
+        try:
+            opslag._rpc_ik("chat_ontvangen")
+        except Exception:
+            pass
     _ongelezen[sleutel] = (time.time(), aantal)
     return aantal
 

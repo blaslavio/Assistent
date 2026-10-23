@@ -414,11 +414,12 @@ def euro(bedrag: float | None) -> str:
 
 
 NIVEAUS = {
-    "particulier": ("Particulier", "Alle functies van de assistent. Op de marktplaats tot 10 dingen tegelijk."),
-    "verkoper": ("Verkoper", "Voor wie vaker verkoopt: tot 100 dingen tegelijk en een verkoopoverzicht met omzet "
-                 "per maand, best verkochte producten en beoordelingen."),
-    "ondernemer": ("Ondernemer", "Voor bedrijven en zzp'ers: bedrijfsprofiel met KvK-nummer, label 'Zakelijk' bij "
-                   "je aanbod, tot 1000 dingen tegelijk, verkoopoverzicht, klantenoverzicht en facturen."),
+    "particulier": ("Privé", "Je gebruikt de app voor jezelf. Je kunt af en toe iets verkopen, tot 10 dingen tegelijk."),
+    "verkoper": ("Privé, verkoopt vaak", "Je verkoopt als privépersoon (geen bedrijf, geen KvK), bijvoorbeeld spullen "
+                 "van zolder of een hobby. Tot 100 dingen tegelijk en een overzicht van je verkopen. Verkoop je "
+                 "regelmatig met winst, dan ben je ondernemer en hoor je in te schrijven bij de KvK."),
+    "ondernemer": ("Bedrijf of zzp (KvK)", "Je verkoopt als bedrijf of zzp'er met een KvK-nummer. Je aanbod krijgt het "
+                   "label 'Zakelijk', je maakt facturen en ziet je klanten. Tot 1000 dingen tegelijk."),
 }
 
 

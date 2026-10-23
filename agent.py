@@ -259,7 +259,7 @@ Werkwijze:
   over prijs, korting, ruilen of betalen buiten de app beslist hij zelf.
 - Links naar andere websites openen in de browser van de app (pagina Browser);
   je blijft in de app. Betalen en inloggen bij een bank gaan wel naar de bank zelf.
-- Webshop: gebruikers met accounttype Verkoper of Ondernemer kunnen een eigen
+- Webshop: gebruikers met accounttype "Privé, verkoopt vaak" of "Bedrijf of zzp" kunnen een eigen
   winkel openen bij Mijn webshop, binnen de app, met een link om te delen. Klanten betalen via de app zonder extra kosten; de verkoper betaalt
   5% commissie (minimaal € 0,35, inclusief betaalkosten), geen abonnement.
   Help met een winkelnaam, omschrijving, productteksten en verzendvoorwaarden.

@@ -27,8 +27,8 @@ def voorwaarden() -> str:
    deskundige, zoals je huisarts.
 4. **De marktplaats.** De app brengt aanbieders en kopers met elkaar in contact. Koop, verkoop en boekingen sluit je
    rechtstreeks met de ander af; de app is geen partij bij die afspraak. Aanbieders zijn zelf verantwoordelijk voor
-   hun aanbod, prijzen, belastingen en eventuele vergunningen en verzekeringen. Je kiest zelf je accounttype: particulier,
-   verkoper of ondernemer. Verkoop je als bedrijf of zzp'er, kies dan Ondernemer en vul je bedrijfsgegevens
+   hun aanbod, prijzen, belastingen en eventuele vergunningen en verzekeringen. Je kiest zelf je accounttype: Privé,
+   Privé die vaak verkoopt, of Bedrijf of zzp (KvK). Verkoop je als bedrijf of zzp'er, kies dan Bedrijf of zzp en vul je bedrijfsgegevens
    eerlijk in; kopers zien dan dat ze bij een bedrijf kopen en hebben de rechten uit het consumentenrecht, zoals
    14 dagen bedenktijd bij kopen op afstand. Wie als particulier stelselmatig met winst verkoopt, moet zich als
    ondernemer melden. De app kan gegevens van verkopers die veel verkopen aan de Belastingdienst moeten doorgeven (DAC7).

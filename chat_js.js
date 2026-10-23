@@ -283,6 +283,8 @@ const bewaren = (k, w) => { try { localStorage.setItem("c-" + k, w); } catch (e)
 const VERDWIJNEN = { 0: "Uit", 3600: "1 uur", 86400: "24 uur", 604800: "7 dagen", 7776000: "90 dagen" };
 
 const ICOON = {
+  vinkje: '<svg viewBox="0 0 16 11"><path d="M1.5 6l3.2 3.2L11 2.5"/></svg>',
+  vinkjes: '<svg viewBox="0 0 16 11"><path d="M1 6l3.2 3.2L10.5 2.5M6.6 8.4l.8.8L13.7 2.5"/></svg>',
   terug: '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
   nieuw: '<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>',
   slot: '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>',
@@ -781,7 +783,9 @@ function berichtHtml(st, g, b, vorige) {
   }
   const anderen = g.leden.filter((l) => l.id !== st.ik && l.status === "lid");
   const gelezen = mijn && anderen.length && anderen.every((l) => l.gelezen_tot >= b.id);
-  const vinkjes = mijn && !g.community ? `<span class="${gelezen ? "c-gelezen" : ""}">${gelezen ? " ✓✓" : " ✓"}</span>` : "";
+  // Eén vinkje: verzonden. Twee grijze: ontvangen. Twee blauwe: gelezen (zoals WhatsApp).
+  const ontvangen = mijn && anderen.length && anderen.every((l) => (l.ontvangen_tot || l.gelezen_tot) >= b.id);
+  const vinkjes = mijn && !g.community ? `<span class="c-vinkjes ${gelezen ? "c-gelezen" : ""}" title="${esc(gelezen ? T("Gelezen") : ontvangen ? T("Ontvangen") : T("Verzonden"))}">${gelezen || ontvangen ? ICOON.vinkjes : ICOON.vinkje}</span>` : "";
   const vast = (g.vast || []).includes(b.id) ? "📌 " : "";
   const menu = !b.weg && b.bericht ? ` data-menu="${b.id}"` : "";
   return `<div class="c-bericht ${mijn ? "c-mijn" : ""} ${kaart ? "c-met-kaart" : ""}" id="c-b-${b.id}"${menu}>${naam}${inhoud}
@@ -1070,6 +1074,9 @@ async function toonApparaten(st) {
 async function gesprekkenLaden(st) {
   const r = await rpc(st, "chat_gesprekken");
   st.gesprekken = r.gesprekken; st.communities = r.communities || [];
+  // Twee grijze vinkjes bij de afzender: laat weten dat dit apparaat de nieuwe berichten binnen heeft.
+  const hoogste = Math.max(0, ...st.gesprekken.map((g) => g.laatste_id || 0));
+  if (hoogste > (st.ontvangenGemeld || 0)) { st.ontvangenGemeld = hoogste; rpc(st, "chat_ontvangen").catch(() => { st.ontvangenGemeld = 0; }); }
   voorbeeldenBijwerken(st).catch(() => {});
   fotosBijwerken(st, st.gesprekken.filter((g) => g.soort !== "groep").flatMap((g) => (g.leden || []).map((l) => l.id)));
 }
