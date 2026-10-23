@@ -71,6 +71,7 @@ import beroep
 import indeling
 import zoekveld
 import schil
+import toegangssleutel
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
@@ -186,20 +187,26 @@ def apparaat() -> str:
     return f"{browser} op {soort}"
 
 
+def ingelogd(naam: str, token: str) -> None:
+    """Na een gelukte inlog (wachtwoord, Face ID of herstelcode): sessie bewaren en de app openen."""
+    st.session_state.pop("twee_stap_login", None)
+    st.session_state.pop("herstel", None)
+    inloggen(naam, token, opslag.inloggen(naam, token) or {})
+    if st.session_state.get("onthoud_apparaat", True) and (sleutel := opslag.apparaat_onthouden(apparaat())):
+        st.session_state.apparaat_token = st.session_state.apparaat_bewaar = sleutel
+    if opslag.online():
+        try:
+            st.session_state.mislukt_melding = opslag.beveiliging().get("mislukt_recent", 0)
+        except Exception:
+            pass
+    st.rerun()
+
+
 def aanmelden(naam: str, wachtwoord: str, code: str = "") -> str | None:
     """Logt in. Geeft een foutmelding, of None (gelukt of er is nog een code nodig)."""
     antwoord = opslag.aanmelden(naam, wachtwoord, code, apparaat())
     if token := antwoord.get("token"):
-        st.session_state.pop("twee_stap_login", None)
-        inloggen(naam, token, opslag.inloggen(naam, token) or {})
-        if st.session_state.get("onthoud_apparaat", True) and (sleutel := opslag.apparaat_onthouden(apparaat())):
-            st.session_state.apparaat_token = st.session_state.apparaat_bewaar = sleutel
-        if opslag.online():
-            try:
-                st.session_state.mislukt_melding = opslag.beveiliging().get("mislukt_recent", 0)
-            except Exception:
-                pass
-        st.rerun()
+        ingelogd(naam, token)
     if antwoord.get("code_nodig"):
         st.session_state.twee_stap_login = (naam, wachtwoord)
     return antwoord.get("fout")
@@ -209,8 +216,15 @@ def inlogformulier() -> None:
     if wacht := st.session_state.get("twee_stap_login"):
         code_formulier(*wacht)
         return
+    if st.session_state.get("herstel"):
+        herstel_formulier()
+        return
+    if opslag.online() and (r := toegangssleutel.inlogknop(apparaat())):
+        if r.get("token"):
+            ingelogd(r.get("naam", ""), r["token"])
+        st.error(r.get("fout") or "Dit lukte niet. Log in met je wachtwoord.")
     with st.form("inloggen"):
-        naam = st.text_input("Gebruikersnaam, mailadres of telefoonnummer", autocomplete="username",
+        naam = st.text_input("Gebruikersnaam, mailadres of telefoonnummer", autocomplete="username webauthn",
                              help="Nog nooit een gebruikersnaam gekozen omdat je de app als eerste instelde? Laat dit leeg.")
         wachtwoord = st.text_input("Wachtwoord", type="password", autocomplete="current-password")
         onthoud = st.checkbox("Ingelogd blijven op dit apparaat", value=True,
@@ -222,7 +236,44 @@ def inlogformulier() -> None:
                 st.error(fout)
             elif st.session_state.get("twee_stap_login"):
                 st.rerun()
-    st.caption("Tip: laat Safari je wachtwoord bewaren. Dan log je voortaan in met Face ID.")
+    if opslag.online() and toegangssleutel.mail_ingesteld():
+        if st.button("Wachtwoord vergeten?", type="tertiary"):
+            st.session_state.herstel = {}
+            st.rerun()
+
+
+def herstel_formulier() -> None:
+    """Nieuw wachtwoord met een code per mail (en met tweestapsverificatie ook de code uit je app)."""
+    h = st.session_state.herstel
+    st.markdown("**Wachtwoord vergeten**")
+    if not h.get("email"):
+        with st.form("herstel_mail"):
+            email = st.text_input("Je mailadres", autocomplete="email", placeholder="Bijv. sanne@voorbeeld.nl")
+            if st.form_submit_button("Stuur code", type="primary", width="stretch") and email.strip():
+                antwoord = toegangssleutel.herstel_aanvragen(email.strip(), apparaat())
+                if fout := antwoord.get("fout"):
+                    st.error(fout)
+                else:
+                    st.session_state.herstel = {"email": email.strip()}
+                    st.rerun()
+    else:
+        st.caption(f"Als {h['email']} bij een account hoort, staat er nu een code in je mail.")
+        with st.form("herstel_code"):
+            code = st.text_input("Code uit de mail", autocomplete="one-time-code", max_chars=8, placeholder="6 cijfers")
+            nieuw = st.text_input("Nieuw wachtwoord (minstens 10 tekens)", type="password", autocomplete="new-password")
+            twee_stap = st.text_input("Code uit je app", autocomplete="one-time-code", max_chars=12,
+                                      placeholder="6 cijfers") if h.get("code_nodig") else ""
+            if st.form_submit_button("Opslaan en inloggen", type="primary", width="stretch") and code.strip():
+                antwoord = toegangssleutel.herstel_afronden(h["email"], code.strip(), nieuw, twee_stap.strip(), apparaat())
+                if token := antwoord.get("token"):
+                    ingelogd(antwoord.get("naam", ""), token)
+                if antwoord.get("code_nodig") and not h.get("code_nodig"):
+                    st.session_state.herstel = h | {"code_nodig": True}
+                    st.rerun()
+                st.error(antwoord.get("fout") or "Dit lukte niet.")
+    if st.button("Terug", key="herstel_terug"):
+        st.session_state.pop("herstel", None)
+        st.rerun()
 
 
 def code_formulier(naam: str, wachtwoord: str) -> None:

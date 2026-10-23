@@ -1630,10 +1630,7 @@ def beveiliging() -> None:
                     else:
                         st.rerun()
 
-    st.markdown("**Inloggen met Face ID**")
-    st.caption("Laat Safari je wachtwoord bewaren in Wachtwoorden (iCloud-sleutelhanger) als het daarom vraagt. "
-               "Daarna tik je bij inloggen op je wachtwoord en bevestig je met Face ID. Zet je de code ook in "
-               "Wachtwoorden, dan vult je iPhone of iPad die ook in.")
+    face_id()
 
     st.markdown("**Ingelogd op**")
     for sessie in b["sessies"]:
@@ -1664,11 +1661,34 @@ def beveiliging() -> None:
         with st.expander("Recente inlogpogingen"):
             for i in b["inlogs"]:
                 tijd = datetime.fromisoformat(i["tijd"]).astimezone().strftime("%d-%m %H:%M")
-                reden = {"wachtwoord": "fout wachtwoord", "code": "foute code"}.get(i["reden"], "")
+                reden = {"wachtwoord": "fout wachtwoord", "code": "foute code", "sleutel": "Face ID geweigerd"}.get(i["reden"], "")
                 st.markdown(f"{'✅' if i['gelukt'] else '❌'} {tijd} · {i['apparaat'] or 'onbekend'}"
                             + (f" · :red[{reden}]" if reden else ""))
             st.caption("Zie je iets wat jij niet was? Kies een nieuw wachtwoord bij Mijn account; andere "
                        "apparaten worden dan uitgelogd.")
+
+
+def face_id() -> None:
+    """Toegangssleutels: inloggen met Face ID of Touch ID, zonder wachtwoord."""
+    import toegangssleutel
+    st.markdown("**Inloggen met Face ID**")
+    sleutels = toegangssleutel.mijn()
+    for s in sleutels:
+        laatst = datetime.fromisoformat(s["laatst"]).astimezone().strftime("%d-%m %H:%M") if s.get("laatst") else "nog niet"
+        kol1, kol2 = st.columns([4, 1], vertical_alignment="center")
+        kol1.markdown(f"{s['naam'] or 'Toegangssleutel'} · gebruikt {laatst}")
+        if kol2.button("Weg", key=f"ts_weg_{s['id']}"):
+            toegangssleutel.weg(s["id"])
+            st.rerun()
+    uitkomst = toegangssleutel.instellen(st.session_state.get("apparaat_naam", ""),
+                                        label="Nog een toestel" if sleutels else "Face ID instellen")
+    if uitkomst == "ok":
+        st.toast("Face ID staat aan.", icon=":material/check:")
+        st.rerun()
+    elif uitkomst:
+        st.error(uitkomst)
+    if not sleutels:
+        st.caption("Veiliger dan een wachtwoord, en werkt alleen in deze app.")
 
 
 def herstelcodes_tonen() -> bool:
@@ -1763,8 +1783,24 @@ def geschillen_afhandelen() -> None:
                     st.rerun()
 
 
+def mail_instellen() -> None:
+    """Alleen de eigenaar: mail via Brevo, voor herstelcodes. De sleutel gaat naar de database, nooit in de code."""
+    import toegangssleutel
+    aan = toegangssleutel.mail_ingesteld()
+    with st.expander("Mail voor herstelcodes" + (" (aan)" if aan else " (nog instellen)")):
+        with st.form("mail_platform", border=False):
+            sleutel = st.text_input("API-sleutel van Brevo", type="password", placeholder="ingesteld" if aan else "xkeysib-...")
+            afzender = st.text_input("Afzender", placeholder="Bijv. sanne@voorbeeld.nl")
+            if st.form_submit_button("Opslaan") and afzender.strip():
+                if fout := toegangssleutel.mail_instellen(sleutel.strip(), afzender.strip()).get("fout"):
+                    st.error(fout)
+                else:
+                    st.rerun()
+
+
 def beheer() -> None:
     betalen_instellen()
+    mail_instellen()
     gegevens = samen.beheer()
     meldingen = gegevens.get("meldingen", [])
     with st.expander(f"Beheer ({len(meldingen)} meldingen)" if meldingen else "Beheer"):
