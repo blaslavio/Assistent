@@ -229,9 +229,6 @@ def inlogformulier() -> None:
     if st.session_state.get("herstel"):
         herstel_formulier()
         return
-    if opslag.online():
-        extern_knoppen("Inloggen")
-        st.caption("of met je gebruikersnaam", text_alignment="center")
     with st.form("inloggen"):
         naam = st.text_input("Gebruikersnaam, mailadres of telefoonnummer", autocomplete="username webauthn",
                              help="Nog nooit een gebruikersnaam gekozen omdat je de app als eerste instelde? Laat dit leeg.")
@@ -247,6 +244,8 @@ def inlogformulier() -> None:
                 st.rerun()
     if not opslag.online():
         return
+    st.caption("of", text_alignment="center")
+    extern_knoppen("Inloggen")
     with st.container(horizontal=True, horizontal_alignment="distribute"):
         if toegangssleutel.mail_ingesteld() and st.button("Wachtwoord vergeten?", type="tertiary"):
             st.session_state.herstel = {}
@@ -375,8 +374,6 @@ def code_formulier(naam: str, wachtwoord: str) -> None:
 
 
 def account_maken_formulier() -> None:
-    extern_knoppen("Account maken")
-    st.caption("of met je mailadres", text_alignment="center")
     with st.form("account_maken"):
         naam = st.text_input("Kies een gebruikersnaam", placeholder="Bijv. sanne",
                              help="3 tot 30 tekens: kleine letters, cijfers, punt of streepje. Anderen vinden je hiermee.")
@@ -398,6 +395,8 @@ def account_maken_formulier() -> None:
                 if fout := aanmelden(naam, wachtwoord):
                     st.error(fout)
     st.caption("Gratis. Je mailadres is nodig om te kunnen kopen en verkopen; anderen zien het niet.")
+    st.caption("of", text_alignment="center")
+    extern_knoppen("Account maken")
 
 
 def taal_bepalen() -> None:
