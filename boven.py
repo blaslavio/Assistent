@@ -43,6 +43,8 @@ def bovenaan(sleutel: str | None) -> None:
         st.components.v2.component("boven", html="<span></span>", js=JS)(key="boven", data={"sleutel": sleutel or ""})
     # Altijd iets hoger dan het scherm: anders 'plakt' de pagina na een korte tussenstap weer aan de onderkant
     # en springt hij bij elke klik naar beneden. Niet in gesprekken, daar is dat juist handig.
+    # flex-shrink:0: anders krimpt het blok tot die minimale hoogte, steekt lange inhoud eruit en blijft de
+    # invoerbalk midden op de pagina hangen in plaats van onderaan.
     st.html("<style>.st-key-boven_houder{display:none}"
-            + ('[data-testid="stMainBlockContainer"]{min-height:calc(100dvh + 4px)}' if sleutel else "")
+            + ('[data-testid="stMainBlockContainer"]{min-height:calc(100dvh + 4px);flex-shrink:0}' if sleutel else "")
             + "</style>")

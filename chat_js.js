@@ -297,6 +297,9 @@ const ICOON = {
   kopie: '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg>',
   weg: '<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>',
   delen: '<svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 12v7a1 1 0 001 1h12a1 1 0 001-1v-7"/></svg>',
+  peiling: '<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',
+  lijstje: '<svg viewBox="0 0 24 24"><path d="M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17M11 6h9M11 12h9M11 18h9"/></svg>',
+  plek: '<svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-12a7 7 0 0114 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
   geld: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v.01M18 15v.01"/></svg>',
   bel: '<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2"/></svg>',
   video: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg>',
@@ -305,7 +308,7 @@ const ICOON = {
   draai: '<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0114-5l2-2v6h-6l2.5-2.5A5.5 5.5 0 006.5 12M20 12a8 8 0 01-14 5l-2 2v-6h6l-2.5 2.5A5.5 5.5 0 0017.5 12"/></svg>',
 };
 const EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
-const SKIP = new Set(["reactie", "emoji", "stem", "betaald", "bel"]);
+const SKIP = new Set(["reactie", "emoji", "stem", "betaald", "bel", "vink", "item"]);
 const KLEUREN = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
 // Profielfoto's (alleen van wie jou dat toestaat). Id -> data-URL, of "" als er geen is.
 const FOTOS = new Map();
@@ -355,6 +358,10 @@ function voorbeeldTekst(st, g, m, afzender) {
   if (m.t === "peiling") return wie + T("Peiling: {}", m.vraag);
   if (m.t === "emoji") return m.emoji ? wie.replace(/: $/, " ") + T("reageerde {}", m.emoji) : "";
   if (m.t === "stem") return wie.replace(/: $/, " ") + T("stemde");
+  if (m.t === "lijstje") return wie + T("Lijstje: {}", m.titel);
+  if (m.t === "vink") return wie.replace(/: $/, " ") + T("werkte een lijstje bij");
+  if (m.t === "item") return wie.replace(/: $/, " ") + T("zette iets op een lijstje");
+  if (m.t === "plek") return wie + T("Locatie: {}", m.naam || T("gedeeld"));
   if (m.t === "vrij") return wie + T("Wanneer ik kan");
   if (m.t === "betaal") return wie + T("Betaalverzoek: {}", bedragTekst(m.bedrag));
   if (m.t === "betaald") return wie.replace(/: $/, " ") + T("heeft betaald");
@@ -648,6 +655,8 @@ function korteInhoud(m, vertaal = T) {
   if (m.t === "foto") return vertaal("Foto");
   if (m.t === "afspraak") return vertaal("Afspraak: {}", m.titel);
   if (m.t === "peiling") return vertaal("Peiling: {}", m.vraag);
+  if (m.t === "lijstje") return vertaal("Lijstje: {}", m.titel);
+  if (m.t === "plek") return vertaal("Locatie: {}", m.naam || vertaal("gedeeld"));
   if (m.t === "vrij") return vertaal("Wanneer ik kan");
   if (m.t === "betaal") return vertaal("Betaalverzoek: {}", bedragTekst(m.bedrag));
   if (m.t === "diensten") return vertaal("Diensten: {}", m.titel || (m.soorten || []).map((d) => d.naam).join(", "));
@@ -700,15 +709,41 @@ function berichtHtml(st, g, b, vorige) {
         ${mijn ? "" : `<button class="c-knop" data-a="kanniet" data-b="${b.id}">${T("Kan niet")}</button>`}</div>`}</div>`;
     } else if (m.t === "peiling") {
       kaart = true;
-      const stemmen = st.stemmen.get(m.id) || new Map();
+      const stemmen = new Map([...(st.stemmen.get(m.id) || new Map())].filter(([, x]) => x.length));
       const totaal = stemmen.size;
-      const mijnKeuze = stemmen.get(st.ik);
-      const tel = (k) => [...stemmen.values()].filter((x) => x === k).length;
-      inhoud = `<div class="c-kaart"><div class="c-kaart-kop"><span>${T("Peiling")}</span></div><b>${esc(m.vraag)}</b>
+      const mijnKeuze = stemmen.get(st.ik) || [];
+      const gestemd = mijnKeuze.length > 0;
+      const tel = (k) => [...stemmen.values()].filter((x) => x.includes(k)).length;
+      const namen = (k) => g.soort === "twee" || m.anoniem ? "" : [...stemmen].filter(([, x]) => x.includes(k))
+        .map(([id]) => id === st.ik ? T("Jij") : ((g.leden.find((l) => l.id === id) || {}).naam || "")).join(", ");
+      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.peiling}<span>${m.meer ? T("Peiling, meerdere keuzes") : T("Peiling")}</span></div><b>${esc(m.vraag)}</b>
         ${(m.opties || []).map((o, k) => { const n = tel(k); const pct = totaal ? Math.round((n / totaal) * 100) : 0;
-          return `<button class="c-optie ${mijnKeuze === k ? "c-aan" : ""}" data-a="stem" data-b="${b.id}" data-k="${k}">
-            <i style="width:${mijnKeuze === undefined ? 0 : pct}%"></i><span>${esc(o)}</span><small>${mijnKeuze === undefined ? "" : n}</small></button>`; }).join("")}
-        <small>${totaal === 1 ? T("1 stem") : T("{} stemmen", totaal)}${mijnKeuze === undefined ? ` · ${T("tik om te stemmen")}` : ""}</small></div>`;
+          return `<button class="c-optie ${mijnKeuze.includes(k) ? "c-aan" : ""}" data-a="stem" data-b="${b.id}" data-k="${k}">
+            <i style="width:${gestemd ? pct : 0}%"></i><span>${esc(o)}${gestemd && namen(k) ? `<em>${esc(namen(k))}</em>` : ""}</span><small>${gestemd ? n : ""}</small></button>`; }).join("")}
+        <small>${totaal === 1 ? T("1 stem") : T("{} stemmen", totaal)}${gestemd ? "" : ` · ${T("tik om te stemmen")}`}${m.anoniem ? ` · ${T("anoniem")}` : ""}</small></div>`;
+    } else if (m.t === "lijstje") {
+      kaart = true;
+      const vinkjes = st.vinkjes.get(m.id) || new Map();
+      const items = [...(m.items || []), ...(st.extraItems.get(m.id) || [])];
+      const klaar = items.filter((_, k) => (vinkjes.get(k) || {}).aan).length;
+      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.lijstje}<span>${T("Lijstje")} · ${klaar}/${items.length}</span></div><b>${esc(m.titel)}</b>
+        ${items.map((it, k) => { const v = vinkjes.get(k) || {};
+          return `<button class="c-vink ${v.aan ? "c-aan" : ""}" data-a="vink" data-b="${b.id}" data-k="${k}"><span class="c-vakje">${v.aan ? "✓" : ""}</span>
+            <span><span class="c-vink-tekst">${esc(it)}</span>${v.aan && v.naam ? `<em>${esc(v.naam)}</em>` : ""}</span></button>`; }).join("")}
+        ${g.status === "lid" ? `<div class="c-rij"><input class="c-veld c-item-veld" data-b="${b.id}" maxlength="80" placeholder="${esc(T("Iets toevoegen"))}">
+          <button class="c-knop" data-a="item" data-b="${b.id}">${T("Erbij")}</button></div>` : ""}</div>`;
+    } else if (m.t === "plek") {
+      kaart = true;
+      const lat = Number(m.lat), lon = Number(m.lon);
+      const heeftPunt = Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+      const doel = heeftPunt ? `${lat.toFixed(5)},${lon.toFixed(5)}` : String(m.naam || "");
+      const route = `https://maps.apple.com/?daddr=${encodeURIComponent(doel)}`;
+      const kaartLink = heeftPunt ? `https://www.openstreetmap.org/?mlat=${lat.toFixed(5)}&mlon=${lon.toFixed(5)}#map=17/${lat.toFixed(5)}/${lon.toFixed(5)}`
+        : `https://www.openstreetmap.org/search?query=${encodeURIComponent(doel)}`;
+      inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.plek}<span>${m.live ? T("Mijn huidige locatie") : T("Locatie")}</span></div>
+        <b>${esc(m.naam || T("Gedeelde locatie"))}</b>${m.tekst ? `<div>${esc(m.tekst)}</div>` : ""}
+        <div class="c-rij"><a class="c-knop c-hoofd c-link-knop" href="${esc(route)}" target="_blank" rel="noopener noreferrer">${T("Route")}</a>
+        <a class="c-knop c-link-knop" href="${esc(kaartLink)}" target="_blank" rel="noopener noreferrer">${T("Op de kaart")}</a></div></div>`;
     } else if (m.t === "vrij") {
       kaart = true;
       inhoud = `<div class="c-kaart"><div class="c-kaart-kop">${ICOON.agenda}<span>${mijn ? T("Wanneer ik kan") : T("Wanneer {} kan", esc(afzender ? afzender.naam : ""))}</span></div>
@@ -781,6 +816,8 @@ function toonGesprek(st) {
   const onderaan = !oud || oud.scrollHeight - oud.scrollTop - oud.clientHeight < 80;
   const veldOud = st.wortel.querySelector("#c-tekst");
   const concept = veldOud ? veldOud.value : (st.concept || "");
+  // Wat je in "Iets toevoegen" onder een lijstje typt, blijft staan als het gesprek opnieuw wordt getekend.
+  const itemConcepten = [...st.wortel.querySelectorAll(".c-item-veld")].filter((x) => x.value).map((x) => [x.dataset.b, x.value, x === document.activeElement]);
   const hadFocus = veldOud && st.wortel.contains(document.activeElement) && document.activeElement === veldOud;
   const waarde = (id) => (st.wortel.querySelector(id) || {}).value;
   if (st.paneel === "afspraak" && st.wortel.querySelector("#c-a-titel")) {
@@ -791,6 +828,8 @@ function toonGesprek(st) {
   }
   const bc = st.paneel === "betaal" ? (st.betaalConcept || {}) : {};
   if (st.paneel === "peiling" && st.wortel.querySelector("#c-p-vraag")) peilingBewaren(st);
+  if (st.paneel === "lijstje" && st.wortel.querySelector("#c-l-titel")) lijstjeBewaren(st);
+  if (st.paneel === "plek" && st.wortel.querySelector("#c-pl-naam")) st.plekConcept = waarde("#c-pl-naam");
   if (st.paneel === "boeken" && st.boek && st.wortel.querySelector("#c-bk-herhaal")) {
     st.boek.herhaal = waarde("#c-bk-herhaal"); st.boek.aantal = Number(waarde("#c-bk-aantal")) || 4; st.boek.notitie = waarde("#c-bk-notitie");
   }
@@ -844,17 +883,36 @@ function toonGesprek(st) {
       <div class="c-rij"><button class="c-knop c-hoofd" data-a="ik-betaalde">${T("Ik heb betaald")}</button><button class="c-knop" data-a="sluit">${T("Later")}</button></div></div>`; })() : ""}
     ${st.paneel === "boeken" && st.boek ? boekPaneel(st) : ""}
     ${st.paneel === "rooster" && st.rooster ? roosterPaneel(st) : ""}
+    ${st.paneel === "lijstje" ? `<div class="c-paneel">
+      <b>${T("Lijstje")}</b>
+      <input class="c-veld" id="c-l-titel" placeholder="${esc(T("Bijvoorbeeld: boodschappen voor zaterdag"))}" value="${esc(st.lijstje.titel || "")}" maxlength="80">
+      ${st.lijstje.items.map((o, k) => `<input class="c-veld c-l-item" placeholder="${esc(T("Punt {}", k + 1))}" value="${esc(o)}" maxlength="80">`).join("")}
+      <small>${T("Iedereen in het gesprek kan dingen afvinken en erbij zetten.")}</small>
+      <div class="c-rij c-wrap"><button class="c-knop c-hoofd" data-a="stuur-lijstje">${T("Versturen")}</button>
+      ${st.lijstje.items.length < 30 ? `<button class="c-knop" data-a="punt-erbij">${T("Punt erbij")}</button>` : ""}
+      <button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>` : ""}
+    ${st.paneel === "plek" ? `<div class="c-paneel">
+      <b>${T("Locatie delen")}</b>
+      <button class="c-knop c-hoofd c-breed" data-a="plek-hier">${T("Mijn huidige locatie sturen")}</button>
+      <div class="c-rij"><input class="c-veld" id="c-pl-naam" placeholder="${esc(T("Of typ een adres of plek"))}" value="${esc(st.plekConcept || "")}" maxlength="120">
+        <button class="c-knop" data-a="plek-adres">${T("Sturen")}</button></div>
+      <small>${T("Je locatie wordt één keer gedeeld, niet live gevolgd.")}</small>
+      <div class="c-rij"><button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>` : ""}
     ${st.paneel === "peiling" ? `<div class="c-paneel">
       <b>${T("Peiling")}</b>
       <input class="c-veld" id="c-p-vraag" placeholder="${esc(T("Vraag"))}" value="${esc(st.peiling.vraag || "")}" maxlength="200">
       ${st.peiling.opties.map((o, k) => `<input class="c-veld c-p-optie" placeholder="${esc(T("Keuze {}", k + 1))}" value="${esc(o)}" maxlength="80">`).join("")}
+      <label class="c-keus"><input type="checkbox" id="c-p-meer" ${st.peiling.meer ? "checked" : ""}> ${T("Meerdere keuzes toestaan")}</label>
+      ${g.soort === "twee" ? "" : `<label class="c-keus"><input type="checkbox" id="c-p-anoniem" ${st.peiling.anoniem ? "checked" : ""}> ${T("Anoniem stemmen")}</label>`}
       <div class="c-rij c-wrap"><button class="c-knop c-hoofd" data-a="stuur-peiling">${T("Versturen")}</button>
       ${st.peiling.opties.length < 8 ? `<button class="c-knop" data-a="optie-erbij">${T("Keuze erbij")}</button>` : ""}
       <button class="c-knop" data-a="sluit">${T("Annuleren")}</button></div></div>` : ""}
     ${st.paneel === "plus" ? `<div class="c-paneel c-plus">
       <button class="c-plus-knop" data-a="foto"><span>📷</span>${T("Foto")}</button>
       <button class="c-plus-knop" data-a="afspraak"><span>📅</span>${g.community ? T("Evenement") : T("Afspraak")}</button>
-      ${g.soort === "groep" ? `<button class="c-plus-knop" data-a="peiling"><span>📊</span>${T("Peiling")}</button>` : ""}
+      <button class="c-plus-knop" data-a="peiling"><span>📊</span>${T("Peiling")}</button>
+      <button class="c-plus-knop" data-a="lijstje"><span>☑️</span>${T("Lijstje")}</button>
+      <button class="c-plus-knop" data-a="plek"><span>📍</span>${T("Locatie")}</button>
       <button class="c-plus-knop" data-a="vrij"><span>🕒</span>${T("Wanneer ik kan")}</button>
       ${g.community ? "" : `<button class="c-plus-knop" data-a="betaal"><span>💶</span>${T("Betaalverzoek")}</button>`}
       ${g.community ? "" : `<button class="c-plus-knop" data-a="diensten"><span>🗓️</span>${T("Mijn diensten")}</button>`}
@@ -873,6 +931,10 @@ function toonGesprek(st) {
   const veld = st.wortel.querySelector("#c-tekst");
   if (veld) {
     veld.value = concept;
+    for (const [id, waarde, focus] of itemConcepten) {
+      const e = st.wortel.querySelector(`.c-item-veld[data-b="${id}"]`);
+      if (e) { e.value = waarde; if (focus) e.focus({ preventScroll: true }); }
+    }
     const hoogte = () => { veld.style.height = "auto"; veld.style.height = Math.min(veld.scrollHeight, 140) + "px"; };
     hoogte();
     veld.addEventListener("input", () => { st.concept = veld.value; hoogte(); vermeldVoorstel(st, veld); });
@@ -888,8 +950,14 @@ function toonGesprek(st) {
 }
 
 function peilingBewaren(st) {
-  st.peiling = { vraag: st.wortel.querySelector("#c-p-vraag").value,
+  const vak = (id) => { const e = st.wortel.querySelector(id); return !!(e && e.checked); };
+  st.peiling = { vraag: st.wortel.querySelector("#c-p-vraag").value, meer: vak("#c-p-meer"), anoniem: vak("#c-p-anoniem"),
                  opties: [...st.wortel.querySelectorAll(".c-p-optie")].map((x) => x.value) };
+}
+
+function lijstjeBewaren(st) {
+  st.lijstje = { titel: st.wortel.querySelector("#c-l-titel").value,
+                 items: [...st.wortel.querySelectorAll(".c-l-item")].map((x) => x.value) };
 }
 
 // Lang drukken op een bericht: reageren met een emoji, beantwoorden, vastzetten, kopiëren of verwijderen.
@@ -1059,8 +1127,19 @@ async function berichtenLaden(st) {
     if (b.bericht && b.bericht.t === "bel") belBericht(st, g.id, b);
     if (b.bericht && b.bericht.t === "stem") {
       const per = st.stemmen.get(b.bericht.op) || new Map();
-      per.set(b.afzender, Number(b.bericht.keuze));
+      const keuzes = Array.isArray(b.bericht.keuzes) ? b.bericht.keuzes : [b.bericht.keuze];
+      per.set(b.afzender, keuzes.map(Number).filter((k) => Number.isInteger(k) && k >= 0 && k < 12).slice(0, 12));
       st.stemmen.set(b.bericht.op, per);
+    }
+    if (b.bericht && b.bericht.t === "vink") {
+      const lid = st.gesprek.leden.find((l) => l.id === b.afzender) || {};
+      const per = st.vinkjes.get(b.bericht.op) || new Map();
+      per.set(Number(b.bericht.k), { aan: !!b.bericht.aan, naam: b.afzender === st.ik ? T("Jij") : lid.naam || "" });
+      st.vinkjes.set(b.bericht.op, per);
+    }
+    if (b.bericht && b.bericht.t === "item" && typeof b.bericht.tekst === "string") {
+      const lijst = st.extraItems.get(b.bericht.op) || [];
+      if (lijst.length < 50) st.extraItems.set(b.bericht.op, [...lijst, b.bericht.tekst.slice(0, 80)]);
     }
     if (st.berichten.some((x) => x.id === b.id)) continue;
     st.berichten.push(b);
@@ -1098,7 +1177,7 @@ async function openen(st, id) {
   st.gesprek = st.gesprekken.find((g) => g.id === id)
     || (kanaal ? { id, naam: kanaal.naam, community: kanaal.community, community_naam: kanaal.community_naam, leden: [], soort: "groep", status: "lid" }
               : { id, leden: [], soort: "twee", status: "lid" });
-  st.berichten = []; st.reacties = new Map(); st.emoji = new Map(); st.stemmen = new Map(); st.betaald = new Map(); st.scherm = "gesprek"; st.paneel = null; st.naarOnder = true;
+  st.berichten = []; st.reacties = new Map(); st.emoji = new Map(); st.stemmen = new Map(); st.vinkjes = new Map(); st.extraItems = new Map(); st.betaald = new Map(); st.scherm = "gesprek"; st.paneel = null; st.naarOnder = true;
   st.boekStatus = new Map(); st.boekTijd = 0; st.boek = null;
   st.menu = null; st.antwoord = null; st.vastStap = 0; st.blad = null;
   st.sleutelsVeranderd = false; st.sleutelLijst = null; st.concept = "";
@@ -1533,7 +1612,46 @@ async function actie(st, a, el) {
       st.wortel.querySelector(".c-vermeld-rij").innerHTML = "";
       return;
     }
-    if (a === "peiling") { st.peiling = { vraag: "", opties: ["", ""] }; st.paneel = "peiling"; return toon(st); }
+    if (a === "peiling") { st.peiling = { vraag: "", opties: ["", ""], meer: false, anoniem: false }; st.paneel = "peiling"; return toon(st); }
+    if (a === "lijstje") { st.lijstje = { titel: "", items: ["", "", ""] }; st.paneel = "lijstje"; return toon(st); }
+    if (a === "punt-erbij") { lijstjeBewaren(st); st.lijstje.items.push(""); toon(st); const l = st.wortel.querySelectorAll(".c-l-item"); if (l.length) l[l.length - 1].focus(); return; }
+    if (a === "stuur-lijstje") {
+      lijstjeBewaren(st);
+      const titel = st.lijstje.titel.trim(); const items = st.lijstje.items.map((o) => o.trim()).filter(Boolean).slice(0, 30);
+      if (!titel || !items.length) { melding(st, T("Geef het lijstje een naam en minstens één punt.")); return; }
+      return versturen(st, { t: "lijstje", id: b64(rnd(9)), titel: titel.slice(0, 80), items });
+    }
+    if (a === "vink") {
+      const b = st.berichten.find((x) => x.id === Number(el.dataset.b));
+      if (!b || !b.bericht || st.gesprek.status !== "lid") return;
+      const k = Number(el.dataset.k);
+      const nu = ((st.vinkjes.get(b.bericht.id) || new Map()).get(k) || {}).aan;
+      return versturen(st, { t: "vink", op: b.bericht.id, k, aan: !nu });
+    }
+    if (a === "item") {
+      const b = st.berichten.find((x) => x.id === Number(el.dataset.b));
+      const veld = st.wortel.querySelector(`.c-item-veld[data-b="${el.dataset.b}"]`);
+      const tekst = veld ? veld.value.trim().slice(0, 80) : "";
+      if (!b || !b.bericht || !tekst || st.gesprek.status !== "lid") return;
+      veld.value = "";
+      return versturen(st, { t: "item", op: b.bericht.id, tekst });
+    }
+    if (a === "plek") { st.plekConcept = ""; st.paneel = "plek"; return toon(st); }
+    if (a === "plek-adres") {
+      const naam = v("#c-pl-naam").trim().slice(0, 120);
+      if (!naam) return melding(st, T("Typ een adres of plek."));
+      return versturen(st, { t: "plek", naam });
+    }
+    if (a === "plek-hier") {
+      if (!navigator.geolocation) return melding(st, T("Dit apparaat kan je locatie niet bepalen."));
+      melding(st, T("Locatie bepalen..."));
+      navigator.geolocation.getCurrentPosition(
+        (p) => versturen(st, { t: "plek", live: true, lat: Math.round(p.coords.latitude * 1e5) / 1e5,
+                               lon: Math.round(p.coords.longitude * 1e5) / 1e5, naam: T("Hier ben ik") }).catch(() => melding(st, T("Versturen lukte niet."))),
+        () => melding(st, T("Geef de app toestemming voor je locatie, of typ een adres.")),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+      return;
+    }
     if (a === "optie-erbij") {
       const velden = st.wortel.querySelectorAll(".c-p-optie");
       const nieuw = document.createElement("input");
@@ -1546,12 +1664,16 @@ async function actie(st, a, el) {
       peilingBewaren(st);
       const vraag = st.peiling.vraag.trim(); const opties = st.peiling.opties.map((o) => o.trim()).filter(Boolean);
       if (!vraag || opties.length < 2) { melding(st, T("Vul een vraag en minstens twee keuzes in.")); return; }
-      return versturen(st, { t: "peiling", id: b64(rnd(9)), vraag, opties });
+      return versturen(st, { t: "peiling", id: b64(rnd(9)), vraag, opties, meer: st.peiling.meer, anoniem: st.peiling.anoniem && st.gesprek.soort !== "twee" });
     }
     if (a === "stem") {
       const b = st.berichten.find((x) => x.id === Number(el.dataset.b));
       if (!b || !b.bericht || st.gesprek.status !== "lid") return;
-      return versturen(st, { t: "stem", op: b.bericht.id, keuze: Number(el.dataset.k) });
+      const k = Number(el.dataset.k);
+      const nu = (st.stemmen.get(b.bericht.id) || new Map()).get(st.ik) || [];
+      // Eén keuze: nog eens tikken op je keuze haalt je stem weg. Meerdere keuzes: aan- en uitzetten.
+      const keuzes = b.bericht.meer ? (nu.includes(k) ? nu.filter((x) => x !== k) : [...nu, k]) : (nu.includes(k) ? [] : [k]);
+      return versturen(st, { t: "stem", op: b.bericht.id, keuze: keuzes.length ? keuzes[0] : -1, keuzes });
     }
     if (a === "lijst") { st.scherm = "lijst"; st.gesprek = null; toon(st); await gesprekkenLaden(st); return toon(st); }
     if (a === "contacten") { st.scherm = "contacten"; st.gesprek = null; toon(st); await contactenLaden(st); return toon(st); }
@@ -2166,7 +2288,7 @@ export default function (component) {
     st = parentElement.__chat = {
       url: data.url, key: data.key, naam: data.naam, token: data.token, label: data.label, wortel,
       scherm: "lijst", gesprekken: [], communities: [], berichten: [], reacties: new Map(), emoji: new Map(), stemmen: new Map(),
-      voorbeelden: new Map(), betaald: new Map(), peiling: { vraag: "", opties: ["", ""] },
+      voorbeelden: new Map(), betaald: new Map(), vinkjes: new Map(), extraItems: new Map(), peiling: { vraag: "", opties: ["", ""] }, lijstje: { titel: "", items: ["", "", ""] },
       vrij: data.vrij || [], open: data.open || null, contacten: null,
     };
     wortel.addEventListener("input", (e) => {

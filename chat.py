@@ -145,7 +145,17 @@ CSS = """
   background: var(--c-achter); font-size: 15px; }
 .c-paneel { border-top: 1px solid var(--c-rand); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;
   background: var(--c-achter); }
-.c-plus { flex-direction: row; justify-content: space-around; }
+.c-plus { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 4px; }
+.c-plus-knop { text-align: center; line-height: 1.2; }
+.c-keus { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.c-optie em, .c-vink em { display: block; font-style: normal; font-size: 12px; opacity: .65; font-weight: 400; }
+.c-vink { display: flex; align-items: flex-start; gap: 10px; width: 100%; font: inherit; font-size: 15px; color: inherit; text-align: left;
+  border: 0; background: transparent; padding: 4px 0; cursor: pointer; }
+.c-vink .c-vakje { flex: 0 0 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--c-rand); display: grid; place-items: center;
+  font-size: 14px; font-weight: 700; }
+.c-vink.c-aan .c-vakje { background: var(--c-hoofd); border-color: var(--c-hoofd); color: #fff; }
+.c-vink.c-aan .c-vink-tekst { text-decoration: line-through; opacity: .6; }
+.c-item-veld { flex: 1; min-width: 0; }
 .c-plus-knop { display: flex; flex-direction: column; align-items: center; gap: 4px; font: inherit; font-size: 13px;
   border: 0; background: transparent; color: inherit; cursor: pointer; }
 .c-plus-knop span { width: 52px; height: 52px; border-radius: 16px; background: var(--c-zacht); display: grid;

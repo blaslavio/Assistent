@@ -4607,6 +4607,8 @@ def kopbalk() -> None:
             ".st-key-kopbalk{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}"
             ".st-key-kopbalk > div:not(:last-child) a > span:has([data-testid=stIconMaterial]){display:none}"
             "[data-testid=InputInstructions]{display:none}"  # geen "Press Enter to submit" in invoervelden
+            # Lange pagina's niet laten krimpen: anders blijft de invoerbalk midden op de pagina hangen (zie boven.py).
+            "[data-testid=stMainBlockContainer]{flex-shrink:0}"
             # Keuzeknoppen (segmented control) altijd op één regel: op een smal scherm kleiner, en anders veegbaar.
             "[role=radiogroup]:has(> button[data-variant=segmented_control]){flex-wrap:nowrap;overflow-x:auto;"
             "scrollbar-width:none;max-width:100%}"

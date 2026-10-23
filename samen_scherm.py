@@ -1315,9 +1315,9 @@ def winkel_pagina(adres: str, ingelogd: bool) -> None:
             if _fout(samen.winkel_volgen, adres, not volgt) is not None:
                 st.rerun()
     if bedrijf := samen.zakelijk(w.get("vertrouwen")):
-        st.caption(" · ".join(x for x in (bedrijf.get("naam"), f"KvK {bedrijf['kvk']}" if bedrijf.get("kvk") else "",
-                                           f"btw {bedrijf['btw']}" if bedrijf.get("btw") else "", bedrijf.get("adres"))
-                              if x) + ". Je hebt 14 dagen bedenktijd.")
+        gegevens = " · ".join(x for x in (bedrijf.get("naam"), f"KvK {bedrijf['kvk']}" if bedrijf.get("kvk") else "",
+                                          f"btw {bedrijf['btw']}" if bedrijf.get("btw") else "", bedrijf.get("adres")) if x)
+        st.caption((gegevens + ". " if gegevens else "") + "Je hebt 14 dagen bedenktijd.")
     else:
         st.caption("Je koopt bij een particuliere verkoper.")
     verzend = (f"Verzenden {samen.euro(w['verzendkosten'])}" if w["verzendkosten"] else "Gratis verzenden") + (
