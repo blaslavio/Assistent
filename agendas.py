@@ -1,7 +1,8 @@
 """Je bestaande agenda's in de app: Apple (iCloud), en via een agendalink ook Google, Outlook en andere.
 
-De app leest je afspraken (alleen lezen) en zet ze naast de afspraken die je in de app maakt, zodat de
-assistent rond je echte agenda plant, reistijden uitrekent en op tijd waarschuwt.
+De app leest je afspraken en zet ze naast de afspraken die je in de app maakt, zodat de assistent rond je echte
+agenda plant, reistijden uitrekent en op tijd waarschuwt. Bij Apple kan het ook andersom (als je dat aanzet): je
+afspraken uit de app komen in een agenda naar keuze, en afspraken uit Apple wijzig of verwijder je ook in de app.
 - Apple: met je Apple ID en een app-specifiek wachtwoord (hetzelfde soort wachtwoord als voor je mail).
 - Google, Outlook en andere: met de geheime agendalink (iCal/ICS) die je in die agenda opvraagt.
 Afspraken worden een paar minuten onthouden, zodat de app niet bij elke klik opnieuw hoeft te vragen.
@@ -152,9 +153,12 @@ def _soort(titel: str) -> str:
     return next((naam for naam, lijst in SOORT_WOORDEN.items() if woorden & set(lijst)), "afspraak")
 
 
-def _gebeurtenissen(koppeling: dict, agenda: str, kalender, van: date, tot: date) -> list[dict]:
+def _gebeurtenissen(koppeling: dict, agenda: str, kalender, van: date, tot: date, href: str = "") -> list[dict]:
     import recurring_ical_events
 
+    # Alleen losse afspraken (geen reeksen) zijn vanuit de app te wijzigen, en alleen als je dat hebt aangezet.
+    bewerkbaar = bool(href and koppeling.get("schrijven")) and not any(
+        c.name == "VEVENT" and c.get("RRULE") is not None for c in kalender.walk())
     uit = []
     for gebeurtenis in recurring_ical_events.of(kalender).between(van, tot + timedelta(days=1)):
         if gebeurtenis.name != "VEVENT" or _als_tekst(gebeurtenis.get("STATUS")).upper() == "CANCELLED":
@@ -178,7 +182,8 @@ def _gebeurtenissen(koppeling: dict, agenda: str, kalender, van: date, tot: date
                     "locatie": re.sub(r"\s+", " ", _als_tekst(gebeurtenis.get("LOCATION"))).strip(),
                     "notitie": _als_tekst(gebeurtenis.get("DESCRIPTION")).strip()[:500],
                     "soort": _soort(titel), "extern": True, "bron": koppeling["naam"],
-                    "agenda": agenda, "kleur_bron": koppeling.get("kleur")})
+                    "agenda": agenda, "kleur_bron": koppeling.get("kleur"),
+                    **({"href": href, "bewerkbaar": True} if bewerkbaar else {})})
     return uit
 
 
@@ -198,14 +203,15 @@ def _ophalen(koppeling: dict, van: date, tot: date) -> list[dict]:
                 for item in kal.search(start=datetime.combine(van, datetime.min.time()),
                                        end=datetime.combine(tot + timedelta(days=1), datetime.min.time()),
                                        event=True):
-                    resultaat += _gebeurtenissen(koppeling, naam, Calendar.from_ical(item.data), van, tot)
+                    resultaat += _gebeurtenissen(koppeling, naam, Calendar.from_ical(item.data), van, tot,
+                                                 str(item.url))
         return resultaat
     return _gebeurtenissen(koppeling, koppeling["naam"], Calendar.from_ical(_ophalen_link(koppeling["url"])), van, tot)
 
 
 def _sleutel(koppeling: dict) -> str:
     geheim = f"{opslag._naam.get()}|{koppeling['id']}|{koppeling.get('url')}|{koppeling.get('gebruiker')}|" \
-             f"{koppeling.get('wachtwoord')}|{','.join(koppeling.get('uit', []))}"
+             f"{koppeling.get('wachtwoord')}|{','.join(koppeling.get('uit', []))}|{koppeling.get('schrijven')}"
     return hashlib.sha256(geheim.encode()).hexdigest()
 
 
@@ -270,6 +276,188 @@ def vernieuwen() -> None:
         with _slot:
             _cache.pop(_sleutel(k), None)
         _venster(k, wachten=12)
+
+
+# --- Twee kanten op met Apple ---------------------------------------------------------------------------------------
+# De agenda zelf houdt bij wat al is overgezet: elke afspraak uit de app krijgt een vaste UID en een vingerafdruk
+# (X-MIJN-ASSISTENT). Bij het bijwerken vergelijken we wat er hoort te staan met wat er staat; alleen het verschil
+# gaat over de lijn. Afspraken die je in Apple zelf maakte, raakt dit nooit aan.
+
+UID = "assistent-{}@mijn-assistent"
+SCHRIJF_TERUG, SCHRIJF_VOORUIT = 1, 400
+_geschreven: dict[str, tuple[float, str]] = {}
+_schrijft: dict[str, threading.Thread] = {}
+_schrijf_fout: dict[str, str] = {}
+
+
+def schrijven_aan(koppeling_id: str, agenda: str | None) -> None:
+    """Zet wegschrijven naar een Apple-agenda aan (met de naam van die agenda) of uit (None)."""
+    lijst = gekoppeld()
+    for a in lijst:
+        if a["id"] == koppeling_id and a["soort"] == "apple":
+            if agenda:
+                a["schrijven"] = agenda
+            else:
+                a.pop("schrijven", None)
+    _bewaar(lijst)
+    vernieuwen()
+
+
+def schrijf_koppeling() -> dict | None:
+    return next((a for a in gekoppeld() if a["soort"] == "apple" and a.get("schrijven")), None)
+
+
+def _vingerafdruk(a: dict) -> str:
+    velden = [a.get(k) or "" for k in ("titel", "start", "einde", "locatie", "notitie")]
+    return hashlib.sha1("|".join(velden).encode()).hexdigest()[:16]
+
+
+def _ics(a: dict) -> str:
+    from icalendar import Calendar, Event
+
+    kal = Calendar()
+    kal.add("prodid", "-//Mijn assistent//NL")
+    kal.add("version", "2.0")
+    e = Event()
+    e.add("uid", UID.format(a["id"]))
+    e.add("dtstamp", datetime.now(NL))
+    e.add("summary", a.get("titel") or "Afspraak")
+    if "T" in a["start"]:
+        begin = datetime.fromisoformat(a["start"][:16]).replace(tzinfo=NL)
+        e.add("dtstart", begin)
+        einde = a.get("einde") and "T" in a["einde"] and datetime.fromisoformat(a["einde"][:16]).replace(tzinfo=NL)
+        e.add("dtend", einde if einde and einde > begin else begin + timedelta(hours=1))
+    else:
+        dag = date.fromisoformat(a["start"][:10])
+        e.add("dtstart", dag)
+        e.add("dtend", dag + timedelta(days=1))
+    if a.get("locatie"):
+        e.add("location", a["locatie"])
+    if a.get("notitie"):
+        e.add("description", a["notitie"])
+    e.add("x-mijn-assistent", _vingerafdruk(a))
+    kal.add_component(e)
+    return kal.to_ical().decode()
+
+
+def _kalender(client, koppeling: dict):
+    for k in client.principal().calendars():
+        if (k.get_display_name() or "Agenda") == koppeling["schrijven"]:
+            return k
+    raise Fout(f"De agenda {koppeling['schrijven']} bestaat niet meer in Apple.")
+
+
+def _wegschrijven(sleutel: str, koppeling: dict, gewenst: dict[str, dict], afdruk: str) -> None:
+    import caldav
+    from icalendar import Calendar
+
+    vandaag = date.today()
+    try:
+        with caldav.DAVClient(url=koppeling.get("url") or ICLOUD, username=koppeling["gebruiker"],
+                              password=koppeling["wachtwoord"], timeout=15) as client:
+            kal = _kalender(client, koppeling)
+            staat: dict[str, tuple[str, object]] = {}
+            for item in kal.search(start=datetime.combine(vandaag - timedelta(days=SCHRIJF_TERUG), datetime.min.time()),
+                                   end=datetime.combine(vandaag + timedelta(days=SCHRIJF_VOORUIT + 1),
+                                                        datetime.min.time()), event=True):
+                for e in Calendar.from_ical(item.data).walk("VEVENT"):
+                    uid = _als_tekst(e.get("UID"))
+                    if uid.startswith("assistent-") and uid.endswith("@mijn-assistent"):
+                        staat[uid] = (_als_tekst(e.get("X-MIJN-ASSISTENT")), item)
+            for uid, a in gewenst.items():
+                if uid not in staat:
+                    kal.save_event(_ics(a))
+                elif staat[uid][0] != _vingerafdruk(a):
+                    item = staat[uid][1]
+                    item.data = _ics(a)
+                    item.save()
+            for uid, (_, item) in staat.items():
+                if uid not in gewenst:
+                    item.delete()
+        _schrijf_fout.pop(sleutel, None)
+        with _slot:
+            _geschreven[sleutel] = (time.time(), afdruk)
+    except Fout as f:
+        _schrijf_fout[sleutel] = str(f)
+    except Exception:
+        _schrijf_fout[sleutel] = "Je Apple-agenda is even niet bij te werken."
+    finally:
+        with _slot:
+            _schrijft.pop(sleutel, None)
+
+
+def wegschrijven_vanzelf(afspraken: list[dict], wachten: float = 0) -> None:
+    """Zet je afspraken uit de app in je Apple-agenda, op de achtergrond. Doet niets als er niets veranderd is
+    (en hooguit elke 10 minuten een controle, voor wat je in Apple zelf hebt weggehaald)."""
+    if not (k := schrijf_koppeling()):
+        return
+    vandaag = date.today()
+    van, tot = (vandaag - timedelta(days=SCHRIJF_TERUG)).isoformat(), (vandaag + timedelta(days=SCHRIJF_VOORUIT)).isoformat()
+    gewenst = {UID.format(a["id"]): a for a in afspraken
+               if not a.get("extern") and isinstance(a.get("id"), int) and van <= a["start"][:10] <= tot}
+    afdruk = hashlib.sha1("".join(sorted(u + _vingerafdruk(a) for u, a in gewenst.items())).encode()).hexdigest()
+    sleutel = _sleutel(k)
+    with _slot:
+        laatst = _geschreven.get(sleutel)
+        if (laatst and laatst[1] == afdruk and time.time() - laatst[0] < 600) or sleutel in _schrijft:
+            draad = _schrijft.get(sleutel)
+        else:
+            draad = _schrijft[sleutel] = threading.Thread(target=_wegschrijven, args=(sleutel, dict(k), gewenst, afdruk),
+                                                          daemon=True)
+            draad.start()
+    if wachten and draad:
+        draad.join(wachten)
+
+
+def schrijf_fout() -> str | None:
+    return _schrijf_fout.get(_sleutel(k)) if (k := schrijf_koppeling()) else None
+
+
+def _extern_item(afspraak: dict):
+    import caldav
+
+    koppeling = next((k for k in gekoppeld() if afspraak["id"].startswith(f"ext:{k['id']}:")), None)
+    if not koppeling or not koppeling.get("schrijven") or not afspraak.get("href"):
+        raise Fout("Deze afspraak kun je alleen in je eigen agenda wijzigen.")
+    client = caldav.DAVClient(url=koppeling.get("url") or ICLOUD, username=koppeling["gebruiker"],
+                              password=koppeling["wachtwoord"], timeout=15)
+    item = caldav.Event(client=client, url=afspraak["href"])
+    item.load()
+    return client, item
+
+
+def extern_wijzigen(afspraak: dict, titel: str, start: str, einde: str | None, locatie: str) -> None:
+    """Wijzigt een (losse) afspraak uit je Apple-agenda, vanuit de app."""
+    from icalendar import Calendar
+
+    client, item = _extern_item(afspraak)
+    with client:
+        kal = Calendar.from_ical(item.data)
+        e = next(iter(kal.walk("VEVENT")))
+        for veld in ("SUMMARY", "DTSTART", "DTEND", "DURATION", "LOCATION"):
+            e.pop(veld, None)
+        e.add("summary", titel.strip() or "Afspraak")
+        if "T" in start:
+            begin = datetime.fromisoformat(start[:16]).replace(tzinfo=NL)
+            eind = datetime.fromisoformat(einde[:16]).replace(tzinfo=NL) if einde and "T" in einde else None
+            e.add("dtstart", begin)
+            e.add("dtend", eind if eind and eind > begin else begin + timedelta(hours=1))
+        else:
+            e.add("dtstart", date.fromisoformat(start[:10]))
+            e.add("dtend", date.fromisoformat(start[:10]) + timedelta(days=1))
+        if locatie.strip():
+            e.add("location", locatie.strip())
+        r = client.put(afspraak["href"], kal.to_ical().decode(), {"Content-Type": "text/calendar; charset=utf-8"})
+        if r.status >= 300:
+            raise Fout("Je Apple-agenda wilde de wijziging niet opslaan.")
+    vernieuwen()
+
+
+def extern_verwijderen(afspraak: dict) -> None:
+    client, _ = _extern_item(afspraak)
+    with client:
+        client.delete(afspraak["href"])
+    vernieuwen()
 
 
 # --- Andersom: je agenda uit de app in Apple, Google of Outlook -------------------------------------------------------

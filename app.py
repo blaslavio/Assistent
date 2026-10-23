@@ -861,7 +861,11 @@ def afspraak_kaart(regel: dict, afspraak: dict) -> None:
             uitnodiging_bediening(u)
             return
         if afspraak.get("extern"):
-            st.caption(f":material/event: Uit je {afspraak.get('bron', 'agenda')}. Wijzigen doe je in die agenda.")
+            if afspraak.get("bewerkbaar"):
+                st.caption(f":material/event: Uit je {afspraak.get('bron', 'agenda')}")
+                extern_bediening(afspraak)
+            else:
+                st.caption(f":material/event: Uit je {afspraak.get('bron', 'agenda')}. Wijzigen doe je in die agenda.")
             return
         if afspraak.get("reeks") and (herhaling := opslag.herhaal_tekst(afspraak["reeks"])):
             st.caption(f":material/repeat: {herhaling}")
@@ -896,6 +900,40 @@ def afspraak_kaart(regel: dict, afspraak: dict) -> None:
                         opslag.afspraak_verwijderen(afspraak["id"])
                         st.rerun()
         herinneringen(afspraak)
+
+
+def extern_bediening(afspraak: dict) -> None:
+    """Een afspraak uit je Apple-agenda wijzigen of verwijderen, als je dat bij Koppelingen hebt aangezet."""
+    sleutel = afspraak["id"].replace(":", "_")
+    with st.container(horizontal=True, gap="xsmall"):
+        with st.popover("Wijzigen"):
+            with st.form(f"extern_{sleutel}", border=False):
+                titel = st.text_input("Titel", value=afspraak["titel"])
+                dag = st.date_input("Datum", value=date.fromisoformat(afspraak["start"][:10]), format="DD-MM-YYYY")
+                hele_dag = "T" not in afspraak["start"]
+                kol1, kol2 = st.columns(2)
+                van = kol1.time_input("Van", value=None if hele_dag else kloktijd.fromisoformat(afspraak["start"][11:16]))
+                tot = kol2.time_input("Tot", value=kloktijd.fromisoformat(afspraak["einde"][11:16])
+                                      if afspraak.get("einde") and "T" in afspraak["einde"] else None)
+                plek = st.text_input("Plaats", value=afspraak.get("locatie", ""))
+                if st.form_submit_button("Opslaan", type="primary"):
+                    start = f"{dag.isoformat()}T{van:%H:%M}" if van else dag.isoformat()
+                    einde = f"{dag.isoformat()}T{tot:%H:%M}" if van and tot else None
+                    try:
+                        agendas.extern_wijzigen(afspraak, titel, start, einde, plek)
+                    except Exception as fout:
+                        st.error(str(fout) if isinstance(fout, agendas.Fout) else "Dit lukte niet. Probeer het opnieuw.")
+                    else:
+                        st.rerun()
+        with st.popover("", icon=":material/delete:", help="Verwijderen"):
+            st.write("Ook uit je Apple-agenda verwijderen?")
+            if st.button("Ja, verwijderen", key=f"extern_weg_{sleutel}", type="primary"):
+                try:
+                    agendas.extern_verwijderen(afspraak)
+                except Exception as fout:
+                    st.error(str(fout) if isinstance(fout, agendas.Fout) else "Dit lukte niet. Probeer het opnieuw.")
+                else:
+                    st.rerun()
 
 
 def uitnodiging_bediening(u: dict) -> None:
@@ -3419,8 +3457,7 @@ def feestdagen_instellen() -> None:
 
 def agendas_instellen() -> None:
     """Je eigen agenda's (Apple, Google, Outlook) koppelen, alleen om te lezen."""
-    st.caption("Je afspraken uit je eigen agenda verschijnen in Vandaag en Agenda, en de assistent plant eromheen. "
-               "De app leest alleen mee: wijzigen doe je in je eigen agenda.")
+    st.caption("Je afspraken uit je eigen agenda verschijnen in Vandaag en Agenda, en de assistent plant eromheen.")
     gekoppeld = agendas.gekoppeld()
     if gekoppeld:
         fouten = agendas.fouten()
@@ -3437,6 +3474,19 @@ def agendas_instellen() -> None:
                     if aan != (naam not in k.get("uit", [])):
                         agendas.zichtbaar(k["id"], naam, aan)
                         st.rerun()
+                if k["soort"] == "apple" and k.get("agendas"):
+                    keuzes = ["Nee"] + k["agendas"]
+                    huidig = k.get("schrijven") if k.get("schrijven") in k["agendas"] else "Nee"
+                    gekozen = st.selectbox("Afspraken uit de app ook in", keuzes, index=keuzes.index(huidig),
+                                           key=f"agschrijf_{k['id']}")
+                    if gekozen != huidig:
+                        agendas.schrijven_aan(k["id"], None if gekozen == "Nee" else gekozen)
+                        st.rerun()
+                    if k.get("schrijven"):
+                        if fout := agendas.schrijf_fout():
+                            st.warning(fout)
+                        if opslag.instellingen().get("agenda_feed_token"):
+                            st.caption("Zet de agendalink hieronder uit, anders zie je alles dubbel.")
                 if st.button("Ontkoppelen", key=f"agontkoppel_{k['id']}", icon=":material/link_off:"):
                     agendas.ontkoppelen(k["id"])
                     st.rerun()
@@ -4423,6 +4473,13 @@ def main() -> None:
     # Herhalende afspraken steeds een eindje vooruit in de agenda zetten (doet meestal niets).
     try:
         opslag.reeksen_aanvullen()
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        pass
+    # Afspraken uit de app in je Apple-agenda zetten, als je dat hebt aangezet (op de achtergrond).
+    try:
+        agendas.wegschrijven_vanzelf(opslag.laden()["afspraken"])
     except opslag.GeenToegang:
         raise
     except Exception:
