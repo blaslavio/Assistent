@@ -108,6 +108,11 @@ def bekijken(ruimte_id: int) -> dict:
                            p_id=ruimte_id))
 
 
+def kopie(ruimte_id: int) -> int:
+    """Een openbare wereld kopiëren om zelf verder te bouwen (zonder de foto's en modellen van een ander)."""
+    return _ok(opslag._rpc_ik("ruimte_kopie", p_id=ruimte_id))["id"]
+
+
 def melden(ruimte_id: int, reden: str) -> None:
     _ok(opslag._rpc_ik("ruimte_melden", p_id=ruimte_id, p_reden=reden))
 

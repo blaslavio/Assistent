@@ -19,7 +19,7 @@ VOORPAGINA = {"ochtend": "Ochtendoverzicht ('s ochtends, met voorlezen)", "weer"
 # Wat je in het menu aan of uit kunt zetten (de sleutels staan zo in je instellingen).
 ONDERDELEN = {"Chat": "Chat (end-to-end versleuteld)", "Documenten": "Documenten", "Bestanden": "Bestanden", "Mail": "Mail", "Leren": "Leren en schrijven", "Samen": "Projecten en delen",
               "DIY": "DIY en hobby", "Hulpmiddelen": "Hulpmiddelen (notities, timer, rekenen)",
-              "Scannen": "Foto scannen", "VR-ruimtes": "VR-ruimtes (projecten in 3D)",
+              "Scannen": "Foto scannen", "VR-ruimtes": "VR en games (zelf werelden bouwen)",
               "Boodschappen": "Boodschappen",
               "Lijstjes": "Kooplijst en wenslijst", "Marktplaats": "Marktplaats (kopen en verkopen bij elkaar)",
               "Budget": "Budget (uitgaven, vaste lasten, sparen)", "Beleggen": "Beleggen (alleen meekijken)",
@@ -52,7 +52,7 @@ PAGINAS = {"agenda": "Agenda", "chat": "Chat", "winkelen": "Winkelen", "zakelijk
            "samen": "Samen", "budget": "Budget", "beleggen": "Beleggen", "zoeken": "Marktplaats",
            "winkels": "Winkels", "verkopen": "Verkopen", "bestellingen": "Bestellingen", "berichten": "Berichten",
            "webshop": "Mijn webshop", "verkoopoverzicht": "Verkoopoverzicht", "lijstjes": "Lijstjes",
-           "hulpmiddelen": "Hulpmiddelen", "ruimtes": "VR-ruimtes",
+           "hulpmiddelen": "Hulpmiddelen", "ruimtes": "VR en games",
            "buurt": "In de buurt", "inzamelen": "Inzamelen", "browser": "Browser",
            "sport": "Sport"}
 GROEPEN = ["Kopen en verkopen", "Afspreken", "Leren en werk", "Geld", "Zakelijk", "Sport en gezondheid", "Thuis en handig"]

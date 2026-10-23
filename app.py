@@ -84,12 +84,13 @@ import gezondheid
 import sport_scherm
 import toegangssleutel
 import boven
+import wereld
 import browser  # niet in de herlaadlijst: bevat onderdelen (components)
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, toegang, bestanden, bestanden_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, gezondheid, sport_scherm):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, toegang, bestanden, bestanden_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, wereld, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, gezondheid, sport_scherm):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -4577,7 +4578,7 @@ def paginas() -> list:
           als("Mail" not in uit, mail_tabblad, "Mail", ":material/mail:", "mail"),
           als(online and "Samen" not in uit, samen_scherm.samen_tabblad, "Samen", ":material/group:", "samen",
               nieuw.get("gedeeld", 0)),
-          als(online and "VR-ruimtes" not in uit, ruimte_scherm.pagina, "VR-ruimtes", ":material/view_in_ar:", "ruimtes"))
+          als(online and "VR-ruimtes" not in uit, ruimte_scherm.pagina, "VR en games", ":material/view_in_ar:", "ruimtes"))
     groep("Geld",
           als(online and "Budget" not in uit, geld_scherm.budget_pagina, "Budget", ":material/account_balance_wallet:",
               "budget"),
