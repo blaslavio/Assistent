@@ -1666,7 +1666,6 @@
 "Kleding": "Giyim",
 "Kleding, schoenen en spullen": "Giyim, ayakkabı ve eşyalar",
 "Kleermaker": "Terzi",
-"Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-jan.": "Küçük harfler, rakamlar ve tireler, örneğin bisikletci-ali.",
 "Kleur": "Renk",
 "Kleuren": "Boyama",
 "Kleuren in de agenda": "Takvimdeki renkler",
@@ -2964,8 +2963,6 @@
 "basic fit": "basic fit",
 "bedrag (eur)": "bedrag (eur)",
 "ben ": "ben ",
-"bijvoorbeeld Blaslavio": "örneğin Blaslavio",
-"bijvoorbeeld blaslavio": "örneğin blaslavio",
 "bijvoorbeeld sanne.devries": "örneğin sanne.devries",
 "bp ": "bp ",
 "brabant water": "brabant water",
@@ -3123,6 +3120,9 @@
 "🛠️ Dienst": "🛠️ Hizmet",
 "🤖 Zelf reageren, ik lees het overzicht": "🤖 Kendin yanıt ver, özeti ben okurum",
 "🤝 Ophalen": "🤝 Elden teslim",
-"🧾 aankoop": "🧾 satın alma"
+"🧾 aankoop": "🧾 satın alma",
+"Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-sanne.": "Küçük harfler, rakamlar ve tireler, örneğin bisikletci-ali.",
+"bijvoorbeeld Sanne": "örneğin Sanne",
+"bijvoorbeeld sanne": "örneğin sanne"
 }
 }

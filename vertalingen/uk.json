@@ -1666,7 +1666,6 @@
 "Kleding": "Одяг",
 "Kleding, schoenen en spullen": "Одяг, взуття та речі",
 "Kleermaker": "Кравець",
-"Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-jan.": "Малі літери, цифри та дефіси, наприклад velo-jan.",
 "Kleur": "Колір",
 "Kleuren": "Фарбування",
 "Kleuren in de agenda": "Кольори в календарі",
@@ -2964,8 +2963,6 @@
 "basic fit": "basic fit",
 "bedrag (eur)": "bedrag (eur)",
 "ben ": "ben ",
-"bijvoorbeeld Blaslavio": "наприклад Blaslavio",
-"bijvoorbeeld blaslavio": "наприклад blaslavio",
 "bijvoorbeeld sanne.devries": "наприклад sanne.devries",
 "bp ": "bp ",
 "brabant water": "brabant water",
@@ -3123,6 +3120,9 @@
 "🛠️ Dienst": "🛠️ Послуга",
 "🤖 Zelf reageren, ik lees het overzicht": "🤖 Відповідати самому, я читаю підсумок",
 "🤝 Ophalen": "🤝 Самовивіз",
-"🧾 aankoop": "🧾 покупка"
+"🧾 aankoop": "🧾 покупка",
+"Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-sanne.": "Малі літери, цифри та дефіси, наприклад velo-jan.",
+"bijvoorbeeld Sanne": "наприклад Sanne",
+"bijvoorbeeld sanne": "наприклад sanne"
 }
 }

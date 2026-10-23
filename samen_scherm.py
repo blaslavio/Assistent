@@ -59,8 +59,8 @@ def gebruikersnaam_kiezen() -> None:
     st.info("Kies eerst een gebruikersnaam. Daarmee kunnen anderen dingen met je delen en je aan een project toevoegen.")
     with st.form("naam_kiezen", border=False):
         kol1, kol2 = st.columns(2)
-        naam = kol1.text_input("Gebruikersnaam", placeholder="bijvoorbeeld blaslavio")
-        weergave = kol2.text_input("Je naam zoals anderen hem zien", placeholder="bijvoorbeeld Blaslavio")
+        naam = kol1.text_input("Gebruikersnaam", placeholder="bijvoorbeeld sanne")
+        weergave = kol2.text_input("Je naam zoals anderen hem zien", placeholder="bijvoorbeeld Sanne")
         if st.form_submit_button("Opslaan") and naam.strip():
             if fout := opslag.profiel_bijwerken(nieuwe_naam=naam.strip().lower().lstrip("@"),
                                                 weergavenaam=weergave.strip() or None):
@@ -814,7 +814,7 @@ def mijn_webshop() -> None:
         with st.form("winkel", border=False):
             naam = st.text_input("Naam van je winkel", value=w.get("naam", ""), max_chars=60)
             adres = st.text_input("Webadres", value=w.get("adres", ""), max_chars=30,
-                                  help="Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-jan.")
+                                  help="Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-sanne.")
             omschrijving = st.text_area("Over je winkel", value=w.get("omschrijving", ""), height=90)
             kleur = st.color_picker("Kleur", value=w.get("kleur", "#2563eb"))
             k1, k2 = st.columns(2)

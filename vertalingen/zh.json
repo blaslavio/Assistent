@@ -1666,7 +1666,6 @@
 "Kleding": "服装",
 "Kleding, schoenen en spullen": "服装、鞋子和杂物",
 "Kleermaker": "裁缝",
-"Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-jan.": "小写字母、数字和连字符，例如 fietsen-jan。",
 "Kleur": "颜色",
 "Kleuren": "染发",
 "Kleuren in de agenda": "日历中的颜色",
@@ -2964,8 +2963,6 @@
 "basic fit": "basic fit",
 "bedrag (eur)": "bedrag (eur)",
 "ben ": "ben ",
-"bijvoorbeeld Blaslavio": "例如 Blaslavio",
-"bijvoorbeeld blaslavio": "例如 blaslavio",
 "bijvoorbeeld sanne.devries": "例如 sanne.devries",
 "bp ": "bp ",
 "brabant water": "brabant water",
@@ -3123,6 +3120,9 @@
 "🛠️ Dienst": "🛠️ 服务",
 "🤖 Zelf reageren, ik lees het overzicht": "🤖 自己回复，我看汇总",
 "🤝 Ophalen": "🤝 自取",
-"🧾 aankoop": "🧾 购买"
+"🧾 aankoop": "🧾 购买",
+"Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-sanne.": "小写字母、数字和连字符，例如 fietsen-sanne。",
+"bijvoorbeeld Sanne": "例如 Sanne",
+"bijvoorbeeld sanne": "例如 sanne"
 }
 }

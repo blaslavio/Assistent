@@ -1666,7 +1666,6 @@
 "Kleding": "الملابس",
 "Kleding, schoenen en spullen": "الملابس والأحذية والأغراض",
 "Kleermaker": "خيّاط",
-"Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-jan.": "أحرف صغيرة وأرقام وشرطات، مثل fietsen-jan.",
 "Kleur": "اللون",
 "Kleuren": "صبغ",
 "Kleuren in de agenda": "الألوان في التقويم",
@@ -2964,8 +2963,6 @@
 "basic fit": "basic fit",
 "bedrag (eur)": "bedrag (eur)",
 "ben ": "ben ",
-"bijvoorbeeld Blaslavio": "مثلًا Blaslavio",
-"bijvoorbeeld blaslavio": "مثلًا blaslavio",
 "bijvoorbeeld sanne.devries": "مثلًا sanne.devries",
 "bp ": "bp ",
 "brabant water": "brabant water",
@@ -3123,6 +3120,9 @@
 "🛠️ Dienst": "🛠️ خدمة",
 "🤖 Zelf reageren, ik lees het overzicht": "🤖 رُدّ بنفسك، وسأقرأ الملخص",
 "🤝 Ophalen": "🤝 استلام",
-"🧾 aankoop": "🧾 شراء"
+"🧾 aankoop": "🧾 شراء",
+"Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-sanne.": "أحرف صغيرة وأرقام وشرطات، مثل fietsen-sanne.",
+"bijvoorbeeld Sanne": "مثلًا Sanne",
+"bijvoorbeeld sanne": "مثلًا sanne"
 }
 }

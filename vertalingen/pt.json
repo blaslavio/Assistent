@@ -1666,7 +1666,6 @@
 "Kleding": "Roupa",
 "Kleding, schoenen en spullen": "Roupa, calçado e artigos",
 "Kleermaker": "Alfaiate",
-"Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-jan.": "Letras minúsculas, números e hífenes, por exemplo bicicletas-jan.",
 "Kleur": "Cor",
 "Kleuren": "Coloração",
 "Kleuren in de agenda": "Cores na agenda",
@@ -2964,8 +2963,6 @@
 "basic fit": "basic fit",
 "bedrag (eur)": "bedrag (eur)",
 "ben ": "ben ",
-"bijvoorbeeld Blaslavio": "por exemplo Blaslavio",
-"bijvoorbeeld blaslavio": "por exemplo blaslavio",
 "bijvoorbeeld sanne.devries": "por exemplo sanne.devries",
 "bp ": "bp ",
 "brabant water": "brabant water",
@@ -3123,6 +3120,9 @@
 "🛠️ Dienst": "🛠️ Serviço",
 "🤖 Zelf reageren, ik lees het overzicht": "🤖 Responder por conta própria, eu leio o resumo",
 "🤝 Ophalen": "🤝 Recolha",
-"🧾 aankoop": "🧾 compra"
+"🧾 aankoop": "🧾 compra",
+"Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-sanne.": "Letras minúsculas, números e hífenes, por exemplo bicicletas-jan.",
+"bijvoorbeeld Sanne": "por exemplo Sanne",
+"bijvoorbeeld sanne": "por exemplo sanne"
 }
 }

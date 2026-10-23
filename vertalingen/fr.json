@@ -1666,7 +1666,6 @@
 "Kleding": "Vêtements",
 "Kleding, schoenen en spullen": "Vêtements, chaussures et affaires",
 "Kleermaker": "Tailleur",
-"Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-jan.": "Lettres minuscules, chiffres et tirets, par exemple velos-jan.",
 "Kleur": "Couleur",
 "Kleuren": "Coloration",
 "Kleuren in de agenda": "Couleurs dans l'agenda",
@@ -2964,8 +2963,6 @@
 "basic fit": "basic fit",
 "bedrag (eur)": "bedrag (eur)",
 "ben ": "ben ",
-"bijvoorbeeld Blaslavio": "par exemple Blaslavio",
-"bijvoorbeeld blaslavio": "par exemple blaslavio",
 "bijvoorbeeld sanne.devries": "par exemple sanne.devries",
 "bp ": "bp ",
 "brabant water": "brabant water",
@@ -3123,6 +3120,9 @@
 "🛠️ Dienst": "🛠️ Service",
 "🤖 Zelf reageren, ik lees het overzicht": "🤖 Répondre seul, je lis le récapitulatif",
 "🤝 Ophalen": "🤝 Retrait",
-"🧾 aankoop": "🧾 achat"
+"🧾 aankoop": "🧾 achat",
+"Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-sanne.": "Lettres minuscules, chiffres et tirets, par exemple velos-jan.",
+"bijvoorbeeld Sanne": "par exemple Sanne",
+"bijvoorbeeld sanne": "par exemple sanne"
 }
 }
