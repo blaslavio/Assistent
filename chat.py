@@ -231,6 +231,18 @@ CSS = """
 .c-profiel b { font-size: 20px; }
 .c-profiel small { opacity: .6; }
 .c-code { font-family: ui-monospace, Menlo, monospace; font-size: 17px; letter-spacing: .05em; word-spacing: .4em; line-height: 1.7; }
+.c-instel { border: 1px solid var(--c-rand); flex-shrink: 0; }
+.c-instel .c-lid { padding: 10px 12px; }
+.c-instel .c-schakel-rij { display: flex; gap: 12px; }
+.c-instel .c-klein { width: auto; max-width: 45%; padding: 6px 8px; border: 1px solid var(--c-rand); border-radius: 8px; }
+.c-uitleg { font-size: 13px; opacity: .6; margin: -6px 4px 0; line-height: 1.4; }
+.c-geavanceerd { flex-shrink: 0; border: 1px solid var(--c-rand); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+.c-geavanceerd summary { cursor: pointer; font-weight: 600; }
+.c-geavanceerd[open] { gap: 10px; }
+.c-geavanceerd > * + * { margin-top: 10px; }
+.c-tech { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; font-size: 13px; }
+.c-tech dt { opacity: .6; } .c-tech dd { margin: 0; }
+.c-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; word-break: break-all; }
 .c-lid { display: flex; align-items: center; gap: 10px; padding: 6px 0; justify-content: space-between; }
 .c-lid > span { flex: 1; }
 .c-lid small { opacity: .6; }

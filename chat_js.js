@@ -59,6 +59,15 @@ async function idbPut(store, key, value) {
   });
 }
 
+async function idbLeeg(store) {
+  const db = await idb();
+  return new Promise((klaar, mis) => {
+    const t = db.transaction(store, "readwrite");
+    t.objectStore(store).clear();
+    t.oncomplete = () => klaar(); t.onerror = () => mis(t.error);
+  });
+}
+
 // --- Cryptografie ------------------------------------------------------------------------------------------------
 
 const ECDH = { name: "ECDH", namedCurve: "P-256" };
@@ -424,7 +433,7 @@ function itemHtml(st, g) {
   const naam = gesprekNaam(st, g);
   const v = st.voorbeelden.get(g.id);
   const onder = g.status === "verzoek" ? `<span class="c-accent">${T("Wil met je chatten")}</span>`
-    : esc(v && v.id === g.laatste_id ? v.tekst : (g.laatste_id ? T("Versleuteld bericht") : (g.soort === "groep" ? T("{} deelnemers", g.leden.length) : T("Nog geen berichten"))));
+    : esc(v && v.id === g.laatste_id ? (st.voorbeeldUit ? T("Nieuw bericht") : v.tekst) : (g.laatste_id ? T("Versleuteld bericht") : (g.soort === "groep" ? T("{} deelnemers", g.leden.length) : T("Nog geen berichten"))));
   return `<button class="c-item" data-a="open" data-id="${g.id}" data-naam="${esc(naam.toLowerCase())}"
       data-soort="${g.soort === "groep" ? "groep" : "prive"}" data-ongelezen="${g.ongelezen || g.status === "verzoek" ? 1 : 0}">
       ${g.soort === "groep" ? `<span class="c-avatar c-groep">${ICOON.groep}</span>` : avatar(naam, false, anderId(st, g))}
@@ -468,7 +477,7 @@ function toonLijst(st) {
   st.wortel.innerHTML = `
     <div class="c-lijst-kop">
       <div class="c-rij-kop"><b class="c-groot-titel">${T("Chats")}</b>
-        <button class="c-ikoon" data-a="apparaten" aria-label="${esc(T("Beveiliging"))}">${ICOON.slot}</button></div>
+        <button class="c-ikoon" data-a="apparaten" aria-label="${esc(T("Privacy en beveiliging"))}">${ICOON.slot}</button></div>
       <input id="c-lijst-zoek" class="c-lijst-zoek" type="search" placeholder="${esc(T("Zoeken"))}" value="${esc(st.lijstZoek || "")}"
         autocomplete="off" enterkeyhint="search">
       <div class="c-pillen">${pil("alles", T("Alles"))}${pil("ongelezen", T("Ongelezen"))}${pil("groep", T("Groepen"))}${pil("community", T("Communities"))}</div>
@@ -1069,18 +1078,58 @@ async function toonInfo(st) {
   st.wortel.querySelector("#c-stil").addEventListener("change", (e) => instellen(st, { p_stil: e.target.checked }));
 }
 
+// Privacy en beveiliging: wat anderen van je zien, je apparaten en (onder Geavanceerd) hoe de versleuteling werkt.
 async function toonApparaten(st) {
-  const ik = await rpc(st, "chat_ik", { p_apparaat: st.apparaat });
+  const [ik, vk] = await Promise.all([rpc(st, "chat_ik", { p_apparaat: st.apparaat }), rpc(st, "chat_voorkeuren").catch(() => null)]);
+  if (st.scherm !== "apparaten") return;
+  const dit = ik.apparaten.find((a) => a.id === st.apparaat);
+  const code = (v) => esc(String(v || "").replace(/(.{4})/g, "$1 ").trim());
   st.wortel.innerHTML = `
-    ${kop(terugKnop("lijst"), `<b>${T("Beveiliging")}</b>`)}
+    ${kop(terugKnop("lijst"), `<b>${T("Privacy en beveiliging")}</b>`)}
     <div class="c-inhoud c-vulling">
       <div class="c-kaart"><b>${ICOON.slot} ${T("Hoe het werkt")}</b>
         ${T("Elk bericht wordt op je apparaat versleuteld en pas op het apparaat van de ander weer leesbaar. De sleutels blijven op je apparaat; de server en de makers van de app kunnen je berichten niet lezen, ook de assistent niet. Een nieuw apparaat kan berichten van vóór de aanmelding niet lezen.")}</div>
+      ${vk ? `<div class="c-sectie">${T("Privacy")}</div>
+      <div class="c-groep-velden c-instel">
+        <label class="c-schakel-rij">${T("Leesbevestigingen")}<input type="checkbox" class="c-schakel" id="c-v-lees" ${vk.leesbevestigingen ? "checked" : ""}></label>
+        <label class="c-schakel-rij">${T("Voorbeeld van berichten in de lijst")}<input type="checkbox" class="c-schakel" id="c-v-voorbeeld" ${st.voorbeeldUit ? "" : "checked"}></label>
+        <label class="c-schakel-rij">${T("Standaardtimer voor nieuwe gesprekken")}<select class="c-veld c-klein" id="c-v-timer">${Object.entries(VERDWIJNEN).map(([k, v]) =>
+          `<option value="${k}" ${Number(k) === (vk.standaard_timer || 0) ? "selected" : ""}>${T(v)}</option>`).join("")}</select></label>
+      </div>
+      <div class="c-uitleg">${T("Leesbevestigingen uit: anderen zien niet wanneer jij hun berichten leest, en jij ziet dat dan ook niet bij hen. Ontvangen (twee grijze vinkjes) blijft zichtbaar.")}</div>
+      <div class="c-sectie">${T("Geblokkeerd")}</div>
+      <div class="c-groep-velden c-instel">${vk.geblokkeerd.length ? vk.geblokkeerd.map((b) => `<div class="c-lid"><span><b>${esc(b.naam)}</b><br><small>@${esc(b.gebruikersnaam)}</small></span>
+        <button class="c-knop" data-a="deblokkeer" data-id="${b.id}" data-naam="${esc(b.naam)}">${T("Deblokkeren")}</button></div>`).join("")
+        : `<div class="c-lid"><small>${T("Je hebt niemand geblokkeerd.")}</small></div>`}</div>` : ""}
       <div class="c-sectie">${T("Je apparaten met chat")}</div>
+      <div class="c-groep-velden c-instel">
       ${ik.apparaten.map((a) => `<div class="c-lid"><span><b>${esc(a.naam || T("Apparaat"))}</b>${a.id === st.apparaat ? ` (${T("dit apparaat")})` : ""}
         <br><small>${esc(a.vingerafdruk.slice(0, 8))} · ${esc(T("laatst {}", dag(a.laatst)))}</small></span>
         ${a.id === st.apparaat ? "" : `<button class="c-knop" data-a="apparaat-weg" data-id="${a.id}">${T("Weghalen")}</button>`}</div>`).join("")}
+      </div>
+      <details class="c-geavanceerd"><summary>${T("Geavanceerd")}</summary>
+        <dl class="c-tech">
+          <dt>${T("Sleuteluitwisseling")}</dt><dd>ECDH P-256 ${T("met een nieuwe tijdelijke sleutel per bericht")}</dd>
+          <dt>${T("Sleutelafleiding")}</dt><dd>HKDF-SHA-256</dd>
+          <dt>${T("Versleuteling")}</dt><dd>AES-256-GCM ${T("met gesprek en apparaat als extra gecontroleerde gegevens")}</dd>
+          <dt>${T("Ondertekening")}</dt><dd>ECDSA P-256 / SHA-256 ${T("per bericht, gecontroleerd bij de ontvanger")}</dd>
+          <dt>${T("Privésleutels")}</dt><dd>${T("Niet-exporteerbaar (Web Crypto), alleen in de opslag van deze browser")}</dd>
+          <dt>${T("Wat de server ziet")}</dt><dd>${T("Wie met wie chat, wanneer, en de grootte van berichten. Nooit de inhoud.")}</dd>
+          ${dit ? `<dt>${T("Vingerafdruk van dit apparaat")}</dt><dd class="c-code">${code(dit.vingerafdruk)}</dd>` : ""}
+        </dl>
+        <button class="c-knop" data-a="cache-wissen">${T("Voorbeelden op dit apparaat wissen")}</button>
+        <div class="c-uitleg">${T("Je sleutels blijven staan, dus je kunt je berichten blijven lezen.")}</div>
+      </details>
     </div>`;
+  const zet = async (w) => { const r = await rpc(st, "chat_voorkeuren_zetten", { p_leesbevestigingen: null, p_standaard_timer: null, ...w });
+    if (r && r.fout) melding(st, r.fout); else { melding(st, T("Opgeslagen.")); gesprekkenLaden(st).catch(() => {}); } };
+  const el = (id) => st.wortel.querySelector(id);
+  if (el("#c-v-lees")) el("#c-v-lees").addEventListener("change", (e) => zet({ p_leesbevestigingen: e.target.checked }));
+  if (el("#c-v-timer")) el("#c-v-timer").addEventListener("change", (e) => zet({ p_standaard_timer: Number(e.target.value) }));
+  if (el("#c-v-voorbeeld")) el("#c-v-voorbeeld").addEventListener("change", (e) => {
+    st.voorbeeldUit = !e.target.checked;
+    try { localStorage.setItem("chat-voorbeeld-uit", st.voorbeeldUit ? "1" : ""); } catch (x) { /* privémodus */ }
+  });
 }
 
 // --- Acties ------------------------------------------------------------------------------------------------------
@@ -1736,6 +1785,15 @@ async function actie(st, a, el) {
     if (a === "contacten") { st.scherm = "contacten"; st.gesprek = null; toon(st); await contactenLaden(st); return toon(st); }
     if (a === "groep-nieuw") { st.scherm = "groep"; if (!st.contacten) await contactenLaden(st); return toon(st); }
     if (a === "apparaten") { st.scherm = "apparaten"; return toon(st); }
+    if (a === "deblokkeer") {
+      if (!confirm(T("{} deblokkeren?", el.dataset.naam))) return;
+      await rpc(st, "chat_blokkeren", { p_wie: Number(el.dataset.id), p_aan: false });
+      melding(st, T("Gedeblokkeerd.")); return toon(st);
+    }
+    if (a === "cache-wissen") {
+      await idbLeeg("voorbeeld"); st.voorbeelden = new Map();
+      melding(st, T("Gewist.")); return;
+    }
     if (a === "open") return openen(st, Number(el.dataset.id));
     if (a === "terug") { st.scherm = "gesprek"; st.naarOnder = true; return toon(st); }
     if (a === "info") { if (!st.sleutelLijst && st.gesprek.status === "lid") await sleutelsLaden(st).catch(() => {}); st.scherm = "info"; return toon(st); }
@@ -2354,6 +2412,7 @@ export default function (component) {
       voorbeelden: new Map(), betaald: new Map(), vinkjes: new Map(), extraItems: new Map(), peiling: { vraag: "", opties: ["", ""] }, lijstje: { titel: "", items: ["", "", ""] },
       vrij: data.vrij || [], open: data.open || null, contacten: null,
     };
+    try { st.voorbeeldUit = localStorage.getItem("chat-voorbeeld-uit") === "1"; } catch (x) { st.voorbeeldUit = false; }
     wortel.addEventListener("input", (e) => {
       if (e.target.id === "c-lijst-zoek") { st.lijstZoek = e.target.value; lijstFilteren(st); }
     });
