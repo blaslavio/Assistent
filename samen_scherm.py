@@ -13,6 +13,7 @@ import plannen_scherm
 import ruimte
 import samen
 import teksten
+import winkelen
 import winkelkaart
 import zoekveld
 
@@ -501,7 +502,8 @@ def aanbieden() -> None:
             betaal = st.pills("Hoe kan de koper betalen?", wijzen, selection_mode="multi",
                               default=["app"] if "app" in wijzen else ["tikkie", "contant"],
                               format_func=samen.BETAALWIJZEN.get)
-            levering = st.pills("Hoe komt het bij de koper?", list(samen.LEVERING), selection_mode="multi",
+            levering = st.pills("Hoe komt het bij de koper?", [l for l in samen.LEVERING if l != "bezorgen"],
+                                selection_mode="multi",
                                 default=["ophalen"], format_func=samen.LEVERING.get)
             if soort in ("training", "les"):
                 st.caption("Na het plaatsen zet je hieronder bij Mijn aanbod de tijden waarop mensen kunnen boeken.")
@@ -584,6 +586,7 @@ def bestelling_kaart(b: dict) -> None:
         if v := samen.vertrouwen_tekst(b.get("vertrouwen_ander")):
             st.caption(v)
         verzenden_regel(b)
+        bezorg_regel(b)
         if b.get("webshop") and not koper and b.get("commissie") is not None:
             st.caption(f"Webshopcommissie {samen.euro(b['commissie'])}, je ontvangt "
                        f"{samen.euro(b['bedrag'] - b['commissie'])}.")
@@ -606,8 +609,12 @@ def bestelling_kaart(b: dict) -> None:
             if b["status"] == "geaccepteerd" and app:
                 st.caption("Wacht op de betaling van de koper via de app.")
             if (b["status"] == "betaald" or (b["status"] == "geaccepteerd" and b["betaalwijze"] == "contant")) \
-                    and b["levering"] != "verzenden":
+                    and b["levering"] not in ("verzenden", "bezorgen"):
                 knoppen.append(("Overhandigd", "geleverd"))
+            if b["levering"] == "bezorgen" and b["status"] == "betaald":
+                stap = {"": ("Klaarmaken", "bereiden"), "bereiden": ("Onderweg", "onderweg"),
+                        "onderweg": ("Bezorgd", "bezorgd")}[b.get("bezorg_stap") or ""]
+                knoppen.append((stap[0], "bezorg_" + stap[1]))
         kolommen = st.columns(max(len(knoppen), 1))
         for kolom, (label, actie) in zip(kolommen, knoppen):
             if kolom.button(label, key=f"best_{actie}_{b['id']}", width="stretch",
@@ -615,6 +622,10 @@ def bestelling_kaart(b: dict) -> None:
                 if actie == "betalen":
                     if url := _fout(samen.afrekenen, b["id"]):
                         st.session_state[f"betaallink_{b['id']}"] = url
+                elif actie.startswith("bezorg_"):
+                    if _fout(samen.bezorging_bijwerken, b["id"], actie[7:]) is not None:
+                        _vergeet_nieuw()
+                        st.rerun()
                 elif actie == "ontvangen":
                     if _fout(samen.ontvangen_bevestigen, b) is not None:
                         _vergeet_nieuw()
@@ -646,6 +657,20 @@ def bestelling_kaart(b: dict) -> None:
                         _vergeet_nieuw()
                         st.toast("Bedankt voor je beoordeling.")
                         st.rerun()
+
+
+def bezorg_regel(b: dict) -> None:
+    """Wat er in de bestelling zit en, bij bezorgen, waar het heen gaat en hoe ver het is."""
+    if len(b.get("regels") or []) > 1:
+        st.caption(" · ".join(f"{r['aantal']}× {r['titel']}" for r in b["regels"]))
+    if b["levering"] != "bezorgen":
+        return
+    delen = [b.get("bezorg_adres") or ""]
+    if b["status"] == "betaald":
+        delen.append(samen.BEZORG_STAP.get(b.get("bezorg_stap") or "", ""))
+        if b.get("bezorgen_van") and b.get("bezorgen_tot"):
+            delen.append(f"verwacht {_moment(b['bezorgen_van'], b['bezorgen_tot'])}")
+    st.caption(" · ".join(filter(None, delen)))
 
 
 def _moment(van: str, tot: str) -> str:
@@ -850,6 +875,7 @@ def mijn_webshop() -> None:
                         if _fout(samen.winkel_vestiging, plek.strip(), lat, lon) is not None:
                             st.rerun()
 
+    bezorgen_instellen(w, m["niveau"])
     st.markdown("**Producten in je winkel**")
     producten = [p for p in m["producten"] if not p["geblokkeerd"] and (p["actief"] or p["voorraad"] is not None)]
     if not producten:
@@ -1039,6 +1065,31 @@ def winkel_reviews() -> None:
         st.markdown(f"{sterren(gemiddeld)} **{gemiddeld:.1f}**".replace(".", ",") + f" uit {len(m['reviews'])} reviews")
     for r in m["reviews"]:
         review_kaart(r)
+
+
+def bezorgen_instellen(w: dict, niveau: str) -> None:
+    """Soort winkel en bezorgen (bijvoorbeeld een restaurant dat eten rondbrengt)."""
+    titel = samen.WINKELSOORTEN.get(w.get("soort"), "Winkel") + (" · bezorgt" if w.get("bezorgen") else "")
+    with st.expander(f"Soort en bezorgen ({titel})"):
+        soorten = [s for s in samen.WINKELSOORTEN if s != "groothandel" or niveau == "ondernemer"
+                   or ik().get("id") == 1]
+        with st.form("bezorgen", border=False):
+            soort = st.segmented_control("Soort", soorten, format_func=samen.WINKELSOORTEN.get,
+                                         default=w.get("soort") if w.get("soort") in soorten else "winkel")
+            aan = st.toggle("Zelf bezorgen", value=bool(w.get("bezorgen")))
+            k1, k2 = st.columns(2)
+            km = k1.number_input("Bezorggebied (km)", 0.5, 50.0, float(w.get("bezorg_km") or 5), 0.5)
+            kosten = k2.number_input("Bezorgkosten (€)", 0.0, 50.0, float(w.get("bezorgkosten") or 0), 0.5)
+            minimum = k1.number_input("Minimale bestelling (€)", 0.0, 1000.0, float(w.get("bezorg_minimum") or 0), 1.0)
+            minuten = k2.number_input("Bezorgtijd (min)", 10, 240, int(w.get("bezorg_minuten") or 45), 5)
+            tijden = st.toggle("Alleen op vaste tijden", value=bool(w.get("bezorg_van")))
+            k3, k4 = st.columns(2)
+            van = k3.time_input("Van", value=datetime.strptime(w.get("bezorg_van") or "17:00", "%H:%M").time(), step=900)
+            tot = k4.time_input("Tot", value=datetime.strptime(w.get("bezorg_tot") or "21:30", "%H:%M").time(), step=900)
+            if st.form_submit_button("Opslaan", type="primary"):
+                if _fout(samen.winkel_bezorging, soort or "winkel", aan, km, kosten, minimum, int(minuten),
+                         van.strftime("%H:%M") if tijden else None, tot.strftime("%H:%M") if tijden else None) is not None:
+                    st.rerun()
 
 
 def naar_winkel(adres: str) -> None:
@@ -1268,8 +1319,14 @@ def winkel_pagina(adres: str, ingelogd: bool) -> None:
                 continue
             if not w["kan_betalen"]:
                 continue
-            with st.popover("Bestellen", width="stretch"):
-                webshop_formulier(w, p)
+            if st.button("In mandje", key=f"wp_mand_{p['id']}", width="stretch", icon=":material/add_shopping_cart:"):
+                if _fout(winkelen.in_mandje, adres, w["naam"], p) is not None:
+                    st.toast(f"{p['titel']} in je mandje")
+    if ingelogd and (winkelen.mandje().get(adres) or {}).get("regels"):
+        if st.button("Naar je mandje en afrekenen", type="primary", width="stretch", icon=":material/shopping_bag:"):
+            st.session_state.winkelen_winkel = adres
+            st.session_state.ga_naar = "winkelen"
+            st.rerun(scope="app")
     reviews_blok(w, adres, reviews, ingelogd)
 
 
@@ -1317,27 +1374,6 @@ def review_kaart(r: dict) -> None:
                 if st.form_submit_button("Melden") and reden.strip():
                     if _fout(samen.review_melden, r["soort"], r["id"], reden.strip()) is not None:
                         st.success("Gemeld. De beheerder kijkt ernaar.")
-
-
-def webshop_formulier(w: dict, p: dict) -> None:
-    with st.form(f"webshop_{p['id']}", border=False):
-        maximum = min(99, p["voorraad"]) if p["voorraad"] is not None else 1
-        aantal = st.number_input("Aantal", 1, max(1, maximum), 1) if maximum > 1 else 1
-        levering = st.radio("Hoe krijg je het?", p["levering"], format_func=samen.LEVERING.get)
-        bericht = st.text_input("Bericht aan de verkoper (optioneel)")
-        code = st.text_input("Kortingscode (optioneel)", max_chars=20)
-        st.caption(f"Verzendkosten: {samen.euro(w['verzendkosten'])}"
-                   + (f", gratis vanaf {samen.euro(w['gratis_vanaf'])}" if w.get("gratis_vanaf") else "")
-                   + ". Geen extra kosten.")
-        if st.form_submit_button("Bestellen en betalen", type="primary"):
-            if (b := _fout(samen.webshop_bestellen, p["id"], aantal, levering, bericht.strip(),
-                                code.strip())) is None:
-                return
-            url = _fout(samen.afrekenen, b["id"])
-            if url:
-                st.session_state.webshop_betalen = (b["id"], b["bedrag"], url)
-                st.rerun()
-            st.info("Je bestelling staat bij Bestellingen; betalen kan daar ook.")
 
 
 # --- Account en beheer ---------------------------------------------------------------

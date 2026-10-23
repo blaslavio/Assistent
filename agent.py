@@ -24,6 +24,7 @@ import planning
 import reizen
 import reserveren
 import samen
+import winkelen
 import activiteiten
 import boodschappen
 import events
@@ -261,6 +262,16 @@ Werkwijze:
   geven: na een afgeronde bestelling of met een bezoekcode uit de winkel. Bij
   🏬 Winkels staat een kaart met alle winkels in de buurt; winkels in de app
   gaan voor. Raad bij aankopen eerst winkels in de app aan als die passen.
+- Winkelen (bovenaan in de app): zoek winkels en restaurants dichtbij met
+  winkels_in_de_buurt en producten met producten_zoeken. Leg iets alleen in het
+  mandje (in_mandje_leggen) als de gebruiker dat vraagt. Bestellen met
+  bestellen_uit_mandje pas nadat de gebruiker producten, aantallen, levering,
+  adres en het totaalbedrag heeft gehoord en uitdrukkelijk ja heeft gezegd; daarna
+  betaalt hij zelf via de betaallink. Restaurants en winkels kunnen zelf
+  bezorgen; dat zie je aan "bezorgt_hier". Verkopers en ondernemers kopen in bij
+  groothandels (producten_zoeken met inkopen=True), stellen bezorgen in met
+  bezorging_instellen (alleen met akkoord) en geven de stand van een bezorging
+  door met bezorging_doorgeven.
 - Over geld en beleggen geef je algemene informatie, geen persoonlijk
   beleggingsadvies.
 """
@@ -1404,7 +1415,8 @@ def boeken(tijdslot_id: int, opmerking: str = "") -> str:
 def bestellingen_bekijken() -> str:
     """Bestellingen op de marktplaats (als koper en als verkoper), met status en wat de volgende stap is."""
     lijst, fout = _samen(samen.mijn_bestellingen)
-    return fout or _json([{k: b[k] for k in ("id", "titel", "bedrag", "betaalwijze", "levering", "status", "rol", "ander")}
+    return fout or _json([{k: b.get(k) for k in ("id", "titel", "bedrag", "betaalwijze", "levering", "status", "rol",
+                                                  "ander", "bezorg_adres", "bezorg_stap")}
                           for b in lijst])
 
 
@@ -1687,6 +1699,128 @@ def groepsles_plannen(naam: str, start: str, minuten: int = 60, plekken: int = 1
     return fout or f"{r} les{'sen' if r != 1 else ''} gepland."
 
 
+def _waar() -> tuple[float | None, float | None]:
+    plek = winkelen.waar()
+    return (plek[0], plek[1]) if plek else (None, None)
+
+
+@beta_tool
+def winkels_in_de_buurt(zoekterm: str = "", soort: str = "") -> str:
+    """Winkels en restaurants in de app, dichtstbij eerst (vanaf het thuisadres of de plek bij Winkelen).
+
+    Args:
+        zoekterm: Optioneel, bijvoorbeeld "pizza" of "bloemen".
+        soort: Optioneel: restaurant of winkel.
+    """
+    lijst, fout = _samen(samen.winkelen_winkels, zoekterm, *_waar(), soort if soort in ("restaurant", "winkel") else "")
+    velden = ("adres", "naam", "soort", "afstand_km", "bezorgt_hier", "bezorgkosten", "bezorg_minimum",
+              "bezorg_minuten", "winkeladres", "producten")
+    return fout or _json([{k: w.get(k) for k in velden} for w in lijst[:20]])
+
+
+@beta_tool
+def producten_zoeken(zoekterm: str, inkopen: bool = False) -> str:
+    """Producten en gerechten uit winkels in de app, dichtstbij eerst.
+
+    Args:
+        zoekterm: Wat de gebruiker zoekt.
+        inkopen: True om bij groothandels in te kopen (alleen voor verkopers en ondernemers).
+    """
+    lijst, fout = _samen(samen.winkelen_producten, zoekterm, *_waar(), inkopen)
+    velden = ("id", "titel", "prijs", "winkel", "winkelnaam", "soort", "afstand_km", "bezorgt_hier", "levering", "voorraad")
+    return fout or _json([{k: p.get(k) for k in velden} for p in lijst[:20]])
+
+
+@beta_tool
+def in_mandje_leggen(winkel: str, product_id: int, aantal: int = 1) -> str:
+    """Leg een product in het mandje van een winkel. Alleen als de gebruiker dat vraagt.
+
+    Args:
+        winkel: Het adres van de winkel (veld "winkel" of "adres").
+        product_id: Id uit producten_zoeken.
+        aantal: Hoeveel.
+    """
+    w, fout = _samen(samen.winkel_bekijken, winkel)
+    if fout:
+        return fout
+    p = next((p for p in w["producten"] if p["id"] == product_id and not p["uitverkocht"]), None)
+    if not p:
+        return "Dit product is niet (meer) te koop in deze winkel."
+    nieuw, fout = _samen(winkelen.in_mandje, winkel, w["naam"], p, max(1, min(99, aantal)))
+    return fout or f"In het mandje: {nieuw}× {p['titel']} bij {w['naam']}. Subtotaal {samen.euro(winkelen.subtotaal(winkel))}."
+
+
+@beta_tool
+def mandje_bekijken() -> str:
+    """Wat er in het mandje ligt, per winkel, met subtotaal."""
+    return _json([{"winkel": a, "naam": m["naam"], "subtotaal": winkelen.subtotaal(a),
+                   "regels": [{"product_id": int(i), **r} for i, r in m["regels"].items()]}
+                  for a, m in winkelen.mandje().items()]) if winkelen.mandje() else "Het mandje is leeg."
+
+
+@beta_tool
+def bestellen_uit_mandje(winkel: str, levering: str, bezorgadres: str = "", opmerking: str = "",
+                         met_akkoord: bool = False) -> str:
+    """Bestel alles uit het mandje van één winkel. Alleen met met_akkoord=True, nadat de gebruiker producten,
+    levering, adres en totaalbedrag heeft gezien of gehoord en uitdrukkelijk ja heeft gezegd. Je betaalt nooit zelf:
+    de gebruiker betaalt via de betaallink of bij Winkelen › Bestellingen.
+
+    Args:
+        winkel: Het adres van de winkel.
+        levering: bezorgen, ophalen of verzenden.
+        bezorgadres: Bij bezorgen: straat, huisnummer en plaats (standaard het thuisadres).
+        opmerking: Optioneel bericht voor de winkel.
+        met_akkoord: True alleen na uitdrukkelijk akkoord van de gebruiker.
+    """
+    if not met_akkoord:
+        return "Vraag eerst akkoord: noem producten, levering, adres en totaalbedrag."
+    if levering == "bezorgen" and not bezorgadres:
+        bezorgadres = opslag.instellingen().get("thuisadres", "")
+    b, fout = _samen(winkelen.afrekenen, winkel, levering, bezorgadres, opmerking)
+    if fout:
+        return fout
+    return _json({"besteld": True, "bestelling_id": b["id"], "bedrag": b["bedrag"],
+                  "betaallink": b.get("betaallink") or "", "uitleg": "De gebruiker betaalt zelf via de link."})
+
+
+@beta_tool
+def bezorging_doorgeven(bestelling_id: int, stap: str) -> str:
+    """Voor een winkel of restaurant: geef de stand van een bezorging door aan de klant.
+
+    Args:
+        bestelling_id: Id uit bestellingen_bekijken.
+        stap: bereiden, onderweg of bezorgd.
+    """
+    if stap not in ("bereiden", "onderweg", "bezorgd"):
+        return "Kies bereiden, onderweg of bezorgd."
+    _, fout = _samen(samen.bezorging_bijwerken, bestelling_id, stap)
+    return fout or "Doorgegeven; de klant krijgt een bericht."
+
+
+@beta_tool
+def bezorging_instellen(soort: str, bezorgen: bool, bezorggebied_km: float = 5, bezorgkosten: float = 0,
+                        minimum: float = 0, bezorgtijd_minuten: int = 45, van: str = "", tot: str = "",
+                        met_akkoord: bool = False) -> str:
+    """Stel voor de eigen webshop het soort zaak en bezorgen in. Alleen met akkoord op de precieze instellingen.
+
+    Args:
+        soort: winkel, restaurant of groothandel.
+        bezorgen: Of de zaak zelf bezorgt.
+        bezorggebied_km: Tot hoe ver (km).
+        bezorgkosten: Bezorgkosten in euro.
+        minimum: Minimaal bestelbedrag in euro.
+        bezorgtijd_minuten: Gemiddelde bezorgtijd.
+        van: Optioneel begintijd bezorgen, HH:MM.
+        tot: Optioneel eindtijd bezorgen, HH:MM.
+        met_akkoord: True alleen na akkoord.
+    """
+    if not met_akkoord:
+        return "Vraag eerst akkoord op deze instellingen."
+    _, fout = _samen(samen.winkel_bezorging, soort, bezorgen, bezorggebied_km, bezorgkosten, minimum,
+                     bezorgtijd_minuten, van or None, tot or None)
+    return fout or "Opgeslagen."
+
+
 @beta_tool
 def winkel_nieuwtje(tekst: str) -> str:
     """Plaats een nieuwtje voor de volgers van de webshop (hooguit één per dag). Alleen met akkoord van de gebruiker
@@ -1787,6 +1921,13 @@ HULPMIDDELEN = [
     zaak_boeken,
     groepsles_plannen,
     winkel_nieuwtje,
+    winkels_in_de_buurt,
+    producten_zoeken,
+    in_mandje_leggen,
+    mandje_bekijken,
+    bestellen_uit_mandje,
+    bezorging_doorgeven,
+    bezorging_instellen,
     {"type": "web_search_20260209", "name": "web_search", "max_uses": 5},
     {"type": "web_fetch_20260209", "name": "web_fetch", "max_uses": 5},
 ]

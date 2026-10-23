@@ -1,0 +1,243 @@
+"""Pagina Winkelen: winkels en producten in de buurt, je mandje en je bestellingen.
+
+Kopers zien winkels, restaurants en producten en kopen ze. Verkopers en ondernemers krijgen er Inkopen
+(groothandels) en hun eigen winkel bij.
+"""
+
+import streamlit as st
+
+import opslag
+import samen
+import samen_scherm
+import winkelen
+from samen_scherm import _fout, ik
+
+DELEN = {"buurt": "In de buurt", "producten": "Producten", "mandje": "Mandje", "bestellingen": "Bestellingen",
+         "inkopen": "Inkopen", "winkel": "Mijn winkel"}
+FILTERS = {"": "Alles", "restaurant": "Eten bestellen", "winkel": "Winkels"}
+
+
+def verkoper() -> bool:
+    return ik().get("id") == 1 or ik().get("niveau") in ("verkoper", "ondernemer")
+
+
+def pagina() -> None:
+    if not samen.beschikbaar():
+        st.info("Winkelen werkt alleen in de online versie.")
+        return
+    if adres := st.session_state.get("winkelen_winkel"):
+        if st.button("Terug", icon=":material/arrow_back:", type="tertiary"):
+            st.session_state.pop("winkelen_winkel", None)
+            st.rerun()
+        winkel_binnen(adres)
+        return
+    if betaald := st.session_state.pop("winkelen_besteld", None):
+        st.success(f"Besteld: {samen.euro(betaald['bedrag'])}. Rond je betaling af.")
+        if betaald.get("betaallink"):
+            st.link_button("Nu betalen", betaald["betaallink"], type="primary", width="stretch")
+    delen = list(DELEN) if verkoper() else ["buurt", "producten", "mandje", "bestellingen"]
+    n = winkelen.aantal_in_mandje()
+    deel = st.segmented_control("Winkelen", delen, key="winkelen_deel", label_visibility="collapsed",
+                                format_func=lambda d: f"{DELEN[d]} ({n})" if d == "mandje" and n else DELEN[d],
+                                default="buurt") or "buurt"
+    if deel in ("buurt", "producten", "inkopen"):
+        plek_kiezen()
+    if deel == "buurt":
+        in_de_buurt()
+    elif deel == "producten":
+        producten(False)
+    elif deel == "inkopen":
+        producten(True)
+    elif deel == "mandje":
+        mandje()
+    elif deel == "bestellingen":
+        samen_scherm.bestellingen()
+    else:
+        samen_scherm.mijn_webshop()
+
+
+def plek_kiezen() -> None:
+    """Eén regel: waar je zoekt, met een knop om het te wijzigen."""
+    plek = winkelen.waar()
+    with st.container(horizontal=True, vertical_alignment="center"):
+        st.caption(f":material/location_on: {plek[2].split(',')[0] if plek else 'Plek onbekend'}")
+        with st.popover("Wijzigen", type="tertiary"):
+            with st.form("winkelen_plek", border=False):
+                nieuw = st.text_input("Waar?", value=opslag.instellingen().get("winkelen_plek", ""),
+                                      placeholder="Bijv. Utrecht centrum")
+                if st.form_submit_button("Opslaan", type="primary"):
+                    opslag.instellingen_bijwerken(winkelen_plek=nieuw.strip())
+                    st.rerun()
+
+
+def _waar() -> tuple[float | None, float | None]:
+    plek = winkelen.waar()
+    return (plek[0], plek[1]) if plek else (None, None)
+
+
+def in_de_buurt() -> None:
+    k1, k2 = st.columns([3, 2], vertical_alignment="bottom")
+    zoek = k1.text_input("Zoeken", key="winkelen_zoek", placeholder="Zoeken", label_visibility="collapsed")
+    soort = k2.pills("Soort", list(FILTERS), format_func=FILTERS.get, default="", key="winkelen_filter",
+                     label_visibility="collapsed") or ""
+    lat, lon = _waar()
+    winkels = _fout(samen.winkelen_winkels, zoek.strip(), lat, lon, soort) or []
+    if soort == "restaurant":
+        winkels = sorted(winkels, key=lambda w: not w.get("bezorgt_hier"))
+    if not winkels:
+        st.caption("Niets gevonden.")
+    for w in winkels[:60]:
+        winkel_regel(w)
+    if st.button("Kaart met alle winkels", icon=":material/map:", type="tertiary"):
+        st.session_state.ga_naar = "winkels"
+        st.rerun(scope="app")
+
+
+def winkel_regel(w: dict) -> None:
+    with st.container(border=True):
+        k1, k2 = st.columns([3, 1], vertical_alignment="center")
+        soort = samen.WINKELSOORTEN.get(w.get("soort"), "Winkel")
+        k1.markdown(f'<span style="color:{w["kleur"]}">●</span> **{w["naam"]}**', unsafe_allow_html=True)
+        delen = [soort]
+        if w.get("afstand_km") is not None:
+            delen.append(samen_scherm._km(float(w["afstand_km"])))
+        if w.get("bezorgt_hier"):
+            delen.append(winkelen.bezorg_tekst(w))
+        elif w.get("bezorgen") and w.get("afstand_km") is not None:
+            delen.append("Bezorgt niet tot hier")
+        if v := (w.get("vertrouwen") or {}).get("beoordelingen"):
+            delen.append(f"★ {str(w['vertrouwen']['sterren']).replace('.', ',')} ({v})")
+        k1.caption(" · ".join(delen))
+        if k2.button("Bekijken", key=f"wl_{w['adres']}", width="stretch"):
+            st.session_state.winkelen_winkel = w["adres"]
+            st.rerun()
+
+
+def producten(inkopen: bool) -> None:
+    zoek = st.text_input("Zoeken", key=f"winkelen_pzoek_{inkopen}", label_visibility="collapsed",
+                         placeholder="Bijv. pizza" if not inkopen else "Bijv. verpakking")
+    lat, lon = _waar()
+    lijst = _fout(samen.winkelen_producten, zoek.strip(), lat, lon, inkopen) or []
+    if not lijst:
+        st.caption("Niets gevonden." if zoek.strip() or not inkopen else "Nog geen groothandels in de app.")
+    kolommen = st.columns(2)
+    for i, p in enumerate(lijst[:60]):
+        with kolommen[i % 2].container(border=True):
+            st.markdown(f"**{p['titel']}**  \n{samen.euro(p['prijs'])}")
+            delen = [p["winkelnaam"]]
+            if p.get("afstand_km") is not None:
+                delen.append(samen_scherm._km(float(p["afstand_km"])))
+            if p.get("bezorgt_hier"):
+                delen.append("bezorgt")
+            st.caption(" · ".join(delen))
+            mandje_knop(p["winkel"], p["winkelnaam"], p, f"pr_{p['id']}")
+
+
+def mandje_knop(winkel: str, winkelnaam: str, p: dict, key: str) -> None:
+    in_mand = (winkelen.mandje().get(winkel) or {"regels": {}})["regels"].get(str(p["id"]))
+    if st.button(f"In mandje ({in_mand['aantal']})" if in_mand else "In mandje", key=key, width="stretch",
+                 icon=":material/add_shopping_cart:"):
+        if _fout(winkelen.in_mandje, winkel, winkelnaam, p) is not None:
+            st.toast(f"{p['titel']} in je mandje")
+            st.rerun()
+
+
+def winkel_binnen(adres: str) -> None:
+    """Een winkel of restaurant van binnen: de producten, met het mandje onderaan."""
+    try:
+        w = samen.winkel_bekijken(adres)
+    except samen.Fout as fout:
+        st.error(str(fout))
+        return
+    st.markdown(f'<div style="border-top:6px solid {w["kleur"]};padding-top:6px"></div>', unsafe_allow_html=True)
+    st.subheader(w["naam"])
+    if w.get("actie"):
+        st.info(w["actie"])
+    delen = [samen.WINKELSOORTEN.get(w.get("soort"), "Winkel"), w.get("winkeladres") or "online",
+             winkelen.bezorg_tekst(w)]
+    st.caption(" · ".join(filter(None, delen)))
+    if w["omschrijving"]:
+        with st.expander("Over deze winkel"):
+            st.write(w["omschrijving"])
+            st.caption(samen.vertrouwen_tekst(w.get("vertrouwen")))
+    if not w["kan_betalen"]:
+        st.warning("Bestellen kan op dit moment even niet.")
+    if not w["producten"]:
+        st.caption("Er staat nog niets in deze winkel.")
+    kolommen = st.columns(2)
+    for i, p in enumerate(w["producten"]):
+        with kolommen[i % 2].container(border=True):
+            st.markdown(f"**{p['titel']}**  \n{samen.euro(p['prijs'])}")
+            if p["omschrijving"]:
+                st.caption(p["omschrijving"][:200] + ("..." if len(p["omschrijving"]) > 200 else ""))
+            if p["uitverkocht"]:
+                st.caption("Uitverkocht")
+            elif w["kan_betalen"] and w.get("verkoper_id") != ik().get("id"):
+                mandje_knop(adres, w["naam"], p, f"wb_{p['id']}")
+    if (winkelen.mandje().get(adres) or {}).get("regels"):
+        st.divider()
+        mandje_winkel(adres, w)
+
+
+def mandje() -> None:
+    m = winkelen.mandje()
+    if not m:
+        st.caption("Je mandje is leeg.")
+        return
+    for adres in list(m):
+        try:
+            w = samen.winkel_bekijken(adres)
+        except samen.Fout:
+            w = None
+        with st.container(border=True):
+            mandje_winkel(adres, w)
+
+
+def mandje_winkel(adres: str, w: dict | None) -> None:
+    """Het mandje van één winkel: aantallen aanpassen en afrekenen."""
+    m = winkelen.mandje()[adres]
+    st.markdown(f"**{m['naam']}**")
+    if w is None:
+        st.caption("Deze winkel is gesloten.")
+        if st.button("Weghalen", key=f"mw_{adres}"):
+            winkelen.leegmaken(adres)
+            st.rerun()
+        return
+    for pid, r in list(m["regels"].items()):
+        with st.container(horizontal=True, vertical_alignment="center"):
+            st.markdown(f"{r['titel']} · {samen.euro(r['prijs'] * r['aantal'])}", width="stretch")
+            aantal = st.number_input("Aantal", 0, 99, r["aantal"], key=f"ma_{adres}_{pid}", width=120,
+                                     label_visibility="collapsed")
+        if aantal != r["aantal"]:
+            winkelen.aantal_zetten(adres, pid, aantal)
+            st.rerun()
+    sub = winkelen.subtotaal(adres)
+    opties = []
+    if w.get("bezorgen"):
+        opties.append("bezorgen")
+    alle = [set(p["levering"]) for p in w["producten"] if str(p["id"]) in m["regels"]]
+    for l in ("ophalen", "verzenden"):
+        if alle and all(l in x for x in alle):
+            opties.append(l)
+    if not opties:
+        st.caption("Deze producten kun je niet samen bestellen. Haal er een weg.")
+        return
+    with st.form(f"afrekenen_{adres}", border=False):
+        levering = st.radio("Hoe?", opties, horizontal=True, format_func=lambda l: samen.LEVERING[l][2:],
+                            label_visibility="collapsed")
+        bezorgadres = st.text_input("Bezorgadres", value=opslag.instellingen().get("thuisadres", ""),
+                                    placeholder="Bijv. Dorpsstraat 1, Ede")
+        k1, k2 = st.columns(2)
+        bericht = k1.text_input("Opmerking", placeholder="Optioneel")
+        code = k2.text_input("Kortingscode", placeholder="Optioneel", max_chars=20)
+        kosten = {"bezorgen": w.get("bezorgkosten") or 0,
+                  "verzenden": 0 if w.get("gratis_vanaf") and sub >= w["gratis_vanaf"] else w["verzendkosten"]}
+        st.caption(f"Producten {samen.euro(sub)}"
+                   + (f" · bezorgen {samen.euro(kosten['bezorgen'])}" if "bezorgen" in opties else "")
+                   + (f" · verzenden {samen.euro(kosten['verzenden'])}" if "verzenden" in opties else ""))
+        if st.form_submit_button("Bestellen en betalen", type="primary", width="stretch"):
+            if (b := _fout(winkelen.afrekenen, adres, levering, bezorgadres if levering == "bezorgen" else "",
+                           bericht.strip(), code.strip())) is not None:
+                st.session_state.winkelen_besteld = b
+                st.session_state.pop("winkelen_winkel", None)
+                st.rerun()

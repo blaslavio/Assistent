@@ -19,7 +19,8 @@ SOORTEN_ITEM = {"taak": "✅ Taak", "notitie": "📝 Notitie", "afspraak": "📅
 SOORTEN_AANBOD = {"product": "📦 Product", "dienst": "🛠️ Dienst", "training": "🏋️ Privétraining", "les": "🎓 Les of studie"}
 BETAALWIJZEN = {"app": "💳 Via de app (beschermd)", "tikkie": "📲 Tikkie of betaalverzoek", "overmaken": "🏦 Overmaken",
                 "contant": "💶 Contant bij ophalen"}
-LEVERING = {"ophalen": "🤝 Ophalen", "verzenden": "📦 Verzenden", "op_locatie": "📍 Op locatie", "online": "💻 Online"}
+LEVERING = {"ophalen": "🤝 Ophalen", "verzenden": "📦 Verzenden", "op_locatie": "📍 Op locatie", "online": "💻 Online",
+            "bezorgen": "🛵 Bezorgen"}
 STATUS = {"aangevraagd": "🕓 Aangevraagd", "geaccepteerd": "👍 Geaccepteerd", "betaald": "💶 Betaald",
           "geleverd": "📦 Geleverd", "afgerond": "✅ Afgerond", "geannuleerd": "✖️ Geannuleerd",
           "geschil": "⚠️ Probleem gemeld", "terugbetaald": "↩️ Terugbetaald"}
@@ -578,6 +579,42 @@ def winkels_zoeken(zoekterm: str = "") -> list[dict]:
 def webshop_bestellen(aanbod_id: int, aantal: int, levering: str, bericht: str = "", code: str = "") -> dict:
     return _ok(opslag._rpc_ik("webshop_bestellen", p_aanbod=aanbod_id, p_aantal=aantal, p_levering=levering,
                               p_bericht=bericht, p_code=code))
+
+
+# --- Winkelen: winkels en producten in de buurt, een mandje per winkel, bezorgen en inkopen ----------
+
+WINKELSOORTEN = {"winkel": "Winkel", "restaurant": "Restaurant", "groothandel": "Groothandel"}
+BEZORG_STAP = {"": "Besteld", "bereiden": "Wordt klaargemaakt", "onderweg": "Onderweg"}
+
+
+def winkelen_winkels(zoek: str = "", lat: float | None = None, lon: float | None = None, soort: str = "",
+                     inkopen: bool = False) -> list[dict]:
+    """Open winkels, dichtstbij eerst. inkopen=True: alleen groothandels (voor verkopers en ondernemers)."""
+    return _ok(opslag._rpc_ik("winkelen_winkels", p_zoek=zoek, p_lat=lat, p_lon=lon, p_soort=soort,
+                              p_inkopen=inkopen))["winkels"]
+
+
+def winkelen_producten(zoek: str = "", lat: float | None = None, lon: float | None = None,
+                       inkopen: bool = False) -> list[dict]:
+    return _ok(opslag._rpc_ik("winkelen_producten", p_zoek=zoek, p_lat=lat, p_lon=lon, p_inkopen=inkopen))["producten"]
+
+
+def winkel_afrekenen(winkel: str, regels: list[dict], levering: str, adres: str = "", lat: float | None = None,
+                     lon: float | None = None, bericht: str = "", code: str = "") -> dict:
+    """Eén bestelling met alles uit het mandje van één winkel. regels = [{"id", "aantal"}]."""
+    return _ok(opslag._rpc_ik("winkel_afrekenen", p_winkel=winkel, p_regels=regels, p_levering=levering,
+                              p_adres=adres, p_lat=lat, p_lon=lon, p_bericht=bericht, p_code=code))
+
+
+def winkel_bezorging(soort: str, bezorgen: bool, km: float, kosten: float, minimum: float, minuten: int,
+                     van: str | None, tot: str | None) -> None:
+    _ok(opslag._rpc_ik("winkel_bezorging", p_soort=soort, p_bezorgen=bezorgen, p_km=km, p_kosten=kosten,
+                       p_minimum=minimum, p_minuten=minuten, p_van=van, p_tot=tot))
+
+
+def bezorging_bijwerken(bestelling_id: int, stap: str) -> None:
+    """bereiden, onderweg of bezorgd (alleen de winkel)."""
+    _ok(opslag._rpc_ik("bezorging_bijwerken", p_id=bestelling_id, p_stap=stap))
 
 
 # --- Reviews: alleen na een echte aankoop of een bevestigd bezoek ------------------------

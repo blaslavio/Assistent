@@ -47,14 +47,14 @@ def onderdelen_uit() -> list[str]:
 
 
 # Alle pagina's die je kunt vastzetten, op url. Dezelfde namen als in het menu.
-PAGINAS = {"agenda": "Agenda", "chat": "Chat", "zakelijk": "Zakelijk", "boekingen": "Boekingen",
+PAGINAS = {"agenda": "Agenda", "chat": "Chat", "winkelen": "Winkelen", "zakelijk": "Zakelijk", "boekingen": "Boekingen",
            "prikken": "Datum prikken", "mail": "Mail", "documenten": "Documenten", "leren": "Leren",
            "samen": "Samen", "budget": "Budget", "beleggen": "Beleggen", "zoeken": "Marktplaats",
            "winkels": "Winkels", "verkopen": "Verkopen", "bestellingen": "Bestellingen", "berichten": "Berichten",
            "webshop": "Mijn webshop", "verkoopoverzicht": "Verkoopoverzicht", "lijstjes": "Lijstjes",
            "hulpmiddelen": "Hulpmiddelen", "ruimtes": "VR-ruimtes"}
 GROEPEN = ["Kopen en verkopen", "Afspreken", "Leren en werk", "Geld", "Zakelijk", "Thuis en handig"]
-STANDAARD_BOVENAAN = ["agenda", "chat"]
+STANDAARD_BOVENAAN = ["agenda", "chat", "winkelen"]
 MAX_BOVENAAN = 4
 MAX_FAVORIETEN = 8
 
@@ -65,7 +65,10 @@ def huidig() -> dict:
     if not groepen and beroep.huidig()["soort"]:
         # Met een beroep komen je zaak en je afspraken eerst.
         groepen = ["Zakelijk", "Afspreken"]
-    return {"bovenaan": [u for u in i.get("bovenaan", STANDAARD_BOVENAAN) if u in PAGINAS][:MAX_BOVENAAN],
+    bovenaan = list(i.get("bovenaan", STANDAARD_BOVENAAN))
+    if "winkelen" not in bovenaan and not i.get("winkelen_gezien"):
+        bovenaan.append("winkelen")  # nieuw: staat er ook bij wie zijn indeling al eerder koos, tot hij het weghaalt
+    return {"bovenaan": [u for u in bovenaan if u in PAGINAS][:MAX_BOVENAAN],
             "favorieten": [u for u in i.get("favorieten", []) if u in PAGINAS][:MAX_FAVORIETEN],
             "groepen": groepen + [g for g in GROEPEN if g not in groepen]}
 
@@ -104,6 +107,7 @@ def bijwerken(bovenaan: list[str] | None = None, favorieten: list[str] | None = 
 
     if bovenaan is not None:
         nu["bovenaan"] = urls(bovenaan, MAX_BOVENAAN)
+        nu["winkelen_gezien"] = True
     if favorieten is not None:
         nu["favorieten"] = urls(favorieten, MAX_FAVORIETEN)
     if groepen is not None:

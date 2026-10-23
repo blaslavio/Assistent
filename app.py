@@ -48,6 +48,8 @@ import ruimte
 import ruimte_scherm
 import samen
 import samen_scherm
+import winkelen
+import winkelen_scherm
 import slim
 import spraak
 import strava
@@ -76,7 +78,7 @@ import toegangssleutel
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -4208,6 +4210,8 @@ def paginas() -> list:
     pagina(gesprek, mijn_avatar()["naam"], ":material/chat_bubble:", "assistent")
     if online and "Chat" not in uit:
         pagina(chat.pagina, "Chat", ":material/forum:", "chat")
+    if online and "Marktplaats" not in uit:
+        pagina(winkelen_scherm.pagina, "Winkelen", ":material/shopping_bag:", "winkelen")
     pagina(instellingen_tabblad, "Instellingen", ":material/settings:", "instellingen")
 
     def als(aan: bool, *args, **kwargs) -> str | None:
@@ -4272,7 +4276,9 @@ def kopbalk() -> None:
     with st.container(horizontal=True, gap="small", key="kopbalk"):
         # Vandaag eerst en de assistent als laatste; daartussen wat je zelf kiest (standaard Agenda en Chat).
         st.page_link(PAGINA["vandaag"], label="Vandaag", width="content")
-        for url in indeling.huidig()["bovenaan"]:
+        # Winkelen staat altijd vlak voor de assistent.
+        bovenaan = indeling.huidig()["bovenaan"]
+        for url in [u for u in bovenaan if u != "winkelen"] + [u for u in bovenaan if u == "winkelen"]:
             if url not in PAGINA:
                 continue
             if url == "chat":
