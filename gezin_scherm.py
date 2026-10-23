@@ -77,7 +77,7 @@ def _antwoord(gezin_id: int, antwoord: str, melding: str) -> None:
 
 def maken_formulier() -> None:
     with st.form("gezin_maken", border=False):
-        naam = st.text_input("Naam", placeholder="Bijvoorbeeld: Gezin van Sanne")
+        naam = st.text_input("Naam", placeholder="Bijv. Gezin Sanne")
         kinderen = st.text_input("Kinderen (optioneel)", placeholder="Namen, met komma's")
         if st.form_submit_button("Gezinsagenda maken", type="primary"):
             try:
@@ -136,7 +136,7 @@ def item_formulier(g: dict, ik: int | None) -> None:
     else:
         voor = st.text_input("Voor wie (optioneel)", key="gezin_n_voor_tekst")
     titel = st.text_input("Waarheen" if soort in ("brengen", "halen") else "Wat",
-                          placeholder="School, zwemles, opa en oma..." if soort in ("brengen", "halen") else "Tandarts",
+                          placeholder="Bijv. zwemles" if soort in ("brengen", "halen") else "Tandarts",
                           key="gezin_n_titel")
     with st.container(horizontal=True, gap="small"):
         dag = st.date_input("Dag", value=date.today() + timedelta(days=1), min_value=date.today(), format="DD-MM-YYYY",

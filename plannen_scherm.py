@@ -260,8 +260,8 @@ def reserveer_dialoog(z: dict, gelegenheid: str) -> None:
     vrij = {t["start"]: t["vrij"] for t in tijden}
     keuze = st.pills("Tijd", list(vrij), format_func=lambda s: _wanneer(s, False) + ("" if vrij[s] else " vol"),
                      key="res_tijd")
-    opmerking = st.text_input("Opmerking", placeholder="Allergieën, kinderstoel, iets te vieren?", max_chars=500)
-    uitnodigen = st.text_input("Uitnodigen", placeholder="Gebruikersnamen, met komma's (optioneel)")
+    opmerking = st.text_input("Opmerking", placeholder="Bijv. allergieën", max_chars=500)
+    uitnodigen = st.text_input("Uitnodigen", placeholder="Gebruikersnamen (optioneel)")
     wachtlijst = bool(keuze) and not vrij[keuze]
     if wachtlijst:
         st.caption("Deze tijd is vol. Op de wachtlijst zie je het meteen als er plek komt.")
@@ -304,7 +304,7 @@ def plan_dialoog(p: dict, gelegenheid: str, hoe: str = "") -> None:
         k1, k2 = st.columns(2)
         personen = int(k1.number_input("Personen", 1, 100, 2))
         email = k2.text_input("Mailadres van de zaak", value=p.get("email", ""), placeholder="Als je het weet")
-        opmerking = st.text_input("Opmerking", placeholder="Allergieën, kinderstoel, iets te vieren?", max_chars=500)
+        opmerking = st.text_input("Opmerking", placeholder="Bijv. allergieën", max_chars=500)
         st.caption("Het restaurant bevestigt met één klik, zonder account. Het staat alvast in je agenda als aangevraagd.")
         if st.button("Aanvraag maken", type="primary", width="stretch"):
             plek = dict(p, email=email.strip())
@@ -320,7 +320,7 @@ def plan_dialoog(p: dict, gelegenheid: str, hoe: str = "") -> None:
         return
     duur = st.segmented_control("Hoe lang", [60, 120, 180, 240], default=120,
                                 format_func=lambda m: f"{m // 60} uur")
-    uitnodigen = st.text_input("Uitnodigen", placeholder="Gebruikersnamen, met komma's (optioneel)")
+    uitnodigen = st.text_input("Uitnodigen", placeholder="Gebruikersnamen (optioneel)")
     if st.button("In agenda", type="primary", width="stretch"):
         uit = R.als_plan(dict(p, reserveren=False), begin, duur or 120, gelegenheid, _namen(uitnodigen))
         tekst = f"{p['naam']} staat in je agenda."
@@ -552,7 +552,7 @@ def prik_maken_dialoog(gelegenheid: str) -> None:
             st.rerun()
         return
     titel = st.text_input("Waarvoor?", value="" if gelegenheid == "Afspraak" else gelegenheid,
-                          placeholder="Bijvoorbeeld: etentje met vrienden")
+                          placeholder="Bijv. etentje")
     k1, k2 = st.columns(2)
     plaats = k1.text_input("Waar (optioneel)")
     duur = k2.selectbox("Hoe lang", [30, 60, 90, 120, 180, 240, 480], index=3,
@@ -578,7 +578,7 @@ def prik_maken_dialoog(gelegenheid: str) -> None:
     mensen = {d["id"]: d["naam"] for d in samen.agenda_deelsituatie().get("met_mij", [])}
     if mensen:
         wie = st.multiselect("Of laat de app tijden zoeken waarop iedereen vrij is", list(mensen),
-                             format_func=mensen.get, placeholder="Kies wie hun agenda met je delen")
+                             format_func=mensen.get, placeholder="Kies personen")
         if wie and st.button("Vrije tijden zoeken", icon=":material/search:"):
             try:
                 gevonden = planning.vrije_momenten(wie, timedelta(minutes=duur), dagen=14, aantal=5)
@@ -588,7 +588,7 @@ def prik_maken_dialoog(gelegenheid: str) -> None:
                 opties.extend(m for m in gevonden if m not in opties)
                 opties.sort()
                 st.rerun(scope="fragment")
-    genodigden = st.text_input("Uitnodigen in de app", placeholder="Gebruikersnamen, met komma's (optioneel)")
+    genodigden = st.text_input("Uitnodigen in de app", placeholder="Gebruikersnamen (optioneel)")
     st.caption("Iedereen met de link kan ook stemmen, zonder account.")
     if st.button("Stemronde maken", type="primary", width="stretch", disabled=len(opties) < 2 or not titel.strip()):
         try:
@@ -772,7 +772,7 @@ def boek_dialoog() -> None:
         oud = p["soorten"][i] if i < len(p["soorten"]) else {"naam": "", "minuten": 30}
         with st.container(horizontal=True, vertical_alignment="bottom", gap="small", key=f"boeksoort_{i}"):
             naam = st.text_input("Naam", value=oud["naam"], key=f"boeksoort_naam_{i}", label_visibility="collapsed",
-                                 placeholder="Bijvoorbeeld: Personal training" if i == 0 else "Nog een soort (optioneel)")
+                                 placeholder="Bijv. personal training" if i == 0 else "Nog een soort (optioneel)")
             minuten = st.selectbox("Duur", MINUTEN, key=f"boeksoort_min_{i}", label_visibility="collapsed", width=120,
                                    index=MINUTEN.index(oud["minuten"]) if oud["minuten"] in MINUTEN else 2,
                                    format_func=_duur)
@@ -788,7 +788,7 @@ def boek_dialoog() -> None:
     with st.container(horizontal=True, gap="small"):
         van = st.time_input("Van", value=time.fromisoformat(eerste[0].zfill(5)), step=1800, width=110)
         tot = st.time_input("Tot", value=time.fromisoformat(eerste[1].zfill(5)), step=1800, width=110)
-    locatie = st.text_input("Waar", value=p["locatie"], placeholder="Adres, of: telefonisch / videobellen")
+    locatie = st.text_input("Waar", value=p["locatie"], placeholder="Adres of videobellen")
     with st.expander("Meer"):
         intro = st.text_area("Uitleg voor de bezoeker", value=p["intro"], max_chars=400, height=80)
         bevestigen = st.toggle("Eerst zelf goedkeuren", value=p["bevestigen"],
@@ -826,7 +826,7 @@ def boek_dialoog() -> None:
         iban = st.text_input("Jouw IBAN", value=betalen.get("iban", ""), placeholder="NL00 BANK 0123 4567 89")
         rekeningnaam = st.text_input("Naam op je rekening", value=betalen.get("naam", ""), max_chars=70)
         betaallink = st.text_input("Betaallink (optioneel)", value=betalen.get("link", ""),
-                                   placeholder="https://bunq.me/... of https://tikkie.me/...")
+                                   placeholder="Betaallink")
     if st.button("Opslaan", type="primary", width="stretch", disabled=not soorten or not dagen or van >= tot):
         try:
             boekpagina.instellen({"aan": aan, "adres": adres.strip().lower(), "titel": titel.strip(), "intro": intro.strip(),
@@ -1023,7 +1023,7 @@ def instellen(i: dict) -> None:
         gesloten = k2.text_input("Gesloten op", value=", ".join(
             datetime.fromisoformat(d).strftime("%d-%m-%Y") for d in i["gesloten"]), placeholder="24-12-2026, 31-12-2026")
         bericht = st.text_area("Bericht voor gasten", value=i["bericht"], max_chars=500, height=70,
-                               placeholder="Bijvoorbeeld: laat het weten als je later bent.")
+                               placeholder="Bijv. ik ben later")
         if st.form_submit_button("Opslaan", type="primary"):
             datums = []
             for stuk in gesloten.replace(";", ",").split(","):

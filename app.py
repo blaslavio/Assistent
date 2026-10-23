@@ -243,7 +243,7 @@ def code_formulier(naam: str, wachtwoord: str) -> None:
 def account_maken_formulier() -> None:
     st.caption("Gratis. Je mailadres is nodig om te kunnen kopen en verkopen; anderen zien het niet.")
     with st.form("account_maken"):
-        naam = st.text_input("Kies een gebruikersnaam", placeholder="bijvoorbeeld sanne.devries",
+        naam = st.text_input("Kies een gebruikersnaam", placeholder="Bijv. sanne",
                              help="3 tot 30 tekens: kleine letters, cijfers, punt of streepje. Anderen vinden je hiermee.")
         weergavenaam = st.text_input("Je naam zoals anderen hem zien", placeholder="Sanne")
         email = st.text_input("Mailadres", placeholder="sanne@voorbeeld.nl", autocomplete="email")
@@ -691,7 +691,7 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
     einde = datetime.fromisoformat(a["einde"]) if a.get("einde") and "T" in a["einde"] else None
     contacten = contact_opties()
     with st.form(sleutel, clear_on_submit=not afspraak, border=False):
-        titel = st.text_input("Wat", value=a.get("titel", ""), placeholder="Bijvoorbeeld: samen hardlopen")
+        titel = st.text_input("Wat", value=a.get("titel", ""), placeholder="Bijv. hardlopen")
         soort = st.pills("Soort", list(tijd.SOORTEN), default=tijd.soort_van(a), key=f"{sleutel}_soort",
                          format_func=lambda s: f"{tijd.SOORTEN[s]} {s.capitalize()}") or "afspraak"
         kol1, kol2, kol3 = st.columns(3)
@@ -705,7 +705,7 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
                                 help="Met een adres berekent de app je reistijd en vertrektijd.")
         gasten = ""
         if not afspraak and samen.beschikbaar():
-            gasten = st.text_input("Uitnodigen", placeholder="Gebruikersnamen, met komma's ertussen",
+            gasten = st.text_input("Uitnodigen", placeholder="Gebruikersnamen",
                                    help="Zij zien titel, tijd en plaats in hun agenda en zeggen ja, nee of misschien.")
         meer = st.expander("Meer: met wie, welke sport, notitie", expanded=bool(afspraak))
         opties = [0, *contacten, -1]
@@ -882,7 +882,7 @@ def gasten_beheer(afspraak: dict, gasten: list[dict]) -> None:
             samen.uitnodiging_weg(g["id"])
             st.rerun()
     with st.form(f"uitnodigen_{afspraak['id']}", clear_on_submit=True, border=False):
-        naam = st.text_input("Gebruikersnaam", placeholder="bijvoorbeeld sanne.devries")
+        naam = st.text_input("Gebruikersnaam", placeholder="Bijv. sanne")
         if st.form_submit_button("Uitnodigen", type="primary") and naam.strip():
             try:
                 u = samen.uitnodigen(afspraak["id"], naam)
@@ -917,7 +917,7 @@ def samen_moment(afspraak: dict) -> None:
     if not mensen:
         return
     wie = st.multiselect("Wanneer kan iedereen?", list(mensen), format_func=mensen.get,
-                         key=f"moment_wie_{afspraak['id']}", placeholder="Kies wie hun agenda met je delen")
+                         key=f"moment_wie_{afspraak['id']}", placeholder="Kies personen")
     if not wie:
         return
     start = datetime.fromisoformat(afspraak["start"])
@@ -1099,7 +1099,7 @@ def reageren(sleutel: str, eigenaar_id: int | None, afspraak_id) -> None:
     if fout := st.session_state.pop("agenda_fout", None):
         st.error(fout)
     with st.form(f"{sleutel}_opmerking", clear_on_submit=True, border=False):
-        tekst = st.text_input("Opmerking", placeholder="Bijvoorbeeld: ik neem taart mee", label_visibility="collapsed")
+        tekst = st.text_input("Opmerking", placeholder="Bijv. ik neem taart mee", label_visibility="collapsed")
         if st.form_submit_button("Stuur") and tekst.strip():
             stuur("opmerking", tekst=tekst.strip())
 
@@ -1114,7 +1114,7 @@ def agenda_delen_beheer() -> None:
             samen.agenda_delen_stoppen(d["id"])
             st.rerun()
     with st.form("agenda_delen", clear_on_submit=True, border=False):
-        naam = st.text_input("Gebruikersnaam", placeholder="bijvoorbeeld sanne.devries")
+        naam = st.text_input("Gebruikersnaam", placeholder="Bijv. sanne")
         details = st.toggle("Ook titel en plaats laten zien", help="Uit: ze zien alleen wanneer je bezet bent.")
         if st.form_submit_button("Delen", type="primary") and naam.strip():
             try:
@@ -1163,7 +1163,7 @@ def vrije_tijd() -> None:
     namen = {h["tekst"].lower() for h in hobbys}
     with st.form("vrije_tijd_nieuw", clear_on_submit=True, border=False):
         with st.container(horizontal=True, vertical_alignment="bottom", gap="small"):
-            nieuw = st.text_input("Wat doe je graag?", placeholder="Typ een hobby of activiteit")
+            nieuw = st.text_input("Wat doe je graag?", placeholder="Bijv. pottenbakken")
             toevoegen = st.form_submit_button("Toevoegen", icon=":material/add:")
     if toevoegen and nieuw.strip() and nieuw.strip().lower() not in namen:
         opslag.lijst_toevoegen("vrije_tijd", tekst=nieuw.strip()[:60])
@@ -1786,7 +1786,7 @@ def sport_kiezen(plek, label: str, huidig: str, leeg: str, sleutel: str) -> str:
     gekozen = plek.selectbox(label, sporten, index=sporten.index(huidig), key=sleutel,
                              format_func=lambda s: s.capitalize() if s else leeg)
     eigen = plek.text_input("Staat hij er niet bij? Typ hem hier", key=f"{sleutel}_eigen",
-                            placeholder="Bijvoorbeeld: sepak takraw")
+                            placeholder="Bijv. sepak takraw")
     return (eigen.strip() or gekozen or "").lower()
 
 
@@ -1816,11 +1816,11 @@ def sport_tabblad(nu: datetime) -> None:
 
     with st.expander("Nieuw doel"):
         with st.form("nieuw_doel", border=False):
-            omschrijving = st.text_input("Wat wil je bereiken?", placeholder="Bijvoorbeeld: 10 km hardlopen voor de zomer")
+            omschrijving = st.text_input("Wat wil je bereiken?", placeholder="Bijv. 10 km hardlopen")
             sport = sport_kiezen(st, "Sport", "", "Alle sporten", "doel_sport")
             maatstaf = st.selectbox("Hoe meten we het?", list(MAATSTAF_TEKST), format_func=MAATSTAF_TEKST.get)
             waarde = st.number_input("Doel (getal)", min_value=0.5, value=3.0, step=0.5)
-            eenheid = st.text_input("Eenheid (bij Zelf bijhouden)", placeholder="Bijv. kg bankdrukken, rondes, tricks, seconden")
+            eenheid = st.text_input("Eenheid (bij Zelf bijhouden)", placeholder="Bijv. kg")
             met_deadline = st.checkbox("Met een einddatum")
             deadline = st.date_input("Einddatum", value=nu.date() + timedelta(days=60), format="DD-MM-YYYY")
             if st.form_submit_button("Doel opslaan"):
@@ -2490,11 +2490,11 @@ def leerdoelen_onderdeel() -> None:
 
     with st.expander("Nieuw leerdoel"):
         with st.form("nieuw_leerdoel", border=False):
-            onderwerp = st.text_input("Wat wil je leren?", placeholder="Bijvoorbeeld: Spaans voor op vakantie")
-            doel = st.text_input("Wat wil je straks kunnen?", placeholder="Bijvoorbeeld: eten bestellen en de weg vragen")
+            onderwerp = st.text_input("Wat wil je leren?", placeholder="Bijv. Spaans")
+            doel = st.text_input("Wat wil je straks kunnen?", placeholder="Bijv. eten bestellen")
             met_deadline = st.checkbox("Met een einddatum")
             deadline = st.date_input("Einddatum", value=date.today() + timedelta(days=30), format="DD-MM-YYYY")
-            stappen = st.text_area("Stappen (één per regel)", placeholder="Laat leeg, dan maakt de assistent het leerplan")
+            stappen = st.text_area("Stappen (één per regel)", placeholder="Optioneel")
             if st.form_submit_button("Starten") and onderwerp.strip():
                 lijst = [r.strip() for r in stappen.splitlines() if r.strip()]
                 einde = deadline.isoformat() if met_deadline else ""
@@ -2614,14 +2614,14 @@ def schrijven_onderdeel() -> None:
 
     with st.expander("Nieuwe scriptie of nieuw verslag", expanded=not projecten):
         with st.form("nieuw_schrijfproject", border=False):
-            titel = st.text_input("Werktitel of onderwerp", placeholder="Bijvoorbeeld: Effect van thuiswerken op werkgeluk")
+            titel = st.text_input("Werktitel of onderwerp", placeholder="Bijv. thuiswerken en geluk")
             kol1, kol2 = st.columns(2)
             soort = kol1.selectbox("Soort", list(SOORT_SCHRIJVEN), format_func=SOORT_SCHRIJVEN.get)
             niveau = kol2.selectbox("Niveau", NIVEAUS, format_func=lambda n: n or "Kies (optioneel)")
-            vraag = st.text_input("Onderzoeksvraag of stelling", placeholder="Mag nog ruw zijn; de assistent helpt")
+            vraag = st.text_input("Onderzoeksvraag of stelling", placeholder="Mag nog ruw zijn")
             met_deadline = st.checkbox("Met een inleverdatum")
             deadline = st.date_input("Inleverdatum", value=date.today() + timedelta(days=60), format="DD-MM-YYYY")
-            eisen = st.text_area("Eisen van je opleiding (optioneel)", placeholder="Bijvoorbeeld: 8000 woorden, APA, verplicht een interview",
+            eisen = st.text_area("Eisen van je opleiding (optioneel)", placeholder="Bijv. 8000 woorden, APA",
                                  height=68)
             if st.form_submit_button("Starten", type="primary"):
                 if not titel.strip():
@@ -2764,7 +2764,7 @@ def geheugen_instellingen() -> None:
             st.rerun()
     with st.form("nieuw_feit", clear_on_submit=True, border=False):
         kol1, kol2 = st.columns([5, 1], vertical_alignment="bottom")
-        feit = kol1.text_input("Iets dat de assistent moet weten", placeholder="Bijvoorbeeld: ik eet geen vlees")
+        feit = kol1.text_input("Iets dat de assistent moet weten", placeholder="Bijv. ik eet geen vlees")
         if kol2.form_submit_button("➕") and feit.strip():
             opslag.onthouden(feit.strip())
             st.rerun()
@@ -3437,7 +3437,7 @@ def agendas_instellen() -> None:
         st.caption("Deze link is geheim: deel hem met niemand anders.")
         with st.form("agenda_link", border=False):
             naam = st.text_input("Naam", value={"Google": "Google-agenda", "Outlook": "Outlook-agenda"}.get(keuze, ""),
-                                 placeholder="Bijvoorbeeld Rooster")
+                                 placeholder="Bijv. Rooster")
             url = st.text_input("Agendalink", placeholder="https://...")
             if st.form_submit_button("Koppelen", type="primary"):
                 with st.spinner("Agenda ophalen..."):
@@ -3753,7 +3753,7 @@ def product_vergelijken() -> None:
         st.caption("De prijzen konden niet worden geladen. Probeer het later opnieuw.")
         return
     if not rijen:
-        st.caption("Niet gevonden. Probeer een ander woord, bijvoorbeeld \"melk\" in plaats van \"zuivel\".")
+        st.caption("Niet gevonden. Probeer een ander woord.")
         return
     beste = rijen[0]
     eenheid = f" ({euro(beste['per'][0])} per {beste['per'][1]})" if beste["per"] else ""
@@ -3963,8 +3963,7 @@ def feedback_vragen_antwoord() -> None:
     oordeel = st.feedback("thumbs", key=sleutel, on_change=bewaren)
     if oordeel == 0 and not st.session_state.get(f"opmerking_klaar_{nummer}"):
         with st.form(f"opmerking_{nummer}", border=False):
-            opmerking = st.text_input("Wat kan beter? Dan onthoud ik het.", placeholder="Bijv. korter, minder vragen, "
-                                      "geen emoji, eerst de prijs")
+            opmerking = st.text_input("Wat kan beter? Dan onthoud ik het.", placeholder="Bijv. korter")
             if st.form_submit_button("Doorgeven") and opmerking.strip():
                 opslag.feedback_geven(False, st.session_state.get("laatste_vraag", ""), st.session_state.chat[-1][1],
                                       opmerking.strip(), antwoord_id=f"antwoord-{nummer}")

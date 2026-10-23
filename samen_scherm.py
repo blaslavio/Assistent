@@ -59,8 +59,8 @@ def gebruikersnaam_kiezen() -> None:
     st.info("Kies eerst een gebruikersnaam. Daarmee kunnen anderen dingen met je delen en je aan een project toevoegen.")
     with st.form("naam_kiezen", border=False):
         kol1, kol2 = st.columns(2)
-        naam = kol1.text_input("Gebruikersnaam", placeholder="bijvoorbeeld sanne")
-        weergave = kol2.text_input("Je naam zoals anderen hem zien", placeholder="bijvoorbeeld Sanne")
+        naam = kol1.text_input("Gebruikersnaam", placeholder="Bijv. sanne")
+        weergave = kol2.text_input("Je naam zoals anderen hem zien", placeholder="Bijv. Sanne")
         if st.form_submit_button("Opslaan") and naam.strip():
             if fout := opslag.profiel_bijwerken(nieuwe_naam=naam.strip().lower().lstrip("@"),
                                                 weergavenaam=weergave.strip() or None):
@@ -164,7 +164,7 @@ def projecten() -> None:
     lijst = samen.projecten()
     with st.popover("Nieuw project", width="stretch" if not lijst else "content"):
         with st.form("nieuw_project", clear_on_submit=True, border=False):
-            titel = st.text_input("Naam van het project", placeholder="Bijv. verhuizing, scriptiegroep, teamuitje")
+            titel = st.text_input("Naam van het project", placeholder="Bijv. verhuizing")
             omschrijving = st.text_area("Waar gaat het over? (optioneel)", height=68)
             if st.form_submit_button("Maken", type="primary") and titel.strip():
                 if nieuw := _fout(samen.project_maken, titel.strip(), omschrijving.strip()):
@@ -362,7 +362,7 @@ def bod_formulier(aanbod: dict) -> None:
     with st.form(f"bod_{aanbod['id']}", border=False):
         bedrag = st.number_input("Jouw bod in euro", min_value=round(prijs / 2, 2), max_value=round(prijs - 0.01, 2),
                                  value=float(round(max(prijs / 2, min(prijs - 0.01, prijs * 0.85)))), step=1.0, format="%.2f")
-        bericht = st.text_input("Bericht (optioneel)", placeholder="Bijv. ik kan het morgen ophalen")
+        bericht = st.text_input("Bericht (optioneel)", placeholder="Bijv. morgen ophalen")
         st.caption("De verkoper accepteert, wijst af of doet een tegenbod. Is het akkoord, dan bestel je binnen "
                    "48 uur voor die prijs.")
         if st.form_submit_button("Bod versturen", type="primary"):
@@ -426,7 +426,7 @@ def bestel_formulier(aanbod: dict) -> None:
     with st.form(f"bestel_{aanbod['id']}", border=False):
         betaal = st.radio("Hoe wil je betalen?", wijzen, format_func=samen.BETAALWIJZEN.get)
         levering = st.radio("Hoe krijg je het?", aanbod.get("levering") or ["ophalen"], format_func=samen.LEVERING.get)
-        bericht = st.text_input("Bericht aan de verkoper (optioneel)", placeholder="Bijv. wanneer kan ik het ophalen?")
+        bericht = st.text_input("Bericht aan de verkoper (optioneel)", placeholder="Je vraag")
         if "app" in wijzen:
             st.caption(f"Via de app: {samen.prijs_tekst(aanbod)} plus kopersbescherming. Je geld gaat pas naar de "
                        "verkoper als jij bevestigt dat alles goed is ontvangen.")
@@ -442,7 +442,7 @@ def tijden_boeken(aanbod: dict) -> None:
         st.caption("Er zijn geen vrije tijden meer.")
         return
     opmerking = st.text_input("Opmerking (optioneel)", key=f"opm_{aanbod['id']}",
-                              placeholder="Bijv. eerste keer, graag rustig opbouwen")
+                              placeholder="Bijv. eerste keer")
     for t in tijden[:20]:
         if st.button(f"{samen.tijd_tekst(t['start'])} · {t['minuten']} min", key=f"boek_{t['id']}", width="stretch"):
             if boeking := _fout(samen.boeken, t["id"], opmerking.strip()):
@@ -495,9 +495,9 @@ def aanbieden() -> None:
             prijs = kol1.number_input("Prijs in euro (leeg = in overleg)", min_value=0.0, value=None, step=5.0)
             per = kol2.selectbox("Per", ["", "per stuk", "per uur", "per les", "per maand", "per persoon"],
                                  format_func=lambda p: p or "Totaal")
-            plaats = st.text_input("Plaats", placeholder="Bijv. Rotterdam, of Online")
+            plaats = st.text_input("Plaats", placeholder="Bijv. Rotterdam")
             contact = st.text_input("Contact (optioneel, iedereen ziet dit)",
-                                    placeholder="Laat leeg om alleen via berichten in de app contact te hebben")
+                                    placeholder="Optioneel")
             betaal = st.pills("Hoe kan de koper betalen?", wijzen, selection_mode="multi",
                               default=["app"] if "app" in wijzen else ["tikkie", "contant"],
                               format_func=samen.BETAALWIJZEN.get)
@@ -629,7 +629,7 @@ def bestelling_kaart(b: dict) -> None:
         if koper and b["status"] in ("betaald", "geleverd"):
             with st.popover("Probleem melden"):
                 with st.form(f"probleem_{b['id']}", border=False):
-                    reden = st.text_area("Wat is er mis?", placeholder="Bijv. niet ontvangen, kapot, niet zoals beschreven")
+                    reden = st.text_area("Wat is er mis?", placeholder="Bijv. niet ontvangen")
                     if st.form_submit_button("Melden") and reden.strip():
                         if _fout(samen.bestelling_stap, b["id"], "probleem", reden.strip()) is not None:
                             st.success("Gemeld. Het geld blijft vastgehouden tot de beheerder heeft besloten.")
@@ -680,7 +680,7 @@ def verzenden_knop(b: dict, koper: bool) -> None:
                 vervoerder = st.selectbox("Vervoerder", vervoerders, format_func=samen.VERVOERDERS.get,
                                           index=vervoerders.index(b["vervoerder"]) if b.get("vervoerder") in vervoerders else 0)
                 code = st.text_input("Track-en-tracecode", value=b.get("track_code") or "", max_chars=300,
-                                     placeholder="Of de link van de vervoerder")
+                                     placeholder="Of de link")
             bekend = st.toggle("Bezorgmoment bekend", value=koper or bool(b.get("bezorgen_van")))
             oud = datetime.fromisoformat(b["bezorgen_van"]).astimezone() if b.get("bezorgen_van") else None
             oud_tot = datetime.fromisoformat(b["bezorgen_tot"]).astimezone() if b.get("bezorgen_tot") else None
@@ -814,7 +814,7 @@ def mijn_webshop() -> None:
         with st.form("winkel", border=False):
             naam = st.text_input("Naam van je winkel", value=w.get("naam", ""), max_chars=60)
             adres = st.text_input("Webadres", value=w.get("adres", ""), max_chars=30,
-                                  help="Kleine letters, cijfers en streepjes, bijvoorbeeld fietsen-sanne.")
+                                  help="Kleine letters, cijfers en streepjes.")
             omschrijving = st.text_area("Over je winkel", value=w.get("omschrijving", ""), height=90)
             kleur = st.color_picker("Kleur", value=w.get("kleur", "#2563eb"))
             k1, k2 = st.columns(2)
@@ -822,7 +822,7 @@ def mijn_webshop() -> None:
             gratis = k2.number_input("Gratis verzenden vanaf (€, 0 = nooit)", 0.0, 10000.0,
                                      float(w.get("gratis_vanaf") or 0), 5.0)
             retour = st.text_area("Verzenden en retour", value=w.get("retour", ""), height=70,
-                                  placeholder="Bijv. verzending binnen 2 werkdagen met PostNL; retour binnen 14 dagen")
+                                  placeholder="Bijv. verzending met PostNL")
             open_ = st.toggle("Winkel open", value=bool(w.get("open")))
             if st.form_submit_button("Opslaan", type="primary"):
                 if _fout(samen.winkel_instellen, adres, naam, omschrijving, kleur, verzend, gratis or None, retour,
@@ -887,7 +887,7 @@ def marketing(w: dict) -> None:
         with st.form("post_schrijven", border=False):
             kanaal = st.pills("Waarvoor?", ["Instagram", "Facebook", "WhatsApp-status", "Nieuwtje voor volgers", "Flyer"],
                               default="Instagram")
-            onderwerp = st.text_input("Waar gaat het over?", placeholder="Bijv. nieuwe collectie, 10% korting dit weekend")
+            onderwerp = st.text_input("Waar gaat het over?", placeholder="Bijv. 10% korting")
             if st.form_submit_button("Schrijf het", type="primary") and onderwerp.strip():
                 st.session_state.marketing_tekst = (kanaal or "Instagram", onderwerp.strip())
         if gevraagd := st.session_state.get("marketing_tekst"):
@@ -896,7 +896,7 @@ def marketing(w: dict) -> None:
     with st.expander("Actiebalk bovenaan je winkel" + (" (aan)" if m["actie"] else "")):
         with st.form("actie", border=False):
             tekst = st.text_input("Tekst", value=m["actie"], max_chars=140,
-                                  placeholder="Bijv. Dit weekend 10% korting met code WEEKEND10")
+                                  placeholder="Bijv. 10% korting")
             tot = st.date_input("Tot en met (leeg = tot je hem weghaalt)", value=date.fromisoformat(m["actie_tot"]) if m["actie_tot"] else None, format="DD-MM-YYYY")
             if st.form_submit_button("Opslaan"):
                 if _fout(samen.winkel_actie, tekst.strip(), tot.isoformat() if tot else None) is not None:
@@ -940,7 +940,7 @@ def marketing(w: dict) -> None:
                    "overspoeld.")
         with st.form("nieuwtje", clear_on_submit=True, border=False):
             tekst = st.text_area("Nieuwtje", max_chars=500, height=80,
-                                 placeholder="Bijv. Nieuwe zomercollectie binnen! Kom kijken of bestel in de app.")
+                                 placeholder="Bijv. nieuwe collectie binnen")
             if st.form_submit_button("Delen met volgers", type="primary") and tekst.strip():
                 if _fout(samen.winkel_nieuws_plaatsen, tekst.strip()) is not None:
                     st.toast("Gedeeld met je volgers.", icon="📰")
@@ -1510,7 +1510,7 @@ def accounttype(gebruiker: dict) -> None:
                                                          default=oud.get("btw_tarief", 21), key="btw_tarief_keuze")
                                     or 21)
         bedrijf["retour"] = st.text_input("Retourvoorwaarden (kort)", value=oud.get("retour", ""),
-                                          placeholder="Bijv. 14 dagen bedenktijd, retour op kosten van de koper")
+                                          placeholder="Bijv. 14 dagen bedenktijd")
         st.caption("Je bedrijfsnaam en KvK-nummer staan bij je aanbod en op je facturen. Kopers hebben bij online "
                    "kopen van een bedrijf 14 dagen bedenktijd; zorg dat je je daaraan houdt.")
     if st.button("Opslaan", key="niveau_opslaan", type="primary") and (keuze != huidig or bedrijf):
@@ -1704,7 +1704,7 @@ def twee_stap_aanzetten() -> None:
     uri = f"otpauth://totp/Mijn%20assistent:{quote(account)}?secret={sleutel}&issuer=Mijn%20assistent"
     st.markdown("**1.** Voeg de code toe aan je app voor verificatiecodes:")
     st.link_button("Toevoegen aan Wachtwoorden (op deze iPhone of iPad)", uri, width="stretch")
-    st.caption("Of scan de QR-code met een ander apparaat, bijvoorbeeld met de camera of Google Authenticator:")
+    st.caption("Of scan de QR-code met je authenticator-app:")
     st.image(_qr(uri), width=180)
     st.caption(f"Of typ de sleutel over: `{' '.join(sleutel[i:i + 4] for i in range(0, len(sleutel), 4))}`")
     with st.form("twee_stap_bevestigen", border=False):

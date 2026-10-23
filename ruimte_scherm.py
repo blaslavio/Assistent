@@ -97,7 +97,7 @@ def ruimte_formulier(sleutel: str, r: dict | None = None) -> None:
     r = r or {}
     with st.form(sleutel, border=False):
         titel = st.text_input("Titel", value=r.get("titel", ""), max_chars=80,
-                              placeholder="Bijv. Mijn verbouwing, Eindexamenwerk, Schilderijen 2026")
+                              placeholder="Bijv. mijn verbouwing")
         omschrijving = st.text_area("Over je project", value=r.get("omschrijving", ""), height=90)
         thema = st.selectbox("Sfeer", list(ruimte.THEMAS), format_func=ruimte.THEMAS.get,
                              index=list(ruimte.THEMAS).index(r.get("thema", "galerie")))
@@ -163,8 +163,7 @@ def ruimte_bewerken(r: dict) -> None:
                     st.session_state.bewerk_ruimte = r["id"]
                     st.rerun()
     elif soort == "3D-model":
-        st.caption("Een 3D-model als .glb (tot 4 MB). Op de iPhone of iPad maak je dat bijvoorbeeld met een "
-                   "3D-scan-app zoals Polycam of Scaniverse; exporteer dan als GLB.")
+        st.caption("Een .glb-bestand, tot 4 MB.")
         with st.form(f"model_{r['id']}", clear_on_submit=True, border=False):
             model = st.file_uploader("3D-model (.glb)", type=["glb"])
             titel = st.text_input("Titel (optioneel)")

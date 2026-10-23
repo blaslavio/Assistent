@@ -156,7 +156,7 @@ def los_toevoegen() -> None:
                                  key="budget_los_soort") or "Uitgave"
     with st.form("budget_los", clear_on_submit=True, border=False):
         bedrag = st.number_input("Bedrag in euro", min_value=0.0, step=1.0, format="%.2f")
-        omschrijving = st.text_input("Waarvoor?", placeholder="Bijvoorbeeld lunch, kapper of cadeau"
+        omschrijving = st.text_input("Waarvoor?", placeholder="Bijv. lunch"
                                      if soort == "Uitgave" else "Bijvoorbeeld salaris, toeslag of verkocht op Vinted")
         categorie = st.selectbox("Categorie", ["Vanzelf herkennen"] + list(budget.CATEGORIEEN))
         datum = st.date_input("Datum", value=date.today(), format="DD-MM-YYYY")
@@ -480,7 +480,7 @@ def vaste_inkomsten() -> None:
             budget.inkomst_weg(i["id"])
             st.rerun()
     with st.form("vaste_inkomst", clear_on_submit=True, border=False):
-        naam = st.text_input("Naam", placeholder="Bijvoorbeeld Salaris of Zorgtoeslag")
+        naam = st.text_input("Naam", placeholder="Bijv. salaris")
         kol1, kol2 = st.columns(2)
         bedrag = kol1.number_input("Bedrag per maand", min_value=0.0, step=10.0, format="%.2f")
         dag = kol2.number_input("Rond welke dag?", min_value=1, max_value=28, value=25)
@@ -501,7 +501,7 @@ def vaste_lasten() -> None:
     if lasten:
         st.caption(f"Samen {euro(sum(v['bedrag'] for v in lasten))} per maand.")
     with st.form("vaste_last", clear_on_submit=True, border=False):
-        naam = st.text_input("Naam", placeholder="Bijvoorbeeld Huur of Zorgverzekering")
+        naam = st.text_input("Naam", placeholder="Bijv. huur")
         kol1, kol2 = st.columns(2)
         bedrag = kol1.number_input("Bedrag per maand", min_value=0.0, step=5.0, format="%.2f")
         dag = kol2.number_input("Rond welke dag?", min_value=1, max_value=28, value=1)
@@ -533,7 +533,7 @@ def spaardoelen() -> None:
                 st.rerun()
     with st.form("spaardoel", clear_on_submit=True, border=not doelen):
         st.markdown("**Nieuw spaardoel**")
-        naam = st.text_input("Waarvoor?", placeholder="Bijvoorbeeld Vakantie of Buffer")
+        naam = st.text_input("Waarvoor?", placeholder="Bijv. vakantie")
         kol1, kol2 = st.columns(2)
         doel = kol1.number_input("Doelbedrag", min_value=0.0, step=50.0, format="%.0f")
         datum = kol2.date_input("Vóór (optioneel)", value=None, format="DD-MM-YYYY")

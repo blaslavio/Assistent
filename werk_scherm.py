@@ -394,7 +394,7 @@ def diy() -> None:
         idee = st.pills("Ideeën", IDEEEN, key="diy_idee", label_visibility="collapsed")
         with st.form("diy_nieuw", border=False):
             project = st.text_input("Wat wil je maken of doen?", value=idee or "",
-                                    placeholder="Bijv. een plank ophangen, macramé plantenhanger, laminaat leggen")
+                                    placeholder="Bijv. plank ophangen")
             kol1, kol2 = st.columns(2)
             niveau = kol1.selectbox("Ervaring", ["beginner", "een beetje ervaring", "gevorderd"])
             budget = kol2.number_input("Budget in euro (optioneel)", min_value=0.0, value=None, step=10.0)
@@ -466,7 +466,7 @@ def scannen() -> None:
     camera = st.toggle("Camera gebruiken", key="scan_camera")
     foto = (st.camera_input("Maak een foto", label_visibility="collapsed") if camera else
             st.file_uploader("Kies of maak een foto", type=["jpg", "jpeg", "png", "webp", "heic"]))
-    wens = st.text_input("Wat wil je weten? (optioneel)", placeholder="Bijv. wat kost dit elders, of zet dit in mijn agenda")
+    wens = st.text_input("Wat wil je weten? (optioneel)", placeholder="Bijv. wat kost dit elders?")
     if foto and st.button("Bekijk de foto", type="primary", width="stretch"):
         data = foto.getvalue()
         if uitslag := met_claude("Foto bekijken...", slim.foto_lezen, data, date.today().isoformat(), wens.strip()):

@@ -81,7 +81,7 @@ def beroep_instellingen() -> None:
     eigen = ""
     if keuze == beroep.ANDERS:
         eigen = st.text_input("Omschrijving", value=b["naam"] if b["soort"] == beroep.ANDERS else "", max_chars=60,
-                              placeholder="Bijvoorbeeld: hondenuitlaatservice")
+                              placeholder="Bijv. hondenuitlaat")
     if keuze and (keuze != b["soort"] or (keuze == beroep.ANDERS and eigen.strip() and eigen.strip() != b["naam"])):
         if st.button("Opslaan", type="primary", key="beroep_opslaan"):
             aangezet = beroep.instellen(keuze, eigen)
@@ -117,7 +117,7 @@ def beroep_instellingen() -> None:
 
 
 def zaak_instellen(z: dict) -> None:
-    naam = st.text_input("Naam van je zaak", value=z["naam"], max_chars=60, placeholder="Bijvoorbeeld: Sportschool Fit")
+    naam = st.text_input("Naam van je zaak", value=z["naam"], max_chars=60, placeholder="Bijv. Sportschool Fit")
     soort = st.pills("Soort", list(zaak.SOORTEN_ZAAK), default=z["soort"], format_func=zaak.SOORTEN_ZAAK.get) or z["soort"]
     lessen = st.toggle("Groepslessen", value=z["groepslessen"])
     afspraken = st.toggle("Personal training of afspraken", value=z["afspraken"])
@@ -261,7 +261,7 @@ def rooster_deel() -> None:
 
 def les_formulier() -> None:
     with st.form("les_nieuw", border=False):
-        naam = st.text_input("Naam", placeholder="Bijvoorbeeld: Spinning", max_chars=60)
+        naam = st.text_input("Naam", placeholder="Bijv. Spinning", max_chars=60)
         k1, k2 = st.columns(2)
         dag = k1.date_input("Dag", value=date.today() + timedelta(days=1), min_value=date.today(), format="DD-MM-YYYY")
         om = k2.time_input("Tijd", value=time(19, 0), step=900)
@@ -343,7 +343,7 @@ def betaling_formulier(saldi: list[dict]) -> None:
                              key="bet_klant")
         nieuw = st.text_input("Naam (nieuwe klant)", max_chars=80)
         bedrag = st.text_input("Bedrag", placeholder="50,00")
-        oms = st.text_input("Waarvoor", placeholder="Bijvoorbeeld: 10-rittenkaart", max_chars=200)
+        oms = st.text_input("Waarvoor", placeholder="Bijv. rittenkaart", max_chars=200)
         st.caption("Vooruit betaald? Dan staat het als tegoed bij de klant.")
         if st.form_submit_button("Boeken", type="primary", width="stretch"):
             k = namen.get(keuze)
