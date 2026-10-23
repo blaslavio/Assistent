@@ -40,6 +40,7 @@ import mail
 import mailtaken
 import media
 import meldingen
+import mens
 import opslag
 import overzicht
 import planning
@@ -376,6 +377,10 @@ def code_formulier(naam: str, wachtwoord: str) -> None:
 
 
 def account_maken_formulier() -> None:
+    # Alleen voor mensen: de browser lost op de achtergrond een kleine rekenpuzzel op (zie mens.py).
+    u = mens.uitdaging() if opslag.online() else None
+    opgelost = mens.oplossing(u) if u else None
+    st.html("<style>.st-key-aanmeld_website{position:absolute!important;left:-10000px;width:1px;height:1px;overflow:hidden}</style>")
     with st.form("account_maken"):
         naam = st.text_input("Kies een gebruikersnaam", placeholder="Bijv. sanne",
                              help="3 tot 30 tekens: kleine letters, cijfers, punt of streepje. Anderen vinden je hiermee.")
@@ -386,13 +391,23 @@ def account_maken_formulier() -> None:
         herhaling = st.text_input("Herhaal het wachtwoord", type="password", autocomplete="new-password")
         akkoord = st.checkbox("Ik ben 16 jaar of ouder en ga akkoord met de voorwaarden en de privacyverklaring "
                               "(onderaan)")
+        # Een veld dat mensen niet zien: vult iets het toch in, dan is het een programma.
+        lokker = st.text_input("Laat dit veld leeg", key="aanmeld_website", autocomplete="off")
         if st.form_submit_button("Account maken", type="primary", width="stretch"):
             naam = naam.strip().lower().lstrip("@")
             if wachtwoord != herhaling:
                 st.error("De wachtwoorden zijn niet gelijk.")
-            elif fout := opslag.account_maken(naam, weergavenaam.strip(), email.strip(), wachtwoord, akkoord):
+            elif lokker:
+                mens.vergeten()
+                st.error("Dat lukte niet. Ververs de pagina en probeer het opnieuw.")
+            elif opslag.online() and not (u and opgelost):
+                st.info("Een ogenblik: de app controleert nog dat je een mens bent. Tik zo nog een keer.")
+            elif fout := opslag.account_maken(naam, weergavenaam.strip(), email.strip(), wachtwoord, akkoord,
+                                              u["id"] if u else 0, opgelost or ""):
+                mens.vergeten()
                 st.error(fout)
             else:
+                mens.vergeten()
                 st.session_state.welkom = True
                 if fout := aanmelden(naam, wachtwoord):
                     st.error(fout)

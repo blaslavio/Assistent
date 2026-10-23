@@ -57,7 +57,10 @@ def voorwaarden() -> str:
    Verandert een tarief, dan hoor je dat minstens 30 dagen van tevoren in de app. Het nieuwe tarief geldt alleen
    voor bestellingen daarna; je kunt in die tijd kosteloos stoppen.
 7. **Niet toegestaan.** Illegale producten of diensten, wapens, drugs, medicijnen op recept, namaak, dieren,
-   oplichting, spam, haatdragende of seksuele inhoud, en gegevens van anderen zonder toestemming.
+   oplichting, spam, haatdragende of seksuele inhoud, en gegevens van anderen zonder toestemming. Accounts zijn
+   alleen voor echte mensen: één persoon, één account. Accounts laten aanmaken of besturen door een programma of bot
+   is niet toegestaan; zulke accounts worden geblokkeerd. Laat je de assistent een antwoord voorstellen, dan
+   verstuur jij het en ben jij er verantwoordelijk voor.
 8. **VR-ruimtes.** In een VR-ruimte laat je je eigen project zien. Zet er alleen foto's, teksten en 3D-modellen in
    die je zelf hebt gemaakt of mag gebruiken, en geen herkenbare mensen zonder hun toestemming. Een openbare ruimte
    kan iedereen bekijken, ook zonder account. Je kunt je ruimte en alles erin altijd zelf verwijderen.

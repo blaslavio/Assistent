@@ -281,12 +281,13 @@ def twee_stap_uitzetten(wachtwoord: str, code: str) -> dict:
 
 # --- Account ---------------------------------------------------------------
 
-def account_maken(naam: str, weergavenaam: str, email: str, wachtwoord: str, akkoord: bool) -> str | None:
-    """Maakt een nieuw account. Geeft een foutmelding terug, of None als het gelukt is."""
+def account_maken(naam: str, weergavenaam: str, email: str, wachtwoord: str, akkoord: bool, uitdaging: int,
+                  oplossing: str) -> str | None:
+    """Maakt een nieuw account (met de opgeloste puzzel uit mens.py). Geeft een foutmelding, of None als het gelukt is."""
     if not online():
         return "Accounts maken kan alleen in de online versie."
     antwoord = _rpc("account_maken", p_naam=naam, p_weergavenaam=weergavenaam, p_email=email, p_wachtwoord=wachtwoord,
-                    p_akkoord=akkoord)
+                    p_akkoord=akkoord, p_uitdaging=uitdaging, p_oplossing=oplossing)
     return antwoord.get("fout")
 
 
