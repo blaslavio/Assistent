@@ -3523,7 +3523,7 @@ INSTELLING_GROEPEN = {
     "Assistent": (":material/smart_toy:", "Naam, stem en wat hij mag"),
     "Weergave": (":material/palette:", "Voorpagina, onderdelen, kleuren"),
     "Koppelingen": (":material/link:", "Meldingen, agenda, mail, Siri"),
-    "Werk": (":material/work:", "Beroep en zakelijke tools"),
+    "Werk": (":material/storefront:", "Webshop, diensten en zakelijke tools"),
     "Account": (":material/person:", "Profiel, accounttype, gegevens"),
     "Privacy en beveiliging": (":material/shield_lock:", "Vergrendeling, inloggen, check"),
     "Opslag": (":material/cloud:", "Ruimte voor je bestanden"),
@@ -3655,7 +3655,7 @@ def instellingen_tabblad() -> None:
                       ("Koppelingen", "Koppelingen", ":material/link:")]),
         ("Account en veiligheid", [("Privacy en beveiliging", "Privacy en beveiliging", ":material/shield:"),
                                    ("Opslag", "Opslag en abonnement", ":material/cloud:")]),
-        ("Werk en ondersteuning", [("Werk", "Werk", ":material/work:"),
+        ("Ondernemen en ondersteuning", [("Werk", "Mijn onderneming", ":material/storefront:"),
                                    ("Idee of probleem", "Feedback", ":material/feedback:"),
                                    ("Rondleiding", "Rondleiding", ":material/help_outline:")]),
     ]

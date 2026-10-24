@@ -79,6 +79,22 @@ def _openen(url: str, tool: str) -> None:
 def beroep_instellingen() -> None:
     """Kies je beroep; daaronder je zakelijke hulpmiddelen, elk met één tik open."""
     _melding()
+    st.markdown("#### Mijn onderneming")
+    st.caption("Richt je verkoop, afspraken en vakgereedschap in vanuit één plek.")
+    with st.container(border=True):
+        st.markdown("**Webshop en verkoop**")
+        st.caption("Je winkel, bestellingen en diensten.")
+        if st.button("Mijn webshop", icon=":material/storefront:", width="stretch", key="bedrijf_shop"):
+            _openen("webshop", "webshop")
+            st.rerun()
+        if st.button("Bestellingen", icon=":material/local_shipping:", width="stretch", key="bedrijf_orders"):
+            _openen("bestellingen", "verzenden")
+            st.rerun()
+        if st.button("Afspraken en diensten", icon=":material/event_available:", width="stretch", key="bedrijf_book"):
+            _openen("boekingen", "boekingen")
+            st.rerun()
+    st.markdown("**Vakgebied en specialisatie**")
+    st.caption("Kies je beroep of typ een eigen specialisatie.")
     b = beroep.huidig()
     # Kies uit de lijst of typ zelf je beroep; staat het er niet tussen, dan doet de assistent een voorstel.
     namen = [beroep.naam_van(k) for k in beroep.BEROEPEN]
@@ -109,13 +125,14 @@ def beroep_instellingen() -> None:
             aangezet = beroep.instellen(sleutel or beroep.ANDERS, keuze if keuze not in namen else "", diensten)
             _klaar("Opgeslagen." + (f" Aangezet: {', '.join(aangezet)}." if aangezet else ""))
     if not b["soort"]:
+        st.info("Stel je vakgebied in voor passende hulpmiddelen. De webshop blijft voor iedereen toegankelijk.")
         return
     try:
         winkel = samen.mijn_winkel()
         pagina = boekpagina.mijn().get("pagina")
     except samen.Fout:
         winkel, pagina = {}, None
-    st.markdown("**Jouw zakelijke tools**")
+    st.markdown("**Vakgerichte hulpmiddelen**")
     for t in beroep.tools():
         naam, url, _ = beroep.TOOLS[t]
         with st.container(horizontal=True, vertical_alignment="center", key=f"tool_{t}"):

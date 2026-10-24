@@ -63,6 +63,18 @@ BEROEPEN = {
     "zzp": ("Zzp'er of freelancer", "dienst", False, True, ["boekingen", "documenten", "klanten", "boekhouding",
                                                             "diensten", "mail"],
             [("Kennismaking", 30), ("Overleg", 60)]),
+    "zorg": ("Zorgverlener of therapeut", "dienst", False, True, _AFSPRAAK + ["documenten"], [("Intake", 45), ("Behandeling", 60)]),
+    "juridisch": ("Jurist of juridisch adviseur", "dienst", False, True, _KLUS, [("Intake", 45), ("Adviesgesprek", 60)]),
+    "financieel": ("Accountant of financieel adviseur", "dienst", False, True, _KLUS, [("Kennismaking", 30), ("Advies", 60)]),
+    "ict": ("Softwareontwikkelaar of IT-dienstverlener", "dienst", False, True, _KLUS, [("Projectoverleg", 60), ("Ondersteuning", 60)]),
+    "bouw": ("Bouwbedrijf of aannemer", "dienst", False, True, _KLUS, [("Opname op locatie", 60)]),
+    "onderwijs": ("Docent of opleider", "dienst", True, True, _LES + ["documenten"], [("Kennismaking", 30), ("Les", 60)]),
+    "kunst": ("Kunstenaar of ontwerper", "dienst", False, True, _KLUS + ["webshop"], [("Projectbespreking", 45)]),
+    "logistiek": ("Logistiek of transport", "dienst", False, True, _KLUS, [("Transportaanvraag", 30)]),
+    "vastgoed": ("Vastgoed of makelaardij", "dienst", False, True, _KLUS, [("Bezichtiging", 45)]),
+    "evenementen": ("Evenementen of organisatie", "dienst", False, True, _KLUS + ["webshop"], [("Kennismaking", 30)]),
+    "landbouw": ("Landbouw of productie", "dienst", False, True, _WINKEL + ["documenten"], []),
+    "media": ("Media of communicatie", "dienst", False, True, _KLUS + ["marketing"], [("Projectbespreking", 45)]),
 }
 ANDERS = "anders"
 
@@ -80,7 +92,7 @@ def huidig() -> dict:
 def tools(sleutel: str | None = None) -> list[str]:
     sleutel = huidig()["soort"] if sleutel is None else sleutel
     return list(dict.fromkeys(BEROEPEN[sleutel][4])) if sleutel in BEROEPEN else \
-        (["boekingen", "klanten", "boekhouding", "reviews", "diensten", "mail"] if sleutel else [])
+        (["boekingen", "documenten", "klanten", "boekhouding", "webshop", "reviews", "diensten", "mail"] if sleutel else [])
 
 
 def zoek(tekst: str) -> str | None:
