@@ -4394,29 +4394,72 @@ def _in_app(soort: str, sleutel: str) -> None:
 
 
 def profielkaart(p: dict) -> None:
-    """Iemands profielkaart via een korte link: winkel, boekingspagina en ruimtes. Ook zonder account."""
-    st.title(p["naam"] or "Profiel")
-    if p.get("gebruikersnaam"):
-        st.caption(f"@{p['gebruikersnaam']}")
+    """Rustige profielpagina met contact en rechtstreekse acties."""
+    naam = p.get("naam") or "Profiel"
+    st.markdown(
+        "<style>.profiel-kop{text-align:center;padding:18px 0 24px}"
+        ".profiel-kop h1{font-size:2rem;margin:8px 0 4px}"
+        ".profiel-kop p{color:gray;margin:0}</style>",
+        unsafe_allow_html=True,
+    )
+    with st.container():
+        foto = p.get("foto")
+        if foto and isinstance(foto, str) and foto.startswith("data:image/"):
+            st.image(foto, width=112)
+        else:
+            st.markdown(":material/account_circle:")
+        st.markdown(
+            '<div class="profiel-kop"><h1>' + html.escape(naam) + '</h1><p>' +
+            html.escape("@" + p["gebruikersnaam"] if p.get("gebruikersnaam") else "Persoonlijk profiel") +
+            '</p></div>', unsafe_allow_html=True,
+        )
+
+    with st.container(border=True):
+        st.markdown("**Gegevens**")
+        if p.get("omschrijving"):
+            st.write(p["omschrijving"])
+        # Alleen een apart, expliciet openbaar gemaakt contactnummer; nooit het inlognummer.
+        telefoon = p.get("contact_telefoon")
+        if telefoon:
+            st.text_input("Telefoonnummer", value=telefoon, disabled=True, key="profiel_contact_telefoon")
+        else:
+            st.caption("Geen openbaar telefoonnummer opgegeven.")
+
     if w := p.get("winkel"):
         with st.container(border=True):
-            st.markdown(f"**{w['naam']}**")
+            st.markdown("**Shop**")
+            st.write(w.get("naam") or "Winkel")
             if w.get("omschrijving"):
                 st.caption(w["omschrijving"][:160])
-            if st.button("Naar de winkel", icon=":material/storefront:", width="stretch", key="profiel_winkel"):
+            if st.button("Bekijk de shop", icon=":material/storefront:", width="stretch", key="profiel_winkel"):
                 _in_app("winkel", w["adres"])
+
     if b := p.get("boek"):
         with st.container(border=True):
-            st.markdown(f"**{b['titel'] or 'Afspraak maken'}**")
+            st.markdown("**Diensten en beschikbaarheid**")
+            st.write(b.get("titel") or "Afspraak maken")
             if b.get("intro"):
                 st.caption(b["intro"][:160])
-            if st.button("Kies een moment", icon=":material/event_available:", width="stretch", key="profiel_boek"):
+            if st.button("Bekijk beschikbaarheid", icon=":material/event_available:",
+                         width="stretch", key="profiel_boek"):
                 _in_app("boek", b["adres"])
-    for r in p.get("ruimtes") or []:
-        if st.button(r["titel"], icon=":material/view_in_ar:", width="stretch", key=f"profiel_ruimte_{r['id']}"):
-            _in_app("ruimte", str(r["id"]))
-    if not (p.get("winkel") or p.get("boek") or p.get("ruimtes")):
-        st.caption("Hier staat nog niets.")
+
+    if p.get("agenda"):
+        with st.container(border=True):
+            st.markdown("**Gedeelde agenda**")
+            st.caption("Deze persoon deelt agenda-informatie met jou.")
+            if st.button("Open agenda", icon=":material/calendar_month:", width="stretch",
+                         key="profiel_agenda"):
+                st.session_state.ga_naar = "agenda"
+                st.rerun(scope="app")
+
+    if p.get("ruimtes"):
+        with st.container(border=True):
+            st.markdown("**Ruimtes**")
+            for r in p["ruimtes"]:
+                if st.button(r["titel"], icon=":material/view_in_ar:", width="stretch",
+                             key=f"profiel_ruimte_{r['id']}"):
+                    _in_app("ruimte", str(r["id"]))
 
 
 def terug_van_stripe() -> None:
