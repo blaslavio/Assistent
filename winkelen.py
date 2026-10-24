@@ -5,6 +5,7 @@ er na opnieuw openen nog is en de assistent er ook iets in kan leggen.
 """
 
 import functools
+import math
 
 import opslag
 import samen
@@ -27,12 +28,17 @@ def _bewaar(m: dict) -> None:
 
 def in_mandje(winkel: str, winkelnaam: str, product: dict, aantal: int = 1) -> int:
     """Legt een product in het mandje van die winkel. Geeft het nieuwe aantal."""
+    if not isinstance(aantal, int) or isinstance(aantal, bool) or aantal <= 0:
+        raise samen.Fout("Kies een geldig positief aantal.")
+    prijs = float(product.get("prijs") or 0)
+    if not math.isfinite(prijs) or prijs < 0:
+        raise samen.Fout("De productprijs is ongeldig.")
     m = mandje()
     w = m.setdefault(winkel, {"naam": winkelnaam, "regels": {}})
     sleutel = str(product["id"])
     if sleutel not in w["regels"] and len(w["regels"]) >= MAX_REGELS:
         raise samen.Fout(f"Hooguit {MAX_REGELS} producten per winkel.")
-    regel = w["regels"].setdefault(sleutel, {"titel": product["titel"], "prijs": float(product.get("prijs") or 0),
+    regel = w["regels"].setdefault(sleutel, {"titel": product["titel"], "prijs": prijs,
                                               "aantal": 0})
     regel["aantal"] = max(1, min(99, regel["aantal"] + aantal))
     _bewaar(m)
