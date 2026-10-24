@@ -57,7 +57,7 @@ alter table private.gezin_klussen enable row level security;
 alter table private.gezin_klus_klaar enable row level security;
 
 create or replace function private.huishouden_tools(p_tools text[])
-returns jsonb language sql immutable as $$
+returns jsonb language sql immutable set search_path to '' as $$
   select coalesce(jsonb_agg(t order by t), '["agenda"]'::jsonb)
   from (select distinct t from unnest(coalesce(p_tools, '{}')) t
         where t in ('agenda', 'boodschappen', 'kosten', 'klussen', 'sparen', 'budget')) x
