@@ -4939,17 +4939,74 @@ def taken_openen() -> None:
 
 
 def onderdelen_tegels() -> None:
-    """Alle onderdelen als tegels, per groep (zoals het appmenu van Google). Je favorieten eerst."""
+    """Apponderdelen als rustige, doorlopende navigatielijsten."""
     groepen = dict(GROEPEN)
     if favorieten := [u for u in indeling.huidig()["favorieten"] if u in PAGINA]:
         groepen = {"Favorieten": favorieten} | groepen
-    for naam, urls in groepen.items():
-        st.markdown(f"**{naam}**")
-        # Tegels die meeschuiven: twee naast elkaar op een telefoon, meer op een iPad.
-        with st.container(horizontal=True, gap="small", key=f"tegels_{re.sub(r'[^a-z]', '', naam.lower())}"):
-            for url in urls:
-                with st.container(border=True, width=168):
-                    st.page_link(PAGINA[url], width="stretch")
+    st.html("""
+    <style>
+    [class*="st-key-onderdelen_lijst_"] {
+        border: 1px solid rgba(128,128,128,.16);
+        border-radius: 17px;
+        background: rgba(130,135,150,.055);
+        overflow: hidden;
+        gap: 0 !important;
+    }
+    [class*="st-key-onderdelen_lijst_"] [data-testid="stPageLink"] {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    [class*="st-key-onderdelen_lijst_"] [data-testid="stPageLink"] a {
+        display: flex !important;
+        width: 100% !important;
+        min-height: 55px;
+        align-items: center;
+        justify-content: flex-start;
+        text-align: left;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        padding: 11px 42px 11px 16px !important;
+        position: relative;
+    }
+    [class*="st-key-onderdelen_lijst_"] [data-testid="stPageLink"] a:hover {
+        background: rgba(130,135,150,.1) !important;
+    }
+    [class*="st-key-onderdelen_lijst_"] [data-testid="stPageLink"] a::after {
+        content: "›";
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-52%);
+        font-size: 28px;
+        color: #8a8e99;
+    }
+    [class*="st-key-onderdelen_lijst_"] [data-testid="stPageLink"] a p {
+        text-align: left !important;
+        margin: 0 !important;
+        font-size: 1rem !important;
+    }
+    [class*="st-key-onderdelen_lijst_"] [data-testid="stPageLink"] a [data-testid="stIconMaterial"] {
+        flex: 0 0 auto;
+        margin-right: 11px;
+        padding: 6px;
+        border-radius: 8px;
+        background: rgba(130,135,150,.16);
+        box-sizing: content-box;
+    }
+    [class*="st-key-onderdelen_lijst_"] [data-testid="stPageLink"] + [data-testid="stPageLink"] {
+        border-top: 1px solid rgba(128,128,128,.14);
+    }
+    </style>
+    """)
+    for index, (naam, urls) in enumerate(groepen.items()):
+        beschikbaar = [url for url in urls if url in PAGINA]
+        if not beschikbaar:
+            continue
+        st.markdown("**" + naam + "**")
+        with st.container(key=f"onderdelen_lijst_{index}"):
+            for url in beschikbaar:
+                st.page_link(PAGINA[url], width="stretch")
 
 
 def ruimte_bezoek(ruimte_id: int) -> None:
