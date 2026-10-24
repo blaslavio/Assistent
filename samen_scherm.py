@@ -882,23 +882,43 @@ def mijn_webshop(inkopen=None) -> None:
         c1.metric("Verkocht via de webshop", f"{v['aantal']}×", samen.euro(v["omzet"]), delta_color="off")
         c2.metric("Commissie betaald", samen.euro(v["commissie"]))
 
-    with st.expander("Winkel instellen" if w else "Winkel aanmaken", expanded=not w):
-        w = w or {}
+    st.markdown("### Winkelbouwer")
+    st.caption("Maak je winkel in drie stappen. Wijzigingen worden pas gepubliceerd na Opslaan.")
+    with st.container(key="winkelbouwer_editor"):
         with st.form("winkel", border=False):
-            naam = st.text_input("Naam van je winkel", value=w.get("naam", ""), max_chars=60)
-            omschrijving = st.text_area("Over je winkel", value=w.get("omschrijving", ""), height=90)
-            kleur = st.color_picker("Kleur", value=w.get("kleur", "#2563eb"))
+            st.markdown("**1. Identiteit**")
+            naam = st.text_input("Naam van je winkel", value=w.get("naam", ""), max_chars=60,
+                                 placeholder="Bijvoorbeeld Mijn studio")
+            omschrijving = st.text_area("Introductie voor bezoekers", value=w.get("omschrijving", ""),
+                                        height=90, max_chars=800,
+                                        placeholder="Vertel kort wat klanten bij je kunnen vinden")
+            st.markdown("**2. Uitstraling**")
+            stijl = st.selectbox("Kies een startstijl", ["Eigen kleur", "Minimalistisch", "Nacht", "Natuur", "Levendig"],
+                                 index=0, help="Een startstijl bepaalt de accentkleur. Je kunt die zelf aanpassen.")
+            kleuren = {"Eigen kleur": w.get("kleur") or "#2563eb",
+                       "Minimalistisch": "#343a40", "Nacht": "#202c4a",
+                       "Natuur": "#39785d", "Levendig": "#6750a4"}
+            kleur = st.color_picker("Accentkleur", value=kleuren[stijl])
+            st.markdown("**3. Verkoop en publicatie**")
             k1, k2 = st.columns(2)
-            verzend = k1.number_input("Verzendkosten (€)", 0.0, 100.0, float(w.get("verzendkosten") or 0), 0.5)
-            gratis = k2.number_input("Gratis verzenden vanaf (€, 0 = nooit)", 0.0, 10000.0,
-                                     float(w.get("gratis_vanaf") or 0), 5.0)
-            retour = st.text_area("Verzenden en retour", value=w.get("retour", ""), height=70,
-                                  placeholder="Bijv. verzending met PostNL")
-            open_ = st.toggle("Winkel open", value=bool(w.get("open")))
-            if st.form_submit_button("Opslaan", type="primary"):
-                if winkel_opslaan(w.get("adres", ""), naam, omschrijving, kleur, verzend, gratis or None, retour,
-                                  open_):
+            verzend = k1.number_input("Verzendkosten (€)", 0.0, 100.0,
+                                      float(w.get("verzendkosten") or 0), 0.5)
+            gratis = k2.number_input("Gratis verzending vanaf (€)", 0.0, 10000.0,
+                                      float(w.get("gratis_vanaf") or 0), 5.0)
+            retour = st.text_area("Verzend- en retourinformatie", value=w.get("retour", ""),
+                                  height=70, placeholder="Bijvoorbeeld levering binnen 3 werkdagen")
+            open_ = st.toggle("Winkel openbaar maken", value=bool(w.get("open")))
+            st.caption("Je kunt een winkel ook als concept opslaan. Betalingen moeten actief zijn om bestellingen te ontvangen.")
+            if st.form_submit_button("Winkel opslaan", type="primary", width="stretch"):
+                if winkel_opslaan(w.get("adres", ""), naam, omschrijving, kleur, verzend,
+                                  gratis or None, retour, open_):
                     st.rerun()
+    if w:
+        st.markdown("**Bekijk als bezoeker**")
+        if st.button("Open mijn winkelpagina", icon=":material/open_in_new:",
+                     key="winkelbouwer_preview", width="stretch"):
+            naar_winkel(w["adres"])
+        st.caption("Diensten en beschikbare tijden beheer je bij Reserveren; de bestaande boekingspagina gebruikt je agenda.")
     if not w:
         return
     with st.expander("Op de winkelkaart" + (f" ({w['winkeladres']})" if w.get("winkeladres") else "")):
