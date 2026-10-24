@@ -3607,8 +3607,8 @@ def instellingen_tabblad() -> None:
     }
     .st-key-instellingen_profiel button [data-testid="stIconMaterial"],
     [class*="st-key-instellingen_groep_"] button [data-testid="stIconMaterial"] {
-        background: #d6aa3c;
-        color: #15171b;
+        background: rgba(130,135,150,.17);
+        color: inherit;
         border-radius: 9px;
         padding: 7px;
         font-size: 19px;
