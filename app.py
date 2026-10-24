@@ -3573,46 +3573,55 @@ def instellingen_tabblad() -> None:
     [class*="st-key-instellingen_groep_"] [data-testid="stButton"] {
         margin: 0 !important;
     }
+    /* Streamlit buttons contain an icon and a markdown wrapper. Grid can shrink
+       the markdown wrapper to a few characters on mobile: use flex instead. */
     .st-key-instellingen_profiel button,
     [class*="st-key-instellingen_groep_"] button {
-        display: grid !important;
-        grid-template-columns: 38px minmax(0, 1fr) !important;
+        display: flex !important;
+        flex-direction: row !important;
         align-items: center !important;
-        justify-content: stretch !important;
-        column-gap: 12px !important;
+        justify-content: flex-start !important;
+        gap: 12px !important;
         border: 0 !important;
         border-radius: 0 !important;
         width: 100% !important;
         min-height: 57px;
         text-align: left !important;
         background: transparent !important;
-        padding: 10px 42px 10px 16px !important;
+        padding: 12px 44px 12px 16px !important;
         box-shadow: none !important;
         position: relative;
     }
     .st-key-instellingen_profiel button [data-testid="stIconMaterial"],
     [class*="st-key-instellingen_groep_"] button [data-testid="stIconMaterial"] {
-        grid-column: 1 !important;
-        grid-row: 1 !important;
-        justify-self: start !important;
+        flex: 0 0 auto !important;
         margin: 0 !important;
-        flex: none !important;
+        background: rgba(130,135,150,.17);
+        color: inherit;
+        border-radius: 9px;
+        padding: 7px;
+        font-size: 19px;
+        box-sizing: content-box;
     }
     .st-key-instellingen_profiel button [data-testid="stMarkdownContainer"],
     [class*="st-key-instellingen_groep_"] button [data-testid="stMarkdownContainer"] {
-        grid-column: 2 !important;
-        grid-row: 1 !important;
-        width: 100% !important;
+        display: block !important;
+        flex: 1 1 auto !important;
+        width: auto !important;
         min-width: 0 !important;
-        flex: none !important;
-        justify-self: stretch !important;
-        text-align: left !important;
+        max-width: none !important;
         margin: 0 !important;
+        text-align: left !important;
+        overflow-wrap: normal !important;
+        word-break: normal !important;
     }
     .st-key-instellingen_profiel button [data-testid="stMarkdownContainer"] p,
     [class*="st-key-instellingen_groep_"] button [data-testid="stMarkdownContainer"] p {
         text-align: left !important;
         margin: 0 !important;
+        white-space: normal !important;
+        overflow-wrap: normal !important;
+        word-break: normal !important;
     }
     .st-key-instellingen_profiel button:hover,
     [class*="st-key-instellingen_groep_"] button:hover {
@@ -3632,16 +3641,6 @@ def instellingen_tabblad() -> None:
     [class*="st-key-instellingen_groep_"] button p {
         font-size: 1rem !important;
         font-weight: 450 !important;
-    }
-    .st-key-instellingen_profiel button [data-testid="stIconMaterial"],
-    [class*="st-key-instellingen_groep_"] button [data-testid="stIconMaterial"] {
-        background: rgba(130,135,150,.17);
-        color: inherit;
-        border-radius: 9px;
-        padding: 7px;
-        font-size: 19px;
-        box-sizing: content-box;
-        margin-right: 9px;
     }
     [class*="st-key-instellingen_groep_"] [data-testid="stButton"] + [data-testid="stButton"] {
         border-top: 1px solid rgba(128,128,128,.15);
