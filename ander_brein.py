@@ -62,16 +62,83 @@ def _hulpmiddelen(brein: str) -> tuple[list[dict], dict]:
     return lijst, per_naam
 
 
+def _veld(blok, naam, standaard=None):
+    return blok.get(naam, standaard) if isinstance(blok, dict) else getattr(blok, naam, standaard)
+
+
 def _tekst(inhoud) -> str:
-    """Alleen de tekst uit een eerdere beurt (Claude bewaart ook hulpmiddelen; die laten we hier weg)."""
+    """Lees tekstblokken zonder de bestaande berichtstructuur te wijzigen."""
     if isinstance(inhoud, str):
         return inhoud
     delen = []
     for blok in inhoud or []:
-        soort = blok.get("type") if isinstance(blok, dict) else getattr(blok, "type", "")
-        if soort == "text":
-            delen.append(blok.get("text") if isinstance(blok, dict) else blok.text)
-    return "\n".join(d for d in delen if d)
+        if _veld(blok, "type") == "text":
+            waarde = _veld(blok, "text")
+            if waarde:
+                delen.append(waarde)
+    return "\\n".join(delen)
+
+
+def _geschiedenis(berichten: list) -> list[dict]:
+    """Zet Claude-berichten om naar geldige Chat Completions tool-calls.
+
+    Een assistent-tool-call en de bijbehorende resultaten moeten samen blijven.
+    Losse toolresultaten worden niet doorgestuurd.
+    """
+    resultaat = []
+    for beurt in berichten[-40:]:
+        rol = beurt.get("role")
+        if rol not in ("user", "assistant"):
+            continue
+        inhoud = beurt.get("content", "")
+        tekst = _tekst(inhoud)
+        if not isinstance(inhoud, list):
+            if tekst:
+                resultaat.append({"role": rol, "content": tekst})
+            continue
+        if rol == "user":
+            losse_tekst = []
+            for blok in inhoud:
+                soort = _veld(blok, "type")
+                if soort == "text":
+                    losse_tekst.append(_veld(blok, "text", ""))
+                elif soort == "tool_result":
+                    identificatie = _veld(blok, "tool_use_id")
+                    if identificatie:
+                        waarde = _veld(blok, "content", "")
+                        resultaat.append({"role": "tool", "tool_call_id": identificatie,
+                                          "content": _tekst(waarde) if isinstance(waarde, list) else str(waarde)})
+            if losse_tekst and any(losse_tekst):
+                resultaat.append({"role": "user", "content": "\\n".join(losse_tekst)})
+        else:
+            aanroepen = []
+            for blok in inhoud:
+                if _veld(blok, "type") == "tool_use":
+                    naam, identificatie = _veld(blok, "name"), _veld(blok, "id")
+                    if naam and identificatie:
+                        aanroepen.append({"id": identificatie, "type": "function",
+                                          "function": {"name": naam,
+                                                       "arguments": json.dumps(_veld(blok, "input", {}), default=str)}})
+            if tekst or aanroepen:
+                bericht = {"role": "assistant", "content": tekst or None}
+                if aanroepen:
+                    bericht["tool_calls"] = aanroepen
+                resultaat.append(bericht)
+    # Alleen complete tool-callgroepen mogen naar de provider: voorkom API 400.
+    ids = {b["tool_call_id"] for b in resultaat if b["role"] == "tool"}
+    geldig = []
+    for b in resultaat:
+        if b["role"] == "assistant" and b.get("tool_calls"):
+            calls = b["tool_calls"]
+            if not all(c["id"] in ids for c in calls):
+                continue
+        if b["role"] == "tool" and b["tool_call_id"] not in {
+            c["id"] for a in resultaat if a["role"] == "assistant"
+            for c in a.get("tool_calls", [])
+        }:
+            continue
+        geldig.append(b)
+    return geldig
 
 
 def antwoord(brein: str, berichten: list, bij_tekst=None, bij_hulpmiddel=None, spraak: bool = False) -> str:
@@ -86,9 +153,7 @@ def antwoord(brein: str, berichten: list, bij_tekst=None, bij_hulpmiddel=None, s
                "het eerlijk als je actuele informatie niet kunt opzoeken.\n\n" + extra
                + ("\n\n" + agent.SPRAAK if spraak else ""))
     gesprek = [{"role": "system", "content": systeem}]
-    for b in berichten[-40:]:
-        if (tekst := _tekst(b["content"])) and b["role"] in ("user", "assistant"):
-            gesprek.append({"role": b["role"], "content": tekst})
+    gesprek.extend(_geschiedenis(berichten))
     hulpmiddelen, per_naam = _hulpmiddelen(brein)
     a = AANBIEDERS[brein]
     tekst = ""
