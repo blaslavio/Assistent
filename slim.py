@@ -163,6 +163,18 @@ def oefentoets(client, onderwerp: str, stappen: list[dict], aantal: int = 8, niv
     return [v for v in data["vragen"] if len(v["opties"]) >= 2 and 0 <= v["juist"] < len(v["opties"])]
 
 
+def les_vragen(client, titel: str, tekst: str, aantal: int = 5) -> list[dict]:
+    """Overhoren na een les van een cursus: meerkeuzevragen alleen over wat er in de les staat."""
+    schema = _object({"vragen": _lijst(_object({"vraag": TEKST, "opties": _lijst(TEKST), "juist": {"type": "integer"},
+                                                 "uitleg": TEKST}))})
+    systeem = ("Je overhoort iemand na een les, in de taal van de les. Vraag alleen naar wat in de lestekst staat; "
+               "verzin geen feiten erbij. Elke vraag heeft precies 4 opties, waarvan er één juist is (juist = index "
+               "0-3, wissel de plek af). De uitleg zegt in één zin waarom, met wat de les erover zegt. Vraag naar "
+               "begrip en toepassing, niet alleen naar losse woorden.")
+    data = _vraag(client, f"Les: {titel}\n\nLestekst:\n{tekst[:12000]}\n\nMaak {aantal} vragen.", schema, systeem)
+    return [v for v in data["vragen"] if len(v["opties"]) >= 2 and 0 <= v["juist"] < len(v["opties"])]
+
+
 def flitskaarten(client, onderwerp: str, stappen: list[dict], aantal: int = 10) -> list[dict]:
     schema = _object({"kaarten": _lijst(_object({"stap": {"type": "integer"}, "voorkant": TEKST, "achterkant": TEKST}))})
     plan = "\n".join(f"{s['nummer']}. {s['titel']}" for s in stappen)

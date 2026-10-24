@@ -82,6 +82,8 @@ import extern_inloggen
 import kort
 import pot
 import pot_scherm
+import cursus
+import cursus_scherm
 import gezondheid
 import sport_scherm
 import toegangssleutel
@@ -93,7 +95,7 @@ import browser  # niet in de herlaadlijst: bevat onderdelen (components)
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
 for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, toegang, bestanden, bestanden_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, wereld, ontwerp, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, gezondheid, sport_scherm):
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, toegang, bestanden, bestanden_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, wereld, ontwerp, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, cursus, cursus_scherm, gezondheid, sport_scherm):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -4419,7 +4421,7 @@ def profielkaart(p: dict) -> None:
 
 def terug_van_stripe() -> None:
     """Na betalen of aanmelden bij Stripe komt de gebruiker terug met ?betaald=... of ?stripe=..."""
-    for sleutel in ("betaald", "stripe", "boeking_betaald", "abonnement"):
+    for sleutel in ("betaald", "stripe", "boeking_betaald", "abonnement", "cursus_betaald", "community_abonnement"):
         if sleutel in st.query_params:
             st.session_state[f"terug_{sleutel}"] = st.query_params[sleutel]
             del st.query_params[sleutel]
@@ -4478,6 +4480,31 @@ def terug_van_stripe() -> None:
             pass
         if abo == "klaar" and toegang.status(vers=True).get("abonnementen"):
             st.toast("Je extra opslag staat klaar.", icon=":material/check:")
+    if (sessie := st.session_state.pop("terug_cursus_betaald", None)) is not None:
+        st.session_state.ga_naar = "cursussen"
+        if sessie == "0":
+            st.toast("Betalen afgebroken. Je kunt het opnieuw proberen.", icon=":material/info:")
+        else:
+            try:
+                uit = cursus.gekocht_controleren(sessie)
+            except cursus.Fout as fout:
+                st.toast(str(fout), icon=":material/error:")
+            else:
+                st.session_state.cursus_open = uit["cursus"]
+                st.toast("Betaald. Veel plezier met je cursus!" if uit["betaald"]
+                         else "Je betaling wordt nog verwerkt. Even geduld.", icon=":material/check:")
+    if (sessie := st.session_state.pop("terug_community_abonnement", None)) is not None:
+        st.session_state.ga_naar = "cursussen"
+        if sessie == "0":
+            st.toast("Afsluiten afgebroken. Je kunt het opnieuw proberen.", icon=":material/info:")
+        else:
+            try:
+                uit = cursus.abonnement_controleren(sessie)
+            except cursus.Fout as fout:
+                st.toast(str(fout), icon=":material/error:")
+            else:
+                st.toast("Je abonnement loopt. Welkom!" if uit["actief"]
+                         else "Je betaling wordt nog verwerkt. Even geduld.", icon=":material/check:")
     betaald = st.session_state.pop("terug_betaald", None)
     stripe_terug = st.session_state.pop("terug_stripe", None)
     if betaald or stripe_terug:
@@ -4597,6 +4624,8 @@ def paginas() -> list:
               "documenten"),
           als(online and "Bestanden" not in uit, bestanden_scherm.pagina, "Bestanden", ":material/folder:", "bestanden"),
           als("Leren" not in uit, leren_tabblad, "Leren", ":material/school:", "leren"),
+          als(online and "Chat" not in uit, cursus_scherm.pagina, "Cursussen", ":material/cast_for_education:",
+              "cursussen"),
           als("Mail" not in uit, mail_tabblad, "Mail", ":material/mail:", "mail"),
           als(online and "Samen" not in uit, samen_scherm.samen_tabblad, "Samen", ":material/group:", "samen",
               nieuw.get("gedeeld", 0)),

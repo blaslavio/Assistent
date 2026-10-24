@@ -53,6 +53,10 @@ def voorwaarden() -> str:
      Daarin zitten de betaalkosten van Stripe al. Er is geen abonnement en er zijn geen vaste maandkosten. Het
      bedrag wordt ingehouden op de uitbetaling en staat per bestelling in je verkoopoverzicht. De koper betaalt
      in een webshop niets extra.
+   - **Cursussen en abonnementen in een community:** de eigenaar van de community betaalt 5% van elke betaling
+     (bij een cursus minimaal € 0,35), inclusief de betaalkosten van Stripe. De koper betaalt niets extra. Een
+     cursus is digitale inhoud: wie kiest om meteen te beginnen, heeft geen bedenktijd. Een abonnement is per
+     maand opzegbaar en loopt dan tot het eind van de betaalde maand.
    - Bij betalen buiten de app (contant, betaalverzoek, overmaken) rekent de app niets.
    Verandert een tarief, dan hoor je dat minstens 30 dagen van tevoren in de app. Het nieuwe tarief geldt alleen
    voor bestellingen daarna; je kunt in die tijd kosteloos stoppen.

@@ -471,6 +471,9 @@ def _openen_vanuit_profiel(a: dict | None) -> None:
     elif a.get("soort") == "pot":
         st.session_state.pot_community = int(a.get("id") or 0)
         st.session_state.ga_naar = "inzamelen"
+    elif a.get("soort") == "cursussen":
+        st.session_state.cursus_community = int(a.get("id") or 0)
+        st.session_state.ga_naar = "cursussen"
     elif a.get("soort") == "ruimte":
         st.session_state.open_ruimte = int(a.get("id") or 0)
         st.session_state.ga_naar = "ruimtes"

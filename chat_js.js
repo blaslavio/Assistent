@@ -559,7 +559,8 @@ function toonCommunityInfo(st) {
     <div class="c-inhoud c-vulling">
       <div class="c-profiel">${communityAvatar(c.naam, true)}<b>${esc(c.naam)}</b>
         ${c.omschrijving ? `<small>${esc(c.omschrijving)}</small>` : ""}<small>${leden(c.leden)}</small></div>
-      <div class="c-kaart"><button class="c-blad-knop" data-a="community-pot" data-id="${c.id}">💰<span>${T("Inzamelen")}<br><small>${beheer ? T("Spaardoel of donaties voor de community") : T("Spaardoelen van de community")}</small></span></button></div>
+      <div class="c-kaart"><button class="c-blad-knop" data-a="community-pot" data-id="${c.id}">💰<span>${T("Inzamelen")}<br><small>${beheer ? T("Spaardoel of donaties voor de community") : T("Spaardoelen van de community")}</small></span></button>
+        <button class="c-blad-knop" data-a="community-cursussen" data-id="${c.id}">🎓<span>${T("Cursussen en abonnement")}<br><small>${beheer ? T("Cursussen maken en verkopen") : T("Online cursussen volgen")}</small></span></button></div>
       <div class="c-sectie">${T("Uitnodigen")}</div>
       <div class="c-zoek"><input class="c-veld" id="c-c-wie" placeholder="${esc(T("Gebruikersnaam"))}" autocapitalize="none" autocomplete="off">
         <button class="c-knop c-hoofd" data-a="c-uitnodigen">${T("Uitnodigen")}</button></div>
@@ -2005,6 +2006,7 @@ async function actie(st, a, el) {
       return boekDagen(st);
     }
     if (a === "profiel-agenda" && st.profiel) { st.zet("open", { soort: "agenda", id: st.profiel.id, n: Date.now() }); return; }
+    if (a === "community-cursussen") { st.zet("open", { soort: "cursussen", id: Number(el.dataset.id), n: Date.now() }); return; }
     if (a === "community-pot") { st.zet("open", { soort: "pot", id: Number(el.dataset.id), n: Date.now() }); return; }
     if (a === "profiel-ruimte") { st.zet("open", { soort: "ruimte", id: Number(el.dataset.id), n: Date.now() }); return; }
     if (a === "agenda" || a === "kanniet") {
