@@ -3737,12 +3737,10 @@ def instellingen_weergave() -> None:
     if keuze not in range(len(secties)):
         keuze = None
     if keuze is None:
-        for index, (naam, icoon, uitleg) in enumerate(secties):
-            with st.container(border=True):
-                st.markdown(f"{icoon} **{naam}**")
-                st.caption(uitleg)
-                if st.button("Openen", key=f"algemeen_sectie_{index}",
-                             icon=":material/arrow_forward:", width="stretch"):
+        with st.container(border=True):
+            for index, (naam, icoon, uitleg) in enumerate(secties):
+                if st.button(naam, key=f"algemeen_sectie_{index}",
+                             icon=icoon, type="tertiary", width="stretch"):
                     st.session_state.algemeen_sectie = index
                     st.rerun()
         return
