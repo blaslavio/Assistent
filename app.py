@@ -3575,35 +3575,44 @@ def instellingen_tabblad() -> None:
     }
     .st-key-instellingen_profiel button,
     [class*="st-key-instellingen_groep_"] button {
+        display: grid !important;
+        grid-template-columns: 38px minmax(0, 1fr) !important;
+        align-items: center !important;
+        justify-content: stretch !important;
+        column-gap: 12px !important;
         border: 0 !important;
         border-radius: 0 !important;
         width: 100% !important;
         min-height: 57px;
-        justify-content: flex-start !important;
         text-align: left !important;
         background: transparent !important;
-        padding: 10px 16px !important;
+        padding: 10px 42px 10px 16px !important;
         box-shadow: none !important;
         position: relative;
     }
-    /* Streamlit centreert de inhoud in een interne button-wrapper.
-       Richt daarom ook die wrapper en het tekstlabel links uit. */
+    .st-key-instellingen_profiel button [data-testid="stIconMaterial"],
+    [class*="st-key-instellingen_groep_"] button [data-testid="stIconMaterial"] {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+        justify-self: start !important;
+        margin: 0 !important;
+        flex: none !important;
+    }
     .st-key-instellingen_profiel button [data-testid="stMarkdownContainer"],
     [class*="st-key-instellingen_groep_"] button [data-testid="stMarkdownContainer"] {
-        flex: 1 1 auto !important;
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        flex: none !important;
+        justify-self: stretch !important;
         text-align: left !important;
-        justify-content: flex-start !important;
-        margin-right: 22px !important;
+        margin: 0 !important;
     }
     .st-key-instellingen_profiel button [data-testid="stMarkdownContainer"] p,
     [class*="st-key-instellingen_groep_"] button [data-testid="stMarkdownContainer"] p {
         text-align: left !important;
         margin: 0 !important;
-    }
-    .st-key-instellingen_profiel button [data-testid="stIconMaterial"],
-    [class*="st-key-instellingen_groep_"] button [data-testid="stIconMaterial"] {
-        flex: 0 0 auto !important;
-        margin-left: 0 !important;
     }
     .st-key-instellingen_profiel button:hover,
     [class*="st-key-instellingen_groep_"] button:hover {
