@@ -1199,6 +1199,8 @@ def onthouden(feit: str, onderwerp: str = "algemeen") -> str:
         feit: Eén kort feit, bijvoorbeeld "Doet boodschappen het liefst bij de Jumbo".
         onderwerp: Bijvoorbeeld eten, sport, werk, familie, vervoer, uitgaan, planning of algemeen.
     """
+    if opslag.instellingen().get("geheugen_uit"):
+        return "Niet bewaard: onthouden staat uit bij Instellingen › Privacy en beveiliging. Zeg dat kort."
     return _json(opslag.onthouden(feit, onderwerp))
 
 
@@ -2122,7 +2124,7 @@ def context() -> str:
         delen.append("Vandaag en de komende dagen:\n" + "\n".join(
             [f"- afspraak {a['start'][11:16] or 'hele dag'} {a['titel']}" for a in afspraken]
             + [f"- taak {t['titel']} (deadline {t['deadline']})" for t in taken]))
-    if feiten := opslag.geheugen():
+    if (feiten := opslag.geheugen()) and not opslag.instellingen().get("geheugen_uit"):
         delen.append("Wat je over de gebruiker weet (id: feit):\n" +
                      "\n".join(f"- {f['id']}: {f['feit']}" for f in feiten[-150:]))
     if oordelen := opslag.feedback():

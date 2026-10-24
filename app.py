@@ -41,6 +41,7 @@ import mailtaken
 import media
 import meldingen
 import mens
+import privacy_scherm
 import opslag
 import overzicht
 import planning
@@ -150,6 +151,7 @@ def inloggen(naam: str, wachtwoord: str, gebruiker: dict) -> None:
     st.session_state.wachtwoord = wachtwoord
     st.session_state.ik = gebruiker
     st.session_state.apparaat_naam = apparaat()
+    st.session_state.vergrendeld = False  # net met je wachtwoord of Face ID ingelogd
     opslag.gebruik_account(naam, wachtwoord)
 
 
@@ -167,6 +169,7 @@ def apparaat_herkennen() -> bool:
         return False
     inloggen(sessie["naam"], sessie["token"], opslag.inloggen(sessie["naam"], sessie["token"]) or {})
     st.session_state.apparaat_token = sleutel
+    st.session_state.vergrendeld_bij_start = True  # met app-vergrendeling: eerst je pincode
     return True
 
 
@@ -3519,7 +3522,8 @@ INSTELLING_GROEPEN = {
     "Weergave": (":material/palette:", "Voorpagina, onderdelen, kleuren"),
     "Koppelingen": (":material/link:", "Meldingen, agenda, mail, Siri"),
     "Werk": (":material/work:", "Beroep en zakelijke tools"),
-    "Account": (":material/person:", "Profiel, beveiliging, privacy"),
+    "Account": (":material/person:", "Profiel, accounttype, gegevens"),
+    "Privacy en beveiliging": (":material/shield_lock:", "Vergrendeling, inloggen, check"),
     "Opslag": (":material/cloud:", "Ruimte voor je bestanden"),
     "Idee of probleem": (":material/lightbulb:", "Zeg wat beter kan"),
     "Rondleiding": (":material/tour:", "Alle onderdelen uitgelegd"),
@@ -3543,7 +3547,7 @@ def instellingen_tabblad() -> None:
             st.button("Terug", icon=":material/arrow_back:", type="tertiary", on_click=kies, args=(None,))
             st.markdown(f"**{groep}**")
         {"Assistent": instellingen_assistent, "Weergave": instellingen_weergave,
-         "Koppelingen": instellingen_koppelingen, "Account": instellingen_account, "Opslag": opslag_instellingen, "Werk": zaak_scherm.beroep_instellingen,
+         "Koppelingen": instellingen_koppelingen, "Account": instellingen_account, "Privacy en beveiliging": privacy_scherm.pagina, "Opslag": opslag_instellingen, "Werk": zaak_scherm.beroep_instellingen,
          "Idee of probleem": idee_of_probleem}[groep]()
         return
     gebruiker = samen_scherm.ik()
@@ -4857,6 +4861,8 @@ def main() -> None:
         return
     taal_bepalen()
     toegankelijkheid_css()
+    if opslag.online() and privacy_scherm.op_slot():
+        return
     # De eigenaar legt het adres van de app vast, zodat de web-app op het beginscherm weet wat hij moet openen.
     if ik().get("id") == 1 and not st.session_state.get("_adres_gemeld"):
         st.session_state._adres_gemeld = True

@@ -1532,8 +1532,6 @@ def account_instellingen() -> None:
         niveau = gebruiker.get("niveau") or "particulier"
         with st.expander(f"Accounttype: {samen.NIVEAUS[niveau][0]}"):
             accounttype(gebruiker)
-        with st.expander("Beveiliging"):
-            beveiliging()
     with st.expander("Voorwaarden en privacy"):
         st.markdown(teksten.voorwaarden())
         st.divider()
