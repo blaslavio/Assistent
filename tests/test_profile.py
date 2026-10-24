@@ -25,15 +25,14 @@ class ProfileTests(unittest.TestCase):
     def test_settings_has_distinct_workspace(self):
         method = next(n for n in self.tree.body if isinstance(n, ast.FunctionDef) and n.name == "instellingen_tabblad")
         source = ast.get_source_segment(self.source, method)
-        self.assertIn("JOUW WERKRUIMTE", source)
-        self.assertIn("Beheer en voorkeuren", source)
+        self.assertIn("inst_profiel", source)
+        self.assertIn("Account en veiligheid", source)
 
-    def test_profile_menu_links_to_existing_settings(self):
-        method = next(n for n in self.tree.body if isinstance(n, ast.FunctionDef) and n.name == "kopbalk")
-        source = ast.get_source_segment(self.source, method)
-        for group in ("Account", "Opslag"):
-            self.assertIn('st.session_state.inst_groep = "' + group + '"', source)
-        self.assertIn("profielmenu_communities", source)
+    def test_profile_access_is_in_settings_not_topbar(self):
+        header = next(n for n in self.tree.body if isinstance(n, ast.FunctionDef) and n.name == "kopbalk")
+        settings = next(n for n in self.tree.body if isinstance(n, ast.FunctionDef) and n.name == "instellingen_tabblad")
+        self.assertNotIn("profielmenu_communities", ast.get_source_segment(self.source, header))
+        self.assertIn("inst_profiel", ast.get_source_segment(self.source, settings))
 
     def test_community_summary_uses_authenticated_course_api(self):
         method = next(n for n in self.tree.body if isinstance(n, ast.FunctionDef) and n.name == "instellingen_account")
