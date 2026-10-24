@@ -3586,6 +3586,25 @@ def instellingen_tabblad() -> None:
         box-shadow: none !important;
         position: relative;
     }
+    /* Streamlit centreert de inhoud in een interne button-wrapper.
+       Richt daarom ook die wrapper en het tekstlabel links uit. */
+    .st-key-instellingen_profiel button [data-testid="stMarkdownContainer"],
+    [class*="st-key-instellingen_groep_"] button [data-testid="stMarkdownContainer"] {
+        flex: 1 1 auto !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        margin-right: 22px !important;
+    }
+    .st-key-instellingen_profiel button [data-testid="stMarkdownContainer"] p,
+    [class*="st-key-instellingen_groep_"] button [data-testid="stMarkdownContainer"] p {
+        text-align: left !important;
+        margin: 0 !important;
+    }
+    .st-key-instellingen_profiel button [data-testid="stIconMaterial"],
+    [class*="st-key-instellingen_groep_"] button [data-testid="stIconMaterial"] {
+        flex: 0 0 auto !important;
+        margin-left: 0 !important;
+    }
     .st-key-instellingen_profiel button:hover,
     [class*="st-key-instellingen_groep_"] button:hover {
         background: rgba(130,135,150,.10) !important;
