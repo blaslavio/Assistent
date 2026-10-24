@@ -81,27 +81,67 @@ def beroep_instellingen() -> None:
     _melding()
     st.markdown("#### Mijn onderneming")
     st.caption("Richt je verkoop, afspraken en vakgereedschap in vanuit één plek.")
-    with st.container(border=True):
-        st.markdown("**Webshop en verkoop**")
-        st.caption("Je winkel, bestellingen en diensten.")
-        if st.button("Mijn webshop", icon=":material/storefront:", width="stretch", key="bedrijf_shop"):
+    st.html("""
+    <style>
+    .st-key-onderneming_snel {
+        border: 1px solid rgba(128,128,128,.17);
+        border-radius: 17px;
+        background: rgba(130,135,150,.055);
+        overflow: hidden;
+        gap: 0 !important;
+    }
+    .st-key-onderneming_snel button {
+        display: grid !important;
+        grid-template-columns: 32px minmax(0,1fr) !important;
+        gap: 12px !important;
+        width: 100% !important;
+        min-height: 56px !important;
+        justify-content: stretch !important;
+        text-align: left !important;
+        padding: 10px 16px !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    .st-key-onderneming_snel button [data-testid="stIconMaterial"] {
+        grid-column: 1 !important;
+        justify-self: start !important;
+        margin: 0 !important;
+    }
+    .st-key-onderneming_snel button [data-testid="stMarkdownContainer"] {
+        grid-column: 2 !important;
+        width: 100% !important;
+        text-align: left !important;
+        margin: 0 !important;
+    }
+    .st-key-onderneming_snel button p { text-align: left !important; }
+    .st-key-onderneming_snel [data-testid="stButton"] + [data-testid="stButton"] {
+        border-top: 1px solid rgba(128,128,128,.14);
+    }
+    </style>
+    """)
+    st.markdown("**Webshop en verkoop**")
+    st.caption("Je winkel, bestellingen en diensten.")
+    with st.container(key="onderneming_snel"):
+        if st.button("Mijn webshop", icon=":material/storefront:", width="stretch", type="tertiary", key="bedrijf_shop"):
             _openen("webshop", "webshop")
             st.rerun()
-        if st.button("Bestellingen", icon=":material/local_shipping:", width="stretch", key="bedrijf_orders"):
+        if st.button("Bestellingen", icon=":material/local_shipping:", width="stretch", type="tertiary", key="bedrijf_orders"):
             _openen("bestellingen", "verzenden")
             st.rerun()
-        if st.button("Afspraken en diensten", icon=":material/event_available:", width="stretch", key="bedrijf_book"):
+        if st.button("Afspraken en diensten", icon=":material/event_available:", width="stretch", type="tertiary", key="bedrijf_book"):
             _openen("boekingen", "boekingen")
             st.rerun()
     st.markdown("**Vakgebied en specialisatie**")
     st.caption("Kies je beroep of typ een eigen specialisatie.")
     b = beroep.huidig()
     # Kies uit de lijst of typ zelf je beroep; staat het er niet tussen, dan doet de assistent een voorstel.
-    namen = [beroep.naam_van(k) for k in beroep.BEROEPEN]
+    namen = sorted((beroep.naam_van(k) for k in beroep.BEROEPEN), key=str.casefold)
     nu = (b["naam"] or beroep.naam_van(b["soort"])) if b["soort"] else None
     keuze = st.selectbox("Wat doe je?", namen if nu in namen or not nu else [*namen, nu],
                          index=None if not nu else (namen.index(nu) if nu in namen else len(namen)),
-                         placeholder="Kies of typ je beroep", accept_new_options=True, key="beroep_keuze")
+                         placeholder="Nog geen beroep gekozen — zoek of typ je vakgebied", accept_new_options=True, key="beroep_keuze")
     if keuze and keuze != nu:
         sleutel = next((k for k in beroep.BEROEPEN if beroep.naam_van(k) == keuze), None) or beroep.zoek(keuze)
         if sleutel:
