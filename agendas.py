@@ -9,6 +9,9 @@ Afspraken worden een paar minuten onthouden, zodat de app niet bij elke klik opn
 """
 
 import hashlib
+import ipaddress
+import socket
+from urllib.parse import urlsplit
 import re
 import secrets
 import threading
@@ -124,15 +127,50 @@ def _caldav_agendas(url: str, gebruiker: str, wachtwoord: str) -> list[str]:
                    "niet je gewone Apple-wachtwoord.")
 
 
-def _ophalen_link(url: str) -> bytes:
+def _veilige_agenda_url(url: str) -> None:
+    """Blokkeer onveilige hosts voordat een externe kalender wordt opgehaald."""
     try:
-        r = httpx.get(url, timeout=12, follow_redirects=True, headers={"User-Agent": "MijnAssistent/1.0"})
+        delen = urlsplit(url)
+        host = delen.hostname
+        if delen.scheme not in ("https", "http") or not host or delen.username or delen.password:
+            raise ValueError("ongeldige URL")
+        if host.lower() == "localhost" or host.lower().endswith((".localhost", ".local", ".internal")):
+            raise ValueError("intern adres")
+        adressen = socket.getaddrinfo(host, delen.port or (443 if delen.scheme == "https" else 80),
+                                      type=socket.SOCK_STREAM)
+        if not adressen or any(not ipaddress.ip_address(item[4][0]).is_global for item in adressen):
+            raise ValueError("niet-publiek IP-adres")
+    except (ValueError, OSError, UnicodeError):
+        raise Fout("Deze agendalink verwijst naar een onveilig of niet-bereikbaar netwerkadres.")
+
+
+def _ophalen_link(url: str) -> bytes:
+    # Handmatige redirects: elke volgende bestemming wordt opnieuw gevalideerd.
+    # Een egress-firewall blijft nodig tegen DNS-rebinding tussen validatie en verbinding.
+    try:
+        with httpx.Client(timeout=12, follow_redirects=False,
+                          headers={"User-Agent": "MijnAssistent/1.0"}) as client:
+            for _ in range(6):
+                _veilige_agenda_url(url)
+                with client.stream("GET", url) as r:
+                    if r.status_code in (301, 302, 303, 307, 308):
+                        locatie = r.headers.get("location")
+                        if not locatie:
+                            raise Fout("De agendalink verwijst door zonder bestemming.")
+                        url = str(r.url.join(locatie))
+                        continue
+                    if r.status_code in (401, 403, 404):
+                        raise Fout("De agendalink werkt niet (meer). Vraag een nieuwe link op in je agenda.")
+                    r.raise_for_status()
+                    inhoud = bytearray()
+                    for deel in r.iter_bytes():
+                        inhoud.extend(deel)
+                        if len(inhoud) > 5_000_000:
+                            raise Fout("Deze agenda is te groot om veilig op te halen.")
+                    return bytes(inhoud)
+            raise Fout("De agendalink verwijst te vaak door.")
     except httpx.HTTPError:
         raise Fout("De agendalink is niet bereikbaar.")
-    if r.status_code in (401, 403, 404):
-        raise Fout("De agendalink werkt niet (meer). Vraag een nieuwe link op in je agenda.")
-    r.raise_for_status()
-    return r.content
 
 
 def _als_tekst(waarde) -> str:
