@@ -3533,7 +3533,7 @@ INSTELLING_GROEPEN = {
 
 
 def instellingen_tabblad() -> None:
-    """Eigen instellingenhub: secties met navigatie, geen kopie van een OS-menu."""
+    """Mobielvriendelijke instellingen: profiel eerst, daarna compacte navigatieregels."""
     def kies(naam: str | None) -> None:
         if naam == "Rondleiding":
             st.session_state.rl_stap = 0
@@ -3545,10 +3545,11 @@ def instellingen_tabblad() -> None:
         st.session_state.inst_groep = na
     groep = st.session_state.get("inst_groep")
     if groep in INSTELLING_GROEPEN:
-        with st.container(horizontal=True, vertical_alignment="center"):
-            st.button("Overzicht", icon=":material/arrow_back:", type="tertiary",
-                      on_click=kies, args=(None,))
-            st.markdown(f"**{groep}**")
+        if st.button("Instellingen", icon=":material/arrow_back:", type="tertiary",
+                     key="inst_terug"):
+            kies(None)
+            st.rerun()
+        st.markdown("### " + ("Algemeen" if groep == "Weergave" else groep))
         {"Assistent": instellingen_assistent, "Weergave": instellingen_weergave,
          "Koppelingen": instellingen_koppelingen, "Account": instellingen_account,
          "Privacy en beveiliging": privacy_scherm.pagina, "Opslag": opslag_instellingen,
@@ -3557,35 +3558,100 @@ def instellingen_tabblad() -> None:
         return
 
     gebruiker = samen_scherm.ik()
-    st.markdown(
-        '<div style="border-left:4px solid #d6aa3c;padding:12px 18px;margin-bottom:16px">'
-        '<div style="letter-spacing:.14em;font-size:.75rem;opacity:.7">JOUW WERKRUIMTE</div>'
-        '<h2 style="margin:4px 0">Instellingen</h2>'
-        '<div style="opacity:.75">' +
-        html.escape(gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Mijn account") +
-        '</div></div>', unsafe_allow_html=True,
-    )
-    with st.container(border=True):
-        st.markdown("**Snel aanpassen**")
-        taalkeuze("taal_bovenaan")
-        with st.container(horizontal=True):
-            st.button("Mijn account", icon=":material/person:", on_click=kies,
-                      args=("Account",), key="inst_snel_account")
-            st.button("Privacy", icon=":material/shield:", on_click=kies,
-                      args=("Privacy en beveiliging",), key="inst_snel_privacy")
-    te_doen_blok()
-    st.markdown("**Onderdelen**")
-    onderdelen_tegels()
-    st.markdown("**Beheer en voorkeuren**")
-    groepen = list(INSTELLING_GROEPEN.items())
-    for start in range(0, len(groepen), 2):
-        cols = st.columns(2)
-        for col, (naam, (icoon, uitleg)) in zip(cols, groepen[start:start + 2]):
-            with col:
-                with st.container(border=True):
-                    st.button(naam, key=f"inst_{naam}", icon=icoon,
-                              on_click=kies, args=(naam,), width="stretch")
-                    st.caption(uitleg)
+    st.html("""
+    <style>
+    /* Alleen instellingen: doorlopende lijstregels, geen kaarten-in-kaarten. */
+    .st-key-instellingen_profiel,
+    [class*="st-key-instellingen_groep_"] {
+        border: 1px solid rgba(128,128,128,.16);
+        border-radius: 19px;
+        overflow: hidden;
+        background: rgba(130,135,150,.065);
+        gap: 0 !important;
+    }
+    .st-key-instellingen_profiel [data-testid="stButton"],
+    [class*="st-key-instellingen_groep_"] [data-testid="stButton"] {
+        margin: 0 !important;
+    }
+    .st-key-instellingen_profiel button,
+    [class*="st-key-instellingen_groep_"] button {
+        border: 0 !important;
+        border-radius: 0 !important;
+        width: 100% !important;
+        min-height: 57px;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        background: transparent !important;
+        padding: 10px 16px !important;
+        box-shadow: none !important;
+        position: relative;
+    }
+    .st-key-instellingen_profiel button:hover,
+    [class*="st-key-instellingen_groep_"] button:hover {
+        background: rgba(130,135,150,.10) !important;
+    }
+    .st-key-instellingen_profiel button::after,
+    [class*="st-key-instellingen_groep_"] button::after {
+        content: "›";
+        font-size: 29px;
+        color: #8a8e99;
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-52%);
+    }
+    .st-key-instellingen_profiel button p,
+    [class*="st-key-instellingen_groep_"] button p {
+        font-size: 1rem !important;
+        font-weight: 450 !important;
+    }
+    .st-key-instellingen_profiel button [data-testid="stIconMaterial"],
+    [class*="st-key-instellingen_groep_"] button [data-testid="stIconMaterial"] {
+        background: rgba(130,135,150,.17);
+        color: inherit;
+        border-radius: 9px;
+        padding: 7px;
+        font-size: 19px;
+        box-sizing: content-box;
+        margin-right: 9px;
+    }
+    [class*="st-key-instellingen_groep_"] [data-testid="stButton"] + [data-testid="stButton"] {
+        border-top: 1px solid rgba(128,128,128,.15);
+    }
+    </style>
+    """)
+    st.markdown("## Instellingen")
+    st.caption("Persoonlijk overzicht")
+    naam = gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Mijn profiel"
+    with st.container(key="instellingen_profiel"):
+        if st.button(str(naam) + "  ·  Profiel en account",
+                     icon=":material/account_circle:", key="inst_profiel",
+                     type="tertiary", width="stretch"):
+            kies("Account")
+            st.rerun()
+
+    groepen = [
+        ("Algemeen", [("Weergave", "Algemene instellingen", ":material/tune:"),
+                      ("Assistent", "Assistent", ":material/smart_toy:"),
+                      ("Koppelingen", "Koppelingen", ":material/link:")]),
+        ("Account en veiligheid", [("Privacy en beveiliging", "Privacy en beveiliging", ":material/shield:"),
+                                   ("Opslag", "Opslag en abonnement", ":material/cloud:")]),
+        ("Werk en ondersteuning", [("Werk", "Werk", ":material/work:"),
+                                   ("Idee of probleem", "Feedback", ":material/feedback:"),
+                                   ("Rondleiding", "Rondleiding", ":material/help_outline:")]),
+    ]
+    for index, (titel, items) in enumerate(groepen):
+        st.markdown("**" + titel + "**")
+        with st.container(key=f"instellingen_groep_{index}"):
+            for code, label, icoon in items:
+                if st.button(label, icon=icoon, key="inst_rij_" + code,
+                             width="stretch", type="tertiary"):
+                    kies(code)
+                    st.rerun()
+
+    with st.expander("Alle apponderdelen", icon=":material/apps:"):
+        onderdelen_tegels()
+
 
 def idee_of_probleem() -> None:
     """Meldingen gaan naar de vaste verbeterronde; wat ermee gebeurd is, staat eronder."""
@@ -3728,12 +3794,10 @@ def instellingen_weergave() -> None:
     if keuze not in range(len(secties)):
         keuze = None
     if keuze is None:
-        for index, (naam, icoon, uitleg) in enumerate(secties):
-            with st.container(border=True):
-                st.markdown(f"{icoon} **{naam}**")
-                st.caption(uitleg)
-                if st.button("Openen", key=f"algemeen_sectie_{index}",
-                             icon=":material/arrow_forward:", width="stretch"):
+        with st.container(border=True):
+            for index, (naam, icoon, uitleg) in enumerate(secties):
+                if st.button(naam, key=f"algemeen_sectie_{index}",
+                             icon=icoon, type="tertiary", width="stretch"):
                     st.session_state.algemeen_sectie = index
                     st.rerun()
         return
@@ -4796,33 +4860,7 @@ def kopbalk() -> None:
                 st.page_link(PAGINA["chat"], label=f"Chat ({n})" if (n := chat.ongelezen()) else "Chat", width="content")
             else:
                 st.page_link(PAGINA[url], width="content")
-        st.page_link(PAGINA["assistent"], label=mijn_avatar()["naam"], width="content")
-        # Profielfoto opent alle persoonlijke opties direct, zonder de huidige pagina te verlaten.
-        with st.popover("", icon=":material/account_circle:", help="Mijn profiel en beheer"):
-            st.markdown("**Mijn werkruimte**")
-            gebruiker = st.session_state.get("ik") or {}
-            st.caption(gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Mijn account")
-            if st.button("Profiel en account", icon=":material/person:", width="stretch",
-                         key="profielmenu_account"):
-                st.session_state.inst_groep = "Account"
-                st.session_state.ga_naar = "instellingen"
-                st.rerun()
-            if st.button("Opslag", icon=":material/cloud:", width="stretch",
-                         key="profielmenu_opslag"):
-                st.session_state.inst_groep = "Opslag"
-                st.session_state.ga_naar = "instellingen"
-                st.rerun()
-            if st.button("Community's en abonnementen", icon=":material/groups:",
-                         width="stretch", key="profielmenu_communities"):
-                st.session_state.inst_groep = "Account"
-                st.session_state.account_overzicht = True
-                st.session_state.ga_naar = "instellingen"
-                st.rerun()
-            if st.button("Alle instellingen", icon=":material/tune:", width="stretch",
-                         key="profielmenu_instellingen"):
-                st.session_state.inst_groep = None
-                st.session_state.ga_naar = "instellingen"
-                st.rerun()
+        st.page_link(PAGINA["assistent"], label="Assistent", width="content")
         st.page_link(PAGINA["instellingen"], label=f"{totaal}" if totaal else " ", icon=":material/settings:",
                      width="content", help="Instellingen")
 
