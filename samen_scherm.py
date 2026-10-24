@@ -853,12 +853,25 @@ def mijn_webshop(inkopen=None) -> None:
         if deel == "Reviews":
             winkel_reviews()
             return
+    if w:
+        st.markdown("**Ontwerp en deel je winkel**")
+        st.caption("Pas naam, beschrijving en merkkleur aan bij Winkel instellen. Je deelt altijd dezelfde link.")
+        st.code(winkel_link(w["adres"]), language=None)
+        with st.expander("Winkelvoorbeeld", icon=":material/visibility:"):
+            import html
+            st.markdown(
+                f'<div style="border-top:7px solid {html.escape(w.get("kleur") or "#2563eb", quote=True)};padding:18px;border-radius:12px;background:rgba(128,128,128,.06)">'
+                f'<h3>{html.escape(w.get("naam") or "Mijn winkel")}</h3>'
+                f'<p>{html.escape(w.get("omschrijving") or "Welkom in mijn winkel.")}</p></div>',
+                unsafe_allow_html=True)
+        st.caption("Via Reserveren beheer je je agenda en beschikbare tijden.")
+
     st.caption(f"Je eigen winkel in de app, die je kunt delen. Klanten betalen veilig via de app en "
                f"betalen niets extra. Per verkoop betaal je {m['commissie_procent']:g}% commissie (minimaal "
                f"{samen.euro(m['commissie_min'])}), inclusief betaalkosten. Geen abonnement.")
     if not m["kan_betalen"]:
         st.warning("Om je winkel te openen, meld je je eerst aan om betalingen via de app te ontvangen "
-                   "(Verkopen › 💳).")
+                   "(Verkopen › Betalingen).")
     if w and w["open"]:
         st.success("Je winkel is open.")
         kort.deel_blok("winkel", w["adres"], w["naam"], "winkel")
