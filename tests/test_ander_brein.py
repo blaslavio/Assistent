@@ -63,6 +63,32 @@ class BreinTests(unittest.TestCase):
         with patch.object(self.mod.httpx, "post", return_value=FakeResponse({"role": "assistant", "content": ""})):
             self.assertIn("geen antwoord", self.mod.antwoord("ChatGPT", [{"role": "user", "content": "Hoi"}]))
 
+    def test_toolgeschiedenis_bij_wissel_brein(self):
+        berichten = [
+            {"role": "assistant", "content": [
+                {"type": "text", "text": "Ik zoek het op."},
+                {"type": "tool_use", "id": "t1", "name": "agenda_lezen", "input": {"dag": "morgen"}}]},
+            {"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": "t1", "content": "Training om 10:00"},
+                {"type": "text", "text": "Wanneer is mijn training?"}]},
+        ]
+        historie = self.mod._geschiedenis(berichten)
+        self.assertEqual(historie[0]["tool_calls"][0]["function"]["name"], "agenda_lezen")
+        self.assertEqual(historie[1]["role"], "tool")
+        self.assertEqual(historie[1]["content"], "Training om 10:00")
+        self.assertEqual(historie[2]["content"], "Wanneer is mijn training?")
+        with patch.object(self.mod.httpx, "post",
+                          return_value=FakeResponse({"role": "assistant", "content": "10 uur"})) as post:
+            self.mod.antwoord("ChatGPT", berichten)
+        self.assertEqual(post.call_args.kwargs["json"]["messages"][2]["role"], "tool")
+
+    def test_tekst_en_losse_resultaten(self):
+        self.assertEqual(self.mod._tekst([{"type": "text", "text": "Hallo"}]), "Hallo")
+        historie = self.mod._geschiedenis([{"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "onbekend", "content": "Geheim"},
+            {"type": "text", "text": "Vraag"}]}])
+        self.assertEqual(historie, [{"role": "user", "content": "Vraag"}])
+
     def test_auth_fout(self):
         r = FakeResponse({})
         r.status_code = 401
