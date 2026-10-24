@@ -3558,41 +3558,98 @@ def instellingen_tabblad() -> None:
         return
 
     gebruiker = samen_scherm.ik()
+    st.html("""
+    <style>
+    /* Alleen instellingen: doorlopende lijstregels, geen kaarten-in-kaarten. */
+    .st-key-instellingen_profiel,
+    [class*="st-key-instellingen_groep_"] {
+        border: 1px solid rgba(128,128,128,.16);
+        border-radius: 19px;
+        overflow: hidden;
+        background: rgba(130,135,150,.065);
+        gap: 0 !important;
+    }
+    .st-key-instellingen_profiel [data-testid="stButton"],
+    [class*="st-key-instellingen_groep_"] [data-testid="stButton"] {
+        margin: 0 !important;
+    }
+    .st-key-instellingen_profiel button,
+    [class*="st-key-instellingen_groep_"] button {
+        border: 0 !important;
+        border-radius: 0 !important;
+        width: 100% !important;
+        min-height: 57px;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        background: transparent !important;
+        padding: 10px 16px !important;
+        box-shadow: none !important;
+        position: relative;
+    }
+    .st-key-instellingen_profiel button:hover,
+    [class*="st-key-instellingen_groep_"] button:hover {
+        background: rgba(130,135,150,.10) !important;
+    }
+    .st-key-instellingen_profiel button::after,
+    [class*="st-key-instellingen_groep_"] button::after {
+        content: "›";
+        font-size: 29px;
+        color: #8a8e99;
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-52%);
+    }
+    .st-key-instellingen_profiel button p,
+    [class*="st-key-instellingen_groep_"] button p {
+        font-size: 1rem !important;
+        font-weight: 450 !important;
+    }
+    .st-key-instellingen_profiel button [data-testid="stIconMaterial"],
+    [class*="st-key-instellingen_groep_"] button [data-testid="stIconMaterial"] {
+        background: #d6aa3c;
+        color: #15171b;
+        border-radius: 9px;
+        padding: 7px;
+        font-size: 19px;
+        box-sizing: content-box;
+        margin-right: 9px;
+    }
+    [class*="st-key-instellingen_groep_"] [data-testid="stButton"] + [data-testid="stButton"] {
+        border-top: 1px solid rgba(128,128,128,.15);
+    }
+    </style>
+    """)
     st.markdown("## Instellingen")
-    st.caption("Jouw account en voorkeuren op één plek.")
-
-    # Het profiel staat altijd bovenaan, als een volledige, aanklikbare regel.
-    with st.container(border=True):
-        naam = gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Mijn profiel"
+    st.caption("Persoonlijk overzicht")
+    naam = gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Mijn profiel"
+    with st.container(key="instellingen_profiel"):
         if st.button(str(naam) + "  ·  Profiel en account",
                      icon=":material/account_circle:", key="inst_profiel",
-                     width="stretch"):
+                     type="tertiary", width="stretch"):
             kies("Account")
             st.rerun()
-        st.caption("Persoonlijke gegevens, communities en abonnementen")
 
     groepen = [
-        ("Algemeen", [("Weergave", "Algemeen", ":material/tune:"),
+        ("Algemeen", [("Weergave", "Algemene instellingen", ":material/tune:"),
                       ("Assistent", "Assistent", ":material/smart_toy:"),
                       ("Koppelingen", "Koppelingen", ":material/link:")]),
         ("Account en veiligheid", [("Privacy en beveiliging", "Privacy en beveiliging", ":material/shield:"),
-                                   ("Opslag", "Opslag", ":material/cloud:")]),
-        ("Zakelijk en ondersteuning", [("Werk", "Werk", ":material/work:"),
-                                       ("Idee of probleem", "Feedback", ":material/feedback:"),
-                                       ("Rondleiding", "Rondleiding", ":material/help_outline:")]),
+                                   ("Opslag", "Opslag en abonnement", ":material/cloud:")]),
+        ("Werk en ondersteuning", [("Werk", "Werk", ":material/work:"),
+                                   ("Idee of probleem", "Feedback", ":material/feedback:"),
+                                   ("Rondleiding", "Rondleiding", ":material/help_outline:")]),
     ]
-    for titel, items in groepen:
+    for index, (titel, items) in enumerate(groepen):
         st.markdown("**" + titel + "**")
-        with st.container(border=True):
+        with st.container(key=f"instellingen_groep_{index}"):
             for code, label, icoon in items:
                 if st.button(label, icon=icoon, key="inst_rij_" + code,
                              width="stretch", type="tertiary"):
                     kies(code)
                     st.rerun()
 
-    # De appmodules blijven bereikbaar, maar verstoren de instellingen niet.
     with st.expander("Alle apponderdelen", icon=":material/apps:"):
-        st.caption("Open een onderdeel van Assistent.")
         onderdelen_tegels()
 
 
