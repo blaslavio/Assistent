@@ -4803,33 +4803,7 @@ def kopbalk() -> None:
                 st.page_link(PAGINA["chat"], label=f"Chat ({n})" if (n := chat.ongelezen()) else "Chat", width="content")
             else:
                 st.page_link(PAGINA[url], width="content")
-        st.page_link(PAGINA["assistent"], label=mijn_avatar()["naam"], width="content")
-        # Profielfoto opent alle persoonlijke opties direct, zonder de huidige pagina te verlaten.
-        with st.popover("", icon=":material/account_circle:", help="Mijn profiel en beheer"):
-            st.markdown("**Mijn werkruimte**")
-            gebruiker = st.session_state.get("ik") or {}
-            st.caption(gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Mijn account")
-            if st.button("Profiel en account", icon=":material/person:", width="stretch",
-                         key="profielmenu_account"):
-                st.session_state.inst_groep = "Account"
-                st.session_state.ga_naar = "instellingen"
-                st.rerun()
-            if st.button("Opslag", icon=":material/cloud:", width="stretch",
-                         key="profielmenu_opslag"):
-                st.session_state.inst_groep = "Opslag"
-                st.session_state.ga_naar = "instellingen"
-                st.rerun()
-            if st.button("Community's en abonnementen", icon=":material/groups:",
-                         width="stretch", key="profielmenu_communities"):
-                st.session_state.inst_groep = "Account"
-                st.session_state.account_overzicht = True
-                st.session_state.ga_naar = "instellingen"
-                st.rerun()
-            if st.button("Alle instellingen", icon=":material/tune:", width="stretch",
-                         key="profielmenu_instellingen"):
-                st.session_state.inst_groep = None
-                st.session_state.ga_naar = "instellingen"
-                st.rerun()
+        st.page_link(PAGINA["assistent"], label="Assistent", width="content")
         st.page_link(PAGINA["instellingen"], label=f"{totaal}" if totaal else " ", icon=":material/settings:",
                      width="content", help="Instellingen")
 
