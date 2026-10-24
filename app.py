@@ -3990,6 +3990,31 @@ def instellingen_koppelingen() -> None:
 
 
 def instellingen_account() -> None:
+    if st.session_state.pop("account_overzicht", False):
+        st.markdown("**Mijn communities en abonnementen**")
+    with st.container(border=True):
+        st.markdown("**Communities en abonnementen**")
+        if opslag.online() and opslag.is_sessie(st.session_state.get("wachtwoord", "")):
+            try:
+                overzicht = cursus.mijn()
+            except (samen.Fout, opslag.GeenToegang, KeyError, TypeError) as fout:
+                st.warning("Je overzicht is nu niet beschikbaar.")
+            else:
+                communities = overzicht.get("communities") or []
+                abonnementen = overzicht.get("abonnementen") or []
+                st.caption(f"{len(communities)} communities · {len(abonnementen)} abonnementen")
+                for community in communities:
+                    st.markdown("**" + html.escape(str(community.get("naam") or "Community")) + "**")
+                    if community.get("beheer"):
+                        st.caption("Je beheert deze community")
+                for abonnement in abonnementen:
+                    naam = abonnement.get("community_naam") or abonnement.get("naam") or "Abonnement"
+                    status = abonnement.get("status") or "onbekend"
+                    st.write(f"{naam} · {status}")
+                if not communities and not abonnementen:
+                    st.caption("Je hebt nog geen communities of abonnementen.")
+        else:
+            st.caption("Log in om je communities en abonnementen te bekijken.")
     samen_scherm.account_instellingen()
     if opslag.online() and opslag.is_sessie(st.session_state.get("wachtwoord", "")):
         with st.expander("Je profiellink", icon=":material/badge:"):
@@ -4737,7 +4762,32 @@ def kopbalk() -> None:
             else:
                 st.page_link(PAGINA[url], width="content")
         st.page_link(PAGINA["assistent"], label=mijn_avatar()["naam"], width="content")
-        # Instellingen als icoon, zodat alles ook op een telefoon op één regel past.
+        # Profielfoto opent alle persoonlijke opties direct, zonder de huidige pagina te verlaten.
+        with st.popover("", icon=":material/account_circle:", help="Mijn profiel en beheer"):
+            st.markdown("**Mijn werkruimte**")
+            gebruiker = st.session_state.get("ik") or {}
+            st.caption(gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Mijn account")
+            if st.button("Profiel en account", icon=":material/person:", width="stretch",
+                         key="profielmenu_account"):
+                st.session_state.inst_groep = "Account"
+                st.session_state.ga_naar = "instellingen"
+                st.rerun()
+            if st.button("Opslag", icon=":material/cloud:", width="stretch",
+                         key="profielmenu_opslag"):
+                st.session_state.inst_groep = "Opslag"
+                st.session_state.ga_naar = "instellingen"
+                st.rerun()
+            if st.button("Community's en abonnementen", icon=":material/groups:",
+                         width="stretch", key="profielmenu_communities"):
+                st.session_state.inst_groep = "Account"
+                st.session_state.account_overzicht = True
+                st.session_state.ga_naar = "instellingen"
+                st.rerun()
+            if st.button("Alle instellingen", icon=":material/tune:", width="stretch",
+                         key="profielmenu_instellingen"):
+                st.session_state.inst_groep = None
+                st.session_state.ga_naar = "instellingen"
+                st.rerun()
         st.page_link(PAGINA["instellingen"], label=f"{totaal}" if totaal else " ", icon=":material/settings:",
                      width="content", help="Instellingen")
 
