@@ -3715,26 +3715,61 @@ def gratis_instellingen() -> None:
 
 
 def instellingen_weergave() -> None:
-    inst = opslag.instellingen()
-    with st.expander("Taal"):
-        taalkeuze("taal_instelling")
-        st.caption("De assistent antwoordt ook in deze taal. Wat nog niet vertaald is, blijft Nederlands.")
-    with st.expander("Toegankelijkheid"):
-        toegankelijkheid_instellingen()
-    with st.expander("Voorpagina en menu"):
-        voorpagina_instellingen()
-    with st.expander("Indeling"):
-        indeling_instellingen()
-    with st.expander("Thuisadres" + ("" if inst.get("thuisadres") else " (nog invullen)"),
-                     expanded=not inst.get("thuisadres")):
-        thuisadres_instellen()
-    with st.expander("Feestdagen en schoolvakanties"):
-        feestdagen_instellen()
-    with st.expander("Kleuren in de agenda"):
-        kleuren_instellingen()
-    with st.expander(f"Contacten ({len(opslag.contacten_zoeken())})"):
-        contacten_beheren()
-
+    """Algemene instellingen in een eigen, overzichtelijke navigatie."""
+    st.markdown("### Algemene instellingen")
+    st.caption("Kies wat je wilt aanpassen. Alle bestaande functies blijven beschikbaar.")
+    secties = [
+        ("Taal en toegankelijkheid", ":material/language:", "Taal en bediening"),
+        ("Startscherm en navigatie", ":material/dashboard:", "Voorpagina, menu en indeling"),
+        ("Adres en contacten", ":material/contacts:", "Persoonlijke gegevens"),
+        ("Agenda en vrije dagen", ":material/calendar_month:", "Feestdagen en kleuren"),
+    ]
+    keuze = st.session_state.get("algemeen_sectie")
+    if keuze not in range(len(secties)):
+        keuze = None
+    if keuze is None:
+        for index, (naam, icoon, uitleg) in enumerate(secties):
+            with st.container(border=True):
+                st.markdown(f"{icoon} **{naam}**")
+                st.caption(uitleg)
+                if st.button("Openen", key=f"algemeen_sectie_{index}",
+                             icon=":material/arrow_forward:", width="stretch"):
+                    st.session_state.algemeen_sectie = index
+                    st.rerun()
+        return
+    if st.button("Terug naar algemene instellingen", icon=":material/arrow_back:",
+                 key="algemeen_terug", type="tertiary"):
+        st.session_state.algemeen_sectie = None
+        st.rerun()
+    st.markdown(f"#### {secties[keuze][0]}")
+    if keuze == 0:
+        with st.container(border=True):
+            st.markdown("**Taal**")
+            taalkeuze("taal_instelling")
+        with st.container(border=True):
+            st.markdown("**Toegankelijkheid**")
+            toegankelijkheid_instellingen()
+    elif keuze == 1:
+        with st.container(border=True):
+            st.markdown("**Voorpagina en menu**")
+            voorpagina_instellingen()
+        with st.container(border=True):
+            st.markdown("**Indeling**")
+            indeling_instellingen()
+    elif keuze == 2:
+        with st.container(border=True):
+            st.markdown("**Thuisadres**")
+            thuisadres_instellen()
+        with st.container(border=True):
+            st.markdown(f"**Contacten ({len(opslag.contacten_zoeken())})**")
+            contacten_beheren()
+    else:
+        with st.container(border=True):
+            st.markdown("**Feestdagen en schoolvakanties**")
+            feestdagen_instellen()
+        with st.container(border=True):
+            st.markdown("**Kleuren in de agenda**")
+            kleuren_instellingen()
 
 def feestdagen_instellen() -> None:
     i = feestdagen.instellingen()
