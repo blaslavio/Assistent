@@ -92,6 +92,7 @@ def antwoord(brein: str, berichten: list, bij_tekst=None, bij_hulpmiddel=None, s
     hulpmiddelen, per_naam = _hulpmiddelen(brein)
     a = AANBIEDERS[brein]
     tekst = ""
+    afgerond = False
     for _ in range(MAX_RONDES):
         try:
             r = httpx.post(a["url"], headers={"Authorization": f"Bearer {sleutel(brein)}"}, timeout=120,
@@ -109,6 +110,7 @@ def antwoord(brein: str, berichten: list, bij_tekst=None, bij_hulpmiddel=None, s
         gesprek.append({k: v for k, v in bericht.items() if k in ("role", "content", "tool_calls") and v is not None})
         if not aanroepen:
             tekst = (bericht.get("content") or "").strip()
+            afgerond = True
             break
         for aanroep in aanroepen:
             naam = aanroep["function"]["name"]
@@ -120,7 +122,9 @@ def antwoord(brein: str, berichten: list, bij_tekst=None, bij_hulpmiddel=None, s
                 uitkomst = f"Fout: {fout}"
             gesprek.append({"role": "tool", "tool_call_id": aanroep["id"],
                             "content": uitkomst if isinstance(uitkomst, str) else json.dumps(uitkomst, default=str)})
-    tekst = tekst or "Klaar."
+    if not afgerond:
+        raise Fout("De assistent heeft te veel opeenvolgende hulpmiddelacties uitgevoerd. Probeer je vraag opnieuw.")
+    tekst = tekst or "De assistent heeft geen antwoord teruggegeven."
     if bij_tekst:
         bij_tekst(tekst)
     berichten.append({"role": "assistant", "content": tekst})
