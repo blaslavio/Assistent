@@ -14,16 +14,16 @@ import httpx
 
 import opslag
 
-SOORTEN_DELEN = {"afspraak": "📅 Afspraak", "taak": "✅ Taak", "boodschappen": "🛒 Boodschappen", "notitie": "📝 Notitie"}
-SOORTEN_ITEM = {"taak": "✅ Taak", "notitie": "📝 Notitie", "afspraak": "📅 Afspraak", "link": "🔗 Link"}
-SOORTEN_AANBOD = {"product": "📦 Product", "dienst": "🛠️ Dienst", "training": "🏋️ Privétraining", "les": "🎓 Les of studie"}
-BETAALWIJZEN = {"app": "💳 Via de app (beschermd)", "tikkie": "📲 Tikkie of betaalverzoek", "overmaken": "🏦 Overmaken",
-                "contant": "💶 Contant bij ophalen"}
-LEVERING = {"ophalen": "🤝 Ophalen", "verzenden": "📦 Verzenden", "op_locatie": "📍 Op locatie", "online": "💻 Online",
-            "bezorgen": "🛵 Bezorgen"}
-STATUS = {"aangevraagd": "🕓 Aangevraagd", "geaccepteerd": "👍 Geaccepteerd", "betaald": "💶 Betaald",
-          "geleverd": "📦 Geleverd", "afgerond": "✅ Afgerond", "geannuleerd": "✖️ Geannuleerd",
-          "geschil": "⚠️ Probleem gemeld", "terugbetaald": "↩️ Terugbetaald"}
+SOORTEN_DELEN = {"afspraak": "Afspraak", "taak": "Taak", "boodschappen": "Boodschappen", "notitie": "Notitie"}
+SOORTEN_ITEM = {"taak": "Taak", "notitie": "Notitie", "afspraak": "Afspraak", "link": "Link"}
+SOORTEN_AANBOD = {"product": "Product", "dienst": "Dienst", "training": "Privétraining", "les": "Les of studie"}
+BETAALWIJZEN = {"app": "Via de app (beschermd)", "tikkie": "Tikkie of betaalverzoek", "overmaken": "Overmaken",
+                "contant": "Contant bij ophalen"}
+LEVERING = {"ophalen": "Ophalen", "verzenden": "Verzenden", "op_locatie": "Op locatie", "online": "Online",
+            "bezorgen": "Bezorgen"}
+STATUS = {"aangevraagd": "Aangevraagd", "geaccepteerd": "Geaccepteerd", "betaald": "Betaald",
+          "geleverd": "Geleverd", "afgerond": "Afgerond", "geannuleerd": "Geannuleerd",
+          "geschil": "Probleem gemeld", "terugbetaald": "Terugbetaald"}
 
 # Andere marktplaatsen. {q} wordt de zoekterm.
 ANDERE_MARKTPLAATSEN = [
@@ -41,11 +41,11 @@ ANDERE_MARKTPLAATSEN = [
     {"naam": "Superprof", "voor": "Bijles, privélessen en trainers", "thuis": "https://www.superprof.nl/", "zoek": ""},
 ]
 
-VEILIG = ("Het veiligst is **💳 betalen via de app**: je geld staat bij Stripe en gaat pas naar de verkoper als jij "
+VEILIG = ("Het veiligst is **betalen via de app**: je geld staat bij Stripe en gaat pas naar de verkoper als jij "
           "bevestigt dat alles goed is ontvangen. Gaat er iets mis, meld dan een probleem; de beheerder beslist. "
           "Betaal je buiten de app, doe dat dan bij ophalen of nadat je het product hebt gezien. Betaal nooit via een "
-          "link of rekeningnummer dat iemand in een bericht stuurt, en deel nooit inlogcodes. Let op ✅ geverifieerd "
-          "en de sterren. Klopt er iets niet? Gebruik 🚩 Melden.")
+          "link of rekeningnummer dat iemand in een bericht stuurt, en deel nooit inlogcodes. Let op geverifieerd "
+          "en de sterren. Klopt er iets niet? Gebruik Melden.")
 
 # Signalen van oplichting in berichten: links, rekeningnummers, betaalverzoeken, telefoonnummers.
 VERDACHT = re.compile(r"https?://|www\.|\b[A-Z]{2}\d{2}\s?[A-Z]{4}(\s?\d){10}\b|tikkie|betaalverzoek|whatsapp|"
@@ -445,7 +445,7 @@ def vertrouwen_tekst(v: dict | None) -> str:
         delen.append(" ".join(filter(None, ["Zakelijk", bedrijf.get("naam") or "",
                                             f"(KvK {bedrijf['kvk']})" if bedrijf.get("kvk") else ""])))
     if v.get("geverifieerd"):
-        delen.append("✅ geverifieerd")
+        delen.append("geverifieerd")
     if v.get("beoordelingen"):
         delen.append(f"⭐ {str(v['sterren']).replace('.', ',')} ({v['beoordelingen']})")
     if v.get("verkocht"):
@@ -781,11 +781,11 @@ def nieuw() -> dict:
         if b["rol"] == "verkoper":
             wacht += b["status"] in ("aangevraagd", "betaald")
             if b["status"] == "aangevraagd":
-                meldingen.append(("bestellingen", f"🛒 {b['ander']} wil **{b['titel']}** kopen"))
+                meldingen.append(("bestellingen", f"{b['ander']} wil **{b['titel']}** kopen"))
             elif b["status"] == "betaald":
-                meldingen.append(("bestellingen", f"💶 **{b['titel']}** is betaald, verstuur of overhandig het"))
+                meldingen.append(("bestellingen", f"**{b['titel']}** is betaald, verstuur of overhandig het"))
             elif b["status"] == "afgerond" and bijgewerkt >= week:
-                meldingen.append(("bestellingen", f"✅ **{b['titel']}** verkocht voor {euro(b['bedrag'])}"))
+                meldingen.append(("bestellingen", f"**{b['titel']}** verkocht voor {euro(b['bedrag'])}"))
             if b["status"] == "afgerond" and bijgewerkt[:7] == maand:
                 saldo["verdiend"] += float(b["bedrag"])
                 saldo["verkocht"] += 1
@@ -794,10 +794,10 @@ def nieuw() -> dict:
         else:
             if b["status"] == "geaccepteerd" and b["betaalwijze"] == "app":
                 wacht += 1
-                meldingen.append(("bestellingen", f"💳 **{b['titel']}**: je kunt nu betalen"))
+                meldingen.append(("bestellingen", f"**{b['titel']}**: je kunt nu betalen"))
             elif b["status"] == "geleverd":
                 wacht += 1
-                meldingen.append(("bestellingen", f"📦 **{b['titel']}** is onderweg, bevestig als het binnen is"))
+                meldingen.append(("bestellingen", f"**{b['titel']}** is onderweg, bevestig als het binnen is"))
             elif b["status"] == "afgerond" and not b["beoordeeld"]:
                 wacht += 1
                 meldingen.append(("bestellingen", f"⭐ Geef **{b['titel']}** een beoordeling"))
@@ -814,7 +814,7 @@ def nieuw() -> dict:
     if ongelezen:
         meldingen.append(("berichten", f"💬 {ongelezen} nieuw bericht" + ("en" if ongelezen > 1 else "")))
     if gedeeld:
-        meldingen.append(("samen", f"🤝 {gedeeld} nieuw met je gedeeld"))
+        meldingen.append(("samen", f"{gedeeld} nieuw met je gedeeld"))
     if nieuws:
         for u in nieuws["uitnodigingen"][:3]:
             meldingen.append(("agenda", f"🗓️ {u['van']} nodigt je uit: **{u['titel']}** · {tijd_kort(u['start'])}"))
