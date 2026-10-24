@@ -3642,16 +3642,6 @@ def instellingen_tabblad() -> None:
         font-size: 1rem !important;
         font-weight: 450 !important;
     }
-    .st-key-instellingen_profiel button [data-testid="stIconMaterial"],
-    [class*="st-key-instellingen_groep_"] button [data-testid="stIconMaterial"] {
-        background: rgba(130,135,150,.17);
-        color: inherit;
-        border-radius: 9px;
-        padding: 7px;
-        font-size: 19px;
-        box-sizing: content-box;
-        margin-right: 9px;
-    }
     [class*="st-key-instellingen_groep_"] [data-testid="stButton"] + [data-testid="stButton"] {
         border-top: 1px solid rgba(128,128,128,.15);
     }
