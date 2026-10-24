@@ -3533,7 +3533,7 @@ INSTELLING_GROEPEN = {
 
 
 def instellingen_tabblad() -> None:
-    """Rustig zoals bij Google: eerst tegels voor de onderdelen en de instellingen, pas na een keuze de details."""
+    """Eigen instellingenhub: secties met navigatie, geen kopie van een OS-menu."""
     def kies(naam: str | None) -> None:
         if naam == "Rondleiding":
             st.session_state.rl_stap = 0
@@ -3542,35 +3542,50 @@ def instellingen_tabblad() -> None:
         st.session_state.inst_groep = naam
 
     if na := st.session_state.pop("inst_na", None):
-        st.session_state.inst_groep = na  # vanuit "Wat wil je koppelen?"
+        st.session_state.inst_groep = na
     groep = st.session_state.get("inst_groep")
     if groep in INSTELLING_GROEPEN:
         with st.container(horizontal=True, vertical_alignment="center"):
-            st.button("Terug", icon=":material/arrow_back:", type="tertiary", on_click=kies, args=(None,))
+            st.button("Overzicht", icon=":material/arrow_back:", type="tertiary",
+                      on_click=kies, args=(None,))
             st.markdown(f"**{groep}**")
         {"Assistent": instellingen_assistent, "Weergave": instellingen_weergave,
-         "Koppelingen": instellingen_koppelingen, "Account": instellingen_account, "Privacy en beveiliging": privacy_scherm.pagina, "Opslag": opslag_instellingen, "Werk": zaak_scherm.beroep_instellingen,
+         "Koppelingen": instellingen_koppelingen, "Account": instellingen_account,
+         "Privacy en beveiliging": privacy_scherm.pagina, "Opslag": opslag_instellingen,
+         "Werk": zaak_scherm.beroep_instellingen,
          "Idee of probleem": idee_of_probleem}[groep]()
         return
-    gebruiker = samen_scherm.ik()
-    st.markdown(f'<div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">'
-                f'<img src="{avatar.adres(mijn_avatar())}" width="48" height="48" style="border-radius:50%">'
-                f'<div><b>{html.escape(gebruiker.get("weergavenaam") or "Mijn instellingen")}</b><br>'
-                f'<span style="opacity:.6">{html.escape(gebruiker.get("email") or "")}</span></div></div>',
-                unsafe_allow_html=True)
-    # Taal bovenaan, met een wereldbol die je in elke taal herkent.
-    with st.container(horizontal=True, vertical_alignment="center", gap="small"):
-        st.markdown(":material/language:", width="content")
-        taalkeuze("taal_bovenaan")
-    te_doen_blok()
-    onderdelen_tegels()
-    st.markdown("**Voorkeuren**")
-    with st.container(horizontal=True, gap="small"):
-        for i, (naam, (icoon, uitleg)) in enumerate(INSTELLING_GROEPEN.items()):
-            with st.container(border=True, width=168):
-                st.button(naam, key=f"inst_{i}", icon=icoon, on_click=kies, args=(naam,), type="tertiary")
-                st.caption(uitleg)
 
+    gebruiker = samen_scherm.ik()
+    st.markdown(
+        '<div style="border-left:4px solid #d6aa3c;padding:12px 18px;margin-bottom:16px">'
+        '<div style="letter-spacing:.14em;font-size:.75rem;opacity:.7">JOUW WERKRUIMTE</div>'
+        '<h2 style="margin:4px 0">Instellingen</h2>'
+        '<div style="opacity:.75">' +
+        html.escape(gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Mijn account") +
+        '</div></div>', unsafe_allow_html=True,
+    )
+    with st.container(border=True):
+        st.markdown("**Snel aanpassen**")
+        taalkeuze("taal_bovenaan")
+        with st.container(horizontal=True):
+            st.button("Mijn account", icon=":material/person:", on_click=kies,
+                      args=("Account",), key="inst_snel_account")
+            st.button("Privacy", icon=":material/shield:", on_click=kies,
+                      args=("Privacy en beveiliging",), key="inst_snel_privacy")
+    te_doen_blok()
+    st.markdown("**Onderdelen**")
+    onderdelen_tegels()
+    st.markdown("**Beheer en voorkeuren**")
+    groepen = list(INSTELLING_GROEPEN.items())
+    for start in range(0, len(groepen), 2):
+        cols = st.columns(2)
+        for col, (naam, (icoon, uitleg)) in zip(cols, groepen[start:start + 2]):
+            with col:
+                with st.container(border=True):
+                    st.button(naam, key=f"inst_{naam}", icon=icoon,
+                              on_click=kies, args=(naam,), width="stretch")
+                    st.caption(uitleg)
 
 def idee_of_probleem() -> None:
     """Meldingen gaan naar de vaste verbeterronde; wat ermee gebeurd is, staat eronder."""
@@ -4394,73 +4409,57 @@ def _in_app(soort: str, sleutel: str) -> None:
 
 
 def profielkaart(p: dict) -> None:
-    """Rustige profielpagina met contact en rechtstreekse acties."""
+    """Eigen profielontwerp: compacte identiteit en actiepanelen."""
     naam = p.get("naam") or "Profiel"
     st.markdown(
-        "<style>.profiel-kop{text-align:center;padding:18px 0 24px}"
-        ".profiel-kop h1{font-size:2rem;margin:8px 0 4px}"
-        ".profiel-kop p{color:gray;margin:0}</style>",
-        unsafe_allow_html=True,
+        '<div style="border-left:4px solid #d6aa3c;padding:12px 18px;margin:12px 0 24px">'
+        '<div style="font-size:.75rem;letter-spacing:.14em;opacity:.7">PERSOON & DIENSTEN</div>'
+        '<h2 style="margin:4px 0">' + html.escape(naam) + '</h2>'
+        '<div style="opacity:.65">' +
+        html.escape("@" + p["gebruikersnaam"] if p.get("gebruikersnaam") else "Profiel") +
+        '</div></div>', unsafe_allow_html=True,
     )
-    with st.container():
-        foto = p.get("foto")
-        if foto and isinstance(foto, str) and foto.startswith("data:image/"):
-            st.image(foto, width=112)
-        else:
-            st.markdown(":material/account_circle:")
-        st.markdown(
-            '<div class="profiel-kop"><h1>' + html.escape(naam) + '</h1><p>' +
-            html.escape("@" + p["gebruikersnaam"] if p.get("gebruikersnaam") else "Persoonlijk profiel") +
-            '</p></div>', unsafe_allow_html=True,
-        )
-
+    foto = p.get("foto")
+    if foto and isinstance(foto, str) and foto.startswith("data:image/"):
+        st.image(foto, width=96)
     with st.container(border=True):
-        st.markdown("**Gegevens**")
+        st.markdown("**Contact en informatie**")
         if p.get("omschrijving"):
             st.write(p["omschrijving"])
-        # Alleen een apart, expliciet openbaar gemaakt contactnummer; nooit het inlognummer.
         telefoon = p.get("contact_telefoon")
         if telefoon:
-            st.text_input("Telefoonnummer", value=telefoon, disabled=True, key="profiel_contact_telefoon")
+            st.text_input("Openbaar contactnummer", value=telefoon, disabled=True,
+                          key="profiel_contact_telefoon")
         else:
-            st.caption("Geen openbaar telefoonnummer opgegeven.")
+            st.caption("Geen openbaar contactnummer.")
 
-    if w := p.get("winkel"):
-        with st.container(border=True):
-            st.markdown("**Shop**")
-            st.write(w.get("naam") or "Winkel")
+    with st.container(border=True):
+        st.markdown("**Activiteiten**")
+        if w := p.get("winkel"):
+            st.write(w.get("naam") or "Shop")
             if w.get("omschrijving"):
                 st.caption(w["omschrijving"][:160])
-            if st.button("Bekijk de shop", icon=":material/storefront:", width="stretch", key="profiel_winkel"):
+            if st.button("Open shop", icon=":material/storefront:", width="stretch", key="profiel_winkel"):
                 _in_app("winkel", w["adres"])
-
-    if b := p.get("boek"):
-        with st.container(border=True):
-            st.markdown("**Diensten en beschikbaarheid**")
-            st.write(b.get("titel") or "Afspraak maken")
+        if b := p.get("boek"):
+            st.write(b.get("titel") or "Dienstverlening")
             if b.get("intro"):
                 st.caption(b["intro"][:160])
-            if st.button("Bekijk beschikbaarheid", icon=":material/event_available:",
+            if st.button("Bekijk beschikbare momenten", icon=":material/event_available:",
                          width="stretch", key="profiel_boek"):
                 _in_app("boek", b["adres"])
-
-    if p.get("agenda"):
-        with st.container(border=True):
-            st.markdown("**Gedeelde agenda**")
-            st.caption("Deze persoon deelt agenda-informatie met jou.")
-            if st.button("Open agenda", icon=":material/calendar_month:", width="stretch",
-                         key="profiel_agenda"):
+        if p.get("agenda"):
+            st.caption("Deze persoon deelt een agenda met jou.")
+            if st.button("Open gedeelde agenda", icon=":material/calendar_month:",
+                         width="stretch", key="profiel_agenda"):
                 st.session_state.ga_naar = "agenda"
                 st.rerun(scope="app")
-
-    if p.get("ruimtes"):
-        with st.container(border=True):
-            st.markdown("**Ruimtes**")
-            for r in p["ruimtes"]:
-                if st.button(r["titel"], icon=":material/view_in_ar:", width="stretch",
-                             key=f"profiel_ruimte_{r['id']}"):
-                    _in_app("ruimte", str(r["id"]))
-
+        for ruimte in p.get("ruimtes") or []:
+            if st.button(ruimte["titel"], icon=":material/view_in_ar:", width="stretch",
+                         key=f"profiel_ruimte_{ruimte['id']}"):
+                _in_app("ruimte", str(ruimte["id"]))
+        if not (p.get("winkel") or p.get("boek") or p.get("agenda") or p.get("ruimtes")):
+            st.caption("Nog geen openbare activiteiten.")
 
 def terug_van_stripe() -> None:
     """Na betalen of aanmelden bij Stripe komt de gebruiker terug met ?betaald=... of ?stripe=..."""
