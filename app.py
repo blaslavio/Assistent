@@ -3533,7 +3533,7 @@ INSTELLING_GROEPEN = {
 
 
 def instellingen_tabblad() -> None:
-    """Eigen instellingenhub: secties met navigatie, geen kopie van een OS-menu."""
+    """Mobielvriendelijke instellingen: profiel eerst, daarna compacte navigatieregels."""
     def kies(naam: str | None) -> None:
         if naam == "Rondleiding":
             st.session_state.rl_stap = 0
@@ -3545,10 +3545,11 @@ def instellingen_tabblad() -> None:
         st.session_state.inst_groep = na
     groep = st.session_state.get("inst_groep")
     if groep in INSTELLING_GROEPEN:
-        with st.container(horizontal=True, vertical_alignment="center"):
-            st.button("Overzicht", icon=":material/arrow_back:", type="tertiary",
-                      on_click=kies, args=(None,))
-            st.markdown(f"**{groep}**")
+        if st.button("Instellingen", icon=":material/arrow_back:", type="tertiary",
+                     key="inst_terug"):
+            kies(None)
+            st.rerun()
+        st.markdown("### " + ("Algemeen" if groep == "Weergave" else groep))
         {"Assistent": instellingen_assistent, "Weergave": instellingen_weergave,
          "Koppelingen": instellingen_koppelingen, "Account": instellingen_account,
          "Privacy en beveiliging": privacy_scherm.pagina, "Opslag": opslag_instellingen,
@@ -3557,35 +3558,43 @@ def instellingen_tabblad() -> None:
         return
 
     gebruiker = samen_scherm.ik()
-    st.markdown(
-        '<div style="border-left:4px solid #d6aa3c;padding:12px 18px;margin-bottom:16px">'
-        '<div style="letter-spacing:.14em;font-size:.75rem;opacity:.7">JOUW WERKRUIMTE</div>'
-        '<h2 style="margin:4px 0">Instellingen</h2>'
-        '<div style="opacity:.75">' +
-        html.escape(gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Mijn account") +
-        '</div></div>', unsafe_allow_html=True,
-    )
+    st.markdown("## Instellingen")
+    st.caption("Jouw account en voorkeuren op één plek.")
+
+    # Het profiel staat altijd bovenaan, als een volledige, aanklikbare regel.
     with st.container(border=True):
-        st.markdown("**Snel aanpassen**")
-        taalkeuze("taal_bovenaan")
-        with st.container(horizontal=True):
-            st.button("Mijn account", icon=":material/person:", on_click=kies,
-                      args=("Account",), key="inst_snel_account")
-            st.button("Privacy", icon=":material/shield:", on_click=kies,
-                      args=("Privacy en beveiliging",), key="inst_snel_privacy")
-    te_doen_blok()
-    st.markdown("**Onderdelen**")
-    onderdelen_tegels()
-    st.markdown("**Beheer en voorkeuren**")
-    groepen = list(INSTELLING_GROEPEN.items())
-    for start in range(0, len(groepen), 2):
-        cols = st.columns(2)
-        for col, (naam, (icoon, uitleg)) in zip(cols, groepen[start:start + 2]):
-            with col:
-                with st.container(border=True):
-                    st.button(naam, key=f"inst_{naam}", icon=icoon,
-                              on_click=kies, args=(naam,), width="stretch")
-                    st.caption(uitleg)
+        naam = gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Mijn profiel"
+        if st.button(str(naam) + "  ·  Profiel en account",
+                     icon=":material/account_circle:", key="inst_profiel",
+                     width="stretch"):
+            kies("Account")
+            st.rerun()
+        st.caption("Persoonlijke gegevens, communities en abonnementen")
+
+    groepen = [
+        ("Algemeen", [("Weergave", "Algemeen", ":material/tune:"),
+                      ("Assistent", "Assistent", ":material/smart_toy:"),
+                      ("Koppelingen", "Koppelingen", ":material/link:")]),
+        ("Account en veiligheid", [("Privacy en beveiliging", "Privacy en beveiliging", ":material/shield:"),
+                                   ("Opslag", "Opslag", ":material/cloud:")]),
+        ("Zakelijk en ondersteuning", [("Werk", "Werk", ":material/work:"),
+                                       ("Idee of probleem", "Feedback", ":material/feedback:"),
+                                       ("Rondleiding", "Rondleiding", ":material/help_outline:")]),
+    ]
+    for titel, items in groepen:
+        st.markdown("**" + titel + "**")
+        with st.container(border=True):
+            for code, label, icoon in items:
+                if st.button(label, icon=icoon, key="inst_rij_" + code,
+                             width="stretch", type="tertiary"):
+                    kies(code)
+                    st.rerun()
+
+    # De appmodules blijven bereikbaar, maar verstoren de instellingen niet.
+    with st.expander("Alle apponderdelen", icon=":material/apps:"):
+        st.caption("Open een onderdeel van Assistent.")
+        onderdelen_tegels()
+
 
 def idee_of_probleem() -> None:
     """Meldingen gaan naar de vaste verbeterronde; wat ermee gebeurd is, staat eronder."""
