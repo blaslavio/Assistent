@@ -5290,6 +5290,12 @@ def communicatie_hub() -> None:
     for naam, route, icoon in [("Reviews", "winkels", ":material/rate_review:"), ("Cursussen", "cursussen", ":material/school:"), ("Leren", "leren", ":material/menu_book:")]:
         if route in PAGINA and st.button(naam, icon=icoon, key=f"community_extra_{route}", width="stretch"):
             ga_naar(route)
+    st.markdown("#### Pay-in-Chat")
+    st.caption("Maak een betaalverzoek als concept. Zonder betaalprovider wordt geen betaling gestart of bevestigd.")
+    if st.button("Pay-in-Chat voorbereiden", icon=":material/request_quote:", key="communicatie_pay_in_chat", width="stretch"):
+        st.session_state["toon_pay_in_chat"] = not st.session_state.get("toon_pay_in_chat", False)
+    if st.session_state.get("toon_pay_in_chat", False):
+        integraties_voorbereiding.pagina()
     st.markdown("#### Planning & assistent")
     for naam, route, icoon in [
         ("Agenda", "agenda", ":material/calendar_month:"),
