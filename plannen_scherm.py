@@ -72,12 +72,16 @@ def pagina() -> None:
     }
     gekozen = st.session_state.get("plannen_gelegenheid_keuze")
     st.caption("Kies een activiteit")
-    for activiteit in R.GELEGENHEDEN:
-        if st.button(activiteit, icon=iconen.get(activiteit, ":material/event:"),
-                     key=f"plannen_kies_{activiteit}", width="stretch",
-                     type="primary" if gekozen == activiteit else "secondary"):
-            st.session_state["plannen_gelegenheid_keuze"] = activiteit
-            st.rerun()
+    activiteiten = list(R.GELEGENHEDEN)
+    for begin in range(0, len(activiteiten), 2):
+        kolommen = st.columns(2)
+        for kolom, activiteit in zip(kolommen, activiteiten[begin:begin + 2]):
+            with kolom:
+                if st.button(activiteit, icon=iconen.get(activiteit, ":material/event:"),
+                             key=f"plannen_kies_{activiteit}", width="stretch",
+                             type="primary" if gekozen == activiteit else "secondary"):
+                    st.session_state["plannen_gelegenheid_keuze"] = activiteit
+                    st.rerun()
     if gekozen:
         with st.container(border=True):
             activiteit_formulier(gekozen, online)
