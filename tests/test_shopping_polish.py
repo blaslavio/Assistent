@@ -12,7 +12,7 @@ class ShoppingPolishTests(unittest.TestCase):
         self.assertLess(page.index('st.session_state["winkelen_deel"] = volgend'),
                         page.index('st.selectbox('))
         self.assertNotIn('st.session_state.winkelen_deel = doel', functions["ontdekken"])
-        self.assertIn('_open_onderdeel(doel)', functions["ontdekken"])
+        self.assertIn('on_click=_open_onderdeel, args=(doel,)', functions["ontdekken"])
 
     def test_left_aligned_categories_and_explanations(self):
         discover = functions["ontdekken"]
