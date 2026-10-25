@@ -87,26 +87,26 @@ def pagina() -> None:
 
 
 def ontdekken() -> None:
-    """Zakelijk, links uitgelijnd startpunt met herkenbare iconen en duidelijke routes."""
-    st.subheader("Winkelen")
-    st.caption("Ontdek aanbod, bestel eten of koop en verkoop tweedehands artikelen.")
+    """Rustige, links uitgelijnde winkelstart met directe toegang tot elke categorie."""
+    st.title("Ontdek")
+    st.caption("Vind producten, winkels en verkopers. Kies waar je naar zoekt.")
     opties = [
-        ("Winkels", "winkels", ":material/storefront:", "Bekijk winkels en hun assortiment."),
-        ("Eten bestellen", "eten", ":material/restaurant:", "Zoek restaurants en beschikbare bezorgopties."),
-        ("Tweedehands", "tweedehands", ":material/checkroom:", "Vind kleding en andere artikelen van verkopers."),
-        ("Producten", "producten", ":material/shopping_bag:", "Zoek producten van verschillende winkels."),
-        ("Mandje", "mandje", ":material/shopping_cart:", "Bekijk je artikelen en reken af."),
-        ("Bestellingen", "bestellingen", ":material/receipt_long:", "Volg eerdere en lopende bestellingen."),
+        ("Winkels", "winkels", ":material/storefront:",
+         "Bekijk het aanbod van winkels en ondernemers."),
+        ("Eten bestellen", "eten", ":material/restaurant:",
+         "Ontdek restaurants en beschikbare bezorgopties."),
+        ("Tweedehands", "tweedehands", ":material/checkroom:",
+         "Zoek kleding en artikelen van particuliere verkopers."),
+        ("Producten", "producten", ":material/shopping_bag:",
+         "Zoek rechtstreeks in het aanbod van alle winkels."),
     ]
-    if verkoper():
-        opties.append(("Mijn winkel", "winkel", ":material/store:", "Beheer je winkel en verkooptools."))
     for naam, doel, icoon, uitleg in opties:
         with st.container(border=True):
-            with st.container(horizontal=True, vertical_alignment="center"):
-                st.markdown(f"{icoon} **{naam}**", width="stretch")
-                st.button("Openen", icon=":material/arrow_forward:", key=f"ontdek_{doel}",
-                          type="tertiary", on_click=_open_onderdeel, args=(doel,))
+            st.markdown(f"**{naam}**")
             st.caption(uitleg)
+            st.button(f"Bekijk {naam.lower()}", icon=icoon, key=f"ontdek_{doel}",
+                      width="stretch", on_click=_open_onderdeel, args=(doel,))
+    st.caption("Nog weinig aanbod? Winkels en verkopers verschijnen zodra ze hun aanbod publiceren.")
 
 
 def inkopen() -> None:
@@ -177,7 +177,8 @@ def producten(inkopen: bool) -> None:
     lat, lon = _waar()
     lijst = _fout(samen.winkelen_producten, zoek.strip(), lat, lon, inkopen) or []
     if not lijst:
-        st.caption("Niets gevonden." if zoek.strip() or not inkopen else "Nog geen groothandels in de app.")
+        st.info("Geen producten voor deze zoekopdracht. Probeer een andere zoekterm." if zoek.strip()
+                else "Nog geen aanbod beschikbaar in deze categorie. Kijk later opnieuw.")
     kolommen = st.columns(2)
     for i, p in enumerate(lijst[:60]):
         with kolommen[i % 2].container(border=True):
