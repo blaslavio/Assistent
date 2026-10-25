@@ -925,7 +925,9 @@ def mijn_webshop(inkopen=None) -> None:
         st.info("Een eigen webshop kan met accounttype 'Privé, verkoopt vaak' of 'Bedrijf of zzp'. Kies dat gratis bij "
                 "Instellingen › Account › Accounttype.")
         return
-    w = m["winkel"]
+    # Nieuwe accounts hebben nog geen winkelrecord. De editor moet dan met
+    # lege standaardwaarden openen in plaats van None.get(...) aan te roepen.
+    w = m.get("winkel") or {}
     st.markdown("### Mijn webshop")
     if not w:
         st.caption("Start met een nieuwe winkel. Je kunt deze eerst als concept opslaan en later publiceren.")
