@@ -84,9 +84,9 @@ def sport_icoon(sport: str) -> str:
 
 
 # Soorten afspraken in de agenda, met hun icoon.
-SOORTEN = {"afspraak": "📌", "sport": "🏃", "uitgaan": "🎉", "etentje": "🍽️", "werk": "💼",
-           "familie en vrienden": "👨‍👩‍👧", "gezondheid": "🩺", "reizen": "✈️", "verjaardag": "🎂", "herinnering": "🔔",
-           "focus": "🎯", "vrij": "🌴", "bezorging": "📦",
+SOORTEN = {"afspraak": ":material/event:", "sport": ":material/fitness_center:", "uitgaan": ":material/celebration:", "etentje": "🍽️", "werk": ":material/work:",
+           "familie en vrienden": "👨‍👩‍👧", "gezondheid": ":material/favorite:", "reizen": "✈️", "verjaardag": ":material/cake:", "herinnering": "🔔",
+           "focus": ":material/center_focus_strong:", "vrij": "🌴", "bezorging": "📦",
            "overig": "🗓️"}
 
 # Elke soort heeft een eigen kleur in de agenda; de gebruiker kan ze aanpassen (instellingen.kleuren).
