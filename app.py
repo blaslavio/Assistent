@@ -1148,9 +1148,12 @@ def agenda_tabblad() -> None:
     opties = ["Agenda", "Taken", "Plannen", "Samen", "Overzicht"]
     if st.session_state.get("agenda_deel") == "Gedeeld":
         st.session_state.agenda_deel = "Samen"
+    agenda_iconen = {"Agenda": ":material/calendar_month:", "Taken": ":material/checklist:",
+                     "Plannen": ":material/event_available:", "Samen": ":material/groups:",
+                     "Overzicht": ":material/insights:"}
     deel = st.segmented_control("Onderdeel", opties, default="Agenda", key="agenda_deel",
-                                format_func=lambda d: f"Taken ({aantal})" if d == "Taken" and aantal
-                                else (":material/insights:" if d == "Overzicht" else d),
+                                format_func=lambda d: f"{agenda_iconen[d]} {d}" +
+                                (f" ({aantal})" if d == "Taken" and aantal else ""),
                                 label_visibility="collapsed") or "Agenda"
     if melding := st.session_state.pop("agenda_melding", None):
         st.warning(melding)
