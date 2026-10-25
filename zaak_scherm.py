@@ -75,7 +75,6 @@ _OPENEN = {
     "marketing": ("webshop_deel", "Marketing"),
     "reviews": ("webshop_deel", "Reviews"),
     "verzenden": ("webshop_deel", "Bestellingen"),
-    "integraties": ("inst_groep", "Koppelingen"),
 }
 
 
@@ -86,9 +85,41 @@ def _openen(url: str, tool: str) -> None:
     st.session_state.ga_naar = url
 
 
+def zakelijke_koppelingen() -> None:
+    """Zakelijke integraties staan los van persoonlijke app-instellingen."""
+    if st.button("Terug naar mijn onderneming", icon=":material/arrow_back:",
+                 key="zakelijke_koppelingen_terug", type="tertiary"):
+        st.session_state["bedrijf_koppelingen_open"] = False
+        st.rerun()
+    st.markdown("### Zakelijke koppelingen")
+    st.caption("Beheer hier uitsluitend de koppelingen van je onderneming. "
+               "Persoonlijke agenda- en mailinstellingen staan elders.")
+    with st.container(border=True):
+        st.markdown("**Eigen webshop**")
+        st.caption("De ingebouwde webshop is direct onderdeel van deze app. "
+                   "Beheer producten, bestellingen en de uitstraling vanuit Mijn webshop.")
+        if st.button("Open mijn webshop", icon=":material/storefront:",
+                     key="bedrijf_koppelingen_shop", width="stretch"):
+            st.session_state["bedrijf_koppelingen_open"] = False
+            _openen("webshop", "webshop")
+            st.rerun()
+    with st.container(border=True):
+        st.markdown("**Bestaande externe webshop**")
+        st.caption("Een automatische koppeling met een externe webshop is nog niet beschikbaar. "
+                   "Er is daarom geen schijnverbinding of niet-werkende inlogknop.")
+        st.info("Shopify, WooCommerce en andere winkelplatformen zijn nog niet gekoppeld.")
+    with st.container(border=True):
+        st.markdown("**Betaalfuncties en bestellingen**")
+        st.caption("De bestaande betaal- en bestelinstellingen beheer je in je eigen webshop.")
+    st.caption("Google- en Microsoft-integraties blijven uitgesteld tot de bèta-uitrol.")
+
+
 def beroep_instellingen() -> None:
     """Kies je beroep; daaronder je zakelijke hulpmiddelen, elk met één tik open."""
     _melding()
+    if st.session_state.get("bedrijf_koppelingen_open"):
+        zakelijke_koppelingen()
+        return
     st.markdown("#### Mijn onderneming")
     st.caption("Richt je verkoop, afspraken en vakgereedschap in vanuit één plek.")
     st.html("""
@@ -167,7 +198,7 @@ def beroep_instellingen() -> None:
             _openen("webshop", "webshop")
             st.rerun()
         if st.button("Bestaande winkel koppelen", icon=":material/link:", width="stretch", key="bedrijf_integratie"):
-            _openen("instellingen", "integraties")
+            st.session_state["bedrijf_koppelingen_open"] = True
             st.rerun()
         if st.button("Omzet en bedrijfsresultaten", icon=":material/monitoring:", width="stretch", key="bedrijf_omzet"):
             _openen("zakelijk", "omzet")
