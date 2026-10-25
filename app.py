@@ -5228,6 +5228,38 @@ def communicatie_hub() -> None:
 
 
 
+def sluit_zijmenu_na_navigatie() -> None:
+    """Sluit de mobiele Streamlit-sidebar bij het kiezen van een navigatielink.
+
+    De browsercomponent is uitsluitend voor UI-gedrag; geen gegevensoverdracht.
+    Als browserisolatie DOM-toegang verhindert, blijft native navigatie werken.
+    """
+    import streamlit.components.v1 as components
+    components.html("""
+    <script>
+    (() => {
+      try {
+        const doc = window.parent.document;
+        if (doc.__superappSidebarNavBound) return;
+        doc.__superappSidebarNavBound = true;
+        doc.addEventListener('click', (event) => {
+          const link = event.target.closest('[data-testid="stSidebar"] a');
+          if (!link || !window.parent.matchMedia('(max-width: 768px)').matches) return;
+          const sidebar = doc.querySelector('[data-testid="stSidebar"]');
+          if (!sidebar || sidebar.getAttribute('aria-expanded') === 'false') return;
+          const collapse = sidebar.querySelector('[data-testid="stSidebarCollapseButton"] button')
+            || sidebar.querySelector('button[aria-label*="Close sidebar"]')
+            || sidebar.querySelector('button[aria-label*="Sluit zijbalk"]');
+          if (collapse) collapse.click();
+        }, true);
+      } catch (_) {
+        // Streamlit's native page navigation remains available.
+      }
+    })();
+    </script>
+    """, height=0)
+
+
 def superapp_navigatie() -> None:
     """Rustige Gemini-geïnspireerde navigatie; bestaande pagina's blijven behouden."""
     hoofdmenu = [
@@ -5632,6 +5664,7 @@ def main() -> None:
     # Alleen de expliciete knop 'Instellingen' wist inst_groep.
     superapp_thema_toepassen()
     superapp_navigatie()
+    sluit_zijmenu_na_navigatie()
     if mislukt := st.session_state.pop("mislukt_melding", 0):
         st.warning(f"Sinds je vorige keer is {mislukt} keer geprobeerd in te loggen met een fout wachtwoord of code. "
                    "Was jij dat niet? Kies een nieuw wachtwoord en zet tweestapsverificatie aan bij "
