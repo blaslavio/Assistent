@@ -849,7 +849,7 @@ def mijn_webshop(inkopen=None) -> None:
         c.metric("Producten", len([p for p in producten if p.get("actief") and not p.get("geblokkeerd")]))
         st.caption("Omzet en bestellingen zijn gebaseerd op geregistreerde verkopen in deze app. "
                    "Verkopen via externe winkels tellen niet mee.")
-        delen = ["Overzicht", "Winkel", "Reserveren", "Marketing", "Reviews"]
+        delen = ["Overzicht", "Winkel", "Producten", "Tweedehands", "Bestellingen", "Reserveren", "Marketing", "Reviews"]
         if inkopen:
             delen.insert(2, "Inkopen")
         deel = st.segmented_control("Onderdeel", delen, default="Overzicht",
@@ -859,6 +859,16 @@ def mijn_webshop(inkopen=None) -> None:
             return
         if deel == "Reserveren":
             plannen_scherm.zaak_beheer()
+            return
+        if deel == "Tweedehands":
+            tweedehands_aanbieden()
+            return
+        if deel == "Producten":
+            st.info("Beheer je voorraad onder Winkel, bij Producten in je winkel.")
+            st.session_state.webshop_deel = "Winkel"
+            st.rerun()
+        if deel == "Bestellingen":
+            bestellingen()
             return
         if deel == "Marketing":
             marketing(w)
