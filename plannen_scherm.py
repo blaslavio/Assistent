@@ -61,9 +61,15 @@ def pagina() -> None:
     cadeaupot bij een verjaardag). Daaronder wat je al gepland hebt, met wie er komt."""
     _melding_tonen()
     online = samen.beschikbaar()
-    gekozen = st.pills("Waarvoor?", list(R.GELEGENHEDEN), key="plannen_gelegenheid",
-                       label_visibility="collapsed")
+    st.subheader("Nieuwe activiteit")
+    st.caption("Kies een type activiteit. Vul daarna de gegevens in en nodig anderen uit.")
+    symbolen = {"Date": ":material/favorite:", "Speelafspraak": ":material/toys:",
+                "Uitje": ":material/explore:", "Etentje": ":material/restaurant:",
+                "Verjaardag": ":material/cake:", "Afspraak": ":material/event:"}
+    gekozen = st.pills("Soort activiteit", list(R.GELEGENHEDEN), key="plannen_gelegenheid",
+                       format_func=lambda naam: f"{symbolen.get(naam, ':material/event:')} {naam}")
     if gekozen:
+        st.markdown("**Details van de activiteit**")
         with st.container(border=True):
             activiteit_formulier(gekozen, online)
     if online:
