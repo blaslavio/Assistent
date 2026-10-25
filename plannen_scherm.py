@@ -98,14 +98,13 @@ def pagina() -> None:
             activiteit_formulier(gekozen, online)
 
     st.markdown("#### Handige tools")
-    st.caption("Alles voor een afspraak op één plek.")
     tools = [
         ("Agenda", "agenda", ":material/calendar_month:"),
         ("Datum prikken", "prikken", ":material/event_available:"),
         ("Boekingen", "boekingen", ":material/event_note:"),
-        ("Locaties zoeken", "buurt", ":material/place:"),
+        ("Locaties", "buurt", ":material/place:"),
         ("Taken", "agenda", ":material/checklist:"),
-        ("Uitnodigingen", "communicatie", ":material/group_add:"),
+        ("Uitnodigen", "communicatie", ":material/group_add:"),
     ]
     for begin in range(0, len(tools), 2):
         links, rechts = st.columns(2, gap="small")
@@ -117,12 +116,14 @@ def pagina() -> None:
                     args=(naam, route, gekozen),
                 )
 
+    st.markdown("#### Mijn activiteiten")
+    gepland(online)
+
     if online:
-        with st.expander("Reserveringen en uitnodigingen", icon=":material/inbox:"):
+        with st.expander("Reserveringen en uitnodigingen", expanded=False,
+                         icon=":material/inbox:"):
             mijn_reserveringen()
             mijn_aanvragen()
-    with st.expander("Mijn geplande activiteiten", expanded=True, icon=":material/event_note:"):
-        gepland(online)
 
 
 def naar_buurt(gelegenheid: str) -> None:
