@@ -11,7 +11,7 @@ class ProfessionPickerTests(unittest.TestCase):
         code = ast.get_source_segment(SOURCE, fn)
         self.assertIn("sorted((beroep.naam_van(k) for k in beroep.BEROEPEN), key=str.casefold)", code)
         self.assertIn("index=None if not nu", code)
-        self.assertIn("Nog geen beroep gekozen", code)
+        self.assertIn("Selecteer een beroep of voer een specialisatie in", code)
         self.assertIn('st.container(key="onderneming_snel")', code)
         self.assertNotIn("with st.container(border=True):", code)
 

@@ -20,7 +20,8 @@ class BusinessWorkspaceTests(unittest.TestCase):
         self.assertIn('bedrijf_book', source)
 
     def test_custom_professions_get_shared_tools(self):
-        self.assertIn('"webshop", "reviews", "diensten"', BEROEP)
+        self.assertIn('basis = ["werkrooster", "webshop", "integraties", "omzet", "klanten", "boekhouding"]', BEROEP)
+        self.assertIn('"reviews", "diensten", "mail"', BEROEP)
         for sector in ("juridisch", "financieel", "ict", "zorg", "bouw", "onderwijs", "logistiek"):
             self.assertIn('"' + sector + '":', BEROEP)
 

@@ -83,14 +83,14 @@ def beroep_instellingen() -> None:
     st.caption("Richt je verkoop, afspraken en vakgereedschap in vanuit één plek.")
     st.html("""
     <style>
-    .st-key-onderneming_snel {
+    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) {
         border: 1px solid rgba(128,128,128,.17);
         border-radius: 17px;
         background: rgba(130,135,150,.055);
         overflow: hidden;
         gap: 0 !important;
     }
-    .st-key-onderneming_snel button {
+    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) button {
         display: block !important;
         position: relative !important;
         box-sizing: border-box !important;
@@ -104,15 +104,15 @@ def beroep_instellingen() -> None:
         box-shadow: none !important;
         text-align: left !important;
     }
-    .st-key-onderneming_snel button [data-testid="stIconMaterial"] {
+    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) button [data-testid="stIconMaterial"] {
         position: absolute !important;
         left: 20px !important;
         top: 50% !important;
         transform: translateY(-50%) !important;
         margin: 0 !important;
     }
-    .st-key-onderneming_snel button [data-testid="stMarkdownContainer"],
-    .st-key-onderneming_snel button [data-testid="stMarkdownContainer"] p {
+    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) button [data-testid="stMarkdownContainer"],
+    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) button [data-testid="stMarkdownContainer"] p {
         display: block !important;
         box-sizing: border-box !important;
         width: 100% !important;
@@ -125,7 +125,7 @@ def beroep_instellingen() -> None:
         word-break: normal !important;
         overflow-wrap: normal !important;
     }
-    .st-key-onderneming_snel [data-testid="stButton"] + [data-testid="stButton"] {
+    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) [data-testid="stButton"] + [data-testid="stButton"] {
         border-top: 1px solid rgba(128,128,128,.14);
     }
     </style>
@@ -142,15 +142,30 @@ def beroep_instellingen() -> None:
         if st.button("Afspraken en diensten", icon=":material/event_available:", width="stretch", type="tertiary", key="bedrijf_book"):
             _openen("boekingen", "boekingen")
             st.rerun()
+    st.markdown("**Bedrijfsvoering en planning**")
+    with st.container(key="onderneming_planning"):
+        if st.button("Werkrooster en planning", icon=":material/calendar_month:", width="stretch", key="bedrijf_rooster"):
+            _openen("zakelijk", "werkrooster")
+            st.rerun()
+        if st.button("Webshop ontwerpen", icon=":material/design_services:", width="stretch", key="bedrijf_ontwerpen"):
+            _openen("webshop", "webshop")
+            st.rerun()
+        if st.button("Bestaande winkel koppelen", icon=":material/link:", width="stretch", key="bedrijf_integratie"):
+            _openen("koppelingen", "integraties")
+            st.rerun()
+        if st.button("Omzet en bedrijfsresultaten", icon=":material/monitoring:", width="stretch", key="bedrijf_omzet"):
+            _openen("zakelijk", "omzet")
+            st.rerun()
+    st.caption("De assistent kan adviseren over je winkelindeling en verkoopresultaten op basis van beschikbare bedrijfsgegevens.")
     st.markdown("**Vakgebied en specialisatie**")
-    st.caption("Kies je beroep of typ een eigen specialisatie.")
+    st.caption("Selecteer jouw vakgebied. Je kunt ook een eigen specialisatie invoeren.")
     b = beroep.huidig()
     # Kies uit de lijst of typ zelf je beroep; staat het er niet tussen, dan doet de assistent een voorstel.
     namen = sorted((beroep.naam_van(k) for k in beroep.BEROEPEN), key=str.casefold)
-    nu = (b["naam"] or beroep.naam_van(b["soort"])) if b["soort"] else None
-    keuze = st.selectbox("Wat doe je?", namen if nu in namen or not nu else [*namen, nu],
+    nu = (b["naam"] or beroep.naam_van(b["soort"])) if b["soort"] and b["soort"] != "kapper" else None
+    keuze = st.selectbox("Kies jouw beroep", namen if nu in namen or not nu else [*namen, nu],
                          index=None if not nu else (namen.index(nu) if nu in namen else len(namen)),
-                         placeholder="Nog geen beroep gekozen — zoek of typ je vakgebied", accept_new_options=True, key="beroep_keuze")
+                         placeholder="Selecteer een beroep of voer een specialisatie in", accept_new_options=True, key="beroep_keuze")
     if keuze and keuze != nu:
         sleutel = next((k for k in beroep.BEROEPEN if beroep.naam_van(k) == keuze), None) or beroep.zoek(keuze)
         if sleutel:
