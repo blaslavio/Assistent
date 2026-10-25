@@ -5114,7 +5114,7 @@ def paginas() -> list:
     pagina(agenda_tabblad, "Agenda", ":material/calendar_month:", "agenda")
     pagina(gesprek, mijn_avatar()["naam"], ":material/chat_bubble:", "assistent")
     if online and "Chat" not in uit:
-        pagina(chat.pagina, "Chat", ":material/forum:", "chat")
+        pagina(chat_met_profiel, "Chat", ":material/forum:", "chat")
     if online and "Marktplaats" not in uit:
         pagina(winkelen_scherm.pagina, "Winkelen", ":material/shopping_bag:", "winkelen")
     pagina(instellingen_tabblad, "Instellingen", ":material/settings:", "instellingen")
@@ -5171,6 +5171,50 @@ def paginas() -> list:
     st.session_state._nieuw_totaal = (sum(nieuw.get(k, 0) for k in ("bestellingen", "berichten", "gedeeld"))
                                       + (boekingen_wachten() if online else 0))
     return list(PAGINA.values())
+
+
+def chat_met_profiel() -> None:
+    """Chat met directe toegang tot profiel, privacy en agenda delen."""
+    links, midden, rechts = st.columns(3, gap="small")
+    with links:
+        if st.button("Profiel", icon=":material/manage_accounts:",
+                     key="chat_naar_profiel", width="stretch"):
+            st.session_state.inst_groep = "Account"
+            ga_naar("instellingen")
+    with midden:
+        if st.button("Privacy", icon=":material/shield:",
+                     key="chat_naar_privacy", width="stretch"):
+            st.session_state.inst_groep = "Privacy en beveiliging"
+            ga_naar("instellingen")
+    with rechts:
+        with st.popover("Agenda delen", icon=":material/calendar_month:",
+                        use_container_width=True):
+            st.caption("Kies wie je agenda mag zien. Standaard worden alleen bezette tijden gedeeld.")
+            try:
+                situatie = samen.agenda_deelsituatie()
+                gedeeld = situatie.get("ik_deel_met", [])
+                for item in gedeeld:
+                    with st.container(horizontal=True, vertical_alignment="center"):
+                        st.caption(item.get("naam", "Contact"))
+                        if st.button("Stop", key=f"chat_agenda_stop_{item['id']}",
+                                     icon=":material/close:"):
+                            samen.agenda_delen_stoppen(item["id"])
+                            st.rerun()
+                with st.form("chat_agenda_delen", clear_on_submit=True):
+                    gebruiker = st.text_input("Gebruikersnaam", placeholder="Bijv. sanne")
+                    details = st.checkbox("Ook titel en locatie delen", value=False)
+                    if st.form_submit_button("Agenda delen", type="primary"):
+                        if not gebruiker.strip():
+                            st.warning("Vul een gebruikersnaam in.")
+                        else:
+                            try:
+                                samen.agenda_delen(gebruiker.strip(), "details" if details else "bezet")
+                                st.success("Agenda gedeeld.")
+                            except Exception as fout:
+                                st.error(str(fout))
+            except Exception:
+                st.info("Agenda delen vereist een actieve accountverbinding.")
+    chat.pagina()
 
 
 def communicatie_hub() -> None:
