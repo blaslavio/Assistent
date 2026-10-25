@@ -36,6 +36,7 @@ import geld_scherm
 import gezin
 import gezin_scherm
 import ics
+import agenda_import
 import mail
 import mailtaken
 import media
@@ -1667,6 +1668,44 @@ def agenda_overzicht() -> None:
         if samen.beschikbaar():
             with st.popover("", icon=":material/share:", help="Agenda delen"):
                 agenda_delen_beheer()
+    with st.expander("Bestaande afspraken overnemen", icon=":material/upload_file:"):
+        st.caption("Importeer een .ics-bestand uit Apple Agenda, Google Agenda of Outlook. "
+                   "Je bekijkt eerst de afspraken en beslist zelf wat wordt toegevoegd.")
+        bestand = st.file_uploader("Agenda-bestand (.ics)", type=["ics"], key="agenda_import_bestand",
+                                   max_upload_size=2)
+        if bestand is not None:
+            try:
+                gevonden = agenda_import.lezen(bestand.getvalue())
+                bestaand = opslag.laden().get("afspraken", [])
+                nieuw = agenda_import.uniek(gevonden, bestaand)
+            except (ValueError, KeyError) as fout:
+                st.error(str(fout))
+            else:
+                st.caption(f"{len(gevonden)} afspraken gevonden · {len(nieuw)} nieuw · "
+                           f"{len(gevonden) - len(nieuw)} al aanwezig of dubbel.")
+                if nieuw:
+                    # Advies uit uitsluitend de eigen ingelezen afspraken; geen AI-upload.
+                    from collections import Counter
+                    verdeling = Counter(datetime.fromisoformat(a["start"]).strftime("%A") for a in nieuw)
+                    drukste, aantal = verdeling.most_common(1)[0]
+                    if aantal >= 3:
+                        st.info(f"Voorstel van de assistent: je hebt {aantal} afspraken op {drukste} "
+                                "in dit bestand. Houd rekening met deze drukke dag bij het instellen "
+                                "van je beschikbare boekingstijden.")
+                    st.dataframe([{"Afspraak": a["titel"], "Begin": a["start"],
+                                   "Einde": a["einde"]} for a in nieuw[:50]],
+                                 hide_index=True, width="stretch")
+                    if len(nieuw) > 50:
+                        st.caption("De eerste 50 afspraken worden getoond; alle nieuwe afspraken worden geïmporteerd.")
+                    if st.button(f"{len(nieuw)} afspraken toevoegen", type="primary",
+                                 key="agenda_import_bevestig"):
+                        for a in nieuw:
+                            opslag.afspraak_toevoegen(a["titel"], a["start"], a["einde"],
+                                                     a["notitie"], a["locatie"])
+                        st.session_state.agenda_melding = f"{len(nieuw)} afspraken overgenomen."
+                        st.rerun()
+                if len(gevonden) == 0:
+                    st.info("Geen losse afspraken gevonden. Herhalende afspraken worden nog niet geïmporteerd.")
     if weergave == "Maand":
         eerste = vanaf.replace(day=1)
         dagen = [eerste + timedelta(days=i) for i in range(calendar.monthrange(eerste.year, eerste.month)[1])]
