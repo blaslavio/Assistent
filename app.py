@@ -24,6 +24,7 @@ import assistant_privacy
 import universal_workspace
 import intent_engine
 import azure_search_ready
+import universal_search
 import avatar
 import bank
 import boekpagina
@@ -2582,6 +2583,60 @@ def groet(nu: datetime) -> str:
     deel = "Goedemorgen" if nu.hour < 12 else "Goedemiddag" if nu.hour < 18 else "Goedenavond"
     naam = samen_scherm.ik().get("weergavenaam") or ""
     return f"{deel}{', ' + naam if naam else ''}"
+
+
+def universele_zoekhub() -> None:
+    """Search existing sources; show maps only for stored, valid coordinates."""
+    st.title("Zoeken en navigeren")
+    st.caption("Doorzoek je eigen agenda, openbare winkels en diensten.")
+    term = st.text_input("Zoeken", placeholder="Afspraak, winkel of dienst", key="hub_zoekterm")
+    if not term.strip():
+        st.caption("Voer een zoekterm in om resultaten te zien.")
+        return
+    try:
+        universal_search.clean_query(term)
+    except ValueError as fout:
+        st.warning(str(fout))
+        return
+    with st.expander("Mijn agenda", expanded=True):
+        if st.session_state.get("hub_agenda_toestemming", False):
+            try:
+                begin, einde = universal_search.agenda_window()
+                afspraken = universal_search.search_agenda(
+                    term, opslag.afspraken_tussen(begin, einde, extern=False))
+                if not afspraken:
+                    st.caption("Geen afspraken gevonden.")
+                for nummer, item in enumerate(afspraken):
+                    st.write(item.get("titel", "Afspraak"))
+                    st.caption(str(item.get("start", "")) + "  " + str(item.get("locatie", "")))
+                    coords = universal_search.location_from_record(item)
+                    if coords and st.button("Toon locatie", key=f"hub_agenda_loc_{nummer}"):
+                        st.map([{"lat": coords[0], "lon": coords[1]}])
+            except Exception:
+                st.warning("Agenda kon niet worden doorzocht.")
+        else:
+            st.caption("Agenda wordt niet doorzocht zonder toestemming.")
+            st.toggle("Doorzoek mijn eigen agenda", key="hub_agenda_toestemming")
+    with st.expander("Openbare winkels en diensten", expanded=True):
+        if not samen.beschikbaar():
+            st.caption("De openbare catalogus is niet beschikbaar.")
+        else:
+            try:
+                winkels = samen.winkels_zoeken(term)[:15]
+                diensten = samen.aanbod_zoeken(term)[:15]
+                if not winkels and not diensten:
+                    st.caption("Geen winkels of diensten gevonden.")
+                for winkel in winkels:
+                    st.write(str(winkel.get("naam") or winkel.get("titel") or "Winkel"))
+                    st.caption(str(winkel.get("plaats") or winkel.get("adres") or ""))
+                for dienst in diensten:
+                    st.write(str(dienst.get("titel") or "Dienst"))
+                    st.caption(str(dienst.get("plaats") or ""))
+            except Exception:
+                st.warning("Winkels en diensten konden niet worden opgehaald.")
+    with st.expander("Community", expanded=False):
+        st.caption("Communityzoekresultaten verschijnen na koppeling aan goedgekeurde publieke bijdragen.")
+    st.caption("Locaties worden alleen getoond wanneer geldige coördinaten zijn opgeslagen.")
 
 
 def werkruimte_pagina() -> None:
@@ -5344,6 +5399,7 @@ def paginas() -> list:
 
     pagina(vandaag_overzicht, "Vandaag", ":material/today:", "vandaag", default=True)
     pagina(werkruimte_pagina, "Mijn werkruimte", ":material/dashboard_customize:", "werkruimte")
+    pagina(universele_zoekhub, "Zoeken en navigeren", ":material/travel_explore:", "zoekhub")
     pagina(agenda_tabblad, "Agenda", ":material/calendar_month:", "agenda")
     pagina(gesprek, mijn_avatar()["naam"], ":material/chat_bubble:", "assistent")
     if online and "Chat" not in uit:
