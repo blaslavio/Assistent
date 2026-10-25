@@ -135,3 +135,46 @@ def voorstellen(bestaand: list[dict], minuten: int = 30, limiet: int = 3,
                     if len(dagen) == limiet:
                         return dagen
     return dagen
+
+
+VOORKEUREN = ("Balans tussen werk en privé", "Zo veel mogelijk aaneengesloten afspraken",
+              "Ruimte tussen afspraken")
+
+
+def voorkeur_uit_feedback(feedback: list[str], standaard: str = VOORKEUREN[0]) -> str:
+    """Leer uitsluitend van expliciet gegeven beoordelingen, niet van afspraakinhoud."""
+    scores = {keuze: 0 for keuze in VOORKEUREN}
+    for item in feedback[-30:]:
+        if item in scores:
+            scores[item] += 1
+    beste = max(scores, key=scores.get)
+    return beste if scores[beste] >= 2 else standaard
+
+
+def voorstellen_op_voorkeur(bestaand: list[dict], voorkeur: str, limiet: int = 3,
+                           nu: datetime | None = None) -> list[datetime]:
+    """Rangschik vrije momenten volgens de door gebruiker gekozen/geleerde voorkeur."""
+    kandidaten = voorstellen(bestaand, limiet=80, nu=nu)
+    if voorkeur == "Zo veel mogelijk aaneengesloten afspraken":
+        grenzen = set()
+        for afspraak in bestaand:
+            try:
+                grenzen.add(datetime.fromisoformat(afspraak["start"]).replace(tzinfo=None))
+                if afspraak.get("einde"):
+                    grenzen.add(datetime.fromisoformat(afspraak["einde"]).replace(tzinfo=None))
+            except (ValueError, TypeError, KeyError):
+                pass
+        kandidaten.sort(key=lambda moment: (min((abs((moment - grens).total_seconds())
+                                                  for grens in grenzen), default=float("inf")), moment))
+    elif voorkeur == "Ruimte tussen afspraken":
+        grenzen = []
+        for afspraak in bestaand:
+            for key in ("start", "einde"):
+                if afspraak.get(key):
+                    try:
+                        grenzen.append(datetime.fromisoformat(afspraak[key]).replace(tzinfo=None))
+                    except (ValueError, TypeError):
+                        pass
+        kandidaten.sort(key=lambda moment: (-min((abs((moment - grens).total_seconds())
+                                                   for grens in grenzen), default=0), moment))
+    return kandidaten[:limiet]
