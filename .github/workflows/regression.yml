@@ -1,0 +1,18 @@
+name: Regression checks
+on:
+  push:
+    branches: [feature/safe-pay-in-chat]
+  pull_request:
+    branches: [main]
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax check
+        run: python -m compileall -q app.py workspace_hub.py pay_in_chat_core.py community_core.py community_safety.py community_privacy.py
+      - name: Regression tests
+        run: python -m unittest -v regression_tests community_safety_tests
