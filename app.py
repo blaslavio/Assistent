@@ -166,6 +166,32 @@ def superapp_thema_toepassen() -> None:
         border-radius: 16px 16px 16px 4px; padding: 12px 16px; max-width: 85%;
     }}
     [data-testid="stSidebar"] p, [data-testid="stSidebar"] label {{ color: {fg} !important; }}
+    /* Gemini-achtige rustige navigatie met leesbare native Streamlit controls. */
+    [data-testid="stSidebar"] {{ background: {bg} !important; }}
+    [data-testid="stSidebar"] [data-testid="stPageLink"] a {{
+        border-radius: 22px !important; padding: 11px 14px !important;
+        text-decoration: none !important; color: {fg} !important;
+    }}
+    [data-testid="stSidebar"] [data-testid="stPageLink"] a:hover {{
+        background: {panel} !important;
+    }}
+    [data-testid="stSidebar"] [data-testid="stPageLink"] a[aria-current="page"] {{
+        background: {panel} !important; font-weight: 600;
+    }}
+    [data-testid="stAppViewContainer"] [data-testid="stSegmentedControl"] button,
+    [data-testid="stAppViewContainer"] button[data-variant="pills"] {{
+        background: {panel} !important; color: {fg} !important;
+        border: 1px solid {border} !important;
+    }}
+    [data-testid="stAppViewContainer"] [data-testid="stSegmentedControl"] button[aria-checked="true"],
+    [data-testid="stAppViewContainer"] button[data-variant="pills"][aria-pressed="true"] {{
+        background: {border} !important; color: {fg} !important;
+    }}
+    [data-testid="stAppViewContainer"] [data-testid="stSegmentedControl"] button p,
+    [data-testid="stAppViewContainer"] button[data-variant="pills"] p {{
+        color: inherit !important;
+    }}
+
     @media(max-width:640px) {{ [data-testid="stChatMessage"] {{ max-width: 96% !important; }} }}
 
     </style>""", unsafe_allow_html=True)
@@ -5105,35 +5131,37 @@ def communicatie_hub() -> None:
 
 
 def superapp_navigatie() -> None:
-    """Zakelijke zijbalk met zes hoofdonderdelen; overige bestaande tools blijven bereikbaar."""
+    """Rustige Gemini-geïnspireerde navigatie; bestaande pagina's blijven behouden."""
     hoofdmenu = [
-        ("Dashboard", "vandaag"),
-        ("Winkeloverzicht & Catalogus", "webshop"),
-        ("Werkrooster & Bezetting", "zakelijk"),
-        ("Ondernemingen & Koppelingen", "instellingen"),
-        ("Leren & Cursussen", "cursussen"),
+        ("Vandaag", "vandaag"),
+        ("AI-assistent", "assistent"),
         ("Mail & Chat", "communicatie"),
+        ("Agenda", "agenda"),
+        ("Documenten", "documenten"),
+        ("Leren", "leren"),
+        ("Zakelijk", "zakelijk"),
+        ("Winkels", "winkels"),
+        ("Instellingen", "instellingen"),
     ]
     with st.sidebar:
-        st.markdown("### Workspace")
+        st.markdown("## SuperApp OS")
+        st.caption("Jouw persoonlijke workspace")
+        if "assistent" in PAGINA:
+            st.page_link(PAGINA["assistent"], label="Nieuwe chat", icon=":material/edit_square:", width="stretch")
+        st.divider()
+        zichtbaar = set()
         for label, route in hoofdmenu:
             if route in PAGINA:
+                zichtbaar.add(route)
                 st.page_link(PAGINA[route], label=label, width="stretch")
-            elif route == "webshop" and "winkels" in PAGINA:
-                st.page_link(PAGINA["winkels"], label=label, width="stretch")
-            elif route == "cursussen" and "leren" in PAGINA:
-                st.page_link(PAGINA["leren"], label=label, width="stretch")
-        with st.expander("Overige onderdelen", expanded=False):
-            zichtbaar = {route for _, route in hoofdmenu}
+        with st.expander("Alle onderdelen", expanded=False):
             for groep, routes in GROEPEN.items():
                 overige = [route for route in routes if route in PAGINA and route not in zichtbaar]
                 if overige:
                     st.caption(groep)
                     for route in overige:
                         st.page_link(PAGINA[route], width="stretch")
-            for route in ("agenda", "chat", "assistent", "instellingen"):
-                if route in PAGINA and route not in zichtbaar:
-                    st.page_link(PAGINA[route], width="stretch")
+
 
 
 def kopbalk() -> None:
