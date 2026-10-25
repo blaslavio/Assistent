@@ -178,41 +178,18 @@ def beroep_instellingen() -> None:
         pagina = boekpagina.mijn().get("pagina")
     except samen.Fout:
         winkel, pagina = {}, None
-    st.markdown("**Vakgerichte hulpmiddelen**")
-    st.caption("Elk hulpmiddel heeft een eigen knop en uitleg. Je kunt het ook zonder gekozen beroep openen.")
-    uitleg = {
-        "boekingen": "Maak een boekingspagina, beheer beschikbare tijden en laat afspraken in de agenda verschijnen.",
-        "lessen": "Plan lessen en deelnemers in een overzichtelijk rooster.",
-        "werkrooster": "Houd werktijden, diensten en beschikbaarheid bij.",
-        "klanten": "Bewaar klantinformatie en bekijk klantafspraken.",
-        "webshop": "Bouw je winkel, voeg producten toe en beheer bestellingen.",
-        "omzet": "Bekijk verkopen, kosten en bedrijfsresultaten.",
-        "boekhouding": "Registreer inkomsten en uitgaven voor je administratie.",
-        "reviews": "Bekijk beoordelingen en reacties van klanten.",
-        "diensten": "Beheer de diensten die klanten kunnen reserveren.",
-        "mail": "Beheer zakelijke berichten en communicatie.",
-    }
-    alle_tools = list(beroep.TOOLS) if not b["soort"] else list(dict.fromkeys(
-        [*beroep.tools(), *beroep.TOOLS]))
-    for t in alle_tools:
-        naam, url, _ = beroep.TOOLS[t]
-        with st.container(horizontal=True, vertical_alignment="center", key=f"tool_{t}"):
-            st.markdown(naam, width="stretch")
-            with st.popover("Uitleg", icon=":material/help_outline:"):
-                st.write(uitleg.get(t, f"Open {naam.lower()} om dit hulpmiddel te gebruiken."))
-                st.caption("Je gegevens worden alleen verwerkt voor de gekozen functie.")
-            if t == "boekingen" and not pagina:
-                if st.button("Maken", key=f"tool_maak_{t}", type="tertiary"):
-                    if _fout(beroep.boekingspagina_maken) is not None:
-                        _klaar("Boekingspagina gemaakt met de diensten van je beroep. Zet hem aan als hij klaar is.")
-            elif url == "webshop" and winkel.get("niveau") not in ("verkoper", "ondernemer"):
-                if st.button("Aanzetten", key=f"tool_maak_{t}", type="tertiary"):
-                    if _fout(samen.niveau_instellen, "verkoper") is not None:
-                        st.session_state.ik = opslag.inloggen(st.session_state.get("naam", ""),
-                                                              st.session_state.wachtwoord) or {}
-                        _klaar("Je webshop staat klaar bij Mijn webshop.")
-            else:
-                st.button("Openen", key=f"tool_open_{t}", type="tertiary", on_click=_openen, args=(url, t))
+    with st.expander("Meer zakelijke tools", icon=":material/apps:"):
+        extra = {"integraties": "koppelingen", "reviews": "webshop",
+                 "marketing": "webshop", "diensten": "verkopen",
+                 "documenten": "documenten", "mail": "mail"}
+        for sleutel, route in extra.items():
+            naam = beroep.TOOLS[sleutel][0]
+            st.caption(naam)
+            if st.button(f"{naam} openen", key=f"extra_{sleutel}", width="stretch"):
+                if sleutel in ("reviews", "marketing"):
+                    st.session_state["_winkel_startdeel"] = naam if sleutel == "reviews" else "Marketing"
+                st.session_state.ga_naar = route
+                st.rerun()
     klantvragen()
     if st.button("Geen beroep", type="tertiary", icon=":material/close:", key="beroep_wissen"):
         beroep.wissen()
