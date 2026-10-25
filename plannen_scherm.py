@@ -1027,7 +1027,7 @@ def boek_dialoog() -> None:
         st.caption("Maak een link waarmee anderen zelf een afspraak met je inplannen, op momenten dat je vrij bent. "
                    "Ze zien alleen vrije tijden, nooit je afspraken.")
     aan = st.toggle("Pagina staat aan", value=p["aan"])
-    titel = st.text_input("Kop", value=p["titel"], placeholder="Plan een afspraak met mij", max_chars=80)
+    titel = st.text_input("Titel van je boekingspagina", value=p["titel"], placeholder="Plan een afspraak met mij", max_chars=80, help="Deze titel zien klanten bovenaan je boekingspagina.")
     soorten = []
     st.markdown("**Soort afspraak**")
     st.caption("Open alleen de dienst die je wilt instellen.")
@@ -1039,9 +1039,16 @@ def boek_dialoog() -> None:
             naam = st.text_input("Dienst", value=oud["naam"], key=f"boeksoort_naam_{i}",
                                  placeholder=standaard[i])
             k1, k2 = st.columns(2)
-            minuten = k1.selectbox("Duur", MINUTEN, key=f"boeksoort_min_{i}",
-                                   index=MINUTEN.index(oud["minuten"]) if oud["minuten"] in MINUTEN else 2,
-                                   format_func=_duur)
+            eigen_duur = k1.toggle("Tijd zelf instellen", value=oud["minuten"] not in MINUTEN,
+                                    key=f"boeksoort_eigen_duur_{i}")
+            if eigen_duur:
+                minuten = k1.number_input("Duur in minuten", min_value=5, max_value=240,
+                                          value=max(5, min(240, int(oud["minuten"]))),
+                                          step=5, key=f"boeksoort_min_handmatig_{i}")
+            else:
+                minuten = k1.selectbox("Duur", MINUTEN, key=f"boeksoort_min_{i}",
+                                       index=MINUTEN.index(oud["minuten"]) if oud["minuten"] in MINUTEN else 2,
+                                       format_func=_duur)
             prijs = k2.number_input("Prijs (€)", min_value=0.0, max_value=10000.0, step=5.0,
                                     format="%.2f", value=(oud.get("prijs") or 0) / 100,
                                     key=f"boeksoort_prijs_{i}", help="0 = gratis.")
@@ -1052,8 +1059,8 @@ def boek_dialoog() -> None:
     dagen = st.pills("Op welke dagen?", range(1, 8), selection_mode="multi", default=sorted(dagen_nu),
                      format_func=lambda d: DAGEN[d - 1])
     with st.container(horizontal=True, gap="small"):
-        van = st.time_input("Van", value=time.fromisoformat(eerste[0].zfill(5)), step=1800, width=110)
-        tot = st.time_input("Tot", value=time.fromisoformat(eerste[1].zfill(5)), step=1800, width=110)
+        van = st.time_input("Beschikbaar vanaf", value=time.fromisoformat(eerste[0].zfill(5)), step=300)
+        tot = st.time_input("Beschikbaar tot", value=time.fromisoformat(eerste[1].zfill(5)), step=300)
     locatie = st.text_input("Waar", value=p["locatie"], placeholder="Adres of videobellen")
     with st.expander("Meer"):
         intro = st.text_area("Uitleg voor de bezoeker", value=p["intro"], max_chars=400, height=80)
