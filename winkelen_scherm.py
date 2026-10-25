@@ -49,14 +49,9 @@ def pagina() -> None:
     elif st.session_state.get("winkelen_deel") not in delen:
         st.session_state["winkelen_deel"] = "buurt"
     n = winkelen.aantal_in_mandje()
-    pictogrammen = {"buurt": ":material/explore:", "winkels": ":material/storefront:",
-                    "eten": ":material/restaurant:", "tweedehands": ":material/checkroom:",
-                    "producten": ":material/shopping_bag:", "mandje": ":material/shopping_cart:",
-                    "bestellingen": ":material/receipt_long:", "winkel": ":material/store:"}
     deel = st.selectbox(
         "Winkelonderdeel", delen, key="winkelen_deel",
-        format_func=lambda d: f"{pictogrammen[d]} {DELEN[d]}" +
-        (f" ({n})" if d == "mandje" and n else ""),
+        format_func=lambda d: f"{DELEN[d]} ({n})" if d == "mandje" and n else DELEN[d],
         help="Kies je omgeving. Winkels, eten en tweedehands zijn afzonderlijke onderdelen."
     ) or "buurt"
     if deel in ("buurt", "winkels", "eten", "producten"):
