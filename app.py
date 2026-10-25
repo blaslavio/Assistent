@@ -2519,6 +2519,8 @@ def vandaag_overzicht() -> None:
 
     st.divider()
     st.markdown("### Chat & community")
+    st.page_link(PAGINA["communicatie"], label="Chatprofiel en bereikbaarheid", icon=":material/manage_accounts:", width="stretch") if "communicatie" in PAGINA else None
+
     st.caption("Praat met verkopers, bekijk je berichten of open de community.")
     communicatie_routes = [
         ("Verkopersberichten", "berichten", ":material/markunread_mailbox:"),
@@ -5148,25 +5150,50 @@ def paginas() -> list:
 
 
 def communicatie_hub() -> None:
-    """Eén ingang voor bestaande berichten, mail en AI, zonder demonstratiegegevens."""
-    st.title("Mail & Chat")
-    st.caption("Je gesprekken, e-mail en assistent op één plek.")
-    opties = []
-    if "chat" in PAGINA:
-        opties.append(("Chat", "chat", "Bestaande gesprekken en berichten"))
-    if "mail" in PAGINA:
-        opties.append(("Mail", "mail", "E-mail en concepten"))
-    if "berichten" in PAGINA:
-        opties.append(("Berichten", "berichten", "Zakelijke en marktplaatsberichten"))
-    opties.append(("AI Co-Pilot", "assistent", "Je persoonlijke AI-assistent"))
-    for naam, route, uitleg in opties:
-        with st.container(border=True):
-            links, rechts = st.columns([4, 1], vertical_alignment="center")
-            with links:
-                st.markdown(f"**{naam}**")
-                st.caption(uitleg)
-            with rechts:
-                st.page_link(PAGINA[route], label="Openen", width="stretch")
+    """Centraal communicatiepunt voor doelgroepen, profiel, agenda en assistent."""
+    st.title("Chat & communicatie")
+    st.caption("Beheer gesprekken en ga direct naar je profiel en afspraken.")
+
+    st.markdown("### Mijn profiel en bereikbaarheid")
+    links, rechts = st.columns(2)
+    with links:
+        if st.button("Profiel wijzigen", icon=":material/manage_accounts:",
+                     key="chat_profiel", width="stretch"):
+            st.session_state.inst_groep = "Account"
+            ga_naar("instellingen")
+            st.rerun()
+    with rechts:
+        if st.button("Privacy beheren", icon=":material/shield:",
+                     key="chat_privacy", width="stretch"):
+            st.session_state.inst_groep = "Privacy en beveiliging"
+            ga_naar("instellingen")
+            st.rerun()
+    st.caption("Instellingen voor wie je mag benaderen moeten door de chatdienst zelf worden afgedwongen; "
+               "een profielvoorkeur alleen blokkeert nog geen berichten.")
+
+    st.markdown("### Gesprekken")
+    opties = [
+        ("Verkopers en klanten", "berichten", ":material/storefront:",
+         "Berichten over producten en bestellingen"),
+        ("Community en contacten", "chat", ":material/groups:",
+         "Groepen en persoonlijke gesprekken"),
+        ("E-mail", "mail", ":material/mail:", "Je gekoppelde mailbox"),
+    ]
+    for naam, route, icoon, uitleg in opties:
+        if route in PAGINA:
+            st.page_link(PAGINA[route], label=naam, icon=icoon, width="stretch")
+            st.caption(uitleg)
+    if "chat" not in PAGINA or "berichten" not in PAGINA:
+        st.info("Voor community- en verkoperschat is een actieve online verbinding nodig.")
+
+    st.markdown("### Agenda en assistent")
+    for naam, route, icoon in [
+        ("Mijn agenda", "agenda", ":material/calendar_month:"),
+        ("AI-assistent", "assistent", ":material/smart_toy:"),
+    ]:
+        if route in PAGINA:
+            st.page_link(PAGINA[route], label=naam, icon=icoon, width="stretch")
+
 
 
 def superapp_navigatie() -> None:
