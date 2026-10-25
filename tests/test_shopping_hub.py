@@ -19,6 +19,13 @@ class ShoppingHubTests(unittest.TestCase):
     def test_mobile_navigation(self):
         self.assertIn('st.selectbox(', functions["pagina"])
         self.assertIn('on_click=_open_onderdeel, args=(doel,)', functions["ontdekken"])
+        self.assertIn('st.session_state["_winkelen_volgende_deel"] = onderdeel', functions["_open_onderdeel"])
+        self.assertIn('st.session_state.pop("_winkelen_volgende_deel", None)', functions["pagina"])
+        self.assertIn('if volgend in delen:', functions["pagina"])
+        self.assertIn('st.session_state["winkelen_deel"] = volgend', functions["pagina"])
+        self.assertLess(functions["pagina"].index('st.session_state["winkelen_deel"] = volgend'),
+                        functions["pagina"].index('st.selectbox('))
+        self.assertNotIn('st.session_state.winkelen_deel = doel', functions["ontdekken"])
         self.assertNotIn('st.segmented_control("Winkelen"', functions["pagina"])
 
     def test_no_emojis_in_new_category_icons(self):
