@@ -83,14 +83,14 @@ def beroep_instellingen() -> None:
     st.caption("Richt je verkoop, afspraken en vakgereedschap in vanuit één plek.")
     st.html("""
     <style>
-    .st-key-onderneming_snel {
+    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) {
         border: 1px solid rgba(128,128,128,.17);
         border-radius: 17px;
         background: rgba(130,135,150,.055);
         overflow: hidden;
         gap: 0 !important;
     }
-    .st-key-onderneming_snel button {
+    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) button {
         display: block !important;
         position: relative !important;
         box-sizing: border-box !important;
@@ -104,15 +104,15 @@ def beroep_instellingen() -> None:
         box-shadow: none !important;
         text-align: left !important;
     }
-    .st-key-onderneming_snel button [data-testid="stIconMaterial"] {
+    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) button [data-testid="stIconMaterial"] {
         position: absolute !important;
         left: 20px !important;
         top: 50% !important;
         transform: translateY(-50%) !important;
         margin: 0 !important;
     }
-    .st-key-onderneming_snel button [data-testid="stMarkdownContainer"],
-    .st-key-onderneming_snel button [data-testid="stMarkdownContainer"] p {
+    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) button [data-testid="stMarkdownContainer"],
+    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) button [data-testid="stMarkdownContainer"] p {
         display: block !important;
         box-sizing: border-box !important;
         width: 100% !important;
@@ -125,7 +125,7 @@ def beroep_instellingen() -> None:
         word-break: normal !important;
         overflow-wrap: normal !important;
     }
-    .st-key-onderneming_snel [data-testid="stButton"] + [data-testid="stButton"] {
+    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) [data-testid="stButton"] + [data-testid="stButton"] {
         border-top: 1px solid rgba(128,128,128,.14);
     }
     </style>
