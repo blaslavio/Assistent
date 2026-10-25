@@ -754,10 +754,30 @@ def weer_bij_afspraak(regel: dict) -> None:
         st.caption(tekst)
 
 
-@st.cache_data(max_entries=200, show_spinner=False)
+def _privé_cache(soort: str, sleutel: tuple, ophalen, ttl: int, max_items: int = 40):
+    """Snelle cache uitsluitend voor deze Streamlit-sessie, nooit gedeeld tussen accounts."""
+    nu = time.monotonic()
+    cache = st.session_state.setdefault("_privé_cache", {})
+    # Bij wisseling van gebruiker geen eerder geladen privégegevens bewaren.
+    eigenaar = (st.session_state.get("naam"), st.session_state.get("wachtwoord"))
+    if st.session_state.get("_privé_cache_eigenaar") != eigenaar:
+        cache.clear()
+        st.session_state["_privé_cache_eigenaar"] = eigenaar
+    for k, (tijdstip, _) in list(cache.items()):
+        if nu - tijdstip >= ttl:
+            del cache[k]
+    key = (soort, sleutel)
+    if key not in cache:
+        resultaat = ophalen()
+        if len(cache) >= max_items:
+            oudste = min(cache, key=lambda k: cache[k][0])
+            del cache[oudste]
+        cache[key] = (nu, resultaat)
+    return cache[key][1]
+
+
 def _media_inhoud(media_id: int, _wachtwoord: str) -> bytes:
-    # Een bestand verandert nooit, dus het mag bewaard blijven zolang de app draait.
-    return media.ophalen(media_id)
+    return _privé_cache("media", (media_id,), lambda: media.ophalen(media_id), ttl=300)
 
 
 def herinneringen(afspraak: dict) -> None:
@@ -3031,14 +3051,12 @@ def mail_instellen() -> None:
                "naar een iCloud- of Gmail-adres.")
 
 
-@st.cache_data(ttl=120, show_spinner="Mail ophalen...")
 def _mails(_wachtwoord: str, sleutel: str, aantal: int) -> list[dict]:
-    return mail.lijst(aantal)
+    return _privé_cache("mails", (sleutel, aantal), lambda: mail.lijst(aantal), ttl=120)
 
 
-@st.cache_data(ttl=600, show_spinner="Mail openen...")
 def _mail(_wachtwoord: str, sleutel: str, uid: str) -> dict:
-    return mail.lezen(uid)
+    return _privé_cache("mail", (sleutel, uid), lambda: mail.lezen(uid), ttl=300)
 
 
 def mail_concepten() -> None:
@@ -3089,7 +3107,7 @@ def mail_tabblad() -> None:
         st.session_state.agenda_deel = "Taken"
         ga_naar("agenda")
     if kol2.button("↻", width="stretch", help="Vernieuwen"):
-        _mails.clear()
+        st.session_state.pop("_privé_cache", None)
     try:
         mails = _mails(wachtwoord, sleutel, 20)
     except Exception:
