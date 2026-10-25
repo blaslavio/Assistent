@@ -56,6 +56,17 @@ def _soort(gelegenheid: str) -> str:
     return "verjaardag" if gelegenheid == "Verjaardag" else R.GELEGENHEDEN.get(gelegenheid, R.GELEGENHEDEN["Afspraak"])[0]
 
 
+def _open_tool(naam: str, route: str, gekozen: str | None) -> None:
+    """Callback vóór de widget-render, zodat agenda_deel veilig kan wijzigen."""
+    if naam == "Taken":
+        st.session_state.agenda_deel = "Taken"
+    elif naam == "Agenda":
+        st.session_state.agenda_deel = "Agenda"
+    if naam == "Locaties zoeken":
+        st.session_state.buurt_gelegenheid = gekozen or "Uitje"
+    st.session_state.ga_naar = route
+
+
 def pagina() -> None:
     """Overzichtelijke activiteitenplanner met iconen en directe toegang tot tools."""
     _melding_tonen()
@@ -100,13 +111,11 @@ def pagina() -> None:
         links, rechts = st.columns(2, gap="small")
         for kolom, (naam, route, icoon) in zip((links, rechts), tools[begin:begin + 2]):
             with kolom:
-                if st.button(naam, icon=icoon, key=f"plan_tool_{begin}_{route}_{naam}", width="stretch"):
-                    if naam == "Taken":
-                        st.session_state.agenda_deel = "Taken"
-                    if naam == "Locaties zoeken":
-                        st.session_state.buurt_gelegenheid = gekozen or "Uitje"
-                    st.session_state.ga_naar = route
-                    st.rerun()
+                st.button(
+                    naam, icon=icoon, key=f"plan_tool_{begin}_{route}_{naam}",
+                    width="stretch", on_click=_open_tool,
+                    args=(naam, route, gekozen),
+                )
 
     if online:
         with st.expander("Reserveringen en uitnodigingen", icon=":material/inbox:"):
