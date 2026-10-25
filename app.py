@@ -26,6 +26,7 @@ import intent_engine
 import azure_search_ready
 import universal_search
 import predictive_context
+import dating_core
 import avatar
 import bank
 import boekpagina
@@ -2659,6 +2660,35 @@ def universele_zoekhub() -> None:
         st.caption("Zoeken in goedgekeurde publieke communitybijdragen is nog niet gekoppeld.")
     st.caption("Geen automatische betalingen, AI-datadeling of verzonnen locaties.")
 
+
+
+def dating_pagina() -> None:
+    """Private, local-only dating and singles-event drafts; no discovery without backend."""
+    st.title("Dating en singles-evenementen")
+    st.caption("Optioneel en gescheiden van zakelijke matchmaking.")
+    volwassen = st.checkbox("Ik bevestig dat ik 18 jaar of ouder ben", key="dating_volwassen")
+    if not volwassen:
+        st.info("Dating is uitsluitend bedoeld voor volwassenen. Leeftijdsverificatie is vereist voordat publieke functies beschikbaar komen.")
+        return
+    st.warning("Profielen zoeken, berichten en matches zijn nog niet actief: hiervoor zijn leeftijdsverificatie, wederzijdse toestemming en beveiligde opslag nodig.")
+    with st.expander("Date of singles-evenement voorbereiden", expanded=True):
+        titel = st.text_input("Titel", placeholder="Bijvoorbeeld: singleswandeling", key="dating_titel")
+        datum = st.date_input("Datum", min_value=date.today(), key="dating_datum")
+        plaats = st.text_input("Locatie (optioneel)", key="dating_plaats")
+        if st.button("Maak concept", key="dating_concept"):
+            try:
+                concept = dating_core.draft_date(titel, datum, plaats)
+                st.session_state["dating_concept"] = concept
+            except ValueError as fout:
+                st.warning(str(fout))
+        concept = st.session_state.get("dating_concept")
+        if concept:
+            st.write(concept["titel"])
+            st.caption(concept["datum"] + (" - " + concept["locatie"] if concept["locatie"] else ""))
+            st.info("Alleen concept in deze sessie. Er zijn geen uitnodigingen verzonden of betalingen gestart.")
+    with st.expander("Privacy en veiligheid"):
+        st.write("Geen openbare profielen, exacte locaties of contactgegevens zonder afzonderlijke toestemming.")
+        st.write("Blokkeren, melden, accountverificatie en wederzijdse toestemming zijn verplicht voor een latere publieke lancering.")
 
 
 def werkruimte_pagina() -> None:
@@ -5422,6 +5452,7 @@ def paginas() -> list:
     pagina(vandaag_overzicht, "Vandaag", ":material/today:", "vandaag", default=True)
     pagina(werkruimte_pagina, "Mijn werkruimte", ":material/dashboard_customize:", "werkruimte")
     pagina(universele_zoekhub, "Zoeken en navigeren", ":material/travel_explore:", "zoekhub")
+    pagina(dating_pagina, "Dating en singles", ":material/favorite:", "dating")
     pagina(agenda_tabblad, "Agenda", ":material/calendar_month:", "agenda")
     pagina(gesprek, mijn_avatar()["naam"], ":material/chat_bubble:", "assistent")
     if online and "Chat" not in uit:
