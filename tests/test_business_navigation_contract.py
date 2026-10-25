@@ -5,6 +5,17 @@ They do not claim to prove database RBAC or live browser navigation.
 """
 from unittest.mock import patch
 
+
+class FakeSessionState(dict):
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError as exc:
+            raise AttributeError(key) from exc
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
 import zaak_scherm
 
 
@@ -25,7 +36,7 @@ def test_critical_business_routes_reach_expected_sections():
 
 
 def test_openen_sets_real_navigation_state():
-    state = {}
+    state = FakeSessionState()
     with patch.object(zaak_scherm.st, "session_state", state):
         zaak_scherm._openen("zaak", "werkrooster")
         assert state["zaak_deel"] == "Rooster"
@@ -36,7 +47,7 @@ def test_openen_sets_real_navigation_state():
 
 
 def test_unknown_tool_only_changes_destination():
-    state = {}
+    state = FakeSessionState()
     with patch.object(zaak_scherm.st, "session_state", state):
         zaak_scherm._openen("assistent", "onbekend")
     assert state == {"ga_naar": "assistent"}
