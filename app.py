@@ -29,6 +29,7 @@ import predictive_context
 import dating_core
 import master_hub_core
 import multistream_core
+import multistream_store
 import avatar
 import bank
 import boekpagina
@@ -2590,7 +2591,7 @@ def groet(nu: datetime) -> str:
 
 
 def master_hub_pagina() -> None:
-    """One-page, opt-in private stream drafts and links to existing modules."""
+    """Account-scoped Multi-Stream drafts; never publish or send automatically."""
     st.title("Universal Master Hub")
     st.caption("Verkoop, chat, projecten en community in één overzicht.")
     lens = st.segmented_control("Streamfilter", list(multistream_core.LENSES),
@@ -2598,23 +2599,33 @@ def master_hub_pagina() -> None:
     with st.form("master_stream_form", clear_on_submit=True):
         opdracht = st.text_input("Bericht of opdracht", max_chars=500,
                                 placeholder="Bijvoorbeeld: verkoop mijn fiets")
-        verzenden = st.form_submit_button("Concept voorbereiden")
+        verzenden = st.form_submit_button("Concept bewaren")
     if verzenden:
         try:
-            draft = multistream_core.make_draft(opdracht)
-            st.session_state.setdefault("master_stream_drafts", []).insert(
-                0, {"category": draft.category, "text": draft.text, "status": draft.status})
+            item = multistream_store.add_draft(opdracht)
             st.session_state["master_hub_route"] = master_hub_core.classify(opdracht)
+            st.success("Privéconcept bewaard onder " + item["category"] + ".")
         except ValueError as fout:
             st.warning(str(fout))
-    concepten = multistream_core.filter_drafts(
-        st.session_state.get("master_stream_drafts", []), lens)
+        except Exception:
+            st.error("Bewaren is niet gelukt. Controleer je verbinding of meld je opnieuw aan.")
+    try:
+        concepten = multistream_core.filter_drafts(multistream_store.list_drafts(), lens)
+    except Exception:
+        concepten = []
+        st.warning("Opgeslagen concepten konden niet worden geladen.")
     with st.expander("Mijn concepten (" + str(len(concepten)) + ")", expanded=True):
         if not concepten:
             st.caption("Geen concepten in deze categorie.")
-        for i, concept in enumerate(concepten[:30]):
-            st.write(concept["text"])
-            st.caption(concept["category"] + " - niet gepubliceerd")
+        for item in concepten[:30]:
+            st.write(item.get("text", ""))
+            st.caption(str(item.get("category", "Chat")) + " - privéconcept")
+            if st.button("Verwijder concept", key="master_del_" + str(item.get("id"))):
+                try:
+                    if multistream_store.delete_draft(str(item.get("id"))):
+                        st.rerun()
+                except Exception:
+                    st.error("Verwijderen is niet gelukt.")
     route = st.session_state.get("master_hub_route")
     if route:
         st.caption(route.description)
@@ -2632,7 +2643,7 @@ def master_hub_pagina() -> None:
                         st.switch_page(PAGINA[route_name])
                     else:
                         st.warning("Dit onderdeel is momenteel niet beschikbaar.")
-    st.caption("Concepten blijven in deze sessie. Geen automatische publicatie, synchronisatie, AI-deling of fictieve kaartpunten.")
+    st.caption("Concepten worden bewaard in je account. Er wordt niets automatisch gepubliceerd, verzonden of aan AI gedeeld.")
 
 
 
