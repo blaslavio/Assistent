@@ -3,7 +3,7 @@ import unittest
 
 source = Path("zaak_scherm.py").read_text(encoding="utf-8")
 start = source.index(":is(.st-key-onderneming_snel, .st-key-onderneming_planning) button {")
-end = source.index(".st-key-onderneming_snel [data-testid=\"stButton\"] +", start)
+end = source.index("    </style>", start)
 css = source[start:end]
 
 class ResponsiveBusinessLayoutTests(unittest.TestCase):
