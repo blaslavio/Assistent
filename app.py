@@ -23,6 +23,7 @@ import assistant_learning
 import assistant_privacy
 import universal_workspace
 import intent_engine
+import azure_search_ready
 import avatar
 import bank
 import boekpagina
@@ -2584,34 +2585,46 @@ def groet(nu: datetime) -> str:
 
 
 def werkruimte_pagina() -> None:
-    """Role-aware navigation without changing authorization."""
+    """Switch role and visibility context; never infer permissions from a selector."""
     st.title("Mijn werkruimte")
-    st.caption("Kies je rollen. Je toegangsrechten blijven ongewijzigd.")
-    rollen = st.multiselect(
-        "Mijn rollen", list(universal_workspace.PROFILES),
-        default=universal_workspace.normalize_roles(st.session_state.get("werkruimte_rollen")),
-        format_func=lambda key: universal_workspace.PROFILES[key].label)
-    rollen = universal_workspace.normalize_roles(rollen)
-    st.session_state.werkruimte_rollen = rollen
-    huidig = st.selectbox(
-        "Actieve werkruimte", rollen,
-        format_func=lambda key: universal_workspace.PROFILES[key].label,
-        key="werkruimte_actief")
-    st.caption(universal_workspace.PROFILES[huidig].description)
-    st.markdown("#### Mijn tools")
-    tools = universal_workspace.visible_tools(rollen, huidig)
-    for start in range(0, len(tools), 2):
-        cols = st.columns(2)
-        for col, doel in zip(cols, tools[start:start + 2]):
-            with col:
-                if doel in PAGINA and st.button(
-                    doel.replace("_", " ").capitalize(),
-                    key=f"werkruimte_tool_{doel}", use_container_width=True):
-                    st.switch_page(PAGINA[doel])
-    with st.expander("AI-context en privacy"):
-        st.caption("Je actieve rol wordt alleen na toestemming als context meegestuurd.")
-        st.toggle("Gebruik mijn actieve rol als AI-context",
-                  value=False, key="werkruimte_ai_context_toestemming")
+    st.caption("Privé, zakelijk en community zijn aparte weergaven. Datatoegang wordt door de backend bepaald.")
+    modus = st.segmented_control(
+        "Profielmodus", ["Privé", "Zakelijk", "Community"],
+        default="Privé", key="werkruimte_profielmodus")
+    if modus == "Community":
+        st.subheader("Community")
+        st.caption("Publieke bijdragen zijn niet automatisch anoniem. Gebruik een alias en deel geen privégegevens.")
+        st.info("Community publiceren en modereren vereist een geverifieerde account en servercontrole.")
+        if "community" in PAGINA and st.button("Open community", use_container_width=True):
+            st.switch_page(PAGINA["community"])
+    else:
+        st.caption("Je bestaande afspraken, gegevens en bevoegdheden blijven behouden.")
+        rollen = st.multiselect(
+            "Mijn rollen", list(universal_workspace.PROFILES),
+            default=universal_workspace.normalize_roles(st.session_state.get("werkruimte_rollen")),
+            format_func=lambda key: universal_workspace.PROFILES[key].label)
+        rollen = universal_workspace.normalize_roles(rollen)
+        st.session_state.werkruimte_rollen = rollen
+        huidig = st.selectbox("Actieve rol", rollen,
+            format_func=lambda key: universal_workspace.PROFILES[key].label,
+            key="werkruimte_actief")
+        st.caption(universal_workspace.PROFILES[huidig].description)
+        with st.expander("Mijn tools", expanded=True):
+            tools = universal_workspace.visible_tools(rollen, huidig)
+            for start in range(0, len(tools), 2):
+                cols = st.columns(2)
+                for col, doel in zip(cols, tools[start:start + 2]):
+                    with col:
+                        if doel in PAGINA and st.button(
+                            doel.replace("_", " ").capitalize(),
+                            key=f"werkruimte_tool_{doel}", use_container_width=True):
+                            st.switch_page(PAGINA[doel])
+    with st.expander("AI en Azure-instellingen", expanded=False):
+        st.toggle("Gebruik mijn actieve rol als AI-context", value=False,
+                  key="werkruimte_ai_context_toestemming")
+        st.caption("Azure AI Search: " + azure_search_ready.azure_status())
+        st.caption("Azure zoeken staat uit tot sleutels, index, toegangscontrole en toestemming zijn ingesteld.")
+        st.code("AZURE_SEARCH_ENDPOINT\nAZURE_SEARCH_INDEX\nAZURE_SEARCH_API_KEY", language="text")
 
 
 def vandaag_overzicht() -> None:
