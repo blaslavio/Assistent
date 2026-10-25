@@ -4026,7 +4026,7 @@ def instellingen_weergave() -> None:
     """Algemene instellingen in een eigen, overzichtelijke navigatie."""
     st.markdown("### Algemene instellingen")
     huidige_thema = superapp_thema()
-    gekozen_thema = st.segmented_control("Kleurthema", ["Donker", "Licht"], default=huidige_thema.capitalize(), key="superapp_thema_keuze")
+    gekozen_thema = st.radio("Kleurthema", ["Donker", "Licht"], index=0 if huidige_thema == "donker" else 1, horizontal=True, key=f"superapp_thema_{huidige_thema}")
     if gekozen_thema and gekozen_thema.lower() != huidige_thema:
         opslag.instellingen_bijwerken(superapp_thema=gekozen_thema.lower())
         st.rerun()
@@ -4677,6 +4677,8 @@ def gesprek() -> None:
         feedback_vragen_antwoord()
 
     vraag = st.session_state.pop("vooraf_vraag", None)
+    if not vraag:
+        vraag = st.chat_input("Stel je vraag aan de assistent...", key="assistent_chat_input")
     if not vraag:
         if st.session_state.chat and st.button("Nieuw gesprek"):
             st.session_state.chat = []
