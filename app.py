@@ -30,6 +30,7 @@ import dating_core
 import master_hub_core
 import multistream_core
 import multistream_store
+import resource_booking_core
 import avatar
 import bank
 import boekpagina
@@ -2594,7 +2595,8 @@ def master_hub_pagina() -> None:
     """Account-scoped Multi-Stream drafts; never publish or send automatically."""
     st.title("Universal Master Hub")
     st.caption("Verkoop, chat, projecten en community in één overzicht.")
-    profile = st.segmented_control("Privacyprofiel", list(multistream_store.PROFILES),\n                                   default="Privé", key="master_privacy_profile")\n    st.caption("Profielwissel toont uitsluitend concepten van het gekozen profiel.")\n    lens = st.segmented_control("Streamfilter", list(multistream_core.LENSES),
+    profile = st.segmented_control("Privacyprofiel", list(multistream_store.PROFILES),\n                                   default="Privé", key="master_privacy_profile")
+    st.caption("Profielwissel toont uitsluitend concepten van het gekozen profiel.")\n    lens = st.segmented_control("Streamfilter", list(multistream_core.LENSES),
                                 default="Alles", key="master_stream_lens")
     with st.form("master_stream_form", clear_on_submit=True):
         opdracht = st.text_input("Bericht of opdracht", max_chars=500,
@@ -2626,6 +2628,62 @@ def master_hub_pagina() -> None:
                         st.rerun()
                 except Exception:
                     st.error("Verwijderen is niet gelukt.")
+    if profile == "Zakelijk":
+        with st.expander("Verhuur en rooster", expanded=False):
+            st.caption("Beheer eigen ruimtes, stoelen, materialen en tijdsloten.")
+            with st.form("master_resource_add", clear_on_submit=True):
+                naam = st.text_input("Naam voorziening", max_chars=100)
+                soort = st.selectbox("Type", resource_booking_core.KINDS)
+                nieuw = st.form_submit_button("Voorziening toevoegen")
+            if nieuw:
+                try:
+                    resource_booking_core.add_resource(naam, soort)
+                    st.success("Voorziening toegevoegd.")
+                except ValueError as err:
+                    st.warning(str(err))
+                except Exception:
+                    st.error("Opslaan mislukt.")
+            try:
+                voorzieningen = resource_booking_core.resources()
+                boekingen = resource_booking_core.bookings()
+            except Exception:
+                voorzieningen, boekingen = [], []
+                st.warning("Reserveringsgegevens niet beschikbaar.")
+            if voorzieningen:
+                namen = {r["id"]: r["name"] for r in voorzieningen}
+                with st.form("master_booking_add"):
+                    rid = st.selectbox("Voorziening", list(namen), format_func=lambda x: namen[x])
+                    dag = st.date_input("Datum", value=date.today())
+                    begin = st.time_input("Van", value=kloktijd(9, 0))
+                    einde = st.time_input("Tot", value=kloktijd(10, 0))
+                    omschrijving = st.text_input("Omschrijving", max_chars=200)
+                    bevestig = st.form_submit_button("Reservering bevestigen")
+                if bevestig:
+                    try:
+                        resource_booking_core.create_booking(rid, datetime.combine(dag, begin),
+                                                             datetime.combine(dag, einde), omschrijving)
+                        st.success("Reservering bevestigd.")
+                        st.rerun()
+                    except ValueError as err:
+                        st.warning(str(err))
+                    except Exception:
+                        st.error("Reservering kon niet worden opgeslagen.")
+                st.caption("Reserveringskalender")
+                for booking in sorted(boekingen, key=lambda b: b.get("start", "")):
+                    if booking.get("status") == "geannuleerd":
+                        continue
+                    st.write(namen.get(booking.get("resource_id"), "Onbekend") + " | " +
+                             booking.get("start", "").replace("T", " ") + " – " +
+                             booking.get("end", "").replace("T", " ") + " | " +
+                             booking.get("description", ""))
+                    if st.button("Annuleren", key="cancel_resource_" + booking.get("id", "")):
+                        try:
+                            resource_booking_core.cancel_booking(booking["id"])
+                            st.rerun()
+                        except Exception:
+                            st.error("Annuleren mislukt.")
+            else:
+                st.caption("Voeg eerst een voorziening toe.")
     route = st.session_state.get("master_hub_route")
     if route:
         st.caption(route.description)
