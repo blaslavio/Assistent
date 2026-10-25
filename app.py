@@ -112,7 +112,7 @@ st.set_page_config(page_title="SuperApp OS", page_icon=None, layout="centered", 
 # Consistent zakelijk design; bestaande pagina's, routing en acties blijven intact.
 st.markdown("""
 <style>
-.stApp { background-color: #ffffff; }\n.app-title { font-size:1.25rem; font-weight:600; letter-spacing:-.03em; margin-bottom:2px; }\n.app-subtitle { font-size:.85rem; color:#71717a; margin-bottom:32px; }\n[data-testid="stChatMessage"] { background:transparent; border:none; padding:8px 0; }\n[data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid #e4e4e7; }\n[data-testid="stSidebar"] a { border-radius: 6px; }\n[data-testid="stMainBlockContainer"] { max-width: 1400px; }\n.stButton > button { border-radius: 6px; }
+.stApp { background-color: #fafafa; }\n.app-title { font-size:1.25rem; font-weight:600; letter-spacing:-.03em; margin-bottom:2px; }\n.app-subtitle { font-size:.85rem; color:#71717a; margin-bottom:32px; }\n[data-testid="stChatMessage"] { background:transparent; border:none; padding:8px 0; }\n[data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid #e4e4e7; }\n[data-testid="stSidebar"] a { border-radius: 6px; }\n[data-testid="stMainBlockContainer"] { max-width: 1400px; }\n.stButton > button { border-radius: 6px; }
 [data-testid="stAppViewContainer"] h1,
 [data-testid="stAppViewContainer"] h2,
 [data-testid="stAppViewContainer"] h3,
@@ -2412,14 +2412,34 @@ def groet(nu: datetime) -> str:
 def vandaag_overzicht() -> None:
     """Minimalistische chat als startpagina, met behoud van de bestaande AI- en accountrechten."""
     st.markdown('<div class="app-title">SuperApp OS</div>', unsafe_allow_html=True)
-    st.markdown('<div class="app-subtitle">Waar kan ik je vandaag mee helpen?</div>',
+    st.markdown('<div class="app-subtitle">Minimalistische workspace &amp; intelligente assistent</div>',
                 unsafe_allow_html=True)
-    st.markdown("### Agenda van vandaag")
-    dagschema()
-    if st.button("Volledige agenda openen", key="home_agenda_open", width="stretch"):
-        ga_naar("agenda")
+    tab = st.segmented_control(
+        "Navigatie", ["Agenda", "Taken", "Plannen", "Samen", "Assistent"],
+        default="Agenda", key="superapp_home_tab", label_visibility="collapsed",
+    ) or "Agenda"
     st.divider()
-    gesprek()
+    if tab == "Agenda":
+        st.markdown("### Agenda & Planning")
+        st.caption("Je actuele afspraken en planning.")
+        dagschema()
+        if st.button("Volledige agenda openen", key="home_agenda_open", width="stretch"):
+            ga_naar("agenda")
+    elif tab == "Taken":
+        st.markdown("### Taken & Actiepunten")
+        takenlijst()
+    elif tab == "Plannen":
+        st.markdown("### Strategisch Plannen")
+        plannen_scherm.pagina()
+    elif tab == "Samen":
+        st.markdown("### Samenwerking & Team")
+        if samen.beschikbaar():
+            samen_agendas()
+        else:
+            st.info("Samenwerken is beschikbaar wanneer de online verbinding actief is.")
+    else:
+        st.markdown("### AI Co-Pilot Assistent")
+        gesprek()
 
 
 def zaak_vandaag() -> None:
