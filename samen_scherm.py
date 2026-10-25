@@ -828,6 +828,45 @@ def winkel_opslaan(adres: str, naam: str, *rest) -> bool:
     return False
 
 
+def tweedehands_aanbieden() -> None:
+    """Een eigen tweedehands kledingadvertentie via de bestaande marktplaats-backend."""
+    st.markdown("#### Tweedehands kleding")
+    st.caption("Verkoop kleding per stuk. Beschrijf de echte staat en eventuele beschadigingen. "
+               "Je advertentie verschijnt op de marktplaats, niet automatisch in de webshopcatalogus.")
+    status = _fout(samen.betalen_status) or {}
+    wijzen = [w for w in samen.BETAALWIJZEN if w != "app" or status.get("ik_kan_ontvangen")]
+    with st.form("tweedehands_kleding", clear_on_submit=True, border=False):
+        categorie = st.selectbox("Categorie", ["Dames", "Heren", "Kinderen", "Schoenen", "Accessoires"])
+        titel = st.text_input("Artikel", max_chars=100, placeholder="Bijv. Winterjas zwart")
+        merk = st.text_input("Merk", max_chars=60, placeholder="Merk of geen merk")
+        maat = st.text_input("Maat", max_chars=20, placeholder="Bijv. M, 38 of 42")
+        staat = st.selectbox("Staat", ["Nieuw met label", "Als nieuw", "Heel goed", "Goed", "Veelgebruikt"])
+        gebreken = st.text_area("Gebreken en bijzonderheden", max_chars=600,
+                               placeholder="Beschrijf slijtage, vlekken, reparaties of andere details.")
+        prijs = st.number_input("Vraagprijs (€)", min_value=0.0, value=10.0, step=1.0)
+        plaats = st.text_input("Plaats", max_chars=100)
+        betaal = st.pills("Betalen", wijzen, selection_mode="multi",
+                          default=["app"] if "app" in wijzen else ["contant"],
+                          format_func=samen.BETAALWIJZEN.get)
+        levering = st.pills("Levering", [l for l in samen.LEVERING if l != "bezorgen"],
+                            selection_mode="multi", default=["ophalen"],
+                            format_func=samen.LEVERING.get)
+        akkoord = st.checkbox("Ik bevestig dat de beschrijving klopt en het artikel van mij is.")
+        if st.form_submit_button("Kleding aanbieden", type="primary", width="stretch"):
+            if not titel.strip() or not maat.strip() or not merk.strip():
+                st.error("Vul artikel, merk en maat in.")
+            elif not akkoord:
+                st.error("Bevestig eerst dat de gegevens kloppen.")
+            else:
+                omschrijving = (f"Tweedehands kleding | {categorie} | Merk: {merk.strip()} | "
+                                f"Maat: {maat.strip()} | Staat: {staat}. "
+                                f"Bijzonderheden: {gebreken.strip() or 'Geen opgegeven'}.")
+                if _fout(samen.aanbod_plaatsen, "product", titel.strip(), omschrijving,
+                         prijs, "per stuk", plaats.strip(), "", betaal, levering) is not None:
+                    st.success("Je kledingadvertentie is op de marktplaats geplaatst.")
+    st.caption("Voeg alleen echte informatie toe. Deel geen woonadres als je daar geen kopers wilt ontvangen.")
+
+
 def mijn_webshop(inkopen=None) -> None:
     """Pagina 🏬 Mijn webshop: winkel instellen, producten en voorraad, en delen."""
     m = samen.mijn_winkel()
