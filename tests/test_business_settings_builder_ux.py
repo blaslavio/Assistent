@@ -21,13 +21,12 @@ class BusinessSettingsBuilderUXTests(unittest.TestCase):
         self.assertIn('winkel_opslaan(w.get("adres", "")', SHOP)
         self.assertIn('with st.popover("Wat kan ik hiermee?"', SHOP)
 
-    def test_business_settings_are_fragment_and_explain_tools(self):
-        self.assertIn('def beroep_instellingen()', BUSINESS)
-        self.assertIn('with st.popover("Uitleg"', BUSINESS)
-        self.assertIn('uitleg.get(t,', BUSINESS)
-        self.assertIn('alle_tools =', BUSINESS)
-        self.assertIn('"werkrooster": ("zaak_deel", "Rooster")', BUSINESS)
-        self.assertIn('delen = ["Vandaag", "Rooster", "Afspraken"]', BUSINESS)
+    def test_business_tools_have_direct_routes(self):
+        for route in ('"rooster"', '"klantenbeheer"', '"boekhoudingbeheer"'):
+            self.assertIn(route, APP)
+        self.assertIn('def rooster_pagina()', BUSINESS)
+        self.assertIn('st.caption(uitleg)', BUSINESS)
+        self.assertIn('st.session_state.ga_naar = route', BUSINESS)
 
 
 if __name__ == "__main__":
