@@ -141,6 +141,11 @@ def beroep_instellingen() -> None:
     </style>
     """)
     st.caption("Tik op een hulpmiddel om het te openen. Het vraagteken legt uit wat het doet.")
+    with st.expander("Wat kunnen deze hulpmiddelen?", icon=":material/help_outline:"):
+        st.markdown("**Webshop:** maak een winkel en beheer producten, prijzen en publicatie.")
+        st.markdown("**Bestellingen:** bekijk verkopen en leveringen.")
+        st.markdown("**Werkrooster:** plan lessen, diensten en werktijden.")
+        st.markdown("**Omzet:** bekijk financiële overzichten en boekhouding.")
     st.markdown("**Webshop en verkoop**")
     st.caption("Je winkel, bestellingen en diensten.")
     with st.container(key="onderneming_snel"):
