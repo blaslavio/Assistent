@@ -108,7 +108,28 @@ for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, r
 os.environ["TZ"] = "Europe/Amsterdam"
 time.tzset()
 
-st.set_page_config(page_title="Mijn assistent", page_icon="✨", layout="centered")
+st.set_page_config(page_title="Mijn assistent", page_icon=None, layout="wide")
+# Consistent zakelijk design; bestaande pagina's, routing en acties blijven intact.
+st.markdown("""
+<style>
+.stApp { background-color: #fafafa; }
+[data-testid="stAppViewContainer"] h1,
+[data-testid="stAppViewContainer"] h2,
+[data-testid="stAppViewContainer"] h3,
+[data-testid="stAppViewContainer"] p,
+[data-testid="stAppViewContainer"] label {
+    text-align: left;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 10px;
+}
+.stButton > button {
+    border-radius: 7px;
+    font-weight: 500;
+}
+</style>
+""", unsafe_allow_html=True)
 taal.installeren()
 
 # Elke run van het script gebruikt de naam en het wachtwoord van deze sessie voor de database.
