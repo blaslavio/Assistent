@@ -13,6 +13,6 @@ jobs:
         with:
           python-version: '3.11'
       - name: Syntax check
-        run: python -m compileall -q app.py workspace_hub.py pay_in_chat_core.py community_core.py community_safety.py community_privacy.py assistant_learning.py assistant_privacy.py
+        run: python -m compileall -q app.py workspace_hub.py pay_in_chat_core.py community_core.py community_safety.py community_privacy.py assistant_learning.py assistant_privacy.py universal_workspace.py intent_engine.py
       - name: Regression tests
         run: python -m unittest -v regression_tests community_safety_tests assistant_learning_tests assistant_privacy_tests
