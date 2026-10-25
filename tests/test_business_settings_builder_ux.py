@@ -22,9 +22,12 @@ class BusinessSettingsBuilderUXTests(unittest.TestCase):
         self.assertIn('with st.popover("Wat kan ik hiermee?"', SHOP)
 
     def test_business_settings_are_fragment_and_explain_tools(self):
-        self.assertIn('@st.fragment\ndef beroep_instellingen()', BUSINESS)
+        self.assertIn('def beroep_instellingen()', BUSINESS)
         self.assertIn('with st.popover("Uitleg"', BUSINESS)
         self.assertIn('uitleg.get(t,', BUSINESS)
+        self.assertIn('alle_tools =', BUSINESS)
+        self.assertIn('"werkrooster": ("zaak_deel", "Rooster")', BUSINESS)
+        self.assertIn('delen = ["Vandaag", "Rooster", "Afspraken"]', BUSINESS)
 
 
 if __name__ == "__main__":
