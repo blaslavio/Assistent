@@ -57,21 +57,63 @@ def _soort(gelegenheid: str) -> str:
 
 
 def pagina() -> None:
-    """Een activiteit plannen: kies wat, vul in wanneer, waar en met wie, en zet er extra's bij (zoals een
-    cadeaupot bij een verjaardag). Daaronder wat je al gepland hebt, met wie er komt."""
+    """Overzichtelijke activiteitenplanner met iconen en directe toegang tot tools."""
     _melding_tonen()
     online = samen.beschikbaar()
-    gekozen = st.pills("Waarvoor?", list(R.GELEGENHEDEN), key="plannen_gelegenheid",
-                       label_visibility="collapsed")
+    st.markdown("### Activiteit plannen")
+    st.caption("Kies een activiteit. Daarna kun je datum, locatie en deelnemers instellen.")
+
+    keuzes = [
+        ("Afspraak", ":material/event:"),
+        ("Date", ":material/favorite:"),
+        ("Speelafspraak", ":material/toys:"),
+        ("Uitje", ":material/explore:"),
+        ("Etentje", ":material/restaurant:"),
+        ("Verjaardag", ":material/cake:"),
+    ]
+    gekozen = st.session_state.get("plannen_gelegenheid")
+    for begin in range(0, len(keuzes), 2):
+        links, rechts = st.columns(2, gap="small")
+        for kolom, (naam, icoon) in zip((links, rechts), keuzes[begin:begin + 2]):
+            with kolom:
+                if st.button(naam, icon=icoon, key=f"plan_soort_{naam}",
+                             type="primary" if gekozen == naam else "secondary",
+                             width="stretch"):
+                    st.session_state.plannen_gelegenheid = None if gekozen == naam else naam
+                    st.rerun()
     if gekozen:
+        st.markdown("#### " + gekozen + " organiseren")
         with st.container(border=True):
             activiteit_formulier(gekozen, online)
+
+    st.markdown("#### Handige tools")
+    st.caption("Alles voor een afspraak op één plek.")
+    tools = [
+        ("Agenda", "agenda", ":material/calendar_month:"),
+        ("Datum prikken", "prikken", ":material/event_available:"),
+        ("Boekingen", "boekingen", ":material/event_note:"),
+        ("Locaties zoeken", "buurt", ":material/place:"),
+        ("Taken", "agenda", ":material/checklist:"),
+        ("Uitnodigingen", "communicatie", ":material/group_add:"),
+    ]
+    for begin in range(0, len(tools), 2):
+        links, rechts = st.columns(2, gap="small")
+        for kolom, (naam, route, icoon) in zip((links, rechts), tools[begin:begin + 2]):
+            with kolom:
+                if st.button(naam, icon=icoon, key=f"plan_tool_{begin}_{route}_{naam}", width="stretch"):
+                    if naam == "Taken":
+                        st.session_state.agenda_deel = "Taken"
+                    if naam == "Locaties zoeken":
+                        st.session_state.buurt_gelegenheid = gekozen or "Uitje"
+                    st.session_state.ga_naar = route
+                    st.rerun()
+
     if online:
-        mijn_reserveringen()
-        mijn_aanvragen()
-    gepland(online)
-    if st.button("In de buurt", icon=":material/near_me:", type="tertiary"):
-        naar_buurt(gekozen or "Uitje")
+        with st.expander("Reserveringen en uitnodigingen", icon=":material/inbox:"):
+            mijn_reserveringen()
+            mijn_aanvragen()
+    with st.expander("Mijn geplande activiteiten", expanded=True, icon=":material/event_note:"):
+        gepland(online)
 
 
 def naar_buurt(gelegenheid: str) -> None:
