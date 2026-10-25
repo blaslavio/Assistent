@@ -1287,8 +1287,8 @@ def schrijfproject_archiveren(project_id: int) -> None:
 # --- Namens de gebruiker -----------------------------------------------------
 # Hoe zelfstandig de assistent mag reageren (instellingen.namens) en een logboek van wat hij namens je stuurde.
 
-NAMENS = {"vragen": "✋ Eerst aan mij vragen", "bekenden": "👥 Zelf reageren aan mijn contacten, de rest eerst vragen",
-          "zelf": "🤖 Zelf reageren, ik lees het overzicht"}
+NAMENS = {"vragen": "Eerst aan mij vragen", "bekenden": "Zelf reageren aan mijn contacten, de rest eerst vragen",
+          "zelf": "Zelf reageren, ik lees het overzicht"}
 NAMENS_PER_DAG = 25
 
 
