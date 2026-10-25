@@ -93,9 +93,12 @@ def ontdekken() -> None:
         opties.append(("Mijn winkel", "winkel", ":material/store:", "Beheer je winkel en verkooptools."))
     for naam, doel, icoon, uitleg in opties:
         with st.container(border=True):
-            if st.button(naam, icon=icoon, key=f"ontdek_{doel}", width="stretch"):
-                _open_onderdeel(doel)
-                st.rerun()
+            with st.container(horizontal=True, vertical_alignment="center"):
+                st.markdown(f"{icoon} **{naam}**", width="stretch")
+                if st.button("Openen", icon=":material/arrow_forward:", key=f"ontdek_{doel}",
+                             type="tertiary"):
+                    _open_onderdeel(doel)
+                    st.rerun()
             st.caption(uitleg)
 
 
