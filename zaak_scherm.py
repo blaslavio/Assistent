@@ -76,6 +76,7 @@ def _openen(url: str, tool: str) -> None:
     st.session_state.ga_naar = url
 
 
+@st.fragment
 def beroep_instellingen() -> None:
     """Kies je beroep; daaronder je zakelijke hulpmiddelen, elk met één tik open."""
     _melding()
@@ -130,6 +131,7 @@ def beroep_instellingen() -> None:
     }
     </style>
     """)
+    st.caption("Tik op een hulpmiddel om het te openen. Het vraagteken legt uit wat het doet.")
     st.markdown("**Webshop en verkoop**")
     st.caption("Je winkel, bestellingen en diensten.")
     with st.container(key="onderneming_snel"):
@@ -197,10 +199,25 @@ def beroep_instellingen() -> None:
     except samen.Fout:
         winkel, pagina = {}, None
     st.markdown("**Vakgerichte hulpmiddelen**")
+    uitleg = {
+        "boekingen": "Maak een boekingspagina, beheer beschikbare tijden en laat afspraken in de agenda verschijnen.",
+        "lessen": "Plan lessen en deelnemers in een overzichtelijk rooster.",
+        "werkrooster": "Houd werktijden, diensten en beschikbaarheid bij.",
+        "klanten": "Bewaar klantinformatie en bekijk klantafspraken.",
+        "webshop": "Bouw je winkel, voeg producten toe en beheer bestellingen.",
+        "omzet": "Bekijk verkopen, kosten en bedrijfsresultaten.",
+        "boekhouding": "Registreer inkomsten en uitgaven voor je administratie.",
+        "reviews": "Bekijk beoordelingen en reacties van klanten.",
+        "diensten": "Beheer de diensten die klanten kunnen reserveren.",
+        "mail": "Beheer zakelijke berichten en communicatie.",
+    }
     for t in beroep.tools():
         naam, url, _ = beroep.TOOLS[t]
         with st.container(horizontal=True, vertical_alignment="center", key=f"tool_{t}"):
             st.markdown(naam, width="stretch")
+            with st.popover("Uitleg", icon=":material/help_outline:"):
+                st.write(uitleg.get(t, f"Open {naam.lower()} om dit hulpmiddel te gebruiken."))
+                st.caption("Je gegevens worden alleen verwerkt voor de gekozen functie.")
             if t == "boekingen" and not pagina:
                 if st.button("Maken", key=f"tool_maak_{t}", type="tertiary"):
                     if _fout(beroep.boekingspagina_maken) is not None:
