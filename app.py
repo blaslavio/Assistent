@@ -156,6 +156,18 @@ def superapp_thema_toepassen() -> None:
     [data-testid="stAppViewContainer"] label, .app-title {{ color: {fg} !important; }}
     .app-subtitle {{ color: {muted} !important; }}
     .notion-card, .modern-card {{ background: {panel}; border: 1px solid {border}; color: {fg}; }}
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {{
+        background: #2563eb !important; border-radius: 16px 16px 4px 16px;
+        padding: 12px 16px; max-width: 85%; margin-left: auto;
+    }}
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) p {{ color: #fff !important; }}
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {{
+        background: {panel} !important; border: 1px solid {border};
+        border-radius: 16px 16px 16px 4px; padding: 12px 16px; max-width: 85%;
+    }}
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] label {{ color: {fg} !important; }}
+    @media(max-width:640px) {{ [data-testid="stChatMessage"] {{ max-width: 96% !important; }} }}
+
     </style>""", unsafe_allow_html=True)
 
 
@@ -5015,6 +5027,7 @@ def paginas() -> list:
     if online and "Marktplaats" not in uit:
         pagina(winkelen_scherm.pagina, "Winkelen", ":material/shopping_bag:", "winkelen")
     pagina(instellingen_tabblad, "Instellingen", ":material/settings:", "instellingen")
+    pagina(communicatie_hub, "Mail & Chat", ":material/forum:", "communicatie")
 
     def als(aan: bool, *args, **kwargs) -> str | None:
         return pagina(*args, **kwargs).url_path if aan else None
@@ -5069,6 +5082,28 @@ def paginas() -> list:
     return list(PAGINA.values())
 
 
+def communicatie_hub() -> None:
+    """Eén ingang voor bestaande berichten, mail en AI, zonder demonstratiegegevens."""
+    st.title("Mail & Chat")
+    st.caption("Je gesprekken, e-mail en assistent op één plek.")
+    opties = []
+    if "chat" in PAGINA:
+        opties.append(("Chat", "chat", "Bestaande gesprekken en berichten"))
+    if "mail" in PAGINA:
+        opties.append(("Mail", "mail", "E-mail en concepten"))
+    if "berichten" in PAGINA:
+        opties.append(("Berichten", "berichten", "Zakelijke en marktplaatsberichten"))
+    opties.append(("AI Co-Pilot", "assistent", "Je persoonlijke AI-assistent"))
+    for naam, route, uitleg in opties:
+        with st.container(border=True):
+            links, rechts = st.columns([4, 1], vertical_alignment="center")
+            with links:
+                st.markdown(f"**{naam}**")
+                st.caption(uitleg)
+            with rechts:
+                st.page_link(PAGINA[route], label="Openen", width="stretch")
+
+
 def superapp_navigatie() -> None:
     """Zakelijke zijbalk met zes hoofdonderdelen; overige bestaande tools blijven bereikbaar."""
     hoofdmenu = [
@@ -5077,7 +5112,7 @@ def superapp_navigatie() -> None:
         ("Werkrooster & Bezetting", "zakelijk"),
         ("Ondernemingen & Koppelingen", "instellingen"),
         ("Leren & Cursussen", "cursussen"),
-        ("Social & Commerce Chat", "assistent"),
+        ("Mail & Chat", "communicatie"),
     ]
     with st.sidebar:
         st.markdown("### Workspace")
@@ -5096,7 +5131,7 @@ def superapp_navigatie() -> None:
                     st.caption(groep)
                     for route in overige:
                         st.page_link(PAGINA[route], width="stretch")
-            for route in ("agenda", "chat", "instellingen"):
+            for route in ("agenda", "chat", "assistent", "instellingen"):
                 if route in PAGINA and route not in zichtbaar:
                     st.page_link(PAGINA[route], width="stretch")
 
