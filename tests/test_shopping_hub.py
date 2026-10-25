@@ -23,6 +23,8 @@ class ShoppingHubTests(unittest.TestCase):
         self.assertIn('st.session_state["winkelen_deel"] = volgend', functions["pagina"])
         self.assertNotIn('st.segmented_control("Winkelen"', functions["pagina"])
         self.assertNotIn("st.session_state.winkelen_deel = doel", functions["ontdekken"])
+        self.assertLess(functions["pagina"].index('st.session_state["winkelen_deel"] = volgend'),
+                        functions["pagina"].index('st.selectbox('))
 
     def test_no_emojis_in_new_category_icons(self):
         self.assertIn('":material/checkroom:"', functions["ontdekken"])
