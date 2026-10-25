@@ -2688,6 +2688,25 @@ def master_hub_pagina() -> None:
                 st.caption("Voeg eerst een voorziening toe.")
     if profile == "Zakelijk":
         with st.expander("Videoprojecten", expanded=False):
+            studio_mode = st.segmented_control(
+                "Werkmodus", ["Mobile Quick Cut", "Desktop Precision Studio"],
+                default="Mobile Quick Cut", key="video_studio_mode")
+            st.caption("Beide modi gebruiken dezelfde opgeslagen projecten.")
+            with st.expander("Montageopdracht voorbereiden", expanded=False):
+                with st.form("video_cut_draft", clear_on_submit=True):
+                    cut_type = st.selectbox("Bewerking", [
+                        "Stiltes verwijderen", "Social reel", "Scènes inkorten",
+                        "Ondertiteling", "Kleurcorrectie", "Eigen opdracht"])
+                    cut_notes = st.text_area("Instructies", max_chars=500)
+                    prepare_cut = st.form_submit_button("Concept voorbereiden")
+                if prepare_cut:
+                    st.session_state["video_cut_intent"] = {
+                        "mode": studio_mode, "type": cut_type,
+                        "notes": cut_notes.strip(), "status": "concept"}
+            cut_intent = st.session_state.get("video_cut_intent")
+            if cut_intent:
+                st.write("Montageconcept: " + cut_intent["type"])
+                st.caption("Niet uitgevoerd. Voor verwerking is een video-upload en renderdienst nodig.")
             with st.form("video_project_create", clear_on_submit=True):
                 projectnaam = st.text_input("Projectnaam", max_chars=120)
                 projectmaken = st.form_submit_button("Nieuw videoproject")
