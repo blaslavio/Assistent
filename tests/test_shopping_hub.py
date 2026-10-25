@@ -20,7 +20,7 @@ class ShoppingHubTests(unittest.TestCase):
         self.assertIn('st.selectbox(', functions["pagina"])
         self.assertIn('key="winkelen_deel"', functions["pagina"])
         self.assertIn('if volgend in delen:', functions["pagina"])
-        self.assertIn('_open_onderdeel(doel)', functions["ontdekken"])
+        self.assertIn('on_click=_open_onderdeel, args=(doel,)', functions["ontdekken"])
         self.assertIn('st.session_state["_winkelen_volgende_deel"] = onderdeel', functions["_open_onderdeel"])
         self.assertIn('st.session_state["winkelen_deel"] = volgend', functions["pagina"])
         self.assertIn('st.session_state.pop("_winkelen_volgende_deel", None)', functions["pagina"])
