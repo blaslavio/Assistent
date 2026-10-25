@@ -12,8 +12,9 @@ import samen_scherm
 import winkelen
 from samen_scherm import _fout, ik
 
-DELEN = {"buurt": "Dichtbij", "producten": "Zoeken", "mandje": "Mandje", "bestellingen": "Besteld",
-         "winkel": "Verkoop"}
+DELEN = {"buurt": "Ontdekken", "winkels": "Winkels", "eten": "Eten bestellen",
+         "tweedehands": "Tweedehands", "producten": "Producten", "mandje": "Mandje",
+         "bestellingen": "Bestellingen", "winkel": "Mijn winkel"}
 FILTERS = {"": "Alles", "restaurant": "Eten bestellen", "winkel": "Winkels"}
 
 
@@ -37,13 +38,23 @@ def pagina() -> None:
             st.link_button("Nu betalen", betaald["betaallink"], type="primary", width="stretch")
     delen = list(DELEN) if verkoper() else ["buurt", "producten", "mandje", "bestellingen"]
     n = winkelen.aantal_in_mandje()
-    deel = st.segmented_control("Winkelen", delen, key="winkelen_deel", label_visibility="collapsed",
-                                format_func=lambda d: f"{DELEN[d]} ({n})" if d == "mandje" and n else DELEN[d],
-                                default="buurt") or "buurt"
-    if deel in ("buurt", "producten"):
+    deel = st.selectbox(
+        "Winkelonderdeel", delen, key="winkelen_deel",
+        format_func=lambda d: f"{DELEN[d]} ({n})" if d == "mandje" and n else DELEN[d],
+        help="Kies je omgeving. Winkels, eten en tweedehands zijn afzonderlijke onderdelen."
+    ) or "buurt"
+    if deel in ("buurt", "winkels", "eten", "producten"):
         plek_kiezen()
     if deel == "buurt":
-        in_de_buurt()
+        ontdekken()
+    elif deel == "winkels":
+        in_de_buurt("winkel")
+    elif deel == "eten":
+        in_de_buurt("restaurant")
+    elif deel == "tweedehands":
+        st.subheader("Tweedehands en marktplaats")
+        st.caption("Zoek tweedehands kleding en andere artikelen van particuliere verkopers.")
+        samen_scherm.zoeken()
     elif deel == "producten":
         producten(False)
     elif deel == "mandje":
@@ -52,6 +63,22 @@ def pagina() -> None:
         samen_scherm.bestellingen()
     else:
         samen_scherm.mijn_webshop(inkopen=inkopen)
+
+
+
+def ontdekken() -> None:
+    st.subheader("Ontdek")
+    st.caption("Kies een categorie om gericht te zoeken.")
+    opties = [
+        ("Winkels", "winkels", ":material/storefront:"),
+        ("Eten bestellen", "eten", ":material/restaurant:"),
+        ("Tweedehands", "tweedehands", ":material/checkroom:"),
+        ("Producten", "producten", ":material/shopping_bag:"),
+    ]
+    for naam, doel, icoon in opties:
+        if st.button(naam, icon=icoon, key=f"ontdek_{doel}", width="stretch"):
+            st.session_state.winkelen_deel = doel
+            st.rerun()
 
 
 def inkopen() -> None:
@@ -64,7 +91,7 @@ def plek_kiezen() -> None:
     """Eén regel: waar je zoekt, met een knop om het te wijzigen."""
     plek = winkelen.waar()
     with st.container(horizontal=True, vertical_alignment="center"):
-        st.caption(f":material/location_on: {plek[2].split(',')[0] if plek else 'Plek onbekend'}")
+        st.caption(f":material/location_on: {plek[2].split(',')[0] if plek else 'Locatie niet ingesteld'}")
         with st.popover("Wijzigen", type="tertiary"):
             with st.form("winkelen_plek", border=False):
                 nieuw = st.text_input("Waar?", value=opslag.instellingen().get("winkelen_plek", ""),
@@ -79,17 +106,17 @@ def _waar() -> tuple[float | None, float | None]:
     return (plek[0], plek[1]) if plek else (None, None)
 
 
-def in_de_buurt() -> None:
-    k1, k2 = st.columns([3, 2], vertical_alignment="bottom")
-    zoek = k1.text_input("Zoeken", key="winkelen_zoek", placeholder="Zoeken", label_visibility="collapsed")
-    soort = k2.pills("Soort", list(FILTERS), format_func=FILTERS.get, default="", key="winkelen_filter",
-                     label_visibility="collapsed") or ""
+def in_de_buurt(categorie: str = "") -> None:
+    st.subheader("Restaurants" if categorie == "restaurant" else "Winkels")
+    zoek = st.text_input("Zoeken", key="winkelen_zoek", placeholder="Zoek op naam of assortiment")
+    soort = categorie
     lat, lon = _waar()
     winkels = _fout(samen.winkelen_winkels, zoek.strip(), lat, lon, soort) or []
     if soort == "restaurant":
         winkels = sorted(winkels, key=lambda w: not w.get("bezorgt_hier"))
     if not winkels:
-        st.caption("Niets gevonden.")
+        st.info("Stel eerst je plaats in." if not winkelen.waar()
+                else "Geen aanbieders gevonden. Probeer een andere zoekterm.")
     for w in winkels[:60]:
         winkel_regel(w)
     if st.button("Kaart met alle winkels", icon=":material/map:", type="tertiary"):
