@@ -77,18 +77,25 @@ def pagina() -> None:
 
 
 def ontdekken() -> None:
-    st.subheader("Ontdek")
-    st.caption("Kies een categorie om gericht te zoeken.")
+    """Zakelijk, links uitgelijnd startpunt met herkenbare iconen en duidelijke routes."""
+    st.subheader("Winkelen")
+    st.caption("Ontdek aanbod, bestel eten of koop en verkoop tweedehands artikelen.")
     opties = [
-        ("Winkels", "winkels", ":material/storefront:"),
-        ("Eten bestellen", "eten", ":material/restaurant:"),
-        ("Tweedehands", "tweedehands", ":material/checkroom:"),
-        ("Producten", "producten", ":material/shopping_bag:"),
+        ("Winkels", "winkels", ":material/storefront:", "Bekijk winkels en hun assortiment."),
+        ("Eten bestellen", "eten", ":material/restaurant:", "Zoek restaurants en beschikbare bezorgopties."),
+        ("Tweedehands", "tweedehands", ":material/checkroom:", "Vind kleding en andere artikelen van verkopers."),
+        ("Producten", "producten", ":material/shopping_bag:", "Zoek producten van verschillende winkels."),
+        ("Mandje", "mandje", ":material/shopping_cart:", "Bekijk je artikelen en reken af."),
+        ("Bestellingen", "bestellingen", ":material/receipt_long:", "Volg eerdere en lopende bestellingen."),
     ]
-    for naam, doel, icoon in opties:
-        if st.button(naam, icon=icoon, key=f"ontdek_{doel}", width="stretch"):
-            _open_onderdeel(doel)
-            st.rerun()
+    if verkoper():
+        opties.append(("Mijn winkel", "winkel", ":material/store:", "Beheer je winkel en verkooptools."))
+    for naam, doel, icoon, uitleg in opties:
+        with st.container(border=True):
+            if st.button(naam, icon=icoon, key=f"ontdek_{doel}", width="stretch"):
+                _open_onderdeel(doel)
+                st.rerun()
+            st.caption(uitleg)
 
 
 def inkopen() -> None:
