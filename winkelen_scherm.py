@@ -44,6 +44,7 @@ def pagina() -> None:
     delen = list(DELEN) if verkoper() else [d for d in DELEN if d != "winkel"]
     volgend = st.session_state.pop("_winkelen_volgende_deel", None)
     if volgend in delen:
+        # Deze toewijzing gebeurt vóór de selectbox, nooit tijdens een knopactie.
         st.session_state["winkelen_deel"] = volgend
     elif st.session_state.get("winkelen_deel") not in delen:
         st.session_state["winkelen_deel"] = "buurt"
