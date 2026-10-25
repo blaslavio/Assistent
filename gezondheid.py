@@ -20,7 +20,7 @@ import os
 import re
 import threading
 import time
-import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as ET
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -265,7 +265,7 @@ def _naam_zonder_ns(e: ET.Element) -> str:
 def bestand_lezen(naam: str, inhoud: bytes) -> list[dict]:
     """Trainingen uit een bestand. Geeft [{id, naam, start, sport, minuten, afstand_km}]."""
     soort = naam.lower().rsplit(".", 1)[-1]
-    vingerafdruk = hashlib.sha1(inhoud).hexdigest()[:16]
+    vingerafdruk = hashlib.sha256(inhoud).hexdigest()[:16]
     if soort in ("gpx", "tcx"):
         try:
             # Geen externe entiteiten: ElementTree laadt die niet, en we weigeren DOCTYPE helemaal.

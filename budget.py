@@ -294,7 +294,7 @@ def _vingerafdruk(regels: list[dict]) -> list[dict]:
     for r in regels:
         basis = f"{r['datum']}|{r['bedrag']:.2f}|{r['tegenpartij'].lower()}|{r['omschrijving'].lower()}|{r['rekening']}"
         gezien[basis] = gezien.get(basis, 0) + 1
-        r["sleutel"] = "imp:" + hashlib.sha1(f"{basis}|{gezien[basis]}".encode()).hexdigest()[:32]
+        r["sleutel"] = "imp:" + hashlib.sha1(f"{basis}|{gezien[basis]}".encode(), usedforsecurity=False).hexdigest()[:32]
     return regels
 
 

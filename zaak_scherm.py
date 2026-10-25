@@ -6,6 +6,8 @@ from datetime import date, datetime, time, timedelta
 import streamlit as st
 
 import beroep
+import gemini_service
+import json
 import boekpagina
 import opslag
 import plannen_scherm
@@ -146,6 +148,31 @@ def beroep_instellingen() -> None:
         st.markdown("**Bestellingen:** bekijk verkopen en leveringen.")
         st.markdown("**Werkrooster:** plan lessen, diensten en werktijden.")
         st.markdown("**Omzet:** bekijk financiële overzichten en boekhouding.")
+    with st.expander("AI Co-Pilot voor mijn onderneming"):
+        st.caption("Stel vragen over de basisinstellingen van jouw onderneming. "
+                   "Klantgegevens, omzet en roosters worden niet doorgestuurd.")
+        if not st.session_state.get("ik"):
+            st.info("Log in om de zakelijke Co-Pilot te gebruiken.")
+        else:
+            vraag = st.text_area("Vraag aan Gemini", key="zaak_gemini_vraag",
+                                 placeholder="Hoe kan ik mijn onderneming beter organiseren?")
+            if st.button("Vraag aan Gemini", key="zaak_gemini_verstuur"):
+                if not vraag.strip():
+                    st.warning("Vul eerst een vraag in.")
+                else:
+                    # Only account-owned settings are used; no cross-tenant data queries.
+                    profiel = zaak.instellingen()
+                    context = json.dumps({
+                        "naam": str(profiel.get("naam", ""))[:120],
+                        "soort": str(profiel.get("soort", ""))[:40],
+                        "groepslessen": bool(profiel.get("groepslessen", False)),
+                        "afspraken": bool(profiel.get("afspraken", False)),
+                    }, ensure_ascii=False)
+                    with st.spinner("Gemini denkt na..."):
+                        antwoord = gemini_service.get_gemini_response(vraag, context)
+                    st.markdown(antwoord)
+    st.caption("De Co-Pilot gebruikt uitsluitend de hierboven beschreven basisinstellingen; "
+               "geen fictieve voorraad, roosters of documentgegevens.")
     st.markdown("**Webshop en verkoop**")
     st.caption("Je winkel, bestellingen en diensten.")
     with st.container(key="onderneming_snel"):
