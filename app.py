@@ -2494,39 +2494,60 @@ def groet(nu: datetime) -> str:
 
 
 def vandaag_overzicht() -> None:
-    """Minimalistische werkruimte met agenda als standaardweergave."""
+    """Mobielvriendelijk dashboard met afspraken eerst en directe communicatie."""
     st.markdown('<div class="app-title">SuperApp OS</div>', unsafe_allow_html=True)
-    st.markdown('<div class="app-subtitle">Minimalistische workspace &amp; planning</div>',
+    st.markdown('<div class="app-subtitle">Agenda, afspraken en communicatie</div>',
                 unsafe_allow_html=True)
-    tab = st.segmented_control(
-        "Navigatie", ["Agenda", "Taken", "Plannen", "Samen", "Instellingen"],
-        default="Agenda", key="superapp_home_tab", label_visibility="collapsed",
-    ) or "Agenda"
+
+    st.markdown("### Agenda & afspraken")
+    st.caption("Je afspraken en planning staan altijd bovenaan.")
+    dagschema()
+
+    st.markdown("#### Afspraken beheren")
+    afspraak_routes = [
+        ("Agenda openen", "agenda", ":material/calendar_month:"),
+        ("Datum prikken", "prikken", ":material/event_available:"),
+        ("Boekingen", "boekingen", ":material/event_note:"),
+        ("In de buurt", "buurt", ":material/place:"),
+    ]
+    beschikbare_afspraken = [(naam, route, icoon) for naam, route, icoon in afspraak_routes if route in PAGINA]
+    for begin in range(0, len(beschikbare_afspraken), 2):
+        cols = st.columns(2)
+        for col, (naam, route, icoon) in zip(cols, beschikbare_afspraken[begin:begin + 2]):
+            with col:
+                st.page_link(PAGINA[route], label=naam, icon=icoon, width="stretch")
+
     st.divider()
-    if tab == "Agenda":
-        st.markdown("### Agenda & Planning")
-        st.caption("Je actuele afspraken en planning.")
-        dagschema()
-        if st.button("Volledige agenda openen", key="home_agenda_open", width="stretch"):
-            ga_naar("agenda")
-    elif tab == "Taken":
-        st.markdown("### Taken & Actiepunten")
+    st.markdown("### Chat & community")
+    st.caption("Praat met verkopers, bekijk je berichten of open de community.")
+    communicatie_routes = [
+        ("Verkopersberichten", "berichten", ":material/markunread_mailbox:"),
+        ("Communitychat", "chat", ":material/forum:"),
+        ("Alle communicatie", "communicatie", ":material/chat:"),
+        ("AI-assistent", "assistent", ":material/smart_toy:"),
+    ]
+    beschikbare_communicatie = [(naam, route, icoon) for naam, route, icoon in communicatie_routes if route in PAGINA]
+    for begin in range(0, len(beschikbare_communicatie), 2):
+        cols = st.columns(2)
+        for col, (naam, route, icoon) in zip(cols, beschikbare_communicatie[begin:begin + 2]):
+            with col:
+                st.page_link(PAGINA[route], label=naam, icon=icoon, width="stretch")
+    if "chat" not in PAGINA or "berichten" not in PAGINA:
+        st.caption("Sommige chatfuncties vereisen een actieve online verbinding en ingeschakelde modules.")
+
+    st.divider()
+    st.markdown("### Planning & taken")
+    st.caption("Beheer je taken en werk verder aan je plannen.")
+    with st.expander("Taken bekijken", expanded=False, icon=":material/checklist:"):
         takenlijst()
-    elif tab == "Plannen":
-        st.markdown("### Strategisch Plannen")
+    with st.expander("Plannen bekijken", expanded=False, icon=":material/assignment:"):
         plannen_scherm.pagina()
-    elif tab == "Samen":
-        st.markdown("### Samenwerking & Team")
-        if samen.beschikbaar():
-            samen_agendas()
-        else:
-            st.info("Samenwerken is beschikbaar wanneer de online verbinding actief is.")
-    elif tab == "Instellingen":
-        st.markdown("### Systeeminstellingen")
-        st.caption("Beheer je voorkeuren, ondernemingen en koppelingen.")
-        if st.button("Instellingen openen", key="home_settings_open", width="stretch"):
-            ga_naar("instellingen")
-            st.rerun()
+
+    st.divider()
+    if "samen" in PAGINA:
+        st.page_link(PAGINA["samen"], label="Samenwerking", icon=":material/groups:", width="stretch")
+    if "instellingen" in PAGINA:
+        st.page_link(PAGINA["instellingen"], label="Instellingen", icon=":material/settings:", width="stretch")
 
 
 def zaak_vandaag() -> None:
