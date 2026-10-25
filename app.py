@@ -27,6 +27,7 @@ import azure_search_ready
 import universal_search
 import predictive_context
 import dating_core
+import master_hub_core
 import avatar
 import bank
 import boekpagina
@@ -2585,6 +2586,50 @@ def groet(nu: datetime) -> str:
     deel = "Goedemorgen" if nu.hour < 12 else "Goedemiddag" if nu.hour < 18 else "Goedenavond"
     naam = samen_scherm.ik().get("weergavenaam") or ""
     return f"{deel}{', ' + naam if naam else ''}"
+
+
+def master_hub_pagina() -> None:
+    """One compact command entry point, using existing pages and consent boundaries."""
+    st.title("Universal Master Hub")
+    st.caption("Chat, agenda, marketplace, dating en locaties vanuit één werkruimte.")
+    scope = st.segmented_control("Weergave", ["Overzicht", "Privé", "Zakelijk"],
+                                 default="Overzicht", key="master_hub_scope")
+    with st.form("master_hub_opdracht", clear_on_submit=False):
+        opdracht = st.text_input("Wat wil je doen?", max_chars=500,
+                                placeholder="Plan een afspraak, verkoop een fiets of organiseer een date")
+        verzenden = st.form_submit_button("Opdracht voorbereiden")
+    if verzenden:
+        route = master_hub_core.classify(opdracht)
+        st.session_state["master_hub_route"] = route
+        st.session_state["master_hub_tekst"] = opdracht[:500]
+    route = st.session_state.get("master_hub_route")
+    if route:
+        st.write(route.description)
+        if route.destination in PAGINA:
+            if st.button("Open " + route.destination, key="master_hub_open"):
+                st.switch_page(PAGINA[route.destination])
+        else:
+            st.caption("Deze functie is nog niet gekoppeld aan een bestemming.")
+        st.caption("Geen gegevens opgeslagen, gepubliceerd, verzonden of gedeeld met AI.")
+    elif verzenden:
+        st.info("Ik herken de opdracht nog niet. Open een van de bestaande onderdelen.")
+    with st.expander("Onderdelen", expanded=True):
+        a, b = st.columns(2)
+        for col, titel, route_name in (
+            (a, "Agenda en locaties", "agenda"),
+            (b, "Marketplace", "winkel"),
+            (a, "Dating en events", "dating"),
+            (b, "Zoeken", "zoekhub"),
+            (a, "Assistent", "assistent"),
+            (b, "Mijn werkruimte", "werkruimte"),
+        ):
+            with col:
+                if st.button(titel, key="master_nav_" + route_name, use_container_width=True):
+                    if route_name in PAGINA:
+                        st.switch_page(PAGINA[route_name])
+                    else:
+                        st.warning("Onderdeel is niet beschikbaar.")
+    st.caption("Privégegevens worden niet automatisch aan AI, dating of openbare diensten doorgegeven.")
 
 
 def universele_zoekhub() -> None:
@@ -5463,6 +5508,7 @@ def paginas() -> list:
 
     pagina(vandaag_overzicht, "Vandaag", ":material/today:", "vandaag", default=True)
     pagina(werkruimte_pagina, "Mijn werkruimte", ":material/dashboard_customize:", "werkruimte")
+    pagina(master_hub_pagina, "Universal Master Hub", ":material/apps:", "masterhub")
     pagina(universele_zoekhub, "Zoeken en navigeren", ":material/travel_explore:", "zoekhub")
     pagina(dating_pagina, "Dating en singles", ":material/favorite:", "dating")
     pagina(agenda_tabblad, "Agenda", ":material/calendar_month:", "agenda")
