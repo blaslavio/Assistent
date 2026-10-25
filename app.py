@@ -140,7 +140,7 @@ def superapp_thema() -> str:
 
 
 def superapp_thema_toepassen() -> None:
-    donker = superapp_thema() == "donker"
+    donker = False  # Lichte workspace als vaste basis
     bg, side, panel, border, fg, muted = (
         ("#09090b", "#121216", "#18181b", "#27272a", "#f4f4f5", "#a1a1aa")
         if donker else
@@ -1250,22 +1250,25 @@ def agenda_tabblad() -> None:
         raise
     except Exception:
         pass
-    opties = ["Agenda", "Taken", "Plannen", "Samen", "Overzicht"]
-    if st.session_state.get("agenda_deel") == "Gedeeld":
-        st.session_state.agenda_deel = "Samen"
-    deel = st.segmented_control("Onderdeel", opties, default="Agenda", key="agenda_deel",
-                                format_func=lambda d: f"Taken ({aantal})" if d == "Taken" and aantal
-                                else (":material/insights:" if d == "Overzicht" else d),
-                                label_visibility="collapsed") or "Agenda"
+    # Compacte navigatie met behoud van de bestaande modules.
+    opties = ["Agenda", "Activiteiten", "Taken", "Samenwerking", "Overzicht"]
+    oude_waarden = {"Plannen": "Activiteiten", "Samen": "Samenwerking"}
+    huidige = oude_waarden.get(st.session_state.get("agenda_deel"), st.session_state.get("agenda_deel"))
+    if huidige not in opties:
+        huidige = "Agenda"
+    st.session_state.pop("agenda_deel", None)
+    deel = st.selectbox("Navigatie", opties, index=opties.index(huidige),
+                        key="agenda_keuze", label_visibility="collapsed")
+    st.session_state.agenda_deel = {"Activiteiten": "Plannen", "Samenwerking": "Samen"}.get(deel, deel)
     if melding := st.session_state.pop("agenda_melding", None):
         st.warning(melding)
     if deel == "Taken":
         takenlijst()
-    elif deel == "Samen":
+    elif deel == "Samenwerking":
         samen_agendas()
     elif deel == "Overzicht":
         overzicht_scherm()
-    elif deel == "Plannen":
+    elif deel == "Activiteiten":
         plannen_scherm.pagina()
         # Uitgaanstips (concerten, voorstellingen) horen bij plannen, niet tussen je afspraken.
         with st.expander("Evenementen in de buurt"):
