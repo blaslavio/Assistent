@@ -28,6 +28,7 @@ import universal_search
 import predictive_context
 import dating_core
 import master_hub_core
+import multistream_core
 import avatar
 import bank
 import boekpagina
@@ -2589,47 +2590,50 @@ def groet(nu: datetime) -> str:
 
 
 def master_hub_pagina() -> None:
-    """One compact command entry point, using existing pages and consent boundaries."""
+    """One-page, opt-in private stream drafts and links to existing modules."""
     st.title("Universal Master Hub")
-    st.caption("Chat, agenda, marketplace, dating en locaties vanuit één werkruimte.")
-    scope = st.segmented_control("Weergave", ["Overzicht", "Privé", "Zakelijk"],
-                                 default="Overzicht", key="master_hub_scope")
-    with st.form("master_hub_opdracht", clear_on_submit=False):
-        opdracht = st.text_input("Wat wil je doen?", max_chars=500,
-                                placeholder="Plan een afspraak, verkoop een fiets of organiseer een date")
-        verzenden = st.form_submit_button("Opdracht voorbereiden")
+    st.caption("Verkoop, chat, projecten en community in één overzicht.")
+    lens = st.segmented_control("Streamfilter", list(multistream_core.LENSES),
+                                default="Alles", key="master_stream_lens")
+    with st.form("master_stream_form", clear_on_submit=True):
+        opdracht = st.text_input("Bericht of opdracht", max_chars=500,
+                                placeholder="Bijvoorbeeld: verkoop mijn fiets")
+        verzenden = st.form_submit_button("Concept voorbereiden")
     if verzenden:
-        route = master_hub_core.classify(opdracht)
-        st.session_state["master_hub_route"] = route
-        st.session_state["master_hub_tekst"] = opdracht[:500]
+        try:
+            draft = multistream_core.make_draft(opdracht)
+            st.session_state.setdefault("master_stream_drafts", []).insert(
+                0, {"category": draft.category, "text": draft.text, "status": draft.status})
+            st.session_state["master_hub_route"] = master_hub_core.classify(opdracht)
+        except ValueError as fout:
+            st.warning(str(fout))
+    concepten = multistream_core.filter_drafts(
+        st.session_state.get("master_stream_drafts", []), lens)
+    with st.expander("Mijn concepten (" + str(len(concepten)) + ")", expanded=True):
+        if not concepten:
+            st.caption("Geen concepten in deze categorie.")
+        for i, concept in enumerate(concepten[:30]):
+            st.write(concept["text"])
+            st.caption(concept["category"] + " - niet gepubliceerd")
     route = st.session_state.get("master_hub_route")
     if route:
-        st.write(route.description)
-        if route.destination in PAGINA:
-            if st.button("Open " + route.destination, key="master_hub_open"):
-                st.switch_page(PAGINA[route.destination])
-        else:
-            st.caption("Deze functie is nog niet gekoppeld aan een bestemming.")
-        st.caption("Geen gegevens opgeslagen, gepubliceerd, verzonden of gedeeld met AI.")
-    elif verzenden:
-        st.info("Ik herken de opdracht nog niet. Open een van de bestaande onderdelen.")
-    with st.expander("Onderdelen", expanded=True):
+        st.caption(route.description)
+        if route.destination in PAGINA and st.button("Open bijbehorende functie", key="master_open_route"):
+            st.switch_page(PAGINA[route.destination])
+    with st.expander("Onderdelen", expanded=False):
+        links = (("Agenda", "agenda"), ("Marketplace", "winkel"),
+                 ("Dating en evenementen", "dating"), ("Zoeken en kaart", "zoekhub"),
+                 ("Assistent", "assistent"), ("Werkruimte", "werkruimte"))
         a, b = st.columns(2)
-        for col, titel, route_name in (
-            (a, "Agenda en locaties", "agenda"),
-            (b, "Marketplace", "winkel"),
-            (a, "Dating en events", "dating"),
-            (b, "Zoeken", "zoekhub"),
-            (a, "Assistent", "assistent"),
-            (b, "Mijn werkruimte", "werkruimte"),
-        ):
-            with col:
+        for index, (titel, route_name) in enumerate(links):
+            with (a if index % 2 == 0 else b):
                 if st.button(titel, key="master_nav_" + route_name, use_container_width=True):
                     if route_name in PAGINA:
                         st.switch_page(PAGINA[route_name])
                     else:
-                        st.warning("Onderdeel is niet beschikbaar.")
-    st.caption("Privégegevens worden niet automatisch aan AI, dating of openbare diensten doorgegeven.")
+                        st.warning("Dit onderdeel is momenteel niet beschikbaar.")
+    st.caption("Concepten blijven in deze sessie. Geen automatische publicatie, synchronisatie, AI-deling of fictieve kaartpunten.")
+
 
 
 def universele_zoekhub() -> None:
