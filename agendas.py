@@ -98,6 +98,15 @@ def koppel_link(naam: str, url: str) -> dict:
     return koppeling
 
 
+def mogelijkheden() -> dict[str, dict]:
+    """Eerlijke status van beschikbare integraties; geen niet-bestaande OAuth-koppeling tonen."""
+    return {
+        "apple": {"lezen": True, "schrijven": True, "methode": "CalDAV met app-specifiek wachtwoord"},
+        "google": {"lezen": True, "schrijven": False, "methode": "Privé iCal-feed, alleen lezen"},
+        "outlook": {"lezen": True, "schrijven": False, "methode": "Privé iCal-feed, alleen lezen"},
+    }
+
+
 def ontkoppelen(koppeling_id: str) -> None:
     _bewaar([a for a in gekoppeld() if a["id"] != koppeling_id])
 
