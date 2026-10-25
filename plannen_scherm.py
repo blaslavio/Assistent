@@ -1034,8 +1034,8 @@ def boek_dialoog() -> None:
     for i in range(3):
         oud = p["soorten"][i] if i < len(p["soorten"]) else {"naam": "", "minuten": 30}
         # Extra diensten staan standaard dicht om scrollen op mobiel te beperken.
-        with st.expander("Extra dienst toevoegen" if i == 1 else "Nog een dienst of pakket",
-                         expanded=False) if i else st.container():
+        with (st.expander("Extra dienst toevoegen" if i == 1 else "Nog een dienst of pakket",
+                          expanded=False) if i else st.container()):
             with st.container(horizontal=True, vertical_alignment="bottom", gap="small", key=f"boeksoort_{i}"):
                 naam = st.text_input("Naam", value=oud["naam"], key=f"boeksoort_naam_{i}",
                                      label_visibility="collapsed",
