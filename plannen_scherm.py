@@ -279,12 +279,45 @@ def prikken_pagina() -> None:
 
 
 def boekingen_pagina() -> None:
-    """Je boekingspagina en wat er bij jou geboekt is, los van de rest."""
+    """Boekingen met transparante betaalstatus en bestaande boekingsinstellingen."""
     _melding_tonen()
-    if st.button("Boekingspagina", icon=":material/tune:", key="boek_instellen"):
+    st.markdown("### Boekingen & betalingen")
+    if st.button("Boekingspagina instellen", icon=":material/tune:", key="boek_instellen"):
         boek_dialoog()
-    if not geboekt_bij_mij():
+    try:
+        gegevens = boekpagina.mijn()
+    except opslag.GeenToegang:
+        raise
+    except Exception:
+        st.warning("Boekingen en betaalstatus konden niet worden geladen.")
+        return
+    boekingen = gegevens.get("boekingen", [])
+    if not boekingen:
         st.caption("Nog geen boekingen.")
+        return
+    met_betaling = [b for b in boekingen if b.get("geld")]
+    betaald = sum(str(b.get("geld")).lower() == "betaald" for b in met_betaling)
+    openstaand = sum(str(b.get("geld")).lower() == "open" for b in met_betaling)
+    c1, c2, c3 = st.columns(3, gap="small")
+    c1.metric("Boekingen", len(boekingen))
+    c2.metric("Betaald", betaald)
+    c3.metric("Openstaand", openstaand)
+    st.caption("Aantallen boekingen, geen eurobedragen. De betaalstatus komt uit de boekingsadministratie.")
+    for b in sorted(boekingen, key=lambda item: item.get("start", ""), reverse=True):
+        with st.container(border=True):
+            st.markdown(f"**{b.get('soort') or 'Afspraak'} · {b.get('naam') or 'Klant'}**")
+            st.caption(f"{_wanneer(b['start'])} · {boekpagina.STATUS.get(b.get('status'), b.get('status', 'Onbekend'))}")
+            st.caption(_boeking_betaalstatus(b))
+            if b.get("status") in ("aangevraagd", "bevestigd"):
+                with st.popover("Boeking beheren", icon=":material/more_horiz:"):
+                    if b["status"] == "aangevraagd":
+                        if st.button("Bevestigen", key=f"boek_ja_{b['id']}", type="primary"):
+                            _boek_actie(b, "bevestigen", "Bevestigd en in je agenda gezet.")
+                        if st.button("Afwijzen", key=f"boek_nee_{b['id']}"):
+                            _boek_actie(b, "afwijzen", "Afgewezen.")
+                    else:
+                        if st.button("Annuleren", key=f"boek_weg_{b['id']}"):
+                            _boek_actie(b, "annuleren", "Geannuleerd.")
 
 
 def mijn_reserveringen() -> None:
@@ -912,6 +945,23 @@ def _duur(m: int) -> str:
     return f"{m // 60} uur" if m % 60 == 0 else (f"{m // 60} uur {m % 60} min" if m > 60 else f"{m} min")
 
 
+def _boeking_betaalstatus(boeking: dict) -> str:
+    """Toon uitsluitend de door de backend bevestigde betaalstatus."""
+    status = str(boeking.get("geld") or "").lower()
+    labels = {
+        "betaald": "Betaling ontvangen",
+        "open": "Betaling openstaand",
+        "terugbetaald": "Terugbetaald",
+        "terugbetaling": "Terugbetaling in behandeling",
+        "mislukt": "Betaling mislukt",
+    }
+    if status in labels:
+        return labels[status]
+    if status:
+        return "Betaalstatus: " + status.replace("_", " ")
+    return "Geen online betaling geregistreerd"
+
+
 def geboekt_bij_mij() -> bool:
     """Afspraken die anderen via je boekingspagina maakten."""
     if not opslag.instellingen().get("boekpagina"):
@@ -925,7 +975,7 @@ def geboekt_bij_mij() -> bool:
         raise
     except Exception:
         return False
-    lijst = [b for b in m["boekingen"] if b["status"] in ("aangevraagd", "bevestigd") and b.get("geld") != "open"
+    lijst = [b for b in m["boekingen"] if b["status"] in ("aangevraagd", "bevestigd")
              and datetime.fromisoformat(b["start"]) > datetime.now().astimezone() - timedelta(hours=2)]
     if not lijst:
         return False
@@ -933,8 +983,9 @@ def geboekt_bij_mij() -> bool:
         with st.container(horizontal=True, vertical_alignment="center", key=f"boeking_{b['id']}"):
             with st.container(gap=None):
                 st.markdown(f"**{_wanneer(b['start'])}** · {b['naam']}")
+                st.caption(_boeking_betaalstatus(b))
                 st.caption(" · ".join(filter(None, [b["soort"], boekpagina.STATUS[b["status"]],
-                                                    "Betaald via de app" if b.get("geld") else "", b["notitie"][:60]])))
+                                                    b["notitie"][:60]])))
             with st.popover("", icon=":material/more_horiz:"):
                 st.caption(" · ".join(filter(None, [b["email"], b["telefoon"]])))
                 if b["status"] == "aangevraagd":
