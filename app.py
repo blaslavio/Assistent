@@ -5220,8 +5220,7 @@ def chat_met_profiel() -> None:
         with col1:
             if st.button("Betalingen", icon=":material/payments:",
                          key="chat_betaalinstellingen", width="stretch"):
-                st.session_state.inst_groep = "Account"
-                ga_naar("instellingen")
+                ga_naar("boekingen")
         with col2:
             if "boekingen" in PAGINA:
                 if st.button("Boekingen", icon=":material/event_note:",
@@ -5256,10 +5255,9 @@ def communicatie_hub() -> None:
     st.markdown("#### Boekingen & betalingen")
     links_b, rechts_b = st.columns(2, gap="small")
     with links_b:
-        if st.button("Betaalinstellingen", icon=":material/payments:",
+        if st.button("Betalingen", icon=":material/payments:",
                      key="hub_betalen", width="stretch"):
-            st.session_state.inst_groep = "Account"
-            ga_naar("instellingen")
+            ga_naar("boekingen")
     with rechts_b:
         if "boekingen" in PAGINA:
             if st.button("Boekingen", icon=":material/event_note:",
