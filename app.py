@@ -5452,8 +5452,7 @@ def main() -> None:
     # al het andere gaat naar het gesprek met de assistent.
     # De microfoon zit in het invoerveld (naast het pijltje); wat je zegt, gaat dezelfde weg als wat je typt.
     # Niet op de chatpagina: daar heeft de chat zijn eigen invoerveld.
-    if nu_open.url_path != "chat":
-        assistent_invoer()
+    # Chatinvoer is uitsluitend beschikbaar op de afzonderlijke assistentpagina.
     # Links naar andere websites openen in de browser van de app; links naar de app zelf op de goede plek.
     if klik := browser.vanger(app_adres()):
         browser.openen(klik, app_adres())
