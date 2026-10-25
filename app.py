@@ -2410,12 +2410,12 @@ def groet(nu: datetime) -> str:
 
 
 def vandaag_overzicht() -> None:
-    """Minimalistische chat als startpagina, met behoud van de bestaande AI- en accountrechten."""
+    """Minimalistische werkruimte met agenda als standaardweergave."""
     st.markdown('<div class="app-title">SuperApp OS</div>', unsafe_allow_html=True)
-    st.markdown('<div class="app-subtitle">Minimalistische workspace &amp; intelligente assistent</div>',
+    st.markdown('<div class="app-subtitle">Minimalistische workspace &amp; planning</div>',
                 unsafe_allow_html=True)
     tab = st.segmented_control(
-        "Navigatie", ["Agenda", "Taken", "Plannen", "Samen", "Instellingen", "Assistent"],
+        "Navigatie", ["Agenda", "Taken", "Plannen", "Samen", "Instellingen"],
         default="Agenda", key="superapp_home_tab", label_visibility="collapsed",
     ) or "Agenda"
     st.divider()
@@ -2443,9 +2443,6 @@ def vandaag_overzicht() -> None:
         if st.button("Instellingen openen", key="home_settings_open", width="stretch"):
             ga_naar("instellingen")
             st.rerun()
-    else:
-        st.markdown("### AI Co-Pilot Assistent")
-        gesprek()
 
 
 def zaak_vandaag() -> None:
