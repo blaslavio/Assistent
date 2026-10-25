@@ -28,6 +28,12 @@ def _open_onderdeel(onderdeel: str) -> None:
 
 
 def pagina() -> None:
+    st.html("""<style>
+    /* Zakelijke winkelinterface: links uitlijnen, ook op mobiele schermen. */
+    .stMain .stButton button {justify-content:flex-start;text-align:left}
+    .stMain .stButton button p {text-align:left}
+    .stMain .stMarkdown p, .stMain .stCaptionContainer p {text-align:left}
+    </style>""")
     if not samen.beschikbaar():
         st.info("Winkelen werkt alleen in de online versie.")
         return
