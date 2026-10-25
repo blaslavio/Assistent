@@ -1067,14 +1067,14 @@ def boek_dialoog() -> None:
         bevestigen = st.toggle("Eerst zelf goedkeuren", value=p["bevestigen"],
                                help="Uit: een boeking staat meteen in je agenda.")
         k1, k2 = st.columns(2)
-        buffer = k1.selectbox("Pauze ertussen", [0, 5, 10, 15, 30, 60], format_func=lambda m: f"{m} min",
-                              index=[0, 5, 10, 15, 30, 60].index(p["buffer"]) if p["buffer"] in [0, 5, 10, 15, 30, 60] else 3)
-        max_per_dag = k2.number_input("Hoogstens per dag", 1, 20, value=p["max_per_dag"])
-        vooraf_keuzes = {1: "1 uur", 4: "4 uur", 12: "12 uur", 24: "1 dag", 48: "2 dagen"}
-        min_vooraf = k1.selectbox("Minstens vooraf", list(vooraf_keuzes), format_func=vooraf_keuzes.get,
-                                  index=list(vooraf_keuzes).index(p["min_vooraf"]) if p["min_vooraf"] in vooraf_keuzes else 2)
-        vooruit = k2.selectbox("Tot hoe ver vooruit", [7, 14, 30, 60, 90], format_func=lambda d: f"{d} dagen",
-                               index=[7, 14, 30, 60, 90].index(p["vooruit"]) if p["vooruit"] in [7, 14, 30, 60, 90] else 2)
+        buffer = k1.number_input("Pauze ertussen (min)", min_value=0, max_value=120,
+                                 value=int(p["buffer"]), step=1)
+        max_per_dag = k2.number_input("Hoogstens per dag", min_value=1, max_value=20,
+                                      value=int(p["max_per_dag"]), step=1)
+        min_vooraf = k1.number_input("Minstens vooraf (uur)", min_value=1, max_value=168,
+                                     value=int(p["min_vooraf"]), step=1)
+        vooruit = k2.number_input("Vooruit boeken (dagen)", min_value=1, max_value=365,
+                                  value=int(p["vooruit"]), step=1)
         adres = st.text_input("Linknaam", value=p["adres"], max_chars=40, help="Letters, cijfers en streepjes.")
     with st.expander("Betalen en annuleren"):
         regel = p.get("annuleren") or {"uren": 24, "procent": 50}
@@ -1084,11 +1084,10 @@ def boek_dialoog() -> None:
                                      "min 5% commissie (minimaal € 0,35).")
         if not p.get("kan_app_betalen"):
             st.caption("Hiervoor meld je je eerst aan bij Instellingen › Account › Betalen via de app.")
-        uur_keuzes = {0: "Altijd", 12: "12 uur", 24: "24 uur", 48: "2 dagen", 72: "3 dagen", 168: "1 week"}
         k1, k2 = st.columns(2)
-        uren = k1.selectbox("Gratis annuleren tot", list(uur_keuzes), format_func=uur_keuzes.get,
-                            index=list(uur_keuzes).index(regel["uren"]) if regel["uren"] in uur_keuzes else 2,
-                            help="Zoveel tijd voor de afspraak kan de klant nog kosteloos annuleren.")
+        uren = k1.number_input("Gratis annuleren tot (uur)", min_value=0, max_value=720,
+                                value=max(0, int(regel.get("uren", 24))), step=1,
+                                help="0 betekent altijd gratis annuleren.")
         procent = k2.number_input("Daarna krijg jij (%)", min_value=0, max_value=100,
                                    value=max(0, min(100, int(regel.get("procent", 50)))), step=1,
                                    disabled=uren == 0,
