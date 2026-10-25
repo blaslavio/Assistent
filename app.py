@@ -25,6 +25,7 @@ import universal_workspace
 import intent_engine
 import azure_search_ready
 import universal_search
+import predictive_context
 import avatar
 import bank
 import boekpagina
@@ -2586,46 +2587,66 @@ def groet(nu: datetime) -> str:
 
 
 def universele_zoekhub() -> None:
-    """Search existing sources; show maps only for stored, valid coordinates."""
-    st.title("Zoeken en navigeren")
-    st.caption("Doorzoek je eigen agenda, openbare winkels en diensten.")
-    term = st.text_input("Zoeken", placeholder="Afspraak, winkel of dienst", key="hub_zoekterm")
+    """One search field, opt-in agenda context, public catalog and a compact map."""
+    st.title("Omni-Search")
+    st.caption("Zoeken, agenda en locaties in één overzicht.")
+    term = st.text_input("Zoeken of navigeren", placeholder="Zoek afspraak, winkel of dienst",
+                         key="hub_zoekterm")
+    agenda_ok = st.toggle("Mijn agenda gebruiken", key="hub_agenda_toestemming",
+                          help="Alleen je eigen agenda wordt lokaal gelezen; niets wordt automatisch naar AI verzonden.")
+    afspraken = []
+    if agenda_ok:
+        try:
+            begin, einde = universal_search.agenda_window()
+            afspraken = opslag.afspraken_tussen(begin, einde, extern=False)
+        except Exception:
+            st.warning("Agenda is tijdelijk niet beschikbaar.")
     if not term.strip():
-        st.caption("Voer een zoekterm in om resultaten te zien.")
+        if agenda_ok:
+            eerstvolgende = predictive_context.next_appointment(afspraken)
+            with st.expander("Eerstvolgende afspraak", expanded=True):
+                if eerstvolgende:
+                    st.write(eerstvolgende.get("titel") or "Afspraak")
+                    st.caption(str(eerstvolgende.get("start") or ""))
+                    st.caption(str(eerstvolgende.get("locatie") or ""))
+                else:
+                    st.caption("Geen toekomstige afspraken in het doorzochte tijdvenster.")
+            with st.expander("Locaties op kaart", expanded=False):
+                punten = predictive_context.location_points(afspraken)
+                if punten:
+                    st.map(punten, use_container_width=True)
+                else:
+                    st.caption("Geen afspraken met geverifieerde coördinaten.")
+        else:
+            st.caption("Schakel agenda-toestemming in voor je eerstvolgende afspraak.")
+        st.caption("Zoek hierboven om ook openbare winkels en diensten te vinden.")
         return
     try:
         universal_search.clean_query(term)
     except ValueError as fout:
         st.warning(str(fout))
         return
-    with st.expander("Mijn agenda", expanded=True):
-        if st.session_state.get("hub_agenda_toestemming", False):
-            try:
-                begin, einde = universal_search.agenda_window()
-                afspraken = universal_search.search_agenda(
-                    term, opslag.afspraken_tussen(begin, einde, extern=False))
-                if not afspraken:
-                    st.caption("Geen afspraken gevonden.")
-                for nummer, item in enumerate(afspraken):
-                    st.write(item.get("titel", "Afspraak"))
-                    st.caption(str(item.get("start", "")) + "  " + str(item.get("locatie", "")))
-                    coords = universal_search.location_from_record(item)
-                    if coords and st.button("Toon locatie", key=f"hub_agenda_loc_{nummer}"):
-                        st.map([{"lat": coords[0], "lon": coords[1]}])
-            except Exception:
-                st.warning("Agenda kon niet worden doorzocht.")
-        else:
-            st.caption("Agenda wordt niet doorzocht zonder toestemming.")
-            st.toggle("Doorzoek mijn eigen agenda", key="hub_agenda_toestemming")
+    gevonden = universal_search.search_agenda(term, afspraken) if agenda_ok else []
+    with st.expander(f"Mijn agenda ({len(gevonden)})", expanded=bool(gevonden)):
+        if not agenda_ok:
+            st.caption("Schakel eerst agenda-toestemming in.")
+        elif not gevonden:
+            st.caption("Geen afspraken gevonden.")
+        for item in gevonden:
+            st.write(item.get("titel") or "Afspraak")
+            st.caption(str(item.get("start") or "") + "  " + str(item.get("locatie") or ""))
+        punten = predictive_context.location_points(gevonden)
+        if punten:
+            st.map(punten, use_container_width=True)
     with st.expander("Openbare winkels en diensten", expanded=True):
         if not samen.beschikbaar():
-            st.caption("De openbare catalogus is niet beschikbaar.")
+            st.caption("Openbare catalogus is niet beschikbaar.")
         else:
             try:
                 winkels = samen.winkels_zoeken(term)[:15]
                 diensten = samen.aanbod_zoeken(term)[:15]
                 if not winkels and not diensten:
-                    st.caption("Geen winkels of diensten gevonden.")
+                    st.caption("Geen resultaten.")
                 for winkel in winkels:
                     st.write(str(winkel.get("naam") or winkel.get("titel") or "Winkel"))
                     st.caption(str(winkel.get("plaats") or winkel.get("adres") or ""))
@@ -2633,10 +2654,11 @@ def universele_zoekhub() -> None:
                     st.write(str(dienst.get("titel") or "Dienst"))
                     st.caption(str(dienst.get("plaats") or ""))
             except Exception:
-                st.warning("Winkels en diensten konden niet worden opgehaald.")
+                st.warning("De catalogus kon niet worden doorzocht.")
     with st.expander("Community", expanded=False):
-        st.caption("Communityzoekresultaten verschijnen na koppeling aan goedgekeurde publieke bijdragen.")
-    st.caption("Locaties worden alleen getoond wanneer geldige coördinaten zijn opgeslagen.")
+        st.caption("Zoeken in goedgekeurde publieke communitybijdragen is nog niet gekoppeld.")
+    st.caption("Geen automatische betalingen, AI-datadeling of verzonnen locaties.")
+
 
 
 def werkruimte_pagina() -> None:
