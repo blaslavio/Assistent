@@ -61,8 +61,23 @@ def pagina() -> None:
     cadeaupot bij een verjaardag). Daaronder wat je al gepland hebt, met wie er komt."""
     _melding_tonen()
     online = samen.beschikbaar()
-    gekozen = st.pills("Waarvoor?", list(R.GELEGENHEDEN), key="plannen_gelegenheid",
-                       label_visibility="collapsed")
+    # Material-iconen: functioneel, consistent en zonder emoji.
+    iconen = {
+        "Date": ":material/favorite:",
+        "Speelafspraak": ":material/toys:",
+        "Uitje": ":material/explore:",
+        "Etentje": ":material/restaurant:",
+        "Verjaardag": ":material/cake:",
+        "Afspraak": ":material/event:",
+    }
+    gekozen = st.session_state.get("plannen_gelegenheid_keuze")
+    st.caption("Kies een activiteit")
+    for activiteit in R.GELEGENHEDEN:
+        if st.button(activiteit, icon=iconen.get(activiteit, ":material/event:"),
+                     key=f"plannen_kies_{activiteit}", width="stretch",
+                     type="primary" if gekozen == activiteit else "secondary"):
+            st.session_state["plannen_gelegenheid_keuze"] = activiteit
+            st.rerun()
     if gekozen:
         with st.container(border=True):
             activiteit_formulier(gekozen, online)
