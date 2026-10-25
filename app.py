@@ -108,7 +108,7 @@ for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, r
 os.environ["TZ"] = "Europe/Amsterdam"
 time.tzset()
 
-st.set_page_config(page_title="SuperApp OS", page_icon=None, layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="SuperApp OS", page_icon=None, layout="wide", initial_sidebar_state="expanded")
 # Consistent zakelijk design; bestaande pagina's, routing en acties blijven intact.
 st.markdown("""
 <style>
@@ -131,6 +131,34 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 taal.installeren()
+# Donker is de standaard; gebruikers kunnen hun voorkeur in Instellingen wijzigen.
+def superapp_thema() -> str:
+    try:
+        return "licht" if opslag.instellingen().get("superapp_thema", "donker") == "licht" else "donker"
+    except Exception:
+        return "donker"
+
+
+def superapp_thema_toepassen() -> None:
+    donker = superapp_thema() == "donker"
+    bg, side, panel, border, fg, muted = (
+        ("#09090b", "#121216", "#18181b", "#27272a", "#f4f4f5", "#a1a1aa")
+        if donker else
+        ("#fafafa", "#ffffff", "#ffffff", "#e4e4e7", "#111111", "#71717a")
+    )
+    st.markdown(f"""<style>
+    .stApp, [data-testid="stAppViewContainer"] {{ background: {bg} !important; color: {fg} !important; }}
+    [data-testid="stSidebar"] {{ background: {side} !important; border-right: 1px solid {border} !important; }}
+    [data-testid="stVerticalBlockBorderWrapper"] {{ border-color: {border}; }}
+    [data-testid="stChatMessage"], .st-key-superapp-home {{ color: {fg}; }}
+    [data-testid="stAppViewContainer"] h1, [data-testid="stAppViewContainer"] h2,
+    [data-testid="stAppViewContainer"] h3, [data-testid="stAppViewContainer"] p,
+    [data-testid="stAppViewContainer"] label, .app-title {{ color: {fg} !important; }}
+    .app-subtitle {{ color: {muted} !important; }}
+    .notion-card, .modern-card {{ background: {panel}; border: 1px solid {border}; color: {fg}; }}
+    </style>""", unsafe_allow_html=True)
+
+
 
 # Elke run van het script gebruikt de naam en het wachtwoord van deze sessie voor de database.
 opslag.gebruik_account(st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
@@ -3997,6 +4025,11 @@ def gratis_instellingen() -> None:
 def instellingen_weergave() -> None:
     """Algemene instellingen in een eigen, overzichtelijke navigatie."""
     st.markdown("### Algemene instellingen")
+    huidige_thema = superapp_thema()
+    gekozen_thema = st.segmented_control("Kleurthema", ["Donker", "Licht"], default=huidige_thema.capitalize(), key="superapp_thema_keuze")
+    if gekozen_thema and gekozen_thema.lower() != huidige_thema:
+        opslag.instellingen_bijwerken(superapp_thema=gekozen_thema.lower())
+        st.rerun()
     st.caption("Kies wat je wilt aanpassen. Alle bestaande functies blijven beschikbaar.")
     secties = [
         ("Taal en toegankelijkheid", ":material/language:", "Taal en bediening"),
@@ -5432,6 +5465,7 @@ def main() -> None:
     # Bewaar de gekozen instellingengroep wanneer iemand tijdelijk een tool
     # opent. Bij teruggaan blijft de gebruiker in dezelfde context.
     # Alleen de expliciete knop 'Instellingen' wist inst_groep.
+    superapp_thema_toepassen()
     superapp_navigatie()
     if mislukt := st.session_state.pop("mislukt_melding", 0):
         st.warning(f"Sinds je vorige keer is {mislukt} keer geprobeerd in te loggen met een fout wachtwoord of code. "
