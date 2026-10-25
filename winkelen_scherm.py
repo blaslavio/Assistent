@@ -48,7 +48,7 @@ def pagina() -> None:
         if betaald.get("betaallink"):
             st.link_button("Nu betalen", betaald["betaallink"], type="primary", width="stretch")
     delen = list(DELEN) if verkoper() else [d for d in DELEN if d != "winkel"]
-    volgend = st.session_state.pop("_winkelen_volgende_deel", None)
+    # Streamlit verbiedt mutaties aan een widget-key nadat de widget is opgebouwd.\n    volgend = st.session_state.pop("_winkelen_volgende_deel", None)
     if volgend in delen:
         # Deze toewijzing gebeurt vóór de selectbox, nooit tijdens een knopactie.
         st.session_state["winkelen_deel"] = volgend
