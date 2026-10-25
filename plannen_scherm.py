@@ -1089,9 +1089,10 @@ def boek_dialoog() -> None:
         uren = k1.selectbox("Gratis annuleren tot", list(uur_keuzes), format_func=uur_keuzes.get,
                             index=list(uur_keuzes).index(regel["uren"]) if regel["uren"] in uur_keuzes else 2,
                             help="Zoveel tijd voor de afspraak kan de klant nog kosteloos annuleren.")
-        procent = k2.selectbox("Daarna krijg jij", [0, 25, 50, 75, 100], format_func=lambda x: f"{x}%",
-                               index=[0, 25, 50, 75, 100].index(regel["procent"]) if regel["procent"] in [0, 25, 50, 75, 100] else 2,
-                               disabled=uren == 0)
+        procent = k2.number_input("Daarna krijg jij (%)", min_value=0, max_value=100,
+                                   value=max(0, min(100, int(regel.get("procent", 50)))), step=1,
+                                   disabled=uren == 0,
+                                   help="Vul zelf een percentage van 0 tot 100 in.")
         st.caption("Annuleer of weiger jij, dan krijgt de klant altijd alles terug.")
         st.markdown("**Zelf betaling regelen**")
         st.caption("Zonder betalen via de app ziet de klant deze gegevens.")
