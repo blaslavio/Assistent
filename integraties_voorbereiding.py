@@ -61,3 +61,43 @@ def pagina() -> None:
 # MOLLIE_API_KEY, MOLLIE_WEBHOOK_SECRET
 # Productie vereist: accountgebonden database, idempotente webhookverwerking,
 # server-side verificatie van bedragen en status, auditlog, refunds en toegangscontrole.
+
+def intent_naar_concept(tekst: str) -> dict:
+    """Herken uitsluitend een eenvoudig betaalverzoek; voer niets uit."""
+    import re
+    tekst = tekst.strip()
+    patroon = re.search(r"(?:€\\s*|(?:van|voor)\\s+)(\\d+(?:[.,]\\d{1,2})?)\\s*(?:euro)?", tekst, re.I)
+    is_betaling = bool(re.search(r"betaalverzoek|betaling vragen|factuur", tekst, re.I))
+    if not is_betaling or not patroon:
+        return {"type": "onbekend", "tekst": tekst}
+    try:
+        cent = int((Decimal(patroon.group(1).replace(",", ".")) * 100).quantize(Decimal("1")))
+    except (InvalidOperation, ValueError):
+        return {"type": "onbekend", "tekst": tekst}
+    if not 1 <= cent <= 100000000:
+        return {"type": "onbekend", "tekst": tekst}
+    return {"type": "betaalconcept", "omschrijving": tekst[:300], "bedrag_cent": cent}
+
+
+def intent_parser_pagina() -> None:
+    st.markdown("#### Slimme opdracht")
+    st.caption("Beschrijf je verzoek. De assistent maakt alleen een voorstel, nooit automatisch een betaling.")
+    with st.form("intent_parser_concept_form"):
+        opdracht = st.text_input("Opdracht", placeholder="Maak een betaalverzoek van 75 euro voor een intake")
+        ingediend = st.form_submit_button("Voorstel maken")
+    if ingediend:
+        st.session_state["intent_voorstel"] = intent_naar_concept(opdracht)
+    voorstel = st.session_state.get("intent_voorstel")
+    if not voorstel:
+        return
+    if voorstel["type"] == "betaalconcept":
+        st.write(f'Betaalverzoek als concept: € {voorstel["bedrag_cent"] / 100:.2f}')
+        st.caption(voorstel["omschrijving"])
+        if st.button("Concept bevestigen", key="intent_bevestigen"):
+            st.session_state["betaalverzoek_concept"] = {
+                "ontvanger": "", "omschrijving": voorstel["omschrijving"],
+                "bedrag_cent": voorstel["bedrag_cent"], "status": "concept",
+            }
+            st.success("Concept opgeslagen voor deze sessie. Er is niets verzonden of betaald.")
+    else:
+        st.info("Deze opdracht wordt nog niet automatisch uitgevoerd. Gebruik de bestaande agenda of chat voor andere acties.")
