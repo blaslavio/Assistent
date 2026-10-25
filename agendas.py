@@ -442,7 +442,7 @@ def wegschrijven_vanzelf(afspraken: list[dict], wachten: float = 0) -> None:
     van, tot = (vandaag - timedelta(days=SCHRIJF_TERUG)).isoformat(), (vandaag + timedelta(days=SCHRIJF_VOORUIT)).isoformat()
     gewenst = {UID.format(a["id"]): a for a in afspraken
                if not a.get("extern") and isinstance(a.get("id"), int) and van <= a["start"][:10] <= tot}
-    afdruk = hashlib.sha1("".join(sorted(u + _vingerafdruk(a) for u, a in gewenst.items())).encode()).hexdigest()
+    afdruk = hashlib.sha1("".join(sorted(u + _vingerafdruk(a) for u, a in gewenst.items())).encode(), usedforsecurity=False).hexdigest()
     sleutel = _sleutel(k)
     with _slot:
         laatst = _geschreven.get(sleutel)
