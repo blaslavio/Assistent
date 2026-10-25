@@ -75,7 +75,7 @@ BEROEPEN = {
     "vastgoed": ("Vastgoed of makelaardij", "dienst", False, True, _KLUS, [("Bezichtiging", 45)]),
     "evenementen": ("Evenementen of organisatie", "dienst", False, True, _KLUS + ["webshop"], [("Kennismaking", 30)]),
     "landbouw": ("Landbouw of productie", "dienst", False, True, _WINKEL + ["documenten"], []),
-    "media": ("Media of communicatie", "dienst", False, True, _KLUS + ["marketing"], [("Projectbespreking", 45)]),,
+    "media": ("Media of communicatie", "dienst", False, True, _KLUS + ["marketing"], [("Projectbespreking", 45)]),
     "architect": ("Architectuur en ontwerp", "dienst", False, True, _KLUS, [("Projectbespreking", 60)]),
     "automotive": ("Automotive en voertuigonderhoud", "dienst", False, True, _KLUS, [("Inspectie", 45)]),
     "beveiliging": ("Beveiliging en veiligheid", "dienst", False, True, _KLUS, [("Locatiebezoek", 60)]),
