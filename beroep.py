@@ -16,9 +16,12 @@ import zaak
 TOOLS = {
     "boekingen": ("Boekingspagina", "boekingen", None),
     "lessen": ("Lesrooster", "zakelijk", "Zakelijk"),
+    "werkrooster": ("Werkrooster en planning", "zakelijk", "Zakelijk"),
     "klanten": ("Klanten en saldo", "zakelijk", "Zakelijk"),
     "boekhouding": ("Boekhouding en btw", "zakelijk", "Zakelijk"),
-    "webshop": ("Webshop", "webshop", "Marktplaats"),
+    "webshop": ("Webshop bouwen", "webshop", "Marktplaats"),
+    "integraties": ("Bestaande webshop koppelen", "koppelingen", None),
+    "omzet": ("Omzet en verkoopresultaten", "zakelijk", "Zakelijk"),
     "verzenden": ("Bestellingen en verzenden", "bestellingen", "Marktplaats"),
     "reviews": ("Reviews", "webshop", "Marktplaats"),
     "marketing": ("Kortingscodes en nieuwtjes", "webshop", "Marktplaats"),
@@ -34,8 +37,6 @@ _WINKEL = ["webshop", "verzenden", "marketing", "reviews", "boekhouding", "mail"
 
 # sleutel → naam, soort zaak, groepslessen, afspraken, hulpmiddelen, diensten (naam, minuten) voor de boekingspagina.
 BEROEPEN = {
-    "kapper": ("Kapper of barbier", "dienst", False, True, _AFSPRAAK + ["webshop"],
-               [("Knippen", 30), ("Knippen en wassen", 45), ("Kleuren", 90)]),
     "schoonheid": ("Schoonheid of nagels", "dienst", False, True, _AFSPRAAK + ["webshop"],
                    [("Behandeling", 60), ("Manicure", 45), ("Kennismaking", 15)]),
     "trainer": ("Personal trainer", "trainer", False, True, _AFSPRAAK,
@@ -74,7 +75,21 @@ BEROEPEN = {
     "vastgoed": ("Vastgoed of makelaardij", "dienst", False, True, _KLUS, [("Bezichtiging", 45)]),
     "evenementen": ("Evenementen of organisatie", "dienst", False, True, _KLUS + ["webshop"], [("Kennismaking", 30)]),
     "landbouw": ("Landbouw of productie", "dienst", False, True, _WINKEL + ["documenten"], []),
-    "media": ("Media of communicatie", "dienst", False, True, _KLUS + ["marketing"], [("Projectbespreking", 45)]),
+    "media": ("Media of communicatie", "dienst", False, True, _KLUS + ["marketing"], [("Projectbespreking", 45)]),,
+    "architect": ("Architectuur en ontwerp", "dienst", False, True, _KLUS, [("Projectbespreking", 60)]),
+    "automotive": ("Automotive en voertuigonderhoud", "dienst", False, True, _KLUS, [("Inspectie", 45)]),
+    "beveiliging": ("Beveiliging en veiligheid", "dienst", False, True, _KLUS, [("Locatiebezoek", 60)]),
+    "elektro": ("Elektrotechniek en installatie", "dienst", False, True, _KLUS, [("Technische inspectie", 60)]),
+    "energie": ("Energie en duurzaamheid", "dienst", False, True, _KLUS, [("Energieadvies", 60)]),
+    "evenementendienst": ("Evenemententechniek en verhuur", "dienst", False, True, _KLUS + ["webshop"], [("Aanvraagbespreking", 45)]),
+    "gezondheid": ("Gezondheid en welzijn", "dienst", False, True, _AFSPRAAK, [("Intake", 45)]),
+    "hr": ("HR en personeelsdiensten", "dienst", False, True, _KLUS, [("Adviesgesprek", 60)]),
+    "interieur": ("Interieur en woninginrichting", "dienst", False, True, _KLUS + ["webshop"], [("Ontwerpgesprek", 60)]),
+    "onderhoud": ("Onderhoud en reparatie", "dienst", False, True, _KLUS, [("Werkopname", 45)]),
+    "recreatie": ("Recreatie en toerisme", "dienst", False, True, _AFSPRAAK + ["webshop"], [("Reservering", 60)]),
+    "retail": ("Detailhandel en fysieke winkels", "dienst", False, False, _WINKEL, []),
+    "techniek": ("Technische dienstverlening", "dienst", False, True, _KLUS, [("Technisch overleg", 45)]),
+    "vertaling": ("Vertaling en taaldiensten", "dienst", False, True, _KLUS, [("Kennismaking", 30)]),
 }
 ANDERS = "anders"
 
@@ -91,8 +106,10 @@ def huidig() -> dict:
 
 def tools(sleutel: str | None = None) -> list[str]:
     sleutel = huidig()["soort"] if sleutel is None else sleutel
-    return list(dict.fromkeys(BEROEPEN[sleutel][4])) if sleutel in BEROEPEN else \
-        (["boekingen", "documenten", "klanten", "boekhouding", "webshop", "reviews", "diensten", "mail"] if sleutel else [])
+    basis = ["werkrooster", "webshop", "integraties", "omzet", "klanten", "boekhouding"]
+    aanvullend = BEROEPEN[sleutel][4] if sleutel in BEROEPEN else \
+        (["boekingen", "documenten", "reviews", "diensten", "mail"] if sleutel else [])
+    return list(dict.fromkeys(basis + aanvullend))
 
 
 def zoek(tekst: str) -> str | None:
