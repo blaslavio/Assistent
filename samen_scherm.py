@@ -918,7 +918,6 @@ def tweedehands_aanbieden() -> None:
     st.caption("Voeg alleen echte informatie toe. Deel geen woonadres als je daar geen kopers wilt ontvangen.")
 
 
-@st.fragment
 def mijn_webshop(inkopen=None) -> None:
     """Pagina 🏬 Mijn webshop: winkel instellen, producten en voorraad, en delen."""
     m = samen.mijn_winkel()
