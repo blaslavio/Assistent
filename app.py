@@ -4786,12 +4786,34 @@ def assistent_context_samenvatting() -> str:
             + "\\n".join(delen))
 
 
+def assistent_financieel_samenvatting() -> str:
+    """Financiële samenvatting uit geregistreerde boekingen, geen fictief saldo."""
+    try:
+        overzicht = budget.overzicht()
+        velden = ("inkomsten", "uitgegeven", "uitgaven", "nog_vast", "nog_te_betalen")
+        veilig = {k: overzicht[k] for k in velden
+                  if k in overzicht and isinstance(overzicht[k], (int, float))}
+        return ("Geregistreerd budgetoverzicht van deze maand (niet noodzakelijk banksaldo): "
+                + json.dumps(veilig, ensure_ascii=False, default=str))
+    except Exception:
+        return "Financieel overzicht momenteel niet beschikbaar; geen saldo veronderstellen."
+
+
 def gesprek() -> None:
     """Het gesprek met de assistent; antwoorden verschijnen woord voor woord."""
     st.session_state.setdefault("chat", [])
     # Twee lijsten: wat de gebruiker ziet, en de volledige geschiedenis voor Claude.
     st.session_state.setdefault("berichten", [])
-    context_aan = st.checkbox("Agenda, taken en documenttitels gebruiken als context",\n                               value=False, key="assistent_context_toestemming",\n                               help="Alleen wanneer aangevinkt: stuur beperkte gegevens van je account mee naar het gekozen AI-model. Geen documentinhoud.")\n    stemkeuze = stem()\n    laatste = next((t for r, t in reversed(st.session_state.chat) if r == "assistant"), "")
+    context_aan = st.checkbox(
+        "Agenda, taken en documenttitels gebruiken als context",
+        value=False, key="assistent_context_toestemming",
+        help="Stuur beperkte accountgegevens naar het gekozen AI-model. Geen documentinhoud.")
+    financieel_aan = st.checkbox(
+        "Financieel overzicht gebruiken als context",
+        value=False, key="assistent_financieel_toestemming",
+        help="Stuur uitsluitend een samenvatting van eigen geregistreerde inkomsten en uitgaven. Geen rekeningnummers of betalingsgegevens.")
+    stemkeuze = stem()
+    laatste = next((t for r, t in reversed(st.session_state.chat) if r == "assistant"), "")
     voorlezen = st.session_state.get("voorlezen_id", "")
     if melding := st.session_state.pop("stem_melding", None):
         st.caption(f"{melding}")
@@ -4851,7 +4873,17 @@ def gesprek() -> None:
                 status.caption(BEZIG.get(naam, "Even bezig..."))
 
             lengte_voor = len(st.session_state.berichten)
-            if context_aan:\n                st.session_state.berichten.append({"role": "user", "content":\n                    "[Geselecteerde accountcontext]\\n" + assistent_context_samenvatting() +\n                    "\\n[/Geselecteerde accountcontext]\\n\\nVraag: " + vraag})\n            else:\n                st.session_state.berichten.append({"role": "user", "content": vraag})
+            context_delen = []
+            if context_aan:
+                context_delen.append(assistent_context_samenvatting())
+            if financieel_aan:
+                context_delen.append(assistent_financieel_samenvatting())
+            bericht = vraag
+            if context_delen:
+                bericht = ("[Accountgegevens, uitsluitend als referentie]\\n"
+                           + "\\n".join(context_delen)
+                           + "\\n[/Accountgegevens]\\n\\nVraag: " + vraag)
+            st.session_state.berichten.append({"role": "user", "content": bericht})
             try:
                 if brein == "Claude":
                     tekst = agent.antwoord(toegang.claude(sleutel), st.session_state.berichten,
