@@ -5290,7 +5290,7 @@ def communicatie_hub() -> None:
     st.markdown("#### Planning & assistent")
     for naam, route, icoon in [
         ("Agenda", "agenda", ":material/calendar_month:"),
-        ("Boekingen & betalingen", "boekingen", ":material/payments:"),
+        ("Boekingen & betaalstatus", "boekingen", ":material/payments:"),
         ("AI-assistent", "assistent", ":material/smart_toy:"),
     ]:
         if route in PAGINA:
