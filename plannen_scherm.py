@@ -1029,18 +1029,26 @@ def boek_dialoog() -> None:
     aan = st.toggle("Pagina staat aan", value=p["aan"])
     titel = st.text_input("Kop", value=p["titel"], placeholder="Plan een afspraak met mij", max_chars=80)
     soorten = []
-    st.markdown("**Soort afspraak**")
+    st.markdown("**Diensten**")
+    st.caption("Begin met één dienst. Voeg intake, training of een pakket toe wanneer nodig.")
     for i in range(3):
         oud = p["soorten"][i] if i < len(p["soorten"]) else {"naam": "", "minuten": 30}
-        with st.container(horizontal=True, vertical_alignment="bottom", gap="small", key=f"boeksoort_{i}"):
-            naam = st.text_input("Naam", value=oud["naam"], key=f"boeksoort_naam_{i}", label_visibility="collapsed",
-                                 placeholder="Bijv. personal training" if i == 0 else "Nog een soort (optioneel)")
-            minuten = st.selectbox("Duur", MINUTEN, key=f"boeksoort_min_{i}", label_visibility="collapsed", width=120,
-                                   index=MINUTEN.index(oud["minuten"]) if oud["minuten"] in MINUTEN else 2,
-                                   format_func=_duur)
-            prijs = st.number_input("Prijs (€)", min_value=0.0, max_value=10000.0, step=5.0, format="%.2f",
-                                    value=(oud.get("prijs") or 0) / 100, key=f"boeksoort_prijs_{i}",
-                                    label_visibility="collapsed", width=110, help="Prijs in euro. 0 = geen prijs.")
+        # Extra diensten staan standaard dicht om scrollen op mobiel te beperken.
+        with st.expander("Extra dienst toevoegen" if i == 1 else "Nog een dienst of pakket",
+                         expanded=False) if i else st.container():
+            with st.container(horizontal=True, vertical_alignment="bottom", gap="small", key=f"boeksoort_{i}"):
+                naam = st.text_input("Naam", value=oud["naam"], key=f"boeksoort_naam_{i}",
+                                     label_visibility="collapsed",
+                                     placeholder=("Intake / kennismaking" if i == 0 else
+                                                  "Personal training" if i == 1 else "Trainingpakket"))
+                minuten = st.selectbox("Duur", MINUTEN, key=f"boeksoort_min_{i}",
+                                       label_visibility="collapsed", width=120,
+                                       index=MINUTEN.index(oud["minuten"]) if oud["minuten"] in MINUTEN else 2,
+                                       format_func=_duur)
+                prijs = st.number_input("Prijs (€)", min_value=0.0, max_value=10000.0, step=5.0,
+                                        format="%.2f", value=(oud.get("prijs") or 0) / 100,
+                                        key=f"boeksoort_prijs_{i}", label_visibility="collapsed",
+                                        width=110, help="Prijs in euro. 0 = gratis.")
         if naam.strip():
             soorten.append({"naam": naam.strip(), "minuten": minuten, "prijs": round(prijs * 100)})
     dagen_nu = [int(d) for d, blokken in p["uren"].items() if blokken]
