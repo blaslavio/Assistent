@@ -235,6 +235,18 @@ def aanmelden(naam: str, wachtwoord: str, code: str = "") -> str | None:
 
 
 def inlogformulier() -> None:
+    # De standaard Streamlit-hint 'Press Enter to submit form' hoort niet
+    # in het inlogscherm. Deze CSS moet vóór de login gerenderd worden:
+    # de kopbalk (met de globale styling) bestaat dan nog niet.
+    st.html("""<style>
+    [data-testid="InputInstructions"],
+    [data-testid="stInputInstructions"],
+    [data-testid="stTextInput"] [data-testid="InputInstructions"],
+    [data-testid="stTextInput"] [data-testid="stInputInstructions"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    </style>""")
     if wacht := st.session_state.get("twee_stap_login"):
         code_formulier(*wacht)
         return
