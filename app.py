@@ -2415,7 +2415,7 @@ def vandaag_overzicht() -> None:
     st.markdown('<div class="app-subtitle">Minimalistische workspace &amp; intelligente assistent</div>',
                 unsafe_allow_html=True)
     tab = st.segmented_control(
-        "Navigatie", ["Agenda", "Taken", "Plannen", "Samen", "Assistent"],
+        "Navigatie", ["Agenda", "Taken", "Plannen", "Samen", "Instellingen", "Assistent"],
         default="Agenda", key="superapp_home_tab", label_visibility="collapsed",
     ) or "Agenda"
     st.divider()
@@ -2437,6 +2437,12 @@ def vandaag_overzicht() -> None:
             samen_agendas()
         else:
             st.info("Samenwerken is beschikbaar wanneer de online verbinding actief is.")
+    elif tab == "Instellingen":
+        st.markdown("### Systeeminstellingen")
+        st.caption("Beheer je voorkeuren, ondernemingen en koppelingen.")
+        if st.button("Instellingen openen", key="home_settings_open", width="stretch"):
+            ga_naar("instellingen")
+            st.rerun()
     else:
         st.markdown("### AI Co-Pilot Assistent")
         gesprek()
