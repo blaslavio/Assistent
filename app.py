@@ -55,6 +55,7 @@ import ruimte_scherm
 import samen
 import samen_scherm
 import winkelen
+import instellingen_scherm
 import winkelen_scherm
 import slim
 import spraak
@@ -4963,7 +4964,8 @@ def paginas() -> list:
         pagina(chat.pagina, "Chat", ":material/forum:", "chat")
     if online and "Marktplaats" not in uit:
         pagina(winkelen_scherm.pagina, "Winkelen", ":material/shopping_bag:", "winkelen")
-    pagina(instellingen_tabblad, "Instellingen", ":material/settings:", "instellingen")
+    pagina(lambda: instellingen_scherm.render_instellingen_hub(instellingen_tabblad),
+           "Instellingen", ":material/settings:", "instellingen")
     # Eigen URL per tool; niet eerst naar Zakelijk/Vandaag navigeren.
     pagina(zaak_scherm.rooster_pagina, "Rooster", ":material/calendar_month:", "rooster")
     pagina(zaak_scherm.klanten_pagina, "Klanten", ":material/groups:", "klantenbeheer")
