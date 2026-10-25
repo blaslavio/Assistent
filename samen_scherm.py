@@ -961,6 +961,8 @@ def mijn_webshop(inkopen=None) -> None:
         if deel == "Producten":
             st.markdown("#### Producten en voorraad")
             st.caption("Kies welke producten in je webshop staan en beheer de voorraad.")
+            webshop_product_toevoegen(w)
+            st.divider()
             winkel_producten_beheren(m)
             return
         if deel == "Bestellingen":
@@ -1118,6 +1120,43 @@ def mijn_webshop(inkopen=None) -> None:
 
     bezorgen_instellen(w, m["niveau"])
 
+
+
+def webshop_product_toevoegen(w: dict) -> None:
+    """Maak een echt product aan via de bestaande marktplaats- en winkelbackend."""
+    st.markdown("#### Nieuw product")
+    st.caption("Maak een artikel aan. Daarna kun je het in je webshop opnemen en de voorraad beheren.")
+    with st.form("webshop_product_nieuw", clear_on_submit=True, border=False):
+        titel = st.text_input("Productnaam", max_chars=100, placeholder="Bijvoorbeeld sportshirt")
+        omschrijving = st.text_area("Productomschrijving", max_chars=2000,
+                                    placeholder="Materiaal, afmetingen, gebruik en bijzonderheden")
+        prijs = st.number_input("Verkoopprijs (€)", min_value=0.01, value=19.95, step=1.0)
+        voorraad = st.number_input("Aantal op voorraad", min_value=0, max_value=100000, value=1)
+        plaats = st.text_input("Verzendplaats (optioneel)", max_chars=100)
+        status = _fout(samen.betalen_status) or {}
+        wijzen = [m for m in samen.BETAALWIJZEN if m != "app" or status.get("ik_kan_ontvangen")]
+        betaal = st.multiselect("Betaalmethoden", wijzen, default=["app"] if "app" in wijzen else ["contant"],
+                                format_func=samen.BETAALWIJZEN.get)
+        levering = st.multiselect("Leveringsmogelijkheden", list(samen.LEVERING),
+                                  default=["ophalen"], format_func=samen.LEVERING.get)
+        if st.form_submit_button("Product aanmaken en in winkel zetten", type="primary", width="stretch"):
+            if not w:
+                st.error("Maak eerst een winkel aan bij Winkel ontwerpen.")
+            elif not titel.strip() or not omschrijving.strip():
+                st.error("Vul een productnaam en omschrijving in.")
+            elif not betaal or not levering:
+                st.error("Kies minstens één betaal- en leveringsmethode.")
+            else:
+                try:
+                    product_id = samen.aanbod_plaatsen("product", titel.strip(), omschrijving.strip(),
+                                                      prijs, "per stuk", plaats.strip(), "",
+                                                      betaal, levering)
+                    samen.winkel_product(product_id, True, voorraad)
+                except samen.Fout as fout:
+                    st.error(f"Product niet volledig toegevoegd: {fout}. Controleer Mijn aanbod.")
+                else:
+                    st.success("Product aangemaakt en toegevoegd aan je webshop.")
+                    st.rerun()
 
 
 def winkel_producten_beheren(m: dict) -> None:
