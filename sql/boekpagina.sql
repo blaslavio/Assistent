@@ -184,6 +184,8 @@ begin
     return jsonb_build_object('fout', 'Vul een geldig e-mailadres in.');
   end if;
   perform pg_advisory_xact_lock(p.gebruiker_id);
+  -- Eén lock per eigenaar voorkomt gelijktijdige dubbele boekingen.
+  -- Aanvullende controles hieronder zijn databasebreed, niet browsersessiegebonden.
   -- Server-side beperking: werkt ook bij bots die steeds een nieuwe browsersessie openen.
   if (select count(*) from private.boekingen
       where gebruiker_id = p.gebruiker_id and lower(email) = v_email
