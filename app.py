@@ -1478,26 +1478,45 @@ def vrije_tijd() -> None:
             st.rerun()
     if not hobbys:
         st.caption("Nog niets toegevoegd.")
+    if hobbys:
+        st.markdown("#### Mijn activiteiten")
+        st.caption("Plan een activiteit in of verwijder deze uit je lijst.")
     for h in hobbys:
-        with st.container(horizontal=True, vertical_alignment="center", key=f"hobby_{h['id']}"):
-            st.markdown(f"**{h['tekst']}**")
-            with st.popover("Inplannen", icon=":material/event:"):
-                with st.form(f"hobby_plan_{h['id']}", border=False):
-                    dag = st.date_input("Dag", value=nu.date(), min_value=nu.date(), format="DD-MM-YYYY")
-                    k1, k2 = st.columns(2)
-                    om = k1.time_input("Tijd", value=kloktijd(19, 0), step=900)
-                    duur = k2.selectbox("Hoe lang", [30, 60, 90, 120, 180],
-                                        index=1, format_func=lambda m: f"{m // 60} uur" if m % 60 == 0 else f"{m} min")
-                    if st.form_submit_button("In agenda", type="primary"):
-                        begin = datetime.combine(dag, om)
-                        opslag.afspraak_toevoegen(h["tekst"], begin.strftime("%Y-%m-%dT%H:%M"),
-                                                  (begin + timedelta(minutes=duur)).strftime("%Y-%m-%dT%H:%M"),
-                                                  soort="vrij")
-                        st.toast(f"{h['tekst']} staat in je agenda.")
-                        st.rerun()
-            if st.button("", icon=":material/close:", key=f"hobby_weg_{h['id']}", type="tertiary", help="Weghalen"):
-                opslag.lijst_weg("vrije_tijd", h["id"])
-                st.rerun()
+        with st.container(border=True, key=f"vrije_activiteit_{h['id']}"):
+            naamkolom, actie, wissen = st.columns([3, 2, 0.7], vertical_alignment="center", gap="small")
+            with naamkolom:
+                st.markdown(f"**{h['tekst']}**")
+            with actie:
+                with st.popover("Plannen", icon=":material/calendar_add_on:", use_container_width=True):
+                    with st.form(f"hobby_plan_{h['id']}", border=False):
+                        dag = st.date_input("Dag", value=nu.date(), min_value=nu.date(), format="DD-MM-YYYY")
+                        k1, k2 = st.columns(2)
+                        om = k1.time_input("Tijd", value=kloktijd(19, 0), step=900)
+                        duur = k2.selectbox("Duur", [30, 60, 90, 120, 180],
+                                            index=1, format_func=lambda m: f"{m // 60} uur" if m % 60 == 0 else f"{m} min")
+                        if st.form_submit_button("In agenda", type="primary", icon=":material/check:", use_container_width=True):
+                            begin = datetime.combine(dag, om)
+                            opslag.afspraak_toevoegen(h["tekst"], begin.strftime("%Y-%m-%dT%H:%M"),
+                                                      (begin + timedelta(minutes=duur)).strftime("%Y-%m-%dT%H:%M"),
+                                                      soort="vrij")
+                            st.toast(f"{h['tekst']} staat in je agenda.")
+                            st.rerun()
+            with wissen:
+                if st.button("", icon=":material/delete_outline:", key=f"hobby_weg_{h['id']}",
+                             type="tertiary", help=f"{h['tekst']} verwijderen"):
+                    opslag.lijst_weg("vrije_tijd", h["id"])
+                    st.rerun()
+    st.divider()
+    st.markdown("#### Handige tools")
+    col_agenda, col_plannen = st.columns(2, gap="small")
+    with col_agenda:
+        if st.button("Agenda", icon=":material/calendar_month:", key="vrije_agenda", use_container_width=True):
+            st.session_state.agenda_deel = "Agenda"
+            st.rerun()
+    with col_plannen:
+        if st.button("Activiteit", icon=":material/event_available:", key="vrije_plannen", use_container_width=True):
+            st.session_state.agenda_deel = "Plannen"
+            st.rerun()
 
 
 def gedeelde_agendas() -> None:
