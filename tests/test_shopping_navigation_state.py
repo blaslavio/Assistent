@@ -22,6 +22,11 @@ class ShoppingNavigationTests(unittest.TestCase):
         self.assertIn('_open_onderdeel(doel)', functions["ontdekken"])
         self.assertNotIn('st.session_state.winkelen_deel = doel', functions["ontdekken"])
 
+    def test_left_aligned_discovery_cards(self):
+        self.assertIn('with st.container(border=True):', functions["ontdekken"])
+        self.assertIn('st.caption(uitleg)', functions["ontdekken"])
+        self.assertIn('icon=":material/arrow_forward:"', functions["ontdekken"])
+
     def test_all_buyer_categories_visible(self):
         self.assertIn('if d != "winkel"', functions["pagina"])
         for section in ("winkels", "eten", "tweedehands", "producten", "mandje", "bestellingen"):
