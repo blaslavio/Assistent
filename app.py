@@ -1668,6 +1668,33 @@ def agenda_overzicht() -> None:
         if samen.beschikbaar():
             with st.popover("", icon=":material/share:", help="Agenda delen"):
                 agenda_delen_beheer()
+    with st.expander("Voorstellen van de assistent", icon=":material/auto_awesome:"):
+        st.caption("Bekijk vrije momenten op basis van je agenda. Voorstellen worden niet automatisch geboekt.")
+        try:
+            van = date.today().isoformat()
+            tot = (date.today() + timedelta(days=15)).isoformat()
+            afspraken = opslag.afspraken_tussen(van, tot)
+            opties = agenda_import.voorstellen(afspraken)
+            if opties:
+                st.markdown("**Mogelijke vrije momenten van 30 minuten**")
+                for moment in opties:
+                    st.caption(moment.strftime("%d-%m-%Y om %H:%M"))
+                st.caption("Controleer je beschikbaarheid voordat je een afspraak bevestigt.")
+            else:
+                st.info("Geen geschikte vrije momenten gevonden.")
+        except Exception:
+            st.caption("De beschikbaarheid kon nu niet worden bepaald.")
+        st.markdown("**Persoonlijke voorkeuren**")
+        st.caption("De assistent onthoudt alleen wat je zelf instelt, binnen jouw account.")
+        voorkeur = opslag.instellingen().get("agenda_advies_voorkeur", "Balans tussen werk en privé")
+        keuzes = ["Balans tussen werk en privé", "Zo veel mogelijk aaneengesloten afspraken",
+                  "Ruimte tussen afspraken"]
+        gekozen = st.selectbox("Hoe wil je plannen?", keuzes,
+                               index=keuzes.index(voorkeur) if voorkeur in keuzes else 0,
+                               key="agenda_advies_keuze")
+        if st.button("Voorkeur bewaren", key="agenda_advies_bewaren"):
+            opslag.instellingen_bijwerken(agenda_advies_voorkeur=gekozen)
+            st.success("Je voorkeur is opgeslagen.")
     with st.expander("Bestaande afspraken overnemen", icon=":material/upload_file:"):
         st.caption("Importeer een .ics-bestand uit Apple Agenda, Google Agenda of Outlook. "
                    "Je bekijkt eerst de afspraken en beslist zelf wat wordt toegevoegd.")
@@ -1678,11 +1705,15 @@ def agenda_overzicht() -> None:
                 gevonden = agenda_import.lezen(bestand.getvalue())
                 bestaand = opslag.laden().get("afspraken", [])
                 nieuw = agenda_import.uniek(gevonden, bestaand)
+                overlappend = agenda_import.conflicten(nieuw, bestaand)
             except (ValueError, KeyError) as fout:
                 st.error(str(fout))
             else:
                 st.caption(f"{len(gevonden)} afspraken gevonden · {len(nieuw)} nieuw · "
                            f"{len(gevonden) - len(nieuw)} al aanwezig of dubbel.")
+                if overlappend:
+                    st.warning(f"{len(overlappend)} afspraken overlappen bestaande afspraken. "
+                               "Controleer de tijden voordat je importeert.")
                 if nieuw:
                     # Advies uit uitsluitend de eigen ingelezen afspraken; geen AI-upload.
                     from collections import Counter
