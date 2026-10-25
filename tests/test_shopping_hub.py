@@ -18,7 +18,7 @@ class ShoppingHubTests(unittest.TestCase):
 
     def test_mobile_navigation(self):
         self.assertIn('st.selectbox(', functions["pagina"])
-        self.assertIn('_open_onderdeel(doel)', functions["ontdekken"])
+        self.assertIn('on_click=_open_onderdeel, args=(doel,)', functions["ontdekken"])
         self.assertNotIn('st.segmented_control("Winkelen"', functions["pagina"])
 
     def test_no_emojis_in_new_category_icons(self):
