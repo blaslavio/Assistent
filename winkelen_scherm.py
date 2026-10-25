@@ -38,9 +38,11 @@ def pagina() -> None:
             st.link_button("Nu betalen", betaald["betaallink"], type="primary", width="stretch")
     delen = list(DELEN) if verkoper() else ["buurt", "producten", "mandje", "bestellingen"]
     n = winkelen.aantal_in_mandje()
-    deel = st.segmented_control("Winkelen", delen, key="winkelen_deel", label_visibility="collapsed",
-                                format_func=lambda d: f"{DELEN[d]} ({n})" if d == "mandje" and n else DELEN[d],
-                                default="buurt") or "buurt"
+    deel = st.selectbox(
+        "Winkelonderdeel", delen, key="winkelen_deel",
+        format_func=lambda d: f"{DELEN[d]} ({n})" if d == "mandje" and n else DELEN[d],
+        help="Kies je omgeving. Winkels, eten en tweedehands zijn afzonderlijke onderdelen."
+    ) or "buurt"
     if deel in ("buurt", "winkels", "eten", "producten"):
         plek_kiezen()
     if deel == "buurt":
@@ -105,8 +107,8 @@ def _waar() -> tuple[float | None, float | None]:
 
 
 def in_de_buurt(categorie: str = "") -> None:
-    k1, k2 = st.columns([3, 2], vertical_alignment="bottom")
-    zoek = k1.text_input("Zoeken", key="winkelen_zoek", placeholder="Zoeken", label_visibility="collapsed")
+    st.subheader("Restaurants" if categorie == "restaurant" else "Winkels")
+    zoek = st.text_input("Zoeken", key="winkelen_zoek", placeholder="Zoek op naam of assortiment")
     soort = categorie
     lat, lon = _waar()
     winkels = _fout(samen.winkelen_winkels, zoek.strip(), lat, lon, soort) or []
