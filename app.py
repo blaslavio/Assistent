@@ -1715,7 +1715,7 @@ def takenlijst() -> None:
                               "erbij komt. Dit gebeurt ook vanzelf, elke paar uur."):
                 mail_nakijken()
         with st.popover("Inplannen", icon=":material/auto_awesome:", help="Plan mijn taken in"):
-            taken_inplannen()
+            taken_inplannen("takenlijst")
     mail_voorstel("taken")
 
     taken = opslag.open_taken()
@@ -1769,7 +1769,7 @@ def agenda_overzicht() -> None:
         with st.popover("Nieuw", icon=":material/add:"):
             afspraak_formulier("nieuwe_afspraak")
         with st.popover("Inplannen", icon=":material/auto_awesome:", help="Plan mijn taken in"):
-            taken_inplannen()
+            taken_inplannen("agenda")
         if samen.beschikbaar():
             with st.popover("", icon=":material/share:", help="Agenda delen"):
                 agenda_delen_beheer()
@@ -1976,14 +1976,14 @@ def snel_melding() -> None:
                     key="snel_vraag", help="Haalt dit weer weg en stelt je zin als vraag aan de assistent.")
 
 
-def taken_inplannen() -> None:
+def taken_inplannen(context: str = "taken") -> None:
     """Open taken automatisch in vrije tijd zetten: eerst een voorstel, pas na akkoord in de agenda."""
     uren = inplannen.planuren()
     st.markdown("**Plan mijn taken in**")
     st.caption(f"In je vrije tijd tussen {uren['van']} en {uren['tot']}"
                f"{' (ook in het weekend)' if uren['weekend'] else ' op werkdagen'}, vroegste deadline eerst.")
-    if st.toggle("Tijden aanpassen", key="planuren_open"):
-        with st.form("planuren", border=False):
+    if st.toggle("Tijden aanpassen", key=f"planuren_open_{context}"):
+        with st.form(f"planuren_{context}", border=False):
             van = st.time_input("Vanaf", value=kloktijd.fromisoformat(uren["van"]), step=1800)
             tot = st.time_input("Tot", value=kloktijd.fromisoformat(uren["tot"]), step=1800)
             weekend = st.checkbox("Ook in het weekend", value=uren["weekend"])
