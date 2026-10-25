@@ -22,6 +22,7 @@ import agent
 import assistant_learning
 import assistant_privacy
 import universal_workspace
+import intent_engine
 import avatar
 import bank
 import boekpagina
@@ -4930,6 +4931,28 @@ def gesprek() -> None:
         if st.button("Wis alle geleerde patronen", key="assistent_leer_wissen"):
             st.session_state.assistent_leerpatronen = {}
             st.success("Geleerde sessiepatronen gewist.")
+    with st.expander("Snelle opdrachten", expanded=False):
+        st.caption("Beschrijf wat je wilt regelen. Eerst een voorstel, daarna bevestigen.")
+        snelle_opdracht = st.text_input(
+            "Opdracht", placeholder="Maak taak voor lesvoorbereiding",
+            key="assistent_intent_tekst")
+        voorstel = intent_engine.parse_intent(snelle_opdracht)
+        if voorstel:
+            st.write(voorstel.description)
+            st.caption("Er is nog niets opgeslagen, betaald of verzonden.")
+            if voorstel.kind == "taak" and st.button("Open taken om toe te voegen", key="intent_taak_open"):
+                if "planning" in PAGINA:
+                    st.switch_page(PAGINA["planning"])
+                else:
+                    st.info("Open Taken via het overzicht.")
+            elif voorstel.kind == "agenda" and st.button("Open agenda", key="intent_agenda_open"):
+                st.switch_page(PAGINA["agenda"])
+            elif voorstel.kind == "communicatie" and st.button("Open communicatie", key="intent_mail_open"):
+                st.switch_page(PAGINA["communicatie"])
+            elif voorstel.kind in ("betaling", "inkomsten"):
+                st.info("Gebruik de bestaande financiële module voor verificatie en registratie.")
+        elif snelle_opdracht.strip():
+            st.caption("Geen eenduidige actie gevonden. Stel je vraag aan de assistent.")
     stemkeuze = stem()
     laatste = next((t for r, t in reversed(st.session_state.chat) if r == "assistant"), "")
     voorlezen = st.session_state.get("voorlezen_id", "")
