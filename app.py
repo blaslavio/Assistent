@@ -2523,6 +2523,9 @@ def vandaag_overzicht() -> None:
     st.markdown('<div class="app-subtitle">Agenda, afspraken en communicatie</div>',
                 unsafe_allow_html=True)
 
+    with st.expander("Vraag de AI-assistent", icon=":material/smart_toy:", expanded=False):
+        snelle_assistent_vraag("dashboard")
+
     st.markdown("### Agenda & afspraken")
     st.caption("Maandweergave staat standaard aan. Wissel naar week of dag.")
     agenda_overzicht()
@@ -5325,6 +5328,19 @@ def sluit_zijmenu_na_navigatie() -> None:
     """, height=0)
 
 
+def snelle_assistent_vraag(bron: str) -> None:
+    """Stuur een vraag vanuit een module door naar de bestaande AI-assistent."""
+    if "assistent" not in PAGINA:
+        return
+    with st.form(f"snelle_assistent_{bron}", clear_on_submit=True):
+        vraag = st.text_input("Vraag aan de assistent", placeholder="Waarmee kan ik helpen?",
+                              key=f"snelle_assistent_tekst_{bron}")
+        verzenden = st.form_submit_button("Versturen", icon=":material/send:", width="stretch")
+    if verzenden and vraag.strip():
+        st.session_state.vooraf_vraag = vraag.strip()
+        ga_naar("assistent")
+
+
 def superapp_navigatie() -> None:
     """Rustige Gemini-geïnspireerde navigatie; bestaande pagina's blijven behouden."""
     hoofdmenu = [
@@ -5345,6 +5361,8 @@ def superapp_navigatie() -> None:
         st.markdown("**Apps**")
         if "assistent" in PAGINA:
             st.page_link(PAGINA["assistent"], label="Nieuwe chat", icon=":material/edit_square:", width="stretch")
+        with st.expander("AI-assistent", icon=":material/smart_toy:", expanded=False):
+            snelle_assistent_vraag("zijmenu")
         st.divider()
         zichtbaar = set()
         for label, route in hoofdmenu:
