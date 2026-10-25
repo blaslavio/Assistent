@@ -258,7 +258,7 @@ def _afstand(punten: list[tuple[float, float]]) -> float:
     return totaal
 
 
-def _naam_zonder_ns(e: ET.Element) -> str:
+def _naam_zonder_ns(e) -> str:
     return e.tag.rsplit("}", 1)[-1]
 
 
