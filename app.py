@@ -31,6 +31,7 @@ import master_hub_core
 import multistream_core
 import multistream_store
 import resource_booking_core
+import video_project_core
 import avatar
 import bank
 import boekpagina
@@ -2596,7 +2597,8 @@ def master_hub_pagina() -> None:
     st.title("Universal Master Hub")
     st.caption("Verkoop, chat, projecten en community in één overzicht.")
     profile = st.segmented_control("Privacyprofiel", list(multistream_store.PROFILES),\n                                   default="Privé", key="master_privacy_profile")
-    st.caption("Profielwissel toont uitsluitend concepten van het gekozen profiel.")\n    lens = st.segmented_control("Streamfilter", list(multistream_core.LENSES),
+    st.caption("Profielwissel toont uitsluitend concepten van het gekozen profiel.")
+    lens = st.segmented_control("Streamfilter", list(multistream_core.LENSES),
                                 default="Alles", key="master_stream_lens")
     with st.form("master_stream_form", clear_on_submit=True):
         opdracht = st.text_input("Bericht of opdracht", max_chars=500,
@@ -2684,6 +2686,54 @@ def master_hub_pagina() -> None:
                             st.error("Annuleren mislukt.")
             else:
                 st.caption("Voeg eerst een voorziening toe.")
+    if profile == "Zakelijk":
+        with st.expander("Videoprojecten", expanded=False):
+            with st.form("video_project_create", clear_on_submit=True):
+                projectnaam = st.text_input("Projectnaam", max_chars=120)
+                projectmaken = st.form_submit_button("Nieuw videoproject")
+            if projectmaken:
+                try:
+                    video_project_core.create_project(projectnaam)
+                    st.success("Videoproject aangemaakt.")
+                    st.rerun()
+                except ValueError as err:
+                    st.warning(str(err))
+                except Exception:
+                    st.error("Opslaan mislukt.")
+            try:
+                videoprojecten = video_project_core.projects()
+            except Exception:
+                videoprojecten = []
+                st.warning("Videoprojecten konden niet worden geladen.")
+            for video in videoprojecten[:30]:
+                with st.expander(video.get("title", "Project") + " — " + video.get("status", "concept")):
+                    statussen = ("concept", "in bewerking", "ter review", "afgerond")
+                    status = st.selectbox("Status", statussen,
+                        index=statussen.index(video.get("status", "concept")) if video.get("status", "concept") in statussen else 0,
+                        key="video_status_" + video["id"])
+                    if st.button("Status bewaren", key="video_save_" + video["id"]):
+                        try:
+                            video_project_core.set_status(video["id"], status)
+                            st.rerun()
+                        except Exception:
+                            st.error("Status kon niet worden opgeslagen.")
+                    with st.form("video_note_" + video["id"], clear_on_submit=True):
+                        seconden = st.number_input("Tijdcode in seconden", min_value=0, max_value=86400,
+                                                  step=1, key="video_seconds_" + video["id"])
+                        notitie = st.text_input("Opmerking", max_chars=500, key="video_text_" + video["id"])
+                        noteren = st.form_submit_button("Opmerking toevoegen")
+                    if noteren:
+                        try:
+                            video_project_core.add_note(video["id"], int(seconden), notitie)
+                            st.rerun()
+                        except ValueError as err:
+                            st.warning(str(err))
+                        except Exception:
+                            st.error("Opmerking kon niet worden opgeslagen.")
+                    for note in sorted(video.get("notes", []), key=lambda n: n.get("seconds", 0)):
+                        minute, second = divmod(note.get("seconds", 0), 60)
+                        st.write(f"{minute:02d}:{second:02d} — {note.get('text', '')}")
+            st.caption("Projectbeheer en reviewnotities; geen realtime montage, gedeelde toegang of rendering.")
     route = st.session_state.get("master_hub_route")
     if route:
         st.caption(route.description)
