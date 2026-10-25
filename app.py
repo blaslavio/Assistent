@@ -2594,7 +2594,7 @@ def master_hub_pagina() -> None:
     """Account-scoped Multi-Stream drafts; never publish or send automatically."""
     st.title("Universal Master Hub")
     st.caption("Verkoop, chat, projecten en community in één overzicht.")
-    lens = st.segmented_control("Streamfilter", list(multistream_core.LENSES),
+    profile = st.segmented_control("Privacyprofiel", list(multistream_store.PROFILES),\n                                   default="Privé", key="master_privacy_profile")\n    st.caption("Profielwissel toont uitsluitend concepten van het gekozen profiel.")\n    lens = st.segmented_control("Streamfilter", list(multistream_core.LENSES),
                                 default="Alles", key="master_stream_lens")
     with st.form("master_stream_form", clear_on_submit=True):
         opdracht = st.text_input("Bericht of opdracht", max_chars=500,
@@ -2602,7 +2602,7 @@ def master_hub_pagina() -> None:
         verzenden = st.form_submit_button("Concept bewaren")
     if verzenden:
         try:
-            item = multistream_store.add_draft(opdracht)
+            item = multistream_store.add_draft(opdracht, profile)
             st.session_state["master_hub_route"] = master_hub_core.classify(opdracht)
             st.success("Privéconcept bewaard onder " + item["category"] + ".")
         except ValueError as fout:
@@ -2610,7 +2610,7 @@ def master_hub_pagina() -> None:
         except Exception:
             st.error("Bewaren is niet gelukt. Controleer je verbinding of meld je opnieuw aan.")
     try:
-        concepten = multistream_core.filter_drafts(multistream_store.list_drafts(), lens)
+        concepten = multistream_core.filter_drafts(multistream_store.list_drafts(profile), lens)
     except Exception:
         concepten = []
         st.warning("Opgeslagen concepten konden niet worden geladen.")
@@ -2622,7 +2622,7 @@ def master_hub_pagina() -> None:
             st.caption(str(item.get("category", "Chat")) + " - privéconcept")
             if st.button("Verwijder concept", key="master_del_" + str(item.get("id"))):
                 try:
-                    if multistream_store.delete_draft(str(item.get("id"))):
+                    if multistream_store.delete_draft(str(item.get("id")), profile):
                         st.rerun()
                 except Exception:
                     st.error("Verwijderen is niet gelukt.")
@@ -2643,7 +2643,7 @@ def master_hub_pagina() -> None:
                         st.switch_page(PAGINA[route_name])
                     else:
                         st.warning("Dit onderdeel is momenteel niet beschikbaar.")
-    st.caption("Concepten worden bewaard in je account. Er wordt niets automatisch gepubliceerd, verzonden of aan AI gedeeld.")
+    st.caption("Concepten zijn per privacyprofiel gescheiden. Er wordt niets automatisch gepubliceerd, verzonden of aan AI gedeeld.")
 
 
 
