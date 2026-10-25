@@ -19,6 +19,7 @@ import activiteiten
 import toegang
 import agendas
 import agent
+import assistant_learning
 import avatar
 import bank
 import boekpagina
@@ -4874,6 +4875,22 @@ def gesprek() -> None:
         "Financieel overzicht gebruiken als context",
         value=False, key="assistent_financieel_toestemming",
         help="Stuur uitsluitend een samenvatting van eigen geregistreerde inkomsten en uitgaven. Geen rekeningnummers of betalingsgegevens.")
+    with st.expander("Persoonlijk leren en privacy", expanded=False):
+        leren_aan = st.toggle(
+            "Leer mijn voorkeuren uit mijn vragen",
+            value=False,
+            key="assistent_leren_toestemming",
+            help="Alleen onderwerpentellingen binnen deze sessie. Geen chatinhoud of persoonsgegevens opslaan.")
+        patronen = st.session_state.get("assistent_leerpatronen", {})
+        if leren_aan:
+            tips = assistant_learning.top_suggestions(patronen, consent=True)
+            st.caption("Herkende onderwerpen: " + (", ".join(
+                f"{naam}: {aantal}" for naam, aantal in patronen.items()) or "Nog geen"))
+            if tips:
+                st.caption("Mogelijke vervolgstappen: " + " · ".join(tips))
+        if st.button("Wis geleerde patronen", key="assistent_leer_wissen"):
+            st.session_state.assistent_leerpatronen = {}
+            st.success("Sessiegeheugen gewist.")
     stemkeuze = stem()
     laatste = next((t for r, t in reversed(st.session_state.chat) if r == "assistant"), "")
     voorlezen = st.session_state.get("voorlezen_id", "")
@@ -4908,6 +4925,10 @@ def gesprek() -> None:
             st.session_state.berichten = []
             st.rerun()
         return
+    st.session_state.assistent_leerpatronen = assistant_learning.update_patterns(
+        st.session_state.get("assistent_leerpatronen", {}),
+        vraag,
+        consent=bool(st.session_state.get("assistent_leren_toestemming", False)))
     ingesproken = st.session_state.pop("ingesproken", False)
     st.session_state.woning_onder = []
     zichtbaar = st.session_state.pop("vooraf_label", None) or vraag
