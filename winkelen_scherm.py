@@ -154,8 +154,10 @@ def in_de_buurt(categorie: str = "") -> None:
     if soort == "restaurant":
         winkels = sorted(winkels, key=lambda w: not w.get("bezorgt_hier"))
     if not winkels:
-        st.info("Stel eerst je plaats in." if not winkelen.waar()
-                else "Geen aanbieders gevonden. Probeer een andere zoekterm.")
+        st.info("Stel je plaats in om aanbieders in de buurt te vinden."
+                if not winkelen.waar()
+                else "Er zijn hier nog geen aanbieders gevonden. Probeer een andere zoekterm.")
+        return
     for w in winkels[:60]:
         winkel_regel(w)
     if st.button("Kaart met alle winkels", icon=":material/map:", type="tertiary"):
@@ -188,7 +190,17 @@ def producten(inkopen: bool) -> None:
     lat, lon = _waar()
     lijst = _fout(samen.winkelen_producten, zoek.strip(), lat, lon, inkopen) or []
     if not lijst:
-        st.caption("Niets gevonden." if zoek.strip() or not inkopen else "Nog geen groothandels in de app.")
+        if not winkelen.waar():
+            st.info("Stel je plaats in om aanbod in de buurt te ontdekken. "
+                    "Je kunt dit hierboven bij Locatie wijzigen.")
+        elif zoek.strip():
+            st.info("Geen producten gevonden voor deze zoekopdracht. "
+                    "Probeer een andere naam of een bredere zoekterm.")
+        elif inkopen:
+            st.info("Er zijn nog geen groothandels aangesloten.")
+        else:
+            st.info("Er zijn nog geen producten beschikbaar in deze omgeving.")
+        return
     kolommen = st.columns(2)
     for i, p in enumerate(lijst[:60]):
         with kolommen[i % 2].container(border=True):
