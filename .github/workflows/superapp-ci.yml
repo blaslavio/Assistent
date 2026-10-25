@@ -1,0 +1,56 @@
+name: SuperApp CI & Review Check
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: superapp-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-test:
+    name: Syntax, regression and security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest bandit pip-audit
+
+      - name: Compile Python modules
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import py_compile
+          excluded = {".git", ".venv", "venv", "__pycache__", ".pytest_cache"}
+          files = [p for p in Path(".").rglob("*.py") if not any(x in excluded for x in p.parts)]
+          for path in files:
+              py_compile.compile(str(path), doraise=True)
+          print(f"Compiled {len(files)} Python files")
+          PY
+
+      - name: Run regression tests
+        run: python -m pytest -q
+
+      - name: Security scan
+        run: bandit -r . -ll -ii -x ./tests,./.venv,./venv
+
+      - name: Dependency audit
+        run: pip-audit
