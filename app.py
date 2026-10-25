@@ -108,11 +108,11 @@ for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, r
 os.environ["TZ"] = "Europe/Amsterdam"
 time.tzset()
 
-st.set_page_config(page_title="Mijn assistent", page_icon=None, layout="wide")
+st.set_page_config(page_title="SuperApp OS", page_icon=None, layout="wide", initial_sidebar_state="expanded")
 # Consistent zakelijk design; bestaande pagina's, routing en acties blijven intact.
 st.markdown("""
 <style>
-.stApp { background-color: #fafafa; }
+.stApp { background-color: #fafafa; }\n[data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid #e4e4e7; }\n[data-testid="stSidebar"] a { border-radius: 6px; }\n[data-testid="stMainBlockContainer"] { max-width: 1400px; }\n.stButton > button { border-radius: 6px; }
 [data-testid="stAppViewContainer"] h1,
 [data-testid="stAppViewContainer"] h2,
 [data-testid="stAppViewContainer"] h3,
@@ -5069,6 +5069,38 @@ def paginas() -> list:
     return list(PAGINA.values())
 
 
+def superapp_navigatie() -> None:
+    """Zakelijke zijbalk met zes hoofdonderdelen; overige bestaande tools blijven bereikbaar."""
+    hoofdmenu = [
+        ("Dashboard", "vandaag"),
+        ("Winkeloverzicht & Catalogus", "webshop"),
+        ("Werkrooster & Bezetting", "zakelijk"),
+        ("Ondernemingen & Koppelingen", "instellingen"),
+        ("Leren & Cursussen", "cursussen"),
+        ("Social & Commerce Chat", "assistent"),
+    ]
+    with st.sidebar:
+        st.markdown("### Workspace")
+        for label, route in hoofdmenu:
+            if route in PAGINA:
+                st.page_link(PAGINA[route], label=label, width="stretch")
+            elif route == "webshop" and "winkels" in PAGINA:
+                st.page_link(PAGINA["winkels"], label=label, width="stretch")
+            elif route == "cursussen" and "leren" in PAGINA:
+                st.page_link(PAGINA["leren"], label=label, width="stretch")
+        with st.expander("Overige onderdelen", expanded=False):
+            zichtbaar = {route for _, route in hoofdmenu}
+            for groep, routes in GROEPEN.items():
+                overige = [route for route in routes if route in PAGINA and route not in zichtbaar]
+                if overige:
+                    st.caption(groep)
+                    for route in overige:
+                        st.page_link(PAGINA[route], width="stretch")
+            for route in ("agenda", "chat", "instellingen"):
+                if route in PAGINA and route not in zichtbaar:
+                    st.page_link(PAGINA[route], width="stretch")
+
+
 def kopbalk() -> None:
     """Een paar vaste plekken bovenaan; alle andere onderdelen staan als tegels in Instellingen."""
     totaal = st.session_state.get("_nieuw_totaal", 0)
@@ -5435,7 +5467,7 @@ def main() -> None:
     # Bewaar de gekozen instellingengroep wanneer iemand tijdelijk een tool
     # opent. Bij teruggaan blijft de gebruiker in dezelfde context.
     # Alleen de expliciete knop 'Instellingen' wist inst_groep.
-    kopbalk()
+    superapp_navigatie()
     if mislukt := st.session_state.pop("mislukt_melding", 0):
         st.warning(f"Sinds je vorige keer is {mislukt} keer geprobeerd in te loggen met een fout wachtwoord of code. "
                    "Was jij dat niet? Kies een nieuw wachtwoord en zet tweestapsverificatie aan bij "
