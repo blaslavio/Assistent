@@ -836,11 +836,24 @@ def mijn_webshop(inkopen=None) -> None:
                 "Instellingen › Account › Accounttype.")
         return
     w = m["winkel"]
-    if w:
-        delen = ["Winkel", "Inkopen", "Reserveren", "Marketing", "Reviews"] if inkopen else \
-            ["Winkel", "Reserveren", "Marketing", "Reviews"]
-        deel = st.segmented_control("Onderdeel", delen, default="Winkel",
-                                    key="webshop_deel", label_visibility="collapsed") or "Winkel"
+    st.markdown("### Mijn webshop")
+    if not w:
+        st.caption("Start met een nieuwe winkel. Je kunt deze eerst als concept opslaan en later publiceren.")
+    else:
+        v = m.get("verkopen") or {}
+        producten = m.get("producten") or []
+        st.markdown("**Verkoopoverzicht**")
+        a, b, c = st.columns(3)
+        a.metric("Bestellingen", int(v.get("aantal") or 0))
+        b.metric("Omzet", samen.euro(v.get("omzet") or 0))
+        c.metric("Producten", len([p for p in producten if p.get("actief") and not p.get("geblokkeerd")]))
+        st.caption("Omzet en bestellingen zijn gebaseerd op geregistreerde verkopen in deze app. "
+                   "Verkopen via externe winkels tellen niet mee.")
+        delen = ["Overzicht", "Winkel", "Reserveren", "Marketing", "Reviews"]
+        if inkopen:
+            delen.insert(2, "Inkopen")
+        deel = st.segmented_control("Onderdeel", delen, default="Overzicht",
+                                    key="webshop_deel", label_visibility="collapsed") or "Overzicht"
         if deel == "Inkopen":
             inkopen()
             return
@@ -852,6 +865,21 @@ def mijn_webshop(inkopen=None) -> None:
             return
         if deel == "Reviews":
             winkel_reviews()
+            return
+        if deel == "Overzicht":
+            st.markdown("**Winkel beheren**")
+            st.caption("Ontwerp je winkel, voeg producten toe en deel je winkeladres vanuit één plek.")
+            if st.button("Winkel aanpassen", icon=":material/edit:", width="stretch", key="shop_to_editor"):
+                st.session_state.webshop_deel = "Winkel"
+                st.rerun()
+            if st.button("Afspraken en beschikbaarheid", icon=":material/event:", width="stretch", key="shop_to_booking"):
+                st.session_state.webshop_deel = "Reserveren"
+                st.rerun()
+            if w.get("open"):
+                st.code(winkel_link(w["adres"]), language=None)
+                st.caption("Deellink van je openbare winkel.")
+            else:
+                st.info("Je winkel is nog niet openbaar. Open 'Winkel aanpassen' om deze te publiceren.")
             return
     if w:
         st.markdown("**Ontwerp en deel je winkel**")
