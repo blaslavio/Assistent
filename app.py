@@ -2420,6 +2420,39 @@ def vandaag_overzicht() -> None:
                 f'<img src="{avatar.adres(mijn_avatar())}" width="56" height="56" style="border-radius:50%;flex-shrink:0">'
                 f'<div><b>{html.escape(groet(nu))}</b><br><span style="opacity:.6">{html.escape(regel)}</span></div></div>',
                 unsafe_allow_html=True)
+    st.markdown("### Overzicht")
+    st.caption("Welkom terug in je centrale ondernemers- en studentenworkspace")
+    with st.container():
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            with st.container(border=True):
+                st.markdown("**Catalogus & voorraad**")
+                st.caption("Beheer producten, prijzen en voorraad.")
+                if st.button("Catalogus openen", key="home_catalogus", width="stretch"):
+                    ga_naar("webshop")
+                    st.rerun()
+        with col2:
+            with st.container(border=True):
+                st.markdown("**Team & rooster**")
+                st.caption("Bekijk diensten en personeelsplanning.")
+                if st.button("Rooster openen", key="home_rooster", width="stretch"):
+                    ga_naar("zakelijk")
+                    st.rerun()
+        with col3:
+            with st.container(border=True):
+                st.markdown("**Centrale documenten**")
+                st.caption("Open documenten met bestaande versiecontrole.")
+                if st.button("Documenten openen", key="home_documenten", width="stretch"):
+                    ga_naar("documenten")
+                    st.rerun()
+    st.markdown("### Snel starten & systeemactiviteit")
+    with st.container(border=True):
+        st.markdown("**AI Co-Pilot**")
+        st.caption("De assistent gebruikt alleen gegevens waarvoor toegang is verleend; "
+                   "er wordt geen realtime koppeling verondersteld.")
+        if st.button("Assistent openen", key="home_copilot", width="stretch"):
+            ga_naar("assistent")
+            st.rerun()
     st.session_state._ochtend_getoond = False
     if keuze["ochtend"]:
         ochtendoverzicht(nu, keuze)
