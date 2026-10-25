@@ -108,11 +108,11 @@ for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, r
 os.environ["TZ"] = "Europe/Amsterdam"
 time.tzset()
 
-st.set_page_config(page_title="SuperApp OS", page_icon=None, layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="SuperApp OS", page_icon=None, layout="centered", initial_sidebar_state="collapsed")
 # Consistent zakelijk design; bestaande pagina's, routing en acties blijven intact.
 st.markdown("""
 <style>
-.stApp { background-color: #fafafa; }\n[data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid #e4e4e7; }\n[data-testid="stSidebar"] a { border-radius: 6px; }\n[data-testid="stMainBlockContainer"] { max-width: 1400px; }\n.stButton > button { border-radius: 6px; }
+.stApp { background-color: #ffffff; }\n.app-title { font-size:1.25rem; font-weight:600; letter-spacing:-.03em; margin-bottom:2px; }\n.app-subtitle { font-size:.85rem; color:#71717a; margin-bottom:32px; }\n[data-testid="stChatMessage"] { background:transparent; border:none; padding:8px 0; }\n[data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid #e4e4e7; }\n[data-testid="stSidebar"] a { border-radius: 6px; }\n[data-testid="stMainBlockContainer"] { max-width: 1400px; }\n.stButton > button { border-radius: 6px; }
 [data-testid="stAppViewContainer"] h1,
 [data-testid="stAppViewContainer"] h2,
 [data-testid="stAppViewContainer"] h3,
@@ -2410,74 +2410,11 @@ def groet(nu: datetime) -> str:
 
 
 def vandaag_overzicht() -> None:
-    """De voorpagina: zo rustig mogelijk. Wat er staat, kies je bij Instellingen › Voorpagina en menu."""
-    nu = datetime.now()
-    keuze = voorpagina()
-    regel = f"{DAGEN[nu.weekday()].capitalize()} {nu.day} {MAANDEN[nu.month - 1]}"
-    if keuze["weer"] and (w := weer_kort()):
-        regel += f" · {w}"
-    st.markdown(f'<div style="display:flex;gap:14px;align-items:center;margin-bottom:8px">'
-                f'<img src="{avatar.adres(mijn_avatar())}" width="56" height="56" style="border-radius:50%;flex-shrink:0">'
-                f'<div><b>{html.escape(groet(nu))}</b><br><span style="opacity:.6">{html.escape(regel)}</span></div></div>',
+    """Minimalistische chat als startpagina, met behoud van de bestaande AI- en accountrechten."""
+    st.markdown('<div class="app-title">SuperApp OS</div>', unsafe_allow_html=True)
+    st.markdown('<div class="app-subtitle">Waar kan ik je vandaag mee helpen?</div>',
                 unsafe_allow_html=True)
-    st.markdown("### Overzicht")
-    st.caption("Welkom terug in je centrale ondernemers- en studentenworkspace")
-    with st.container():
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            with st.container(border=True):
-                st.markdown("**Catalogus & voorraad**")
-                st.caption("Beheer producten, prijzen en voorraad.")
-                if st.button("Catalogus openen", key="home_catalogus", width="stretch"):
-                    ga_naar("webshop")
-                    st.rerun()
-        with col2:
-            with st.container(border=True):
-                st.markdown("**Team & rooster**")
-                st.caption("Bekijk diensten en personeelsplanning.")
-                if st.button("Rooster openen", key="home_rooster", width="stretch"):
-                    ga_naar("zakelijk")
-                    st.rerun()
-        with col3:
-            with st.container(border=True):
-                st.markdown("**Centrale documenten**")
-                st.caption("Open documenten met bestaande versiecontrole.")
-                if st.button("Documenten openen", key="home_documenten", width="stretch"):
-                    ga_naar("documenten")
-                    st.rerun()
-    st.markdown("### Snel starten & systeemactiviteit")
-    with st.container(border=True):
-        st.markdown("**AI Co-Pilot**")
-        st.caption("De assistent gebruikt alleen gegevens waarvoor toegang is verleend; "
-                   "er wordt geen realtime koppeling verondersteld.")
-        if st.button("Assistent openen", key="home_copilot", width="stretch"):
-            ga_naar("assistent")
-            st.rerun()
-    st.session_state._ochtend_getoond = False
-    if keuze["ochtend"]:
-        ochtendoverzicht(nu, keuze)
-    if mail.gekoppeld() and "Mail" not in onderdelen_uit():
-        mail_voorstel("vandaag")
-    if keuze["startpunt"]:
-        startpunt()
-    if keuze["afspraken"]:
-        dagschema()
-    if samen.beschikbaar() and "Zakelijk" not in onderdelen_uit():
-        zaak_vandaag()
-    if samen.beschikbaar():
-        nieuw = samen_scherm.nieuw_kort()
-        if keuze["meldingen"]:
-            meldingen_blok(nieuw.get("meldingen", []))
-        if keuze["saldo"] and "Marktplaats" not in onderdelen_uit():
-            saldo_blok(nieuw.get("saldo"))
-    if keuze["budget"] and "Budget" not in onderdelen_uit() and samen.beschikbaar():
-        budget_blok()
-    if keuze["taken"]:
-        taken_blok()
-    if keuze["woning"]:
-        woning.knoppen(woning.scenes(), "vandaag")
-    if keuze["seintjes"]:
-        seintjes(nu)
+    gesprek()
 
 
 def zaak_vandaag() -> None:
@@ -4659,7 +4596,7 @@ def gesprek() -> None:
     if melding := st.session_state.pop("stem_melding", None):
         st.caption(f"{melding}")
     if not st.session_state.chat:
-        st.html('<p style="text-align:center;font-size:1.4rem;margin:12vh 0 1rem">Waarmee kan ik helpen?</p>')
+        st.markdown('**Waarmee kan ik helpen?**')
         if opslag.instellingen().get("voorbeeldvragen", True):
             with st.container(horizontal=True, horizontal_alignment="center", gap="small"):
                 for i, (kort_, vraag_) in enumerate(persoonlijke_suggesties().items()):
