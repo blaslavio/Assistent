@@ -604,7 +604,7 @@ def handelsafspraak_formulier(b: dict) -> None:
             locatie = st.text_input("Afgesproken ontmoetingsplek", max_chars=250,
                                     key=f"handel_locatie_{b['id']}",
                                     placeholder="Bijv. station of winkel")
-            if st.form_submit_button("Voorstel in beide agenda's delen", icon=":material/event_available:"):
+            if st.form_submit_button("Afspraakvoorstel versturen", icon=":material/event_available:"):
                 try:
                     uitkomst = handelsafspraak.plannen(
                         b, datetime.combine(dag, tijd), duur, locatie.strip())
@@ -788,9 +788,16 @@ def boekingen() -> None:
                         + (f" · :material/location_on: {b['plaats']}" if b["plaats"] else "") + (f"  \n:gray[{b['opmerking']}]" if b["opmerking"] else ""))
             kol1, kol2 = st.columns(2)
             start = datetime.fromisoformat(b["start"]).astimezone().strftime("%Y-%m-%dT%H:%M")
-            if (b["titel"], start) not in in_agenda and kol1.button("In mijn agenda", key=f"ag_{b['id']}", width="stretch"):
-                samen.in_agenda_zetten(b)
-                st.rerun()
+            if (b["titel"], start) not in in_agenda:
+                try:
+                    samen.in_agenda_zetten(b)
+                    in_agenda.add((b["titel"], start))
+                except Exception:
+                    if kol1.button("Opnieuw aan agenda toevoegen", key=f"ag_{b['id']}", width="stretch"):
+                        if _fout(samen.in_agenda_zetten, b) is not None:
+                            st.rerun()
+            else:
+                kol1.caption("Staat in je agenda")
             if kol2.button("Annuleren", key=f"ann_{b['id']}", width="stretch"):
                 samen.boeking_annuleren(b["id"])
                 st.toast("Geannuleerd. Laat de ander even weten waarom via 💬 Berichten.", icon="ℹ️")
