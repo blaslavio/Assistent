@@ -181,7 +181,7 @@ def beroep_instellingen() -> None:
                 kol_naam, kol_uitleg, kol_open = st.columns([3, 1.6, 1.5], gap="small",
                                                               vertical_alignment="center")
                 with kol_naam:
-                    st.markdown(f"{icoon} **{naam}**")
+                    st.markdown(f"**{naam}**")
                 with kol_uitleg:
                     with st.popover("Uitleg", icon=":material/help_outline:"):
                         st.write(uitleg)
