@@ -62,6 +62,22 @@ def pagina() -> None:
         boekhouding_deel()
 
 
+def rooster_pagina() -> None:
+    st.title("Rooster en planning")
+    st.caption("Beheer lessen en beschikbaarheid.")
+    rooster_deel()
+
+
+def klanten_pagina() -> None:
+    st.title("Klanten")
+    klanten_deel()
+
+
+def boekhouding_pagina() -> None:
+    st.title("Boekhouding en omzet")
+    boekhouding_deel()
+
+
 # --- Beroep (Instellingen › Werk) --------------------------------------------------------------------------------------
 
 # Waar een hulpmiddel opent: (pagina, sleutel van het onderdeel op die pagina, welk onderdeel).
@@ -91,88 +107,39 @@ def beroep_instellingen() -> None:
     _melding()
     st.markdown("#### Mijn onderneming")
     st.caption("Richt je verkoop, afspraken en vakgereedschap in vanuit één plek.")
-    st.html("""
-    <style>
-    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) {
-        border: 1px solid rgba(128,128,128,.17);
-        border-radius: 17px;
-        background: rgba(130,135,150,.055);
-        overflow: hidden;
-        gap: 0 !important;
-    }
-    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) button {
-        display: block !important;
-        position: relative !important;
-        box-sizing: border-box !important;
-        width: 100% !important;
-        min-width: 0 !important;
-        min-height: 56px !important;
-        padding: 12px 20px 12px 62px !important;
-        border: 0 !important;
-        border-radius: 0 !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        text-align: left !important;
-    }
-    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) button [data-testid="stIconMaterial"] {
-        position: absolute !important;
-        left: 20px !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        margin: 0 !important;
-    }
-    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) button [data-testid="stMarkdownContainer"],
-    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) button [data-testid="stMarkdownContainer"] p {
-        display: block !important;
-        box-sizing: border-box !important;
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: none !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        text-align: left !important;
-        white-space: normal !important;
-        word-break: normal !important;
-        overflow-wrap: normal !important;
-    }
-    :is(.st-key-onderneming_snel, .st-key-onderneming_planning) [data-testid="stButton"] + [data-testid="stButton"] {
-        border-top: 1px solid rgba(128,128,128,.14);
-    }
-    </style>
-    """)
-    st.caption("Tik op een hulpmiddel om het te openen. Het vraagteken legt uit wat het doet.")
-    with st.expander("Wat kunnen deze hulpmiddelen?", icon=":material/help_outline:"):
-        st.markdown("**Webshop:** maak een winkel en beheer producten, prijzen en publicatie.")
-        st.markdown("**Bestellingen:** bekijk verkopen en leveringen.")
-        st.markdown("**Werkrooster:** plan lessen, diensten en werktijden.")
-        st.markdown("**Omzet:** bekijk financiële overzichten en boekhouding.")
-    st.markdown("**Webshop en verkoop**")
-    st.caption("Je winkel, bestellingen en diensten.")
-    with st.container(key="onderneming_snel"):
-        if st.button("Mijn webshop", icon=":material/storefront:", width="stretch", type="tertiary", key="bedrijf_shop"):
-            _openen("webshop", "webshop")
-            st.rerun()
-        if st.button("Bestellingen", icon=":material/local_shipping:", width="stretch", type="tertiary", key="bedrijf_orders"):
-            _openen("webshop", "verzenden")
-            st.rerun()
-        if st.button("Afspraken en diensten", icon=":material/event_available:", width="stretch", type="tertiary", key="bedrijf_book"):
-            _openen("boekingen", "boekingen")
-            st.rerun()
-    st.markdown("**Bedrijfsvoering en planning**")
-    with st.container(key="onderneming_planning"):
-        if st.button("Werkrooster en planning", icon=":material/calendar_month:", width="stretch", key="bedrijf_rooster"):
-            _openen("zakelijk", "werkrooster")
-            st.rerun()
-        if st.button("Webshop ontwerpen", icon=":material/design_services:", width="stretch", key="bedrijf_ontwerpen"):
-            _openen("webshop", "webshop")
-            st.rerun()
-        if st.button("Bestaande winkel koppelen", icon=":material/link:", width="stretch", key="bedrijf_integratie"):
-            _openen("instellingen", "integraties")
-            st.rerun()
-        if st.button("Omzet en bedrijfsresultaten", icon=":material/monitoring:", width="stretch", key="bedrijf_omzet"):
-            _openen("zakelijk", "omzet")
-            st.rerun()
-    st.caption("De assistent kan adviseren over je winkelindeling en verkoopresultaten op basis van beschikbare bedrijfsgegevens.")
+    st.caption("Elk onderdeel heeft een eigen werkruimte en instellingen.")
+    groepen = [
+        ("Planning en afspraken", [
+            ("Werkrooster", "Plan werktijden en beschikbaarheid.", "rooster", ":material/calendar_month:"),
+            ("Lesrooster", "Beheer lessen en deelnemers.", "rooster", ":material/school:"),
+            ("Boekingen", "Beheer je boekingspagina en afspraken.", "boekingen", ":material/event_available:"),
+        ]),
+        ("Winkel en verkoop", [
+            ("Winkelbouwer", "Bewerk en publiceer je winkel.", "webshop", ":material/storefront:"),
+            ("Producten", "Beheer je assortiment en voorraad.", "webshop", ":material/inventory_2:"),
+            ("Bestellingen", "Bekijk verkopen en leveringen.", "bestellingen", ":material/receipt_long:"),
+            ("Tweedehands", "Verkoop gebruikte kleding.", "winkelen", ":material/checkroom:"),
+        ]),
+        ("Administratie", [
+            ("Klanten", "Bekijk klanten en afspraken.", "klantenbeheer", ":material/groups:"),
+            ("Boekhouding", "Beheer inkomsten en uitgaven.", "boekhoudingbeheer", ":material/account_balance:"),
+            ("Omzet", "Bekijk financiële overzichten.", "boekhoudingbeheer", ":material/monitoring:"),
+        ]),
+    ]
+    for titel, tools in groepen:
+        st.markdown(f"**{titel}**")
+        for naam, uitleg, route, icoon in tools:
+            with st.container(border=True):
+                st.markdown(f"{icoon} **{naam}**")
+                st.caption(uitleg)
+                if st.button(f"{naam} openen", key=f"bedrijf_navigatie_{naam}",
+                             icon=":material/arrow_forward:", width="stretch"):
+                    if naam == "Producten":
+                        st.session_state["_winkel_startdeel"] = "Producten"
+                    elif naam == "Tweedehands":
+                        st.session_state["_winkelen_volgende_deel"] = "tweedehands"
+                    st.session_state.ga_naar = route
+                    st.rerun()
     st.markdown("**Vakgebied en specialisatie**")
     st.caption("Selecteer jouw vakgebied. Je kunt ook een eigen specialisatie invoeren.")
     b = beroep.huidig()
