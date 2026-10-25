@@ -2414,6 +2414,11 @@ def vandaag_overzicht() -> None:
     st.markdown('<div class="app-title">SuperApp OS</div>', unsafe_allow_html=True)
     st.markdown('<div class="app-subtitle">Waar kan ik je vandaag mee helpen?</div>',
                 unsafe_allow_html=True)
+    st.markdown("### Agenda van vandaag")
+    dagschema()
+    if st.button("Volledige agenda openen", key="home_agenda_open", width="stretch"):
+        ga_naar("agenda")
+    st.divider()
     gesprek()
 
 
