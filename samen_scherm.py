@@ -14,6 +14,7 @@ import bestanden
 import toegang
 import opslag
 import plannen_scherm
+import handelsafspraak
 import ruimte
 import kort
 import samen
@@ -577,6 +578,48 @@ def bestellingen() -> None:
         bestelling_kaart(b)
 
 
+def handelsafspraak_formulier(b: dict) -> None:
+    """Na akkoord een tijd voorstellen en de andere partij in diens agenda uitnodigen."""
+    if b.get("status") not in handelsafspraak.AFSPRAAK_STATUSES:
+        return
+    if b.get("levering") in ("verzenden", "bezorgen"):
+        if b.get("bezorgen_van"):
+            st.caption("Het verwachte bezorgmoment staat bij de verzendinformatie. "
+                       "Een bezorgvenster is geen onderling bevestigde afspraak.")
+        return
+    bestaand = handelsafspraak.bestaande(b["id"])
+    if bestaand:
+        st.caption("Afspraakvoorstel staat in je agenda. De andere partij ontvangt een uitnodiging.")
+        return
+    with st.expander("Overdracht of ontmoeting plannen", icon=":material/event:"):
+        st.caption("Jullie zijn akkoord over de bestelling. Stel nu een tijd voor; "
+                   "de andere partij moet de agenda-uitnodiging nog accepteren.")
+        with st.form(f"handel_afspraak_{b['id']}", border=False):
+            dag = st.date_input("Datum", value=date.today() + timedelta(days=1),
+                                min_value=date.today(), key=f"handel_dag_{b['id']}")
+            tijd = st.time_input("Tijd", value=datetime.now().replace(hour=12, minute=0).time(),
+                                 step=900, key=f"handel_tijd_{b['id']}")
+            duur = st.selectbox("Duur", [15, 30, 45, 60, 90, 120], index=1,
+                                format_func=lambda m: f"{m} minuten", key=f"handel_duur_{b['id']}")
+            locatie = st.text_input("Afgesproken ontmoetingsplek", max_chars=250,
+                                    key=f"handel_locatie_{b['id']}",
+                                    placeholder="Bijv. station of winkel")
+            if st.form_submit_button("Voorstel in beide agenda's delen", icon=":material/event_available:"):
+                try:
+                    uitkomst = handelsafspraak.plannen(
+                        b, datetime.combine(dag, tijd), duur, locatie.strip())
+                except (ValueError, samen.Fout) as fout:
+                    st.error(str(fout))
+                except Exception:
+                    st.error("Uitnodigen is niet gelukt. Er is geen afspraak opgeslagen.")
+                else:
+                    if uitkomst["nieuw"]:
+                        st.success("Afspraak in je agenda gezet en uitnodiging verstuurd. "
+                                   "De andere partij kan deze accepteren of weigeren.")
+                    else:
+                        st.info("Dit voorstel staat al in je agenda.")
+
+
 def bestelling_kaart(b: dict) -> None:
     koper = b["rol"] == "koper"
     app = b["betaalwijze"] == "app"
@@ -592,6 +635,7 @@ def bestelling_kaart(b: dict) -> None:
             st.caption(v)
         verzenden_regel(b)
         bezorg_regel(b)
+        handelsafspraak_formulier(b)
         if b.get("webshop") and not koper and b.get("commissie") is not None:
             st.caption(f"Webshopcommissie {samen.euro(b['commissie'])}, je ontvangt "
                        f"{samen.euro(b['bedrag'] - b['commissie'])}.")
