@@ -22,6 +22,11 @@ def verkoper() -> bool:
     return ik().get("id") == 1 or ik().get("niveau") in ("verkoper", "ondernemer")
 
 
+def _open_onderdeel(onderdeel: str) -> None:
+    """Navigeer zonder de toestand van een reeds gemaakte Streamlit-widget te wijzigen."""
+    st.session_state["_winkelen_volgende_deel"] = onderdeel
+
+
 def pagina() -> None:
     if not samen.beschikbaar():
         st.info("Winkelen werkt alleen in de online versie.")
@@ -36,7 +41,12 @@ def pagina() -> None:
         st.success(f"Besteld: {samen.euro(betaald['bedrag'])}. Rond je betaling af.")
         if betaald.get("betaallink"):
             st.link_button("Nu betalen", betaald["betaallink"], type="primary", width="stretch")
-    delen = list(DELEN) if verkoper() else ["buurt", "producten", "mandje", "bestellingen"]
+    delen = list(DELEN) if verkoper() else [d for d in DELEN if d != "winkel"]
+    volgend = st.session_state.pop("_winkelen_volgende_deel", None)
+    if volgend in delen:
+        st.session_state["winkelen_deel"] = volgend
+    elif st.session_state.get("winkelen_deel") not in delen:
+        st.session_state["winkelen_deel"] = "buurt"
     n = winkelen.aantal_in_mandje()
     deel = st.selectbox(
         "Winkelonderdeel", delen, key="winkelen_deel",
@@ -67,18 +77,25 @@ def pagina() -> None:
 
 
 def ontdekken() -> None:
-    st.subheader("Ontdek")
-    st.caption("Kies een categorie om gericht te zoeken.")
+    """Zakelijk, links uitgelijnd startpunt met herkenbare iconen en duidelijke routes."""
+    st.subheader("Winkelen")
+    st.caption("Ontdek aanbod, bestel eten of koop en verkoop tweedehands artikelen.")
     opties = [
-        ("Winkels", "winkels", ":material/storefront:"),
-        ("Eten bestellen", "eten", ":material/restaurant:"),
-        ("Tweedehands", "tweedehands", ":material/checkroom:"),
-        ("Producten", "producten", ":material/shopping_bag:"),
+        ("Winkels", "winkels", ":material/storefront:", "Bekijk winkels en hun assortiment."),
+        ("Eten bestellen", "eten", ":material/restaurant:", "Zoek restaurants en beschikbare bezorgopties."),
+        ("Tweedehands", "tweedehands", ":material/checkroom:", "Vind kleding en andere artikelen van verkopers."),
+        ("Producten", "producten", ":material/shopping_bag:", "Zoek producten van verschillende winkels."),
+        ("Mandje", "mandje", ":material/shopping_cart:", "Bekijk je artikelen en reken af."),
+        ("Bestellingen", "bestellingen", ":material/receipt_long:", "Volg eerdere en lopende bestellingen."),
     ]
-    for naam, doel, icoon in opties:
-        if st.button(naam, icon=icoon, key=f"ontdek_{doel}", width="stretch"):
-            st.session_state.winkelen_deel = doel
-            st.rerun()
+    if verkoper():
+        opties.append(("Mijn winkel", "winkel", ":material/store:", "Beheer je winkel en verkooptools."))
+    for naam, doel, icoon, uitleg in opties:
+        with st.container(border=True):
+            if st.button(naam, icon=icoon, key=f"ontdek_{doel}", width="stretch"):
+                _open_onderdeel(doel)
+                st.rerun()
+            st.caption(uitleg)
 
 
 def inkopen() -> None:

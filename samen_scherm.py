@@ -945,6 +945,13 @@ def mijn_webshop(inkopen=None) -> None:
         delen = ["Overzicht", "Winkel", "Producten", "Tweedehands", "Bestellingen", "Reserveren", "Marketing", "Reviews"]
         if inkopen:
             delen.insert(2, "Inkopen")
+        # Een selectbox-key mag niet na het renderen van de widget worden gewijzigd.
+        # Navigatieknoppen schrijven daarom naar een tijdelijke keuze voor de volgende run.
+        volgend = st.session_state.pop("_webshop_volgende_deel", None)
+        if volgend in delen:
+            st.session_state["webshop_deel"] = volgend
+        elif st.session_state.get("webshop_deel") not in delen:
+            st.session_state["webshop_deel"] = "Overzicht"
         deel = st.selectbox("Winkelonderdeel", delen,
                             index=None, placeholder="Kies een onderdeel",
                             key="webshop_deel", help="Open alleen het onderdeel dat je nodig hebt. "
@@ -984,15 +991,15 @@ def mijn_webshop(inkopen=None) -> None:
             for tekst, bestemming, icoon in acties:
                 if st.button(tekst, icon=icoon, key=f"winkel_snel_{bestemming}",
                              width="stretch", type="secondary"):
-                    st.session_state.webshop_deel = bestemming
+                    st.session_state["_webshop_volgende_deel"] = bestemming
                     st.rerun()
             st.markdown("**Winkel beheren**")
             st.caption("Ontwerp je winkel, voeg producten toe en deel je winkeladres vanuit één plek.")
             if st.button("Winkel aanpassen", icon=":material/edit:", width="stretch", key="shop_to_editor"):
-                st.session_state.webshop_deel = "Winkel"
+                st.session_state["_webshop_volgende_deel"] = "Winkel"
                 st.rerun()
             if st.button("Afspraken en beschikbaarheid", icon=":material/event:", width="stretch", key="shop_to_booking"):
-                st.session_state.webshop_deel = "Reserveren"
+                st.session_state["_webshop_volgende_deel"] = "Reserveren"
                 st.rerun()
             if w.get("open"):
                 st.code(winkel_link(w["adres"]), language=None)
