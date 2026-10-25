@@ -3573,6 +3573,37 @@ def instellingen_tabblad() -> None:
     [class*="st-key-instellingen_groep_"] [data-testid="stButton"] {
         margin: 0 !important;
     }
+    /* Profielfoto en profielactie vormen één compacte rij. */
+    .st-key-instellingen_profiel [data-testid="stHorizontalBlock"] {
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 6px 12px !important;
+    }
+    .st-key-instellingen_profiel [data-testid="stColumn"]:first-child {
+        flex: 0 0 46px !important;
+        width: 46px !important;
+        min-width: 46px !important;
+    }
+    .st-key-instellingen_profiel [data-testid="stColumn"]:last-child {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+    .st-key-instellingen_profiel [data-testid="stColumn"]:first-child [data-testid="stMarkdownContainer"] {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: rgba(130,135,150,.14);
+        font-size: 27px;
+    }
+    .st-key-instellingen_profiel [data-testid="stColumn"]:first-child img {
+        width: 44px !important;
+        height: 44px !important;
+        object-fit: cover;
+        border-radius: 50%;
+    }
     /* Streamlit buttons contain an icon and a markdown wrapper. Grid can shrink
        the markdown wrapper to a few characters on mobile: use flex instead. */
     .st-key-instellingen_profiel button,
@@ -3650,12 +3681,26 @@ def instellingen_tabblad() -> None:
     st.markdown("## Instellingen")
     st.caption("Persoonlijk overzicht")
     naam = gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Mijn profiel"
+    # De profielfoto is al opgeslagen via Account > Profielfoto; hergebruik
+    # dezelfde opslag en toon bij nieuwe accounts een neutrale avatar.
     with st.container(key="instellingen_profiel"):
-        if st.button(str(naam) + "  ·  Profiel en account",
-                     icon=":material/account_circle:", key="inst_profiel",
-                     type="tertiary", width="stretch"):
-            kies("Account")
-            st.rerun()
+        profiel_foto = None
+        if gebruiker.get("id") and gebruiker.get("heeft_foto"):
+            try:
+                profiel_foto = opslag.profielfoto(gebruiker["id"])
+            except Exception:
+                profiel_foto = None
+        avatar_col, profiel_col = st.columns([1, 8], vertical_alignment="center", gap="small")
+        with avatar_col:
+            if profiel_foto:
+                st.image(profiel_foto, width=44)
+            else:
+                st.markdown(":material/account_circle:")
+        with profiel_col:
+            if st.button(str(naam) + "  ·  Profiel bewerken",
+                         key="inst_profiel", type="tertiary", width="stretch"):
+                kies("Account")
+                st.rerun()
 
     groepen = [
         ("Algemeen", [("Weergave", "Algemene instellingen", ":material/tune:"),
