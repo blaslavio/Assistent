@@ -18,6 +18,7 @@ class ShoppingHubTests(unittest.TestCase):
 
     def test_mobile_navigation(self):
         self.assertIn('st.selectbox(', functions["pagina"])
+        self.assertIn('if volgend in delen:', functions["pagina"])
         self.assertIn('_open_onderdeel(doel)', functions["ontdekken"])
         self.assertIn('st.session_state["_winkelen_volgende_deel"] = onderdeel', functions["_open_onderdeel"])
         self.assertIn('st.session_state["winkelen_deel"] = volgend', functions["pagina"])
