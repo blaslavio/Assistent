@@ -5173,120 +5173,57 @@ def paginas() -> list:
     return list(PAGINA.values())
 
 
+def chat_communicatie_instellingen() -> None:
+    """Eén centraal instellingenmenu voor chat, community en gerelateerde acties."""
+    with st.expander("Chat, community & privacy", icon=":material/tune:", expanded=False):
+        st.caption("Beheer hier je profiel, bereikbaarheid, afspraken en betalingen.")
+        onderdelen = [
+            ("Mijn profiel", ":material/manage_accounts:", "instellingen", "Account"),
+            ("Privacy & blokkeren", ":material/shield:", "instellingen", "Privacy en beveiliging"),
+            ("Community & contacten", ":material/groups:", "chat", None),
+            ("Verkopers & klanten", ":material/storefront:", "berichten", None),
+            ("Agenda & delen", ":material/calendar_month:", "agenda", None),
+            ("Boekingen & betalingen", ":material/payments:", "boekingen", None),
+        ]
+        for naam, icoon, route, groep in onderdelen:
+            if route not in PAGINA:
+                continue
+            if st.button(naam, icon=icoon, key=f"chat_inst_{route}_{groep}",
+                         width="stretch"):
+                if groep:
+                    st.session_state.inst_groep = groep
+                ga_naar(route)
+
+
 def chat_met_profiel() -> None:
-    """Chat met directe toegang tot profiel, privacy en agenda delen."""
-    links, midden, rechts = st.columns(3, gap="small")
-    with links:
-        if st.button("Profiel", icon=":material/manage_accounts:",
-                     key="chat_naar_profiel", width="stretch"):
-            st.session_state.inst_groep = "Account"
-            ga_naar("instellingen")
-    with midden:
-        if st.button("Privacy", icon=":material/shield:",
-                     key="chat_naar_privacy", width="stretch"):
-            st.session_state.inst_groep = "Privacy en beveiliging"
-            ga_naar("instellingen")
-    with rechts:
-        with st.popover("Agenda delen", icon=":material/calendar_month:",
-                        use_container_width=True):
-            st.caption("Kies wie je agenda mag zien. Standaard worden alleen bezette tijden gedeeld.")
-            try:
-                situatie = samen.agenda_deelsituatie()
-                gedeeld = situatie.get("ik_deel_met", [])
-                for item in gedeeld:
-                    with st.container(horizontal=True, vertical_alignment="center"):
-                        st.caption(item.get("naam", "Contact"))
-                        if st.button("Stop", key=f"chat_agenda_stop_{item['id']}",
-                                     icon=":material/close:"):
-                            samen.agenda_delen_stoppen(item["id"])
-                            st.rerun()
-                with st.form("chat_agenda_delen", clear_on_submit=True):
-                    gebruiker = st.text_input("Gebruikersnaam", placeholder="Bijv. sanne")
-                    details = st.checkbox("Ook titel en locatie delen", value=False)
-                    if st.form_submit_button("Agenda delen", type="primary"):
-                        if not gebruiker.strip():
-                            st.warning("Vul een gebruikersnaam in.")
-                        else:
-                            try:
-                                samen.agenda_delen(gebruiker.strip(), "details" if details else "bezet")
-                                st.success("Agenda gedeeld.")
-                            except Exception as fout:
-                                st.error(str(fout))
-            except Exception:
-                st.info("Agenda delen vereist een actieve accountverbinding.")
-    with st.expander("Chatinstellingen", icon=":material/settings:", expanded=False):
-        st.caption("Beheer je account, betalingen en boekingen vanuit de chat.")
-        col1, col2 = st.columns(2, gap="small")
-        with col1:
-            if st.button("Betalingen", icon=":material/payments:",
-                         key="chat_betaalinstellingen", width="stretch"):
-                ga_naar("boekingen")
-        with col2:
-            if "boekingen" in PAGINA:
-                if st.button("Boekingen", icon=":material/event_note:",
-                             key="chat_boekingen", width="stretch"):
-                    ga_naar("boekingen")
-            else:
-                st.caption("Boekingen zijn niet beschikbaar.")
+    """Chat met één herkenbare ingang voor alle communicatie-instellingen."""
+    chat_communicatie_instellingen()
     chat.pagina()
 
 
 def communicatie_hub() -> None:
-    """Centraal communicatiepunt voor doelgroepen, profiel, agenda en assistent."""
-    st.markdown("## Chat & communicatie")
-    st.caption("Beheer gesprekken en ga direct naar je profiel en afspraken.")
-
-    st.markdown("#### Profiel & privacy")
-    links, rechts = st.columns(2)
-    with links:
-        if st.button("Profiel wijzigen", icon=":material/manage_accounts:",
-                     key="chat_profiel", width="stretch"):
-            st.session_state.inst_groep = "Account"
-            ga_naar("instellingen")
-            st.rerun()
-    with rechts:
-        if st.button("Privacy beheren", icon=":material/shield:",
-                     key="chat_privacy", width="stretch"):
-            st.session_state.inst_groep = "Privacy en beveiliging"
-            ga_naar("instellingen")
-            st.rerun()
-    st.caption("Beheer je profiel, privacy en geblokkeerde contacten.")
-
-    st.markdown("#### Boekingen & betalingen")
-    links_b, rechts_b = st.columns(2, gap="small")
-    with links_b:
-        if st.button("Betalingen", icon=":material/payments:",
-                     key="hub_betalen", width="stretch"):
-            ga_naar("boekingen")
-    with rechts_b:
-        if "boekingen" in PAGINA:
-            if st.button("Boekingen", icon=":material/event_note:",
-                         key="hub_boekingen", width="stretch"):
-                ga_naar("boekingen")
-
+    """Eén overzicht voor gesprekken, community, privacy en boekingen."""
+    st.markdown("## Chat & community")
+    st.caption("Gesprekken, contacten en instellingen op één plek.")
+    chat_communicatie_instellingen()
     st.markdown("#### Gesprekken")
-    opties = [
-        ("Verkopers en klanten", "berichten", ":material/storefront:",
-         "Berichten over producten en bestellingen"),
-        ("Community en contacten", "chat", ":material/groups:",
-         "Groepen en persoonlijke gesprekken"),
-        ("E-mail", "mail", ":material/mail:", "Je gekoppelde mailbox"),
-    ]
-    for naam, route, icoon, uitleg in opties:
-        if route in PAGINA:
-            if st.button(naam, icon=icoon, key=f"hub_chat_{route}", width="stretch"):
-                ga_naar(route)
-            st.caption(uitleg)
-    if "chat" not in PAGINA or "berichten" not in PAGINA:
-        st.info("Voor community- en verkoperschat is een actieve online verbinding nodig.")
-
-    st.markdown("#### Agenda & assistent")
     for naam, route, icoon in [
-        ("Mijn agenda", "agenda", ":material/calendar_month:"),
+        ("Mijn chats", "chat", ":material/forum:"),
+        ("Verkopers & klanten", "berichten", ":material/storefront:"),
+        ("E-mail", "mail", ":material/mail:"),
+    ]:
+        if route in PAGINA:
+            if st.button(naam, icon=icoon, key=f"communicatie_{route}", width="stretch"):
+                ga_naar(route)
+    st.markdown("#### Planning & assistent")
+    for naam, route, icoon in [
+        ("Agenda", "agenda", ":material/calendar_month:"),
+        ("Boekingen & betalingen", "boekingen", ":material/payments:"),
         ("AI-assistent", "assistent", ":material/smart_toy:"),
     ]:
         if route in PAGINA:
-            if st.button(naam, icon=icoon, key=f"hub_tool_{route}", width="stretch"):
+            if st.button(naam, icon=icoon, key=f"communicatie_tool_{route}",
+                         width="stretch"):
                 ga_naar(route)
 
 
@@ -5297,7 +5234,7 @@ def superapp_navigatie() -> None:
         ("Vandaag", "vandaag"),
         ("Chat", "chat"),
         ("AI-assistent", "assistent"),
-        ("Mail & Chat", "communicatie"),
+        ("Chat & community", "communicatie"),
         ("Agenda", "agenda"),
         ("Documenten", "documenten"),
         ("Leren", "leren"),
