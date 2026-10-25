@@ -888,6 +888,7 @@ def mijn_webshop(inkopen=None) -> None:
         c.metric("Producten", len([p for p in producten if p.get("actief") and not p.get("geblokkeerd")]))
         st.caption("Omzet en bestellingen zijn gebaseerd op geregistreerde verkopen in deze app. "
                    "Verkopen via externe winkels tellen niet mee.")
+        st.caption("Beheer je winkel, voorraad, verkopen en afspraken vanuit één plek.")
         delen = ["Overzicht", "Winkel", "Producten", "Tweedehands", "Bestellingen", "Reserveren", "Marketing", "Reviews"]
         if inkopen:
             delen.insert(2, "Inkopen")
@@ -917,6 +918,19 @@ def mijn_webshop(inkopen=None) -> None:
             winkel_reviews()
             return
         if deel == "Overzicht":
+            st.markdown("**Snel naar**")
+            acties = [
+                ("Winkel ontwerpen", "Winkel", ":material/storefront:"),
+                ("Producten beheren", "Producten", ":material/inventory_2:"),
+                ("Tweedehands kleding", "Tweedehands", ":material/checkroom:"),
+                ("Bestellingen", "Bestellingen", ":material/receipt_long:"),
+                ("Afspraken", "Reserveren", ":material/event:"),
+            ]
+            for tekst, bestemming, icoon in acties:
+                if st.button(tekst, icon=icoon, key=f"winkel_snel_{bestemming}",
+                             width="stretch", type="secondary"):
+                    st.session_state.webshop_deel = bestemming
+                    st.rerun()
             st.markdown("**Winkel beheren**")
             st.caption("Ontwerp je winkel, voeg producten toe en deel je winkeladres vanuit één plek.")
             if st.button("Winkel aanpassen", icon=":material/edit:", width="stretch", key="shop_to_editor"):
