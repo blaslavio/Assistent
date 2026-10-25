@@ -573,7 +573,7 @@ def richting_css() -> None:
         st.html("<style>.stApp{direction:rtl}</style>")
 
 
-TEKSTGROOTTE = {"Normaal": 16, "Groot": 19, "Extra groot": 22}
+TEKSTGROOTTE = {"Klein": 13, "Normaal": 15, "Groot": 17, "Extra groot": 19}
 
 
 def toegankelijkheid_css() -> None:
@@ -583,9 +583,9 @@ def toegankelijkheid_css() -> None:
     except Exception:
         return
     css = []
-    if (px := TEKSTGROOTTE.get(t.get("tekst"), 16)) != 16:
-        css.append(f"html{{font-size:{px}px}} .stApp p,.stApp li,.stApp label,.stApp input,.stApp textarea,"
-                   f".stApp button{{font-size:{px}px}}")
+    if (px := TEKSTGROOTTE.get(t.get("tekst"), 15)) != 15:
+        css.append(f".stApp p,.stApp li,.stApp label,.stApp input,.stApp textarea,"
+                   f".stApp button,.stApp [data-testid=stMarkdownContainer]{{font-size:{px}px!important}}")
     if t.get("contrast"):
         css.append("[data-testid=stCaptionContainer],.stApp small{opacity:1!important;color:inherit!important}"
                    ".stApp a{text-decoration:underline!important}"
@@ -601,6 +601,8 @@ def toegankelijkheid_css() -> None:
 
 def toegankelijkheid_instellingen() -> None:
     t = {"tekst": "Normaal", "contrast": False, "minder_beweging": False} | (opslag.instellingen().get("toegankelijk") or {})
+    if t["tekst"] not in TEKSTGROOTTE:
+        t["tekst"] = "Normaal"
     nieuw = {
         "tekst": st.segmented_control("Tekstgrootte", list(TEKSTGROOTTE), default=t["tekst"], key="tg_tekst") or t["tekst"],
         "contrast": st.toggle("Meer contrast", value=t["contrast"], key="tg_contrast",
