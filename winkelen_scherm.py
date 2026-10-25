@@ -63,6 +63,22 @@ def pagina() -> None:
         samen_scherm.mijn_webshop(inkopen=inkopen)
 
 
+
+def ontdekken() -> None:
+    st.subheader("Ontdek")
+    st.caption("Kies een categorie om gericht te zoeken.")
+    opties = [
+        ("Winkels", "winkels", ":material/storefront:"),
+        ("Eten bestellen", "eten", ":material/restaurant:"),
+        ("Tweedehands", "tweedehands", ":material/checkroom:"),
+        ("Producten", "producten", ":material/shopping_bag:"),
+    ]
+    for naam, doel, icoon in opties:
+        if st.button(naam, icon=icoon, key=f"ontdek_{doel}", width="stretch"):
+            st.session_state.winkelen_deel = doel
+            st.rerun()
+
+
 def inkopen() -> None:
     """Inkopen bij groothandels: een eigen plek binnen Mijn winkel (en bij Dienstverlener)."""
     plek_kiezen()
