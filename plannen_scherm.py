@@ -1043,6 +1043,10 @@ def boek_pagina(adres: str) -> None:
     wachttijd = max(0, 20 - (_booking_time.monotonic() - st.session_state.get("_boek_laatste_poging", -1e9)))
     if wachttijd > 0:
         st.caption("Je kunt over enkele seconden opnieuw een afspraak aanvragen.")
+    st.html("""<style>
+    .st-key-boek_website {position:absolute!important;left:-10000px!important;
+      width:1px!important;height:1px!important;overflow:hidden!important}
+    </style>""")
     with st.form("boek_form"):
         naam = st.text_input("Je naam", max_chars=60)
         email = st.text_input("E-mail", max_chars=120)
