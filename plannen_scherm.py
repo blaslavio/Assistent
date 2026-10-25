@@ -1042,14 +1042,14 @@ def boek_dialoog() -> None:
             eigen_duur = k1.toggle("Tijd zelf instellen", value=oud["minuten"] not in MINUTEN,
                                     key=f"boeksoort_eigen_duur_{i}")
             if eigen_duur:
-                minuten = k1.number_input("Duur in minuten", min_value=5, max_value=240,
-                                          value=max(5, min(240, int(oud["minuten"]))),
-                                          step=5, key=f"boeksoort_min_handmatig_{i}")
+                minuten = k1.number_input("Duur in minuten", min_value=1, max_value=480,
+                                          value=max(1, min(480, int(oud["minuten"]))),
+                                          step=1, key=f"boeksoort_min_handmatig_{i}")
             else:
                 minuten = k1.selectbox("Duur", MINUTEN, key=f"boeksoort_min_{i}",
                                        index=MINUTEN.index(oud["minuten"]) if oud["minuten"] in MINUTEN else 2,
                                        format_func=_duur)
-            prijs = k2.number_input("Prijs (€)", min_value=0.0, max_value=10000.0, step=5.0,
+            prijs = k2.number_input("Prijs (€)", min_value=0.0, max_value=10000.0, step=0.01,
                                     format="%.2f", value=(oud.get("prijs") or 0) / 100,
                                     key=f"boeksoort_prijs_{i}", help="0 = gratis.")
         if naam.strip():
@@ -1059,7 +1059,7 @@ def boek_dialoog() -> None:
     dagen = st.pills("Op welke dagen?", range(1, 8), selection_mode="multi", default=sorted(dagen_nu),
                      format_func=lambda d: DAGEN[d - 1])
     with st.container(horizontal=True, gap="small"):
-        van = st.time_input("Beschikbaar vanaf", value=time.fromisoformat(eerste[0].zfill(5)), step=300)
+        van = st.time_input("Beschikbaar vanaf", value=time.fromisoformat(eerste[0].zfill(5)), step=60)
         tot = st.time_input("Beschikbaar tot", value=time.fromisoformat(eerste[1].zfill(5)), step=300)
     locatie = st.text_input("Waar", value=p["locatie"], placeholder="Adres of videobellen")
     with st.expander("Meer"):
