@@ -15,9 +15,10 @@ class BusinessWorkspaceTests(unittest.TestCase):
     def test_shop_access_precedes_profession(self):
         fn = next(n for n in ast.parse(ZAAK).body if isinstance(n, ast.FunctionDef) and n.name == "beroep_instellingen")
         source = ast.get_source_segment(ZAAK, fn)
-        self.assertLess(source.index("bedrijf_shop"), source.index('if not b["soort"]'))
-        self.assertIn('bedrijf_orders', source)
-        self.assertIn('bedrijf_book', source)
+        self.assertLess(source.index("Winkelbouwer"), source.index('if not b["soort"]'))
+        self.assertIn('"Bestellingen"', source)
+        self.assertIn('"Boekingen"', source)
+        self.assertIn('"rooster"', source)
 
     def test_custom_professions_get_shared_tools(self):
         self.assertIn('basis = ["werkrooster", "webshop", "integraties", "omzet", "klanten", "boekhouding"]', BEROEP)
