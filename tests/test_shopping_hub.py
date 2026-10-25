@@ -21,6 +21,7 @@ class ShoppingHubTests(unittest.TestCase):
         self.assertIn('_open_onderdeel(doel)', functions["ontdekken"])
         self.assertIn('st.session_state["_winkelen_volgende_deel"] = onderdeel', functions["_open_onderdeel"])
         self.assertIn('st.session_state["winkelen_deel"] = volgend', functions["pagina"])
+        self.assertIn('st.session_state.pop("_winkelen_volgende_deel", None)', functions["pagina"])
         self.assertNotIn('st.segmented_control("Winkelen"', functions["pagina"])
         self.assertNotIn("st.session_state.winkelen_deel = doel", functions["ontdekken"])
         self.assertLess(functions["pagina"].index('st.session_state["winkelen_deel"] = volgend'),
