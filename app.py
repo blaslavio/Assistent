@@ -1798,6 +1798,24 @@ def agenda_overzicht() -> None:
         if samen.beschikbaar():
             with st.popover("", icon=":material/share:", help="Agenda delen"):
                 agenda_delen_beheer()
+    with st.expander("Communicatie en afspraken", icon=":material/hub:", expanded=False):
+        st.caption("Eén plek voor persoonlijke afspraken, zakelijke boekingen en berichten.")
+        routes = [
+            ("Persoonlijke afspraak toevoegen", None, ":material/event:"),
+            ("Boekingen en diensten", "boekingen", ":material/event_available:"),
+            ("Chat en contacten", "chat", ":material/forum:"),
+            ("E-mail", "mail", ":material/mail:"),
+            ("Zakelijk", "zakelijk", ":material/business_center:"),
+        ]
+        for label, route, icoon in routes:
+            if route is None:
+                with st.popover(label, icon=icoon):
+                    afspraak_formulier("agenda_prive_nieuw")
+            elif route in PAGINA and st.button(label, icon=icoon, key=f"agenda_hub_{route}", width="stretch"):
+                ga_naar(route)
+        st.markdown("**Assistent voor je planning**")
+        snelle_assistent_vraag("agenda_hub")
+        st.caption("De assistent opent vanuit je agenda; afspraken worden pas na jouw bevestiging gewijzigd.")
     with st.expander("Voorstellen van de assistent", icon=":material/auto_awesome:"):
         st.caption("Bekijk vrije momenten op basis van je agenda. Voorstellen worden niet automatisch geboekt.")
         try:
