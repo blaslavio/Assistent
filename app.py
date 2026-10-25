@@ -5283,6 +5283,10 @@ def communicatie_hub() -> None:
         if route in PAGINA:
             if st.button(naam, icon=icoon, key=f"communicatie_{route}", width="stretch"):
                 ga_naar(route)
+    st.markdown("#### Reviews en opleidingen")
+    for naam, route, icoon in [("Reviews", "winkels", ":material/rate_review:"), ("Cursussen", "cursussen", ":material/school:"), ("Leren", "leren", ":material/menu_book:")]:
+        if route in PAGINA and st.button(naam, icon=icoon, key=f"community_extra_{route}", width="stretch"):
+            ga_naar(route)
     st.markdown("#### Planning & assistent")
     for naam, route, icoon in [
         ("Agenda", "agenda", ":material/calendar_month:"),
