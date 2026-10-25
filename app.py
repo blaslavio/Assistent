@@ -1813,6 +1813,21 @@ def agenda_overzicht() -> None:
                     afspraak_formulier("agenda_prive_nieuw")
             elif route in PAGINA and st.button(label, icon=icoon, key=f"agenda_hub_{route}", width="stretch"):
                 ga_naar(route)
+        with st.expander("Instellingen voor de agenda-assistent", icon=":material/settings:", expanded=False):
+            huidige = opslag.instellingen()
+            voorkeuren = ["Balans tussen werk en privé", "Werk eerst", "Privé eerst"]
+            gekozen = st.selectbox("Planningsvoorkeur", voorkeuren,
+                index=voorkeuren.index(huidige.get("agenda_advies_voorkeur"))
+                if huidige.get("agenda_advies_voorkeur") in voorkeuren else 0,
+                key="agenda_hub_voorkeur")
+            delen = st.checkbox("Agenda-overzicht gebruiken bij vragen aan de AI",
+                value=bool(st.session_state.get("assistent_context_agenda", False)),
+                key="agenda_hub_context_toestaan",
+                help="Toestemming geldt alleen voor deze sessie; de assistent mag geen afspraken zonder bevestiging wijzigen.")
+            if st.button("Voorkeur bewaren", key="agenda_hub_voorkeur_opslaan", width="stretch"):
+                opslag.instellingen_bijwerken(agenda_advies_voorkeur=gekozen)
+                st.session_state["assistent_context_agenda"] = delen
+                st.success("Planningsvoorkeur bewaard.")
         st.markdown("**Assistent voor je planning**")
         snelle_assistent_vraag("agenda_hub")
         st.caption("De assistent opent vanuit je agenda; afspraken worden pas na jouw bevestiging gewijzigd.")
