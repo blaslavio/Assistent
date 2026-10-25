@@ -135,7 +135,7 @@ def beroep_instellingen() -> None:
                 if st.button(f"{naam} openen", key=f"bedrijf_navigatie_{naam}",
                              icon=":material/arrow_forward:", width="stretch"):
                     if naam == "Producten":
-                        st.session_state["_winkel_startdeel"] = "Producten"
+                        st.session_state["_webshop_volgende_deel"] = "Producten"
                     elif naam == "Tweedehands":
                         st.session_state["_winkelen_volgende_deel"] = "tweedehands"
                     st.session_state.ga_naar = route
@@ -187,7 +187,7 @@ def beroep_instellingen() -> None:
             st.caption(naam)
             if st.button(f"{naam} openen", key=f"extra_{sleutel}", width="stretch"):
                 if sleutel in ("reviews", "marketing"):
-                    st.session_state["_winkel_startdeel"] = naam if sleutel == "reviews" else "Marketing"
+                    st.session_state["_webshop_volgende_deel"] = "Reviews" if sleutel == "reviews" else "Marketing"
                 st.session_state.ga_naar = route
                 st.rerun()
     klantvragen()
