@@ -1032,6 +1032,24 @@ def mijn_webshop(inkopen=None) -> None:
         c2.metric("Commissie betaald", samen.euro(v["commissie"]))
 
     st.markdown("### Winkelbouwer")
+    st.caption("Bouw je winkel stap voor stap: basisgegevens, producten, bezorging, promotie en publicatie.")
+    if w:
+        st.markdown("**Winkelgereedschap**")
+        acties = [
+            ("Product toevoegen", "Producten", ":material/add_box:"),
+            ("Voorraad beheren", "Producten", ":material/inventory_2:"),
+            ("Kortingen en promoties", "Marketing", ":material/local_offer:"),
+            ("Bestellingen beheren", "Bestellingen", ":material/receipt_long:"),
+            ("Afspraken en reserveringen", "Reserveren", ":material/event_available:"),
+        ]
+        for tekst, bestemming, icoon in acties:
+            if st.button(tekst, key=f"bouwer_naar_{tekst}", icon=icoon, width="stretch"):
+                st.session_state.webshop_deel = bestemming
+                st.rerun()
+    else:
+        st.info("Stap 1: geef je winkel een naam en sla deze als concept op. "
+                "Daarna kun je producten, voorraad, promoties en bestellingen beheren.")
+
     st.caption("Kies wat je wilt aanpassen. Je hoeft niet steeds door alle instellingen te scrollen.")
     gereedschap = {
         "Identiteit": (":material/badge:", "Naam, introductie en herkenbaarheid van je winkel."),
@@ -1045,6 +1063,20 @@ def mijn_webshop(inkopen=None) -> None:
     with st.popover("Wat kan ik hiermee?", icon=":material/help_outline:"):
         st.write(gereedschap[onderdeel][1])
         st.caption("Je wijzigingen worden pas bewaard wanneer je op Opslaan klikt.")
+    with st.expander("Voorbeeld van je winkelpagina", icon=":material/visibility:"):
+        import html
+        st.caption("Dit is een voorbeeld op basis van de laatst opgeslagen gegevens. "
+                   "Een andere stijl of accentkleur is pas zichtbaar na opslaan.")
+        st.markdown(
+            f'<section style="border:1px solid #d6d9df;border-top:5px solid '
+            f'{html.escape(w.get("kleur") or "#2563eb", quote=True)};'
+            f'padding:20px;border-radius:12px">'
+            f'<h3>{html.escape(w.get("naam") or "Naam van je winkel")}</h3>'
+            f'<p>{html.escape(w.get("omschrijving") or "Hier komt je winkelomschrijving.")}</p>'
+            f'</section>', unsafe_allow_html=True)
+        for product in (m.get("producten") or [])[:6]:
+            if product.get("in_winkel") and product.get("actief"):
+                st.write(f"{product.get('titel', 'Product')} — {samen.euro(product.get('prijs') or 0)}")
     with st.container(key="winkelbouwer_editor"):
         with st.form(f"winkel_{onderdeel}", border=False):
             naam = w.get("naam", "")
