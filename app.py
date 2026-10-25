@@ -5183,7 +5183,8 @@ def communicatie_hub() -> None:
     ]
     for naam, route, icoon, uitleg in opties:
         if route in PAGINA:
-            st.page_link(PAGINA[route], label=naam, icon=icoon, width="stretch")
+            if st.button(naam, icon=icoon, key=f"hub_chat_{route}", width="stretch"):
+                ga_naar(route)
             st.caption(uitleg)
     if "chat" not in PAGINA or "berichten" not in PAGINA:
         st.info("Voor community- en verkoperschat is een actieve online verbinding nodig.")
@@ -5194,7 +5195,8 @@ def communicatie_hub() -> None:
         ("AI-assistent", "assistent", ":material/smart_toy:"),
     ]:
         if route in PAGINA:
-            st.page_link(PAGINA[route], label=naam, icon=icoon, width="stretch")
+            if st.button(naam, icon=icoon, key=f"hub_tool_{route}", width="stretch"):
+                ga_naar(route)
 
 
 
