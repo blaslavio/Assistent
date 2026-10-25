@@ -2006,14 +2006,14 @@ def taken_inplannen(context: str = "taken") -> None:
                f"{' (ook in het weekend)' if uren['weekend'] else ' op werkdagen'}, vroegste deadline eerst.")
     if st.toggle("Tijden aanpassen", key=f"planuren_open_{context}"):
         with st.form(f"planuren_{context}", border=False):
-            van = st.time_input("Vanaf", value=kloktijd.fromisoformat(uren["van"]), step=1800)
-            tot = st.time_input("Tot", value=kloktijd.fromisoformat(uren["tot"]), step=1800)
-            weekend = st.checkbox("Ook in het weekend", value=uren["weekend"])
-            if st.form_submit_button("Opslaan") and van < tot:
+            van = st.time_input("Vanaf", key=f"plan_vanaf_{context}", value=kloktijd.fromisoformat(uren["van"]), step=1800)
+            tot = st.time_input("Tot", key=f"plan_tot_{context}", value=kloktijd.fromisoformat(uren["tot"]), step=1800)
+            weekend = st.checkbox("Ook in het weekend", key=f"plan_weekend_{context}", value=uren["weekend"])
+            if st.form_submit_button("Opslaan", key=f"plan_opslaan_{context}") and van < tot:
                 opslag.instellingen_bijwerken(planuren={"van": f"{van:%H:%M}", "tot": f"{tot:%H:%M}", "weekend": weekend})
                 st.session_state.pop("planvoorstel", None)
                 st.rerun()
-    if st.button("Maak een voorstel", width="stretch",
+    if st.button("Maak een voorstel", key=f"plan_voorstel_{context}", width="stretch",
                  type="secondary" if st.session_state.get("planvoorstel") else "primary"):
         st.session_state.planvoorstel = inplannen.voorstel()
     plan = st.session_state.get("planvoorstel")
@@ -2030,13 +2030,13 @@ def taken_inplannen(context: str = "taken") -> None:
         if regel.get("past_niet"):
             st.caption(f"{regel['past_niet']}")
     kol1, kol2 = st.columns(2)
-    if kol1.button("Zet in mijn agenda", type="primary", width="stretch",
+    if kol1.button("Zet in mijn agenda", key=f"plan_vastleggen_{context}", type="primary", width="stretch",
                    disabled=not any(r["blokken"] for r in plan)):
         aantal = inplannen.vastleggen(plan)
         st.session_state.pop("planvoorstel")
         st.toast(f"{aantal} {'blok' if aantal == 1 else 'blokken'} ingepland. Vink de taak af als hij klaar is.", icon="🎯")
         st.rerun()
-    if kol2.button("Annuleren", width="stretch"):
+    if kol2.button("Annuleren", key=f"plan_annuleren_{context}", width="stretch"):
         st.session_state.pop("planvoorstel")
         st.rerun()
 
