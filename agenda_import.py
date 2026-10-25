@@ -93,11 +93,15 @@ def uniek(nieuw: list[dict], bestaand: list[dict]) -> list[dict]:
 
 def conflicten(nieuw: list[dict], bestaand: list[dict]) -> list[dict]:
     """Detecteer overlappende tijdsloten; lees enkel tijdstippen, niet privé-inhoud."""
+    def lokaal(waarde: str) -> datetime:
+        moment = datetime.fromisoformat(waarde)
+        return moment.astimezone(LOCAL_ZONE).replace(tzinfo=None) if moment.tzinfo else moment
+
     aanwezig = []
     for item in bestaand:
         try:
-            begin = datetime.fromisoformat(item["start"])
-            einde = datetime.fromisoformat(item.get("einde") or item["start"])
+            begin = lokaal(item["start"])
+            einde = lokaal(item.get("einde") or item["start"])
             if einde <= begin:
                 einde = begin + timedelta(hours=1)
             aanwezig.append((begin, einde))
@@ -106,7 +110,7 @@ def conflicten(nieuw: list[dict], bestaand: list[dict]) -> list[dict]:
     conflicten = []
     for item in nieuw:
         begin = datetime.fromisoformat(item["start"])
-        einde = datetime.fromisoformat(item["einde"])
+        einde = lokaal(item["einde"])
         if any(begin < eind and einde > start for start, eind in aanwezig):
             conflicten.append(item)
         aanwezig.append((begin, einde))
