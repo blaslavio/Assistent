@@ -5214,6 +5214,21 @@ def chat_met_profiel() -> None:
                                 st.error(str(fout))
             except Exception:
                 st.info("Agenda delen vereist een actieve accountverbinding.")
+    with st.expander("Chatinstellingen", icon=":material/settings:", expanded=False):
+        st.caption("Beheer je account, betalingen en boekingen vanuit de chat.")
+        col1, col2 = st.columns(2, gap="small")
+        with col1:
+            if st.button("Betalingen", icon=":material/payments:",
+                         key="chat_betaalinstellingen", width="stretch"):
+                st.session_state.inst_groep = "Account"
+                ga_naar("instellingen")
+        with col2:
+            if "boekingen" in PAGINA:
+                if st.button("Boekingen", icon=":material/event_note:",
+                             key="chat_boekingen", width="stretch"):
+                    ga_naar("boekingen")
+            else:
+                st.caption("Boekingen zijn niet beschikbaar.")
     chat.pagina()
 
 
@@ -5237,6 +5252,19 @@ def communicatie_hub() -> None:
             ga_naar("instellingen")
             st.rerun()
     st.caption("Beheer je profiel, privacy en geblokkeerde contacten.")
+
+    st.markdown("#### Boekingen & betalingen")
+    links_b, rechts_b = st.columns(2, gap="small")
+    with links_b:
+        if st.button("Betaalinstellingen", icon=":material/payments:",
+                     key="hub_betalen", width="stretch"):
+            st.session_state.inst_groep = "Account"
+            ga_naar("instellingen")
+    with rechts_b:
+        if "boekingen" in PAGINA:
+            if st.button("Boekingen", icon=":material/event_note:",
+                         key="hub_boekingen", width="stretch"):
+                ga_naar("boekingen")
 
     st.markdown("#### Gesprekken")
     opties = [
