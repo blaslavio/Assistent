@@ -101,23 +101,20 @@ def ontdekken() -> None:
     with st.container(key="winkel_ontdekken"):
         for naam, doel, icoon, uitleg in opties:
             with st.container(border=True):
-                if st.button(naam, icon=icoon, key=f"ontdek_{doel}",
-                             width="stretch", help=uitleg):
-                    _open_onderdeel(doel)
-                    st.rerun()
+                st.button(naam, icon=icoon, key=f"ontdek_{doel}",
+                          width="stretch", help=uitleg,
+                          on_click=_open_onderdeel, args=(doel,))
                 st.caption(uitleg)
     st.divider()
     st.markdown("**Mijn aankopen**")
-    if st.button("Winkelmandje bekijken", icon=":material/shopping_cart:",
-                 key="ontdek_mandje", width="stretch",
-                 help="Bekijk je producten en reken af."):
-        _open_onderdeel("mandje")
-        st.rerun()
-    if st.button("Bestellingen bekijken", icon=":material/receipt_long:",
-                 key="ontdek_bestellingen", width="stretch",
-                 help="Bekijk eerdere aankopen en hun status."):
-        _open_onderdeel("bestellingen")
-        st.rerun()
+    st.button("Winkelmandje bekijken", icon=":material/shopping_cart:",
+              key="ontdek_mandje", width="stretch",
+              help="Bekijk je producten en reken af.",
+              on_click=_open_onderdeel, args=("mandje",))
+    st.button("Bestellingen bekijken", icon=":material/receipt_long:",
+              key="ontdek_bestellingen", width="stretch",
+              help="Bekijk eerdere aankopen en hun status.",
+              on_click=_open_onderdeel, args=("bestellingen",))
 
 
 def inkopen() -> None:
