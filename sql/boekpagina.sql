@@ -184,6 +184,17 @@ begin
     return jsonb_build_object('fout', 'Vul een geldig e-mailadres in.');
   end if;
   perform pg_advisory_xact_lock(p.gebruiker_id);
+  -- Server-side beperking: werkt ook bij bots die steeds een nieuwe browsersessie openen.
+  if (select count(*) from private.boekingen
+      where gebruiker_id = p.gebruiker_id and lower(email) = v_email
+        and aangemaakt > now() - interval '1 hour') >= 2 then
+    return jsonb_build_object('fout', 'Er zijn te veel aanvragen. Probeer het later opnieuw.');
+  end if;
+  if (select count(*) from private.boekingen
+      where gebruiker_id = p.gebruiker_id and lower(email) = v_email
+        and start = p_start and aangemaakt > now() - interval '1 day') > 0 then
+    return jsonb_build_object('fout', 'Dit moment is al aangevraagd met dit e-mailadres.');
+  end if;
   if (select count(*) from private.boekingen where gebruiker_id = p.gebruiker_id and aangemaakt > now() - interval '1 day') >= 30
      or (select count(*) from private.boekingen where gebruiker_id = p.gebruiker_id and lower(email) = v_email
          and status in ('aangevraagd', 'bevestigd') and start > now()) >= 3 then
