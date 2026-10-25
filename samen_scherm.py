@@ -1129,13 +1129,52 @@ def mijn_webshop(inkopen=None) -> None:
 
 def winkel_producten_beheren(m: dict) -> None:
     """Producten apart beheren, ook op kleine schermen."""
+    st.caption("Voeg artikelen toe, bepaal prijs en voorraad en zet ze in je webshop.")
+    with st.expander("Nieuw product toevoegen", expanded=not bool(m.get("producten")),
+                     icon=":material/add_box:"):
+        with st.form("webshop_nieuw_product", clear_on_submit=True, border=False):
+            titel = st.text_input("Productnaam", max_chars=100,
+                                  help="De naam die kopers in je winkel zien.")
+            omschrijving = st.text_area("Productomschrijving", max_chars=1500,
+                                        help="Beschrijf kenmerken, afmetingen en eventuele bijzonderheden.")
+            prijs = st.number_input("Verkoopprijs (€)", min_value=0.01, max_value=100000.0,
+                                    value=19.95, step=1.0)
+            voorraad = st.number_input("Beschikbare voorraad", min_value=0, max_value=100000,
+                                       value=1, step=1,
+                                       help="Bij nul blijft het artikel zichtbaar, maar is het uitverkocht.")
+            verzenden = st.checkbox("Verzenden mogelijk", value=True)
+            ophalen = st.checkbox("Ophalen mogelijk", value=True)
+            st.caption("Een nieuw product wordt ook geregistreerd als aanbod in de eigen marktplaatsbackend.")
+            if st.form_submit_button("Product toevoegen aan winkel", type="primary", width="stretch"):
+                if len(titel.strip()) < 2:
+                    st.error("Vul een productnaam van minimaal twee tekens in.")
+                elif not (verzenden or ophalen):
+                    st.error("Kies minimaal één leveringsmogelijkheid.")
+                else:
+                    levering = (["verzenden"] if verzenden else []) + (["ophalen"] if ophalen else [])
+                    try:
+                        nieuw_id = samen.aanbod_plaatsen(
+                            "product", titel.strip(), omschrijving.strip(), prijs,
+                            "per stuk", "", "", ["contant"], levering)
+                    except samen.Fout as fout:
+                        st.error(f"Product kon niet worden aangemaakt: {fout}")
+                    else:
+                        try:
+                            samen.winkel_product(nieuw_id, True, voorraad)
+                        except samen.Fout as fout:
+                            st.warning("Het product is aangemaakt als aanbod, maar nog niet "
+                                       "aan de webshop toegevoegd. Open het productbeheer "
+                                       f"om dit alsnog te doen. Details: {fout}")
+                        else:
+                            st.success("Product toegevoegd aan de webshop.")
+                            st.rerun()
     st.markdown("**Producten in je winkel**")
     producten = [p for p in m["producten"] if not p["geblokkeerd"] and (p["actief"] or p["voorraad"] is not None)]
     if not producten:
         st.caption("Nog geen producten.")
     for p in producten:
         with st.container(border=True):
-            st.markdown(f"**{p['titel']}** · {samen.euro(p['prijs'])}" + (" · 🏬 in de winkel" if p["in_winkel"] else ""))
+            st.markdown(f"**{p['titel']}** · {samen.euro(p['prijs'])}" + (" · In de winkel" if p["in_winkel"] else ""))
             with st.form(f"wp_{p['id']}", border=False):
                 k1, k2, k3 = st.columns([2, 2, 1], vertical_alignment="bottom")
                 in_winkel = k1.toggle("In de winkel", value=p["in_winkel"])
@@ -1143,7 +1182,7 @@ def winkel_producten_beheren(m: dict) -> None:
                                            placeholder="1 stuk")
                 if k3.form_submit_button("Opslaan"):
                     if _fout(samen.winkel_product, p["id"], in_winkel, voorraad) is not None:
-                        st.toast("Opgeslagen.", icon="✅")
+                        st.toast("Opgeslagen.", icon=":material/check_circle:")
                         st.rerun()
 
 
