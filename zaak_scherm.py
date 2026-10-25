@@ -200,8 +200,7 @@ def beroep_instellingen() -> None:
             aangezet = beroep.instellen(sleutel or beroep.ANDERS, keuze if keuze not in namen else "", diensten)
             _klaar("Opgeslagen." + (f" Aangezet: {', '.join(aangezet)}." if aangezet else ""))
     if not b["soort"]:
-        st.info("Stel je vakgebied in voor passende hulpmiddelen. De webshop blijft voor iedereen toegankelijk.")
-        return
+        st.info("Kies eventueel een vakgebied voor suggesties. Alle hulpmiddelen hieronder blijven beschikbaar.")
     try:
         winkel = samen.mijn_winkel()
         pagina = boekpagina.mijn().get("pagina")
@@ -221,7 +220,9 @@ def beroep_instellingen() -> None:
         "diensten": "Beheer de diensten die klanten kunnen reserveren.",
         "mail": "Beheer zakelijke berichten en communicatie.",
     }
-    for t in beroep.tools():
+    alle_tools = list(beroep.TOOLS) if not b["soort"] else list(dict.fromkeys(
+        [*beroep.tools(), *beroep.TOOLS]))
+    for t in alle_tools:
         naam, url, _ = beroep.TOOLS[t]
         with st.container(horizontal=True, vertical_alignment="center", key=f"tool_{t}"):
             st.markdown(naam, width="stretch")
