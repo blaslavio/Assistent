@@ -5378,9 +5378,9 @@ def main() -> None:
             st.session_state.ga_naar = "assistent"
     terug_van_stripe()
     nu_open = st.navigation(paginas(), position="hidden")
-    if nu_open.url_path != "instellingen":
-        # Wie later via de kopbalk naar Instellingen gaat, begint weer bij de tegels.
-        st.session_state.pop("inst_groep", None)
+    # Bewaar de gekozen instellingengroep wanneer iemand tijdelijk een tool
+    # opent. Bij teruggaan blijft de gebruiker in dezelfde context.
+    # Alleen de expliciete knop 'Instellingen' wist inst_groep.
     kopbalk()
     if mislukt := st.session_state.pop("mislukt_melding", 0):
         st.warning(f"Sinds je vorige keer is {mislukt} keer geprobeerd in te loggen met een fout wachtwoord of code. "
