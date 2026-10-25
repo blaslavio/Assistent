@@ -89,3 +89,45 @@ def uniek(nieuw: list[dict], bestaand: list[dict]) -> list[dict]:
             resultaat.append(item)
             gezien.add(key)
     return resultaat
+
+
+def conflicten(nieuw: list[dict], bestaand: list[dict]) -> list[dict]:
+    """Detecteer overlappende tijdsloten; lees enkel tijdstippen, niet privé-inhoud."""
+    aanwezig = []
+    for item in bestaand:
+        try:
+            begin = datetime.fromisoformat(item["start"])
+            einde = datetime.fromisoformat(item.get("einde") or item["start"])
+            if einde <= begin:
+                einde = begin + timedelta(hours=1)
+            aanwezig.append((begin, einde))
+        except (KeyError, ValueError, TypeError):
+            continue
+    conflicten = []
+    for item in nieuw:
+        begin = datetime.fromisoformat(item["start"])
+        einde = datetime.fromisoformat(item["einde"])
+        if any(begin < eind and einde > start for start, eind in aanwezig):
+            conflicten.append(item)
+        aanwezig.append((begin, einde))
+    return conflicten
+
+
+def voorstellen(bestaand: list[dict], minuten: int = 30, limiet: int = 3,
+                nu: datetime | None = None) -> list[datetime]:
+    """Vrije momenten tijdens kantooruren; suggesties zijn geen definitieve reserveringen."""
+    nu = nu or datetime.now(LOCAL_ZONE)
+    dagen = []
+    for i in range(1, 15):
+        dag = (nu + timedelta(days=i)).date()
+        if dag.weekday() >= 5:
+            continue
+        for uur in range(9, 17):
+            for minuut in (0, 30):
+                start = datetime(dag.year, dag.month, dag.day, uur, minuut)
+                einde = start + timedelta(minutes=minuten)
+                if not conflicten([{"start": start.isoformat(), "einde": einde.isoformat()}], bestaand):
+                    dagen.append(start)
+                    if len(dagen) == limiet:
+                        return dagen
+    return dagen
