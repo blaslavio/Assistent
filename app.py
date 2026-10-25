@@ -3607,6 +3607,12 @@ def instellingen_tabblad() -> None:
     /* Streamlit buttons contain an icon and a markdown wrapper. Grid can shrink
        the markdown wrapper to a few characters on mobile: use flex instead. */
     /* Absolute positioning avoids Streamlit's centered button content group. */
+    /* Keep every settings label readable at narrow phone widths. */
+    .st-key-instellingen_profiel button,
+    [class*="st-key-instellingen_groep_"] button {
+        box-sizing: border-box !important;
+        min-width: 0 !important;
+    }
     .st-key-instellingen_profiel button,
     [class*="st-key-instellingen_groep_"] button {
         display: block !important;

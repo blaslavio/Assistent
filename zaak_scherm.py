@@ -91,31 +91,40 @@ def beroep_instellingen() -> None:
         gap: 0 !important;
     }
     .st-key-onderneming_snel button {
-        display: grid !important;
-        grid-template-columns: 32px minmax(0,1fr) !important;
-        gap: 12px !important;
+        display: block !important;
+        position: relative !important;
+        box-sizing: border-box !important;
         width: 100% !important;
+        min-width: 0 !important;
         min-height: 56px !important;
-        justify-content: stretch !important;
-        text-align: left !important;
-        padding: 10px 16px !important;
+        padding: 12px 20px 12px 62px !important;
         border: 0 !important;
         border-radius: 0 !important;
         background: transparent !important;
         box-shadow: none !important;
+        text-align: left !important;
     }
     .st-key-onderneming_snel button [data-testid="stIconMaterial"] {
-        grid-column: 1 !important;
-        justify-self: start !important;
+        position: absolute !important;
+        left: 20px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
         margin: 0 !important;
     }
-    .st-key-onderneming_snel button [data-testid="stMarkdownContainer"] {
-        grid-column: 2 !important;
+    .st-key-onderneming_snel button [data-testid="stMarkdownContainer"],
+    .st-key-onderneming_snel button [data-testid="stMarkdownContainer"] p {
+        display: block !important;
+        box-sizing: border-box !important;
         width: 100% !important;
-        text-align: left !important;
+        min-width: 0 !important;
+        max-width: none !important;
         margin: 0 !important;
+        padding: 0 !important;
+        text-align: left !important;
+        white-space: normal !important;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
     }
-    .st-key-onderneming_snel button p { text-align: left !important; }
     .st-key-onderneming_snel [data-testid="stButton"] + [data-testid="stButton"] {
         border-top: 1px solid rgba(128,128,128,.14);
     }
