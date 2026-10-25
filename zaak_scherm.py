@@ -142,15 +142,30 @@ def beroep_instellingen() -> None:
         if st.button("Afspraken en diensten", icon=":material/event_available:", width="stretch", type="tertiary", key="bedrijf_book"):
             _openen("boekingen", "boekingen")
             st.rerun()
+    st.markdown("**Bedrijfsvoering en planning**")
+    with st.container(key="onderneming_planning"):
+        if st.button("Werkrooster en planning", icon=":material/calendar_month:", width="stretch", key="bedrijf_rooster"):
+            _openen("zakelijk", "werkrooster")
+            st.rerun()
+        if st.button("Webshop ontwerpen", icon=":material/design_services:", width="stretch", key="bedrijf_ontwerpen"):
+            _openen("webshop", "webshop")
+            st.rerun()
+        if st.button("Bestaande winkel koppelen", icon=":material/link:", width="stretch", key="bedrijf_integratie"):
+            _openen("koppelingen", "integraties")
+            st.rerun()
+        if st.button("Omzet en bedrijfsresultaten", icon=":material/monitoring:", width="stretch", key="bedrijf_omzet"):
+            _openen("zakelijk", "omzet")
+            st.rerun()
+    st.caption("De assistent kan adviseren over je winkelindeling en verkoopresultaten op basis van beschikbare bedrijfsgegevens.")
     st.markdown("**Vakgebied en specialisatie**")
-    st.caption("Kies je beroep of typ een eigen specialisatie.")
+    st.caption("Selecteer jouw vakgebied. Je kunt ook een eigen specialisatie invoeren.")
     b = beroep.huidig()
     # Kies uit de lijst of typ zelf je beroep; staat het er niet tussen, dan doet de assistent een voorstel.
     namen = sorted((beroep.naam_van(k) for k in beroep.BEROEPEN), key=str.casefold)
-    nu = (b["naam"] or beroep.naam_van(b["soort"])) if b["soort"] else None
-    keuze = st.selectbox("Wat doe je?", namen if nu in namen or not nu else [*namen, nu],
+    nu = (b["naam"] or beroep.naam_van(b["soort"])) if b["soort"] and b["soort"] != "kapper" else None
+    keuze = st.selectbox("Kies jouw beroep", namen if nu in namen or not nu else [*namen, nu],
                          index=None if not nu else (namen.index(nu) if nu in namen else len(namen)),
-                         placeholder="Nog geen beroep gekozen — zoek of typ je vakgebied", accept_new_options=True, key="beroep_keuze")
+                         placeholder="Selecteer een beroep of voer een specialisatie in", accept_new_options=True, key="beroep_keuze")
     if keuze and keuze != nu:
         sleutel = next((k for k in beroep.BEROEPEN if beroep.naam_van(k) == keuze), None) or beroep.zoek(keuze)
         if sleutel:
