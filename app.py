@@ -1674,12 +1674,26 @@ def agenda_overzicht() -> None:
             van = date.today().isoformat()
             tot = (date.today() + timedelta(days=15)).isoformat()
             afspraken = opslag.afspraken_tussen(van, tot)
-            opties = agenda_import.voorstellen(afspraken)
+            instellingen = opslag.instellingen()
+            feedback = instellingen.get("agenda_advies_feedback", [])
+            standaard = instellingen.get("agenda_advies_voorkeur", "Balans tussen werk en privé")
+            geleerd = agenda_import.voorkeur_uit_feedback(feedback, standaard)
+            opties = agenda_import.voorstellen_op_voorkeur(afspraken, geleerd)
+            if len(feedback) >= 2:
+                st.caption(f"Voorstellen afgestemd op je beoordelingen: {geleerd}.")
             if opties:
                 st.markdown("**Mogelijke vrije momenten van 30 minuten**")
                 for moment in opties:
                     st.caption(moment.strftime("%d-%m-%Y om %H:%M"))
                 st.caption("Controleer je beschikbaarheid voordat je een afspraak bevestigt.")
+                st.markdown("**Help de assistent beter plannen**")
+                st.caption("Kies wat je prettig vindt. Alleen deze voorkeur wordt bewaard, geen afspraakinhoud.")
+                keuze_feedback = st.radio("Welk type planning heeft je voorkeur?",
+                    agenda_import.VOORKEUREN, horizontal=False, key="agenda_feedback_keuze")
+                if st.button("Voorstel beoordelen", key="agenda_feedback_opslaan"):
+                    oud = opslag.instellingen().get("agenda_advies_feedback", [])
+                    opslag.instellingen_bijwerken(agenda_advies_feedback=(oud + [keuze_feedback])[-30:])
+                    st.success("Bedankt. De volgende voorstellen houden rekening met je beoordeling.")
             else:
                 st.info("Geen geschikte vrije momenten gevonden.")
         except Exception:
