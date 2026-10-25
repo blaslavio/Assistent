@@ -8,6 +8,7 @@ functions = {n.name: ast.get_source_segment(source, n)
              for n in ast.parse(source).body if isinstance(n, ast.FunctionDef)}
 
 class ShoppingNavigationTests(unittest.TestCase):
+    """Regressie: selectbox-state wijzigen vóór het renderen van de widget."""
     def test_shop_dashboard_deferred_navigation(self):
         self.assertIn('st.session_state.pop("_webshop_volgende_deel", None)', shop_source)
         self.assertIn('st.session_state["_webshop_volgende_deel"] = bestemming', shop_source)
