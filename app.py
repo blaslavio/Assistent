@@ -2663,32 +2663,44 @@ def universele_zoekhub() -> None:
 
 
 def dating_pagina() -> None:
-    """Private, local-only dating and singles-event drafts; no discovery without backend."""
-    st.title("Dating en singles-evenementen")
-    st.caption("Optioneel en gescheiden van zakelijke matchmaking.")
-    volwassen = st.checkbox("Ik bevestig dat ik 18 jaar of ouder ben", key="dating_volwassen")
-    if not volwassen:
-        st.info("Dating is uitsluitend bedoeld voor volwassenen. Leeftijdsverificatie is vereist voordat publieke functies beschikbaar komen.")
+    """Private dating drafts; public matchmaking stays disabled pending verification."""
+    st.title("Dating en singles")
+    st.caption("Ontmoeten op basis van wederzijdse interesse, zonder fictieve matches.")
+    modus = st.segmented_control("Werkruimte", ["Privé", "Dating"], default="Privé",
+                                 key="dating_profielmodus")
+    if modus != "Dating":
+        st.info("Je privé- en werkgegevens worden niet gebruikt voor dating.")
         return
-    st.warning("Profielen zoeken, berichten en matches zijn nog niet actief: hiervoor zijn leeftijdsverificatie, wederzijdse toestemming en beveiligde opslag nodig.")
+    st.warning("Publieke dating is nog niet geactiveerd. Een 18+-verklaring is geen leeftijdsverificatie.")
+    bevestigd = st.checkbox("Ik verklaar dat ik minstens 18 jaar ben", key="dating_volwassen")
+    if not bevestigd:
+        st.caption("Bevestig je leeftijd voordat je een privéconcept voorbereidt.")
+        return
+    with st.expander("Mijn datingvoorkeuren", expanded=False):
+        alias = st.text_input("Alias", max_chars=40, key="dating_alias")
+        interesses = st.multiselect("Interesses", ["Koffie", "Wandelen", "Sport", "Cultuur",
+                              "Dineren", "Evenementen"], key="dating_interesses")
+        zichtbaar = st.toggle("Ik wil later zichtbaar kunnen worden voor matches",
+                              key="dating_opt_in", value=False)
+        st.caption("Deze instellingen gelden alleen in deze sessie. Er wordt geen profiel gepubliceerd.")
     with st.expander("Date of singles-evenement voorbereiden", expanded=True):
         titel = st.text_input("Titel", placeholder="Bijvoorbeeld: singleswandeling", key="dating_titel")
         datum = st.date_input("Datum", min_value=date.today(), key="dating_datum")
-        plaats = st.text_input("Locatie (optioneel)", key="dating_plaats")
-        if st.button("Maak concept", key="dating_concept"):
+        plaats = st.text_input("Openbare ontmoetingslocatie (optioneel)", key="dating_plaats")
+        if st.button("Concept maken", key="dating_concept"):
             try:
-                concept = dating_core.draft_date(titel, datum, plaats)
-                st.session_state["dating_concept"] = concept
+                st.session_state["dating_concept"] = dating_core.draft_date(titel, datum, plaats)
             except ValueError as fout:
                 st.warning(str(fout))
         concept = st.session_state.get("dating_concept")
         if concept:
             st.write(concept["titel"])
             st.caption(concept["datum"] + (" - " + concept["locatie"] if concept["locatie"] else ""))
-            st.info("Alleen concept in deze sessie. Er zijn geen uitnodigingen verzonden of betalingen gestart.")
-    with st.expander("Privacy en veiligheid"):
-        st.write("Geen openbare profielen, exacte locaties of contactgegevens zonder afzonderlijke toestemming.")
-        st.write("Blokkeren, melden, accountverificatie en wederzijdse toestemming zijn verplicht voor een latere publieke lancering.")
+            st.info("Concept in deze sessie; geen uitnodiging, match of betaling aangemaakt.")
+    with st.expander("Veiligheid en privacy"):
+        st.write("Een alias garandeert geen anonimiteit. Deel geen exacte privé- of live-locatie.")
+        st.write("Voor openbare matches zijn onafhankelijke leeftijdsverificatie, wederzijdse toestemming, blokkeren, melden en beveiligde opslag vereist.")
+
 
 
 def werkruimte_pagina() -> None:
