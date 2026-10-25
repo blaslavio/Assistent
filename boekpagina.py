@@ -51,6 +51,21 @@ def tijden(adres: str, soort: int, dag: date) -> list[datetime]:
 
 
 def boeken(adres: str, soort: int, start: datetime, naam: str, email: str, telefoon: str = "", notitie: str = "") -> dict:
+    """Controleer invoer voordat een publieke boeking naar de agenda-backend gaat."""
+    naam = naam.strip()
+    email = email.strip().lower()
+    telefoon = telefoon.strip()
+    notitie = notitie.strip()
+    if not 2 <= len(naam) <= 60:
+        raise samen.Fout("Vul een naam in van minimaal twee tekens.")
+    if not re.fullmatch(r"[^\\s@]+@[^\\s@]+\\.[^\\s@]+", email) or len(email) > 120:
+        raise samen.Fout("Vul een geldig e-mailadres in.")
+    if len(telefoon) > 30 or len(notitie) > 500:
+        raise samen.Fout("De ingevoerde gegevens zijn te lang.")
+    if not isinstance(soort, int) or soort < 0 or not isinstance(start, datetime) or start.tzinfo is None:
+        raise samen.Fout("Kies een geldig tijdstip.")
+    if start <= datetime.now(start.tzinfo):
+        raise samen.Fout("Dit tijdstip is verstreken. Kies een nieuw moment.")
     return samen._ok(opslag._rpc("boeken", p_adres=adres, p_soort=soort, p_start=start.astimezone().isoformat(),
                                  p_kiezer=naam, p_email=email, p_telefoon=telefoon, p_notitie=notitie))
 

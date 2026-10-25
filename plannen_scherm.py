@@ -1037,13 +1037,31 @@ def boek_pagina(adres: str) -> None:
     om = st.pills("Tijd", tijden, key=f"boek_tijd_{keuze}_{dag}", format_func=lambda t: t.strftime("%H:%M"))
     if om is None:
         return
+    # Remt geautomatiseerde herhaalde inzendingen binnen één browsersessie.
+    # Een server-side limiet in de boekingen-RPC blijft nodig tegen nieuwe sessies/IP's.
+    import time as _booking_time
+    wachttijd = max(0, 20 - (_booking_time.monotonic() - st.session_state.get("_boek_laatste_poging", -1e9)))
+    if wachttijd > 0:
+        st.caption("Je kunt over enkele seconden opnieuw een afspraak aanvragen.")
+    st.html("""<style>
+    .st-key-boek_website {position:absolute!important;left:-10000px!important;
+      width:1px!important;height:1px!important;overflow:hidden!important}
+    </style>""")
     with st.form("boek_form"):
         naam = st.text_input("Je naam", max_chars=60)
         email = st.text_input("E-mail", max_chars=120)
         telefoon = st.text_input("Telefoon (optioneel)", max_chars=30)
         notitie = st.text_area("Waarover? (optioneel)", max_chars=500, height=80)
+        website = st.text_input("Website (leeg laten)", key="boek_website", autocomplete="off", label_visibility="collapsed")
         if st.form_submit_button("Bevestig afspraak" if not p["bevestigen"] else "Aanvragen", type="primary",
                                  width="stretch"):
+            if website.strip():
+                st.error("De aanvraag kon niet worden verwerkt.")
+                return
+            if wachttijd > 0:
+                st.warning("Wacht even voordat je opnieuw een afspraak aanvraagt.")
+                return
+            st.session_state["_boek_laatste_poging"] = _booking_time.monotonic()
             try:
                 b = boekpagina.boeken(adres, keuze, om, naam, email, telefoon, notitie)
             except samen.Fout as fout:
