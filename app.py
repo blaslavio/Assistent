@@ -5228,6 +5228,69 @@ def communicatie_hub() -> None:
 
 
 
+def uniforme_widgettaal() -> None:
+    """Vertaal Streamlit's ingebouwde browserteksten naar de ingestelde apptaal."""
+    import streamlit.components.v1 as components
+    code = taal.huidig()
+    woorden = {
+        "nl": ["Kies een optie", "Zoeken", "Druk op Ctrl+Enter om te verzenden"],
+        "en": ["Choose an option", "Search", "Press Ctrl+Enter to submit"],
+        "de": ["Option auswählen", "Suchen", "Zum Senden Strg+Enter drücken"],
+        "fr": ["Choisir une option", "Rechercher", "Appuyez sur Ctrl+Entrée pour envoyer"],
+        "es": ["Elige una opción", "Buscar", "Pulsa Ctrl+Intro para enviar"],
+        "it": ["Scegli un'opzione", "Cerca", "Premi Ctrl+Invio per inviare"],
+        "pt": ["Escolha uma opção", "Pesquisar", "Prima Ctrl+Enter para enviar"],
+        "pl": ["Wybierz opcję", "Szukaj", "Naciśnij Ctrl+Enter, aby wysłać"],
+        "tr": ["Bir seçenek seçin", "Ara", "Göndermek için Ctrl+Enter tuşlarına basın"],
+        "ar": ["اختر خيارًا", "بحث", "اضغط Ctrl+Enter للإرسال"],
+        "uk": ["Виберіть варіант", "Пошук", "Натисніть Ctrl+Enter для надсилання"],
+        "zh": ["选择选项", "搜索", "按 Ctrl+Enter 提交"],
+    }.get(code, ["Choose an option", "Search", "Press Ctrl+Enter to submit"])
+    # Verberg de onnodige sneltoetsinstructies ook zonder JavaScript.
+    st.markdown("""<style>
+      [data-testid="InputInstructions"],
+      [data-testid="stInputInstructions"],
+      div[data-testid="stForm"] [data-testid="InputInstructions"] {
+          display: none !important;
+      }
+    </style>""", unsafe_allow_html=True)
+    import json as _json
+    labels = _json.dumps(woorden, ensure_ascii=False)
+    components.html(f"""
+    <script>
+    (() => {{
+      try {{
+        const doc = window.parent.document;
+        const labels = {labels};
+        const apply = () => {{
+          doc.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(el => {{
+            const old = el.getAttribute('placeholder') || '';
+            if (/^choose an option$/i.test(old) || /^kies een optie$/i.test(old)) {{
+              el.setAttribute('placeholder', labels[0]);
+            }} else if (/^search$/i.test(old)) {{
+              el.setAttribute('placeholder', labels[1]);
+            }}
+          }});
+          doc.querySelectorAll('[data-testid="InputInstructions"],[data-testid="stInputInstructions"]').forEach(el => {{
+            el.style.display = 'none';
+          }});
+        }};
+        apply();
+        if (!doc.__superappLocaleObserver) {{
+          let pending = false;
+          doc.__superappLocaleObserver = new MutationObserver(() => {{
+            if (pending) return;
+            pending = true;
+            window.requestAnimationFrame(() => {{ pending = false; apply(); }});
+          }});
+          doc.__superappLocaleObserver.observe(doc.body, {{childList:true,subtree:true}});
+        }}
+      }} catch (_) {{ }}
+    }})();
+    </script>
+    """, height=0)
+
+
 def sluit_zijmenu_na_navigatie() -> None:
     """Sluit de mobiele Streamlit-sidebar bij het kiezen van een navigatielink.
 
@@ -5665,6 +5728,7 @@ def main() -> None:
     superapp_thema_toepassen()
     superapp_navigatie()
     sluit_zijmenu_na_navigatie()
+    uniforme_widgettaal()
     if mislukt := st.session_state.pop("mislukt_melding", 0):
         st.warning(f"Sinds je vorige keer is {mislukt} keer geprobeerd in te loggen met een fout wachtwoord of code. "
                    "Was jij dat niet? Kies een nieuw wachtwoord en zet tweestapsverificatie aan bij "
