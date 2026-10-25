@@ -3242,7 +3242,7 @@ def kleuren_instellingen() -> None:
     eigen = dict(opslag.instellingen().get("kleuren", {}))
     kolommen = st.columns(2)
     for i, soort in enumerate(tijd.KLEUREN):
-        label = "🔔 Taak met deadline" if soort == "taak" else f"{tijd.SOORTEN[soort]} {soort.capitalize()}"
+        label = "Taak met deadline" if soort == "taak" else soort.capitalize()
         gekozen = kolommen[i % 2].color_picker(label, value=tijd.kleur(soort), key=f"kleur_{soort}")
         if gekozen != tijd.kleur(soort):
             eigen[soort] = gekozen
