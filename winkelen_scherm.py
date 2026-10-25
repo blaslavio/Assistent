@@ -22,6 +22,11 @@ def verkoper() -> bool:
     return ik().get("id") == 1 or ik().get("niveau") in ("verkoper", "ondernemer")
 
 
+def _open_onderdeel(onderdeel: str) -> None:
+    """Navigeer zonder de toestand van een reeds gemaakte Streamlit-widget te wijzigen."""
+    st.session_state["_winkelen_volgende_deel"] = onderdeel
+
+
 def pagina() -> None:
     if not samen.beschikbaar():
         st.info("Winkelen werkt alleen in de online versie.")
@@ -36,7 +41,12 @@ def pagina() -> None:
         st.success(f"Besteld: {samen.euro(betaald['bedrag'])}. Rond je betaling af.")
         if betaald.get("betaallink"):
             st.link_button("Nu betalen", betaald["betaallink"], type="primary", width="stretch")
-    delen = list(DELEN) if verkoper() else ["buurt", "producten", "mandje", "bestellingen"]
+    delen = list(DELEN) if verkoper() else [d for d in DELEN if d != "winkel"]
+    volgend = st.session_state.pop("_winkelen_volgende_deel", None)
+    if volgend in delen:
+        st.session_state["winkelen_deel"] = volgend
+    elif st.session_state.get("winkelen_deel") not in delen:
+        st.session_state["winkelen_deel"] = "buurt"
     n = winkelen.aantal_in_mandje()
     deel = st.selectbox(
         "Winkelonderdeel", delen, key="winkelen_deel",
@@ -77,7 +87,7 @@ def ontdekken() -> None:
     ]
     for naam, doel, icoon in opties:
         if st.button(naam, icon=icoon, key=f"ontdek_{doel}", width="stretch"):
-            st.session_state.winkelen_deel = doel
+            _open_onderdeel(doel)
             st.rerun()
 
 
