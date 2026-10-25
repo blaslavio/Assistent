@@ -1043,6 +1043,9 @@ def mijn_webshop(inkopen=None) -> None:
         "Vormgeving": (":material/palette:", "Kies een rustige stijl en accentkleur voor je winkel."),
         "Verzending": (":material/local_shipping:", "Verzendkosten, gratis verzending en retourvoorwaarden."),
         "Publicatie": (":material/publish:", "Bepaal of klanten je winkel al kunnen bezoeken."),
+        "Producten": (":material/inventory_2:", "Beheer het assortiment, de voorraad en welke producten zichtbaar zijn."),
+        "Promoties": (":material/campaign:", "Maak een actie, kortingscode of bericht voor klanten."),
+        "Voorbeeld": (":material/visibility:", "Bekijk hoe de naam, omschrijving en accentkleur eruitzien."),
     }
     onderdeel = st.segmented_control("Winkeltool", list(gereedschap), default="Identiteit",
                                      key="winkelbouwer_tool", label_visibility="collapsed") or "Identiteit"
@@ -1050,6 +1053,31 @@ def mijn_webshop(inkopen=None) -> None:
     with st.popover("Wat kan ik hiermee?", icon=":material/help_outline:"):
         st.write(gereedschap[onderdeel][1])
         st.caption("Je wijzigingen worden pas bewaard wanneer je op Opslaan klikt.")
+    if onderdeel == "Producten":
+        if not w:
+            st.info("Sla eerst je winkelnaam op bij Identiteit. Daarna kun je producten beheren.")
+        else:
+            winkel_producten_beheren(m)
+        return
+    if onderdeel == "Promoties":
+        if not w:
+            st.info("Maak eerst je winkel aan bij Identiteit om acties en kortingscodes te gebruiken.")
+        else:
+            marketing(w)
+        return
+    if onderdeel == "Voorbeeld":
+        import html
+        st.markdown("**Winkelvoorbeeld**")
+        st.markdown(
+            f'<section style="text-align:left;border-left:5px solid {html.escape(w.get("kleur") or "#2563eb", quote=True)};'
+            f'padding:16px;background:rgba(128,128,128,.05);border-radius:8px">'
+            f'<strong>{html.escape(w.get("naam") or "Naam van je winkel")}</strong>'
+            f'<p>{html.escape(w.get("omschrijving") or "Hier verschijnt de introductie van je winkel.")}</p></section>',
+            unsafe_allow_html=True)
+        if w.get("adres"):
+            st.code(winkel_link(w["adres"]), language=None)
+        st.caption("Dit is een vereenvoudigd voorbeeld. Producten en bestelopties zijn zichtbaar op de echte winkelpagina.")
+        return
     with st.container(key="winkelbouwer_editor"):
         with st.form(f"winkel_{onderdeel}", border=False):
             naam = w.get("naam", "")
