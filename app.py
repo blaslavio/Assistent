@@ -3242,7 +3242,7 @@ def kleuren_instellingen() -> None:
     eigen = dict(opslag.instellingen().get("kleuren", {}))
     kolommen = st.columns(2)
     for i, soort in enumerate(tijd.KLEUREN):
-        label = "🔔 Taak met deadline" if soort == "taak" else f"{tijd.SOORTEN[soort]} {soort.capitalize()}"
+        label = "Taak met deadline" if soort == "taak" else soort.capitalize()
         gekozen = kolommen[i % 2].color_picker(label, value=tijd.kleur(soort), key=f"kleur_{soort}")
         if gekozen != tijd.kleur(soort):
             eigen[soort] = gekozen
@@ -5378,9 +5378,9 @@ def main() -> None:
             st.session_state.ga_naar = "assistent"
     terug_van_stripe()
     nu_open = st.navigation(paginas(), position="hidden")
-    if nu_open.url_path != "instellingen":
-        # Wie later via de kopbalk naar Instellingen gaat, begint weer bij de tegels.
-        st.session_state.pop("inst_groep", None)
+    # Bewaar de gekozen instellingengroep wanneer iemand tijdelijk een tool
+    # opent. Bij teruggaan blijft de gebruiker in dezelfde context.
+    # Alleen de expliciete knop 'Instellingen' wist inst_groep.
     kopbalk()
     if mislukt := st.session_state.pop("mislukt_melding", 0):
         st.warning(f"Sinds je vorige keer is {mislukt} keer geprobeerd in te loggen met een fout wachtwoord of code. "

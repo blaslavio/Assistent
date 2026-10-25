@@ -9,8 +9,8 @@ body = ast.get_source_segment(source, shop)
 class EmptyStoreTests(unittest.TestCase):
     def test_missing_store_uses_safe_defaults(self):
         self.assertIn('w = m.get("winkel") or {}', body)
-        self.assertIn('value=w.get("naam", "")', body)
-        self.assertIn('value=w.get("omschrijving", "")', body)
+        self.assertIn('naam = w.get("naam", "")', body)
+        self.assertIn('omschrijving = w.get("omschrijving", "")', body)
         self.assertIn('if not w:', body)
         self.assertIn('if not w:\n        return', body)
 

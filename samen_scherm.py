@@ -945,8 +945,10 @@ def mijn_webshop(inkopen=None) -> None:
         delen = ["Overzicht", "Winkel", "Producten", "Tweedehands", "Bestellingen", "Reserveren", "Marketing", "Reviews"]
         if inkopen:
             delen.insert(2, "Inkopen")
-        deel = st.segmented_control("Onderdeel", delen, default="Overzicht",
-                                    key="webshop_deel", label_visibility="collapsed") or "Overzicht"
+        deel = st.selectbox("Winkelonderdeel", delen,
+                            index=None, placeholder="Kies een onderdeel",
+                            key="webshop_deel", help="Open alleen het onderdeel dat je nodig hebt. "
+                            "Dit houdt de winkel overzichtelijk en voorkomt onnodig laden.") or "Overzicht"
         if deel == "Inkopen":
             inkopen()
             return
@@ -1028,35 +1030,63 @@ def mijn_webshop(inkopen=None) -> None:
         c2.metric("Commissie betaald", samen.euro(v["commissie"]))
 
     st.markdown("### Winkelbouwer")
-    st.caption("Maak je winkel in drie stappen. Wijzigingen worden pas gepubliceerd na Opslaan.")
+    st.caption("Kies wat je wilt aanpassen. Je hoeft niet steeds door alle instellingen te scrollen.")
+    gereedschap = {
+        "Identiteit": (":material/badge:", "Naam, introductie en herkenbaarheid van je winkel."),
+        "Vormgeving": (":material/palette:", "Kies een rustige stijl en accentkleur voor je winkel."),
+        "Verzending": (":material/local_shipping:", "Verzendkosten, gratis verzending en retourvoorwaarden."),
+        "Publicatie": (":material/publish:", "Bepaal of klanten je winkel al kunnen bezoeken."),
+    }
+    onderdeel = st.segmented_control("Winkeltool", list(gereedschap), default="Identiteit",
+                                     key="winkelbouwer_tool", label_visibility="collapsed") or "Identiteit"
+    st.caption(gereedschap[onderdeel][1])
+    with st.popover("Wat kan ik hiermee?", icon=":material/help_outline:"):
+        st.write(gereedschap[onderdeel][1])
+        st.caption("Je wijzigingen worden pas bewaard wanneer je op Opslaan klikt.")
     with st.container(key="winkelbouwer_editor"):
-        with st.form("winkel", border=False):
-            st.markdown("**1. Identiteit**")
-            naam = st.text_input("Naam van je winkel", value=w.get("naam", ""), max_chars=60,
-                                 placeholder="Bijvoorbeeld Mijn studio")
-            omschrijving = st.text_area("Introductie voor bezoekers", value=w.get("omschrijving", ""),
-                                        height=90, max_chars=800,
-                                        placeholder="Vertel kort wat klanten bij je kunnen vinden")
-            st.markdown("**2. Uitstraling**")
-            stijl = st.selectbox("Kies een startstijl", ["Eigen kleur", "Minimalistisch", "Nacht", "Natuur", "Levendig"],
-                                 index=0, help="Een startstijl bepaalt de accentkleur. Je kunt die zelf aanpassen.")
-            kleuren = {"Eigen kleur": w.get("kleur") or "#2563eb",
-                       "Minimalistisch": "#343a40", "Nacht": "#202c4a",
-                       "Natuur": "#39785d", "Levendig": "#6750a4"}
-            kleur = st.color_picker("Accentkleur", value=kleuren[stijl])
-            st.markdown("**3. Verkoop en publicatie**")
-            k1, k2 = st.columns(2)
-            verzend = k1.number_input("Verzendkosten (€)", 0.0, 100.0,
-                                      float(w.get("verzendkosten") or 0), 0.5)
-            gratis = k2.number_input("Gratis verzending vanaf (€)", 0.0, 10000.0,
-                                      float(w.get("gratis_vanaf") or 0), 5.0)
-            retour = st.text_area("Verzend- en retourinformatie", value=w.get("retour", ""),
-                                  height=70, placeholder="Bijvoorbeeld levering binnen 3 werkdagen")
-            open_ = st.toggle("Winkel openbaar maken", value=bool(w.get("open")))
-            st.caption("Je kunt een winkel ook als concept opslaan. Betalingen moeten actief zijn om bestellingen te ontvangen.")
-            if st.form_submit_button("Winkel opslaan", type="primary", width="stretch"):
+        with st.form(f"winkel_{onderdeel}", border=False):
+            naam = w.get("naam", "")
+            omschrijving = w.get("omschrijving", "")
+            kleur = w.get("kleur") or "#2563eb"
+            verzend = float(w.get("verzendkosten") or 0)
+            gratis = float(w.get("gratis_vanaf") or 0)
+            retour = w.get("retour", "")
+            open_ = bool(w.get("open"))
+            if onderdeel == "Identiteit":
+                st.markdown("**Naam en introductie**")
+                naam = st.text_input("Naam van je winkel", value=naam, max_chars=60,
+                                     placeholder="Bijvoorbeeld Mijn studio",
+                                     help="De naam die bezoekers op je winkelpagina zien.")
+                omschrijving = st.text_area("Introductie voor bezoekers", value=omschrijving,
+                                            height=90, max_chars=800,
+                                            placeholder="Vertel wat klanten bij je kunnen vinden",
+                                            help="Korte beschrijving die klanten helpt je winkel te herkennen.")
+            elif onderdeel == "Vormgeving":
+                st.markdown("**Kleur en uitstraling**")
+                stijl = st.selectbox("Startstijl", ["Eigen kleur", "Minimalistisch", "Nacht", "Natuur", "Levendig"],
+                                     help="Een startstijl bepaalt de accentkleur; kies Eigen kleur voor maatwerk.")
+                kleuren = {"Eigen kleur": kleur, "Minimalistisch": "#343a40",
+                           "Nacht": "#202c4a", "Natuur": "#39785d", "Levendig": "#6750a4"}
+                kleur = st.color_picker("Accentkleur", value=kleuren[stijl],
+                                        help="Wordt gebruikt voor de herkenbare kleuraccenten in je winkel.")
+            elif onderdeel == "Verzending":
+                st.markdown("**Levering en retour**")
+                verzend = st.number_input("Verzendkosten (€)", 0.0, 100.0, verzend, 0.5,
+                                          help="Het bedrag dat de koper voor verzending betaalt.")
+                gratis = st.number_input("Gratis verzending vanaf (€)", 0.0, 10000.0, gratis, 5.0,
+                                         help="Vanaf dit bestelbedrag worden geen verzendkosten berekend.")
+                retour = st.text_area("Verzend- en retourinformatie", value=retour,
+                                      height=100, help="Leg uit hoe en wanneer je levert en hoe retouren werken.")
+            else:
+                st.markdown("**Publicatie**")
+                open_ = st.toggle("Winkel openbaar maken", value=open_,
+                                  help="Uit: winkel blijft concept. Aan: bezoekers kunnen je winkel zien.")
+                if not m["kan_betalen"]:
+                    st.warning("Activeer eerst het ontvangen van betalingen om bestellingen te kunnen aannemen.")
+            if st.form_submit_button("Wijzigingen opslaan", type="primary", width="stretch"):
                 if winkel_opslaan(w.get("adres", ""), naam, omschrijving, kleur, verzend,
                                   gratis or None, retour, open_):
+                    st.toast("Winkel opgeslagen.", icon=":material/check_circle:")
                     st.rerun()
     if w:
         st.markdown("**Bekijk als bezoeker**")

@@ -84,10 +84,10 @@ def sport_icoon(sport: str) -> str:
 
 
 # Soorten afspraken in de agenda, met hun icoon.
-SOORTEN = {"afspraak": "📌", "sport": "🏃", "uitgaan": "🎉", "etentje": "🍽️", "werk": "💼",
-           "familie en vrienden": "👨‍👩‍👧", "gezondheid": "🩺", "reizen": "✈️", "verjaardag": "🎂", "herinnering": "🔔",
-           "focus": "🎯", "vrij": "🌴", "bezorging": "📦",
-           "overig": "🗓️"}
+SOORTEN = {"afspraak": ":material/event:", "sport": ":material/fitness_center:", "uitgaan": ":material/celebration:", "etentje": ":material/restaurant:", "werk": ":material/work:",
+           "familie en vrienden": ":material/groups:", "gezondheid": ":material/favorite:", "reizen": ":material/flight:", "verjaardag": ":material/cake:", "herinnering": ":material/notifications:",
+           "focus": ":material/center_focus_strong:", "vrij": ":material/beach_access:", "bezorging": ":material/local_shipping:",
+           "overig": ":material/calendar_today:"}
 
 # Elke soort heeft een eigen kleur in de agenda; de gebruiker kan ze aanpassen (instellingen.kleuren).
 # "taak" is voor taken met een deadline, die als herinnering in de agenda staan.

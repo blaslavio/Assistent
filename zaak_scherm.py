@@ -44,7 +44,7 @@ def pagina() -> None:
         st.subheader(z["naam"] or zaak.SOORTEN_ZAAK.get(z["soort"], "Zakelijk"))
         with st.popover("", icon=":material/settings:", help="Instellen"):
             zaak_instellen(z)
-    delen = ["Vandaag"] + (["Rooster"] if z["groepslessen"] else []) + (["Afspraken"] if z["afspraken"] else []) \
+    delen = ["Vandaag", "Rooster", "Afspraken"] \
         + ["Klanten", "Boekhouding"] + (["Inkopen"] if samen.beschikbaar() and winkelen_scherm.verkoper() else [])
     deel = st.segmented_control("Deel", delen, default=delen[0], key="zaak_deel",
                                 label_visibility="collapsed") or delen[0]
@@ -65,9 +65,19 @@ def pagina() -> None:
 # --- Beroep (Instellingen › Werk) --------------------------------------------------------------------------------------
 
 # Waar een hulpmiddel opent: (pagina, sleutel van het onderdeel op die pagina, welk onderdeel).
-_OPENEN = {"lessen": ("zaak_deel", "Rooster"), "klanten": ("zaak_deel", "Klanten"),
-           "boekhouding": ("zaak_deel", "Boekhouding"), "webshop": ("webshop_deel", "Winkel"),
-           "marketing": ("webshop_deel", "Marketing"), "reviews": ("webshop_deel", "Reviews")}
+_OPENEN = {
+    "lessen": ("zaak_deel", "Rooster"),
+    "werkrooster": ("zaak_deel", "Rooster"),
+    "klanten": ("zaak_deel", "Klanten"),
+    "boekhouding": ("zaak_deel", "Boekhouding"),
+    "omzet": ("zaak_deel", "Boekhouding"),
+    "webshop": ("webshop_deel", "Winkel"),
+    "marketing": ("webshop_deel", "Marketing"),
+    "reviews": ("webshop_deel", "Reviews"),
+    "verzenden": ("webshop_deel", "Bestellingen"),
+    "integraties": ("inst_groep", "Koppelingen"),
+}
+
 
 
 def _openen(url: str, tool: str) -> None:
@@ -130,6 +140,12 @@ def beroep_instellingen() -> None:
     }
     </style>
     """)
+    st.caption("Tik op een hulpmiddel om het te openen. Het vraagteken legt uit wat het doet.")
+    with st.expander("Wat kunnen deze hulpmiddelen?", icon=":material/help_outline:"):
+        st.markdown("**Webshop:** maak een winkel en beheer producten, prijzen en publicatie.")
+        st.markdown("**Bestellingen:** bekijk verkopen en leveringen.")
+        st.markdown("**Werkrooster:** plan lessen, diensten en werktijden.")
+        st.markdown("**Omzet:** bekijk financiële overzichten en boekhouding.")
     st.markdown("**Webshop en verkoop**")
     st.caption("Je winkel, bestellingen en diensten.")
     with st.container(key="onderneming_snel"):
@@ -137,7 +153,7 @@ def beroep_instellingen() -> None:
             _openen("webshop", "webshop")
             st.rerun()
         if st.button("Bestellingen", icon=":material/local_shipping:", width="stretch", type="tertiary", key="bedrijf_orders"):
-            _openen("bestellingen", "verzenden")
+            _openen("webshop", "verzenden")
             st.rerun()
         if st.button("Afspraken en diensten", icon=":material/event_available:", width="stretch", type="tertiary", key="bedrijf_book"):
             _openen("boekingen", "boekingen")
@@ -151,7 +167,7 @@ def beroep_instellingen() -> None:
             _openen("webshop", "webshop")
             st.rerun()
         if st.button("Bestaande winkel koppelen", icon=":material/link:", width="stretch", key="bedrijf_integratie"):
-            _openen("koppelingen", "integraties")
+            _openen("instellingen", "integraties")
             st.rerun()
         if st.button("Omzet en bedrijfsresultaten", icon=":material/monitoring:", width="stretch", key="bedrijf_omzet"):
             _openen("zakelijk", "omzet")
@@ -189,18 +205,35 @@ def beroep_instellingen() -> None:
             aangezet = beroep.instellen(sleutel or beroep.ANDERS, keuze if keuze not in namen else "", diensten)
             _klaar("Opgeslagen." + (f" Aangezet: {', '.join(aangezet)}." if aangezet else ""))
     if not b["soort"]:
-        st.info("Stel je vakgebied in voor passende hulpmiddelen. De webshop blijft voor iedereen toegankelijk.")
-        return
+        st.info("Kies eventueel een vakgebied voor suggesties. Alle hulpmiddelen hieronder blijven beschikbaar.")
     try:
         winkel = samen.mijn_winkel()
         pagina = boekpagina.mijn().get("pagina")
     except samen.Fout:
         winkel, pagina = {}, None
     st.markdown("**Vakgerichte hulpmiddelen**")
-    for t in beroep.tools():
+    st.caption("Elk hulpmiddel heeft een eigen knop en uitleg. Je kunt het ook zonder gekozen beroep openen.")
+    uitleg = {
+        "boekingen": "Maak een boekingspagina, beheer beschikbare tijden en laat afspraken in de agenda verschijnen.",
+        "lessen": "Plan lessen en deelnemers in een overzichtelijk rooster.",
+        "werkrooster": "Houd werktijden, diensten en beschikbaarheid bij.",
+        "klanten": "Bewaar klantinformatie en bekijk klantafspraken.",
+        "webshop": "Bouw je winkel, voeg producten toe en beheer bestellingen.",
+        "omzet": "Bekijk verkopen, kosten en bedrijfsresultaten.",
+        "boekhouding": "Registreer inkomsten en uitgaven voor je administratie.",
+        "reviews": "Bekijk beoordelingen en reacties van klanten.",
+        "diensten": "Beheer de diensten die klanten kunnen reserveren.",
+        "mail": "Beheer zakelijke berichten en communicatie.",
+    }
+    alle_tools = list(beroep.TOOLS) if not b["soort"] else list(dict.fromkeys(
+        [*beroep.tools(), *beroep.TOOLS]))
+    for t in alle_tools:
         naam, url, _ = beroep.TOOLS[t]
         with st.container(horizontal=True, vertical_alignment="center", key=f"tool_{t}"):
             st.markdown(naam, width="stretch")
+            with st.popover("Uitleg", icon=":material/help_outline:"):
+                st.write(uitleg.get(t, f"Open {naam.lower()} om dit hulpmiddel te gebruiken."))
+                st.caption("Je gegevens worden alleen verwerkt voor de gekozen functie.")
             if t == "boekingen" and not pagina:
                 if st.button("Maken", key=f"tool_maak_{t}", type="tertiary"):
                     if _fout(beroep.boekingspagina_maken) is not None:
