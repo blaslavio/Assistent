@@ -20,6 +20,7 @@ import toegang
 import agendas
 import agent
 import assistant_learning
+import assistant_privacy
 import avatar
 import bank
 import boekpagina
@@ -4876,21 +4877,27 @@ def gesprek() -> None:
         value=False, key="assistent_financieel_toestemming",
         help="Stuur uitsluitend een samenvatting van eigen geregistreerde inkomsten en uitgaven. Geen rekeningnummers of betalingsgegevens.")
     with st.expander("Persoonlijk leren en privacy", expanded=False):
-        leren_aan = st.toggle(
-            "Leer mijn voorkeuren uit mijn vragen",
-            value=False,
-            key="assistent_leren_toestemming",
-            help="Alleen onderwerpentellingen binnen deze sessie. Geen chatinhoud of persoonsgegevens opslaan.")
+        st.caption("Leren staat standaard uit. Alleen onderwerpentellingen, geen gespreksinhoud.")
+        toestemmingen = assistant_privacy.normalized_consents(
+            st.session_state.get("assistent_privacy_toestemmingen"))
+        for onderdeel in assistant_privacy.SCOPES:
+            aan = st.toggle(
+                f"Voorkeuren herkennen in {onderdeel}",
+                value=toestemmingen[onderdeel],
+                key=f"assistent_privacy_{onderdeel}")
+            toestemmingen = assistant_privacy.set_consent(toestemmingen, onderdeel, aan)
+        st.session_state.assistent_privacy_toestemmingen = toestemmingen
         patronen = st.session_state.get("assistent_leerpatronen", {})
-        if leren_aan:
-            tips = assistant_learning.top_suggestions(patronen, consent=True)
-            st.caption("Herkende onderwerpen: " + (", ".join(
-                f"{naam}: {aantal}" for naam, aantal in patronen.items()) or "Nog geen"))
+        eigen = patronen.get("assistent", {})
+        if toestemmingen["assistent"]:
+            tips = assistant_learning.top_suggestions(eigen, consent=True)
+            st.caption("Herkende onderwerpen: " + (
+                ", ".join(f"{naam}: {aantal}" for naam, aantal in eigen.items()) or "Nog geen"))
             if tips:
-                st.caption("Mogelijke vervolgstappen: " + " · ".join(tips))
-        if st.button("Wis geleerde patronen", key="assistent_leer_wissen"):
+                st.caption("Suggesties: " + " · ".join(tips))
+        if st.button("Wis alle geleerde patronen", key="assistent_leer_wissen"):
             st.session_state.assistent_leerpatronen = {}
-            st.success("Sessiegeheugen gewist.")
+            st.success("Geleerde sessiepatronen gewist.")
     stemkeuze = stem()
     laatste = next((t for r, t in reversed(st.session_state.chat) if r == "assistant"), "")
     voorlezen = st.session_state.get("voorlezen_id", "")
@@ -4925,10 +4932,10 @@ def gesprek() -> None:
             st.session_state.berichten = []
             st.rerun()
         return
-    st.session_state.assistent_leerpatronen = assistant_learning.update_patterns(
+    st.session_state.assistent_leerpatronen = assistant_privacy.learn_scoped(
         st.session_state.get("assistent_leerpatronen", {}),
-        vraag,
-        consent=bool(st.session_state.get("assistent_leren_toestemming", False)))
+        st.session_state.get("assistent_privacy_toestemmingen"),
+        "assistent", vraag)
     ingesproken = st.session_state.pop("ingesproken", False)
     st.session_state.woning_onder = []
     zichtbaar = st.session_state.pop("vooraf_label", None) or vraag
