@@ -1952,6 +1952,7 @@ def agenda_overzicht() -> None:
     st.write("")
     # Sport staat bij Samen.
     with st.expander("Tijdsbesteding", expanded=False):
+        gekozen = dagen[0] if weergave == "Dag" else st.session_state.agenda_dag
         afspraken_dag = [a for a in alle.values() if a.get("start", "")[:10] == gekozen.isoformat()]
         minuten = 0
         per_soort = {}
@@ -1967,7 +1968,7 @@ def agenda_overzicht() -> None:
                 continue
         st.caption(f"{gekozen:%d-%m-%Y} · {len(afspraken_dag)} afspraken · {_uren(minuten)} gepland")
         if per_soort:
-            st.bar_chart(per_soort, horizontal=True, x_label="Minuten")
+            st.bar_chart([{"Categorie": k, "Minuten": v} for k, v in per_soort.items()], x="Categorie", y="Minuten")
         else:
             st.caption("Nog geen afspraken op deze dag. Voeg een afspraak toe om je geplande tijd te bekijken.")
         with st.expander("Reistijd en uitloop", expanded=False):
