@@ -1903,24 +1903,6 @@ def agenda_overzicht() -> None:
                         st.rerun()
                 if len(gevonden) == 0:
                     st.info("Geen losse afspraken gevonden. Herhalende afspraken worden nog niet geïmporteerd.")
-    with st.expander("Agenda-tools en assistentinstellingen", icon=":material/settings:", expanded=False):
-        st.markdown("**Planningvoorkeur**")
-        st.caption("Deze voorkeur wordt opgeslagen binnen je account.")
-        voorkeur = opslag.instellingen().get("agenda_advies_voorkeur", "Balans tussen werk en privé")
-        keuzes = ["Balans tussen werk en privé", "Zo veel mogelijk aaneengesloten afspraken",
-                  "Ruimte tussen afspraken"]
-        gekozen = st.selectbox("Hoe wil je plannen?", keuzes,
-                               index=keuzes.index(voorkeur) if voorkeur in keuzes else 0,
-                               key="agenda_advies_keuze")
-        if st.button("Voorkeur bewaren", key="agenda_advies_bewaren"):
-            opslag.instellingen_bijwerken(agenda_advies_voorkeur=gekozen)
-            st.success("Je voorkeur is opgeslagen.")
-        st.divider()
-        st.markdown("**Assistent voor je agenda**")
-        st.caption("Stel een vraag over je planning. De bestaande AI-assistent opent; delen van agenda-informatie blijft afhankelijk van je privacyinstellingen.")
-        snelle_assistent_vraag("agenda_tools")
-        if "boekingen" in PAGINA:
-            st.page_link(PAGINA["boekingen"], label="Boekingspagina beheren", icon=":material/event_available:", width="stretch")
     if weergave == "Maand":
         eerste = vanaf.replace(day=1)
         dagen = [eerste + timedelta(days=i) for i in range(calendar.monthrange(eerste.year, eerste.month)[1])]
@@ -1969,10 +1951,48 @@ def agenda_overzicht() -> None:
     # Extra's in één blok, zodat de agenda rustig blijft.
     st.write("")
     # Sport staat bij Samen.
-    with st.expander("Tijdsbesteding"):
-        if not tijdsbesteding_overzicht(date.today()):
-            st.caption("Nog niets vastgelegd.")
+    with st.expander("Tijdsbesteding", expanded=False):
+        afspraken_dag = [a for a in alle.values() if a.get("start", "")[:10] == gekozen.isoformat()]
+        minuten = 0
+        per_soort = {}
+        for afspraak in afspraken_dag:
+            try:
+                begin = datetime.fromisoformat(afspraak["start"])
+                einde = datetime.fromisoformat(afspraak["einde"])
+                duur = max(0, int((einde - begin).total_seconds() // 60))
+                minuten += duur
+                soort = afspraak.get("soort") or "Overig"
+                per_soort[soort] = per_soort.get(soort, 0) + duur
+            except (ValueError, TypeError, KeyError):
+                continue
+        st.caption(f"{gekozen:%d-%m-%Y} · {len(afspraken_dag)} afspraken · {_uren(minuten)} gepland")
+        if per_soort:
+            st.bar_chart(per_soort, horizontal=True, x_label="Minuten")
+        else:
+            st.caption("Nog geen afspraken op deze dag. Voeg een afspraak toe om je geplande tijd te bekijken.")
+        with st.expander("Reistijd en uitloop", expanded=False):
+            if not tijdsbesteding_overzicht(gekozen):
+                st.caption("Nog geen reis- of uitlooptijden geregistreerd.")
 
+
+    with st.expander("Agenda-tools en assistentinstellingen", icon=":material/settings:", expanded=False):
+        st.markdown("**Planningvoorkeur**")
+        st.caption("Deze voorkeur wordt opgeslagen binnen je account.")
+        voorkeur = opslag.instellingen().get("agenda_advies_voorkeur", "Balans tussen werk en privé")
+        keuzes = ["Balans tussen werk en privé", "Zo veel mogelijk aaneengesloten afspraken",
+                  "Ruimte tussen afspraken"]
+        gekozen = st.selectbox("Hoe wil je plannen?", keuzes,
+                               index=keuzes.index(voorkeur) if voorkeur in keuzes else 0,
+                               key="agenda_advies_keuze")
+        if st.button("Voorkeur bewaren", key="agenda_advies_bewaren"):
+            opslag.instellingen_bijwerken(agenda_advies_voorkeur=gekozen)
+            st.success("Je voorkeur is opgeslagen.")
+        st.divider()
+        st.markdown("**Assistent voor je agenda**")
+        st.caption("Stel een vraag over je planning. De bestaande AI-assistent opent; delen van agenda-informatie blijft afhankelijk van je privacyinstellingen.")
+        snelle_assistent_vraag("agenda_tools")
+        if "boekingen" in PAGINA:
+            st.page_link(PAGINA["boekingen"], label="Boekingspagina beheren", icon=":material/event_available:", width="stretch")
 
 def blok_tekst(blok: dict) -> str:
     start, einde = datetime.fromisoformat(blok["start"]), datetime.fromisoformat(blok["einde"])
