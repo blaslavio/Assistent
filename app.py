@@ -1684,6 +1684,14 @@ def agenda_overzicht() -> None:
                 st.caption(f"{len(gevonden)} afspraken gevonden · {len(nieuw)} nieuw · "
                            f"{len(gevonden) - len(nieuw)} al aanwezig of dubbel.")
                 if nieuw:
+                    # Advies uit uitsluitend de eigen ingelezen afspraken; geen AI-upload.
+                    from collections import Counter
+                    verdeling = Counter(datetime.fromisoformat(a["start"]).strftime("%A") for a in nieuw)
+                    drukste, aantal = verdeling.most_common(1)[0]
+                    if aantal >= 3:
+                        st.info(f"Voorstel van de assistent: je hebt {aantal} afspraken op {drukste} "
+                                "in dit bestand. Houd rekening met deze drukke dag bij het instellen "
+                                "van je beschikbare boekingstijden.")
                     st.dataframe([{"Afspraak": a["titel"], "Begin": a["start"],
                                    "Einde": a["einde"]} for a in nieuw[:50]],
                                  hide_index=True, width="stretch")
