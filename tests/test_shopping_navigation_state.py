@@ -19,8 +19,9 @@ class ShoppingNavigationTests(unittest.TestCase):
         self.assertIn('st.session_state.pop("_winkelen_volgende_deel", None)', functions["pagina"])
         self.assertIn('st.session_state["winkelen_deel"] = volgend', functions["pagina"])
         self.assertIn('key="winkelen_deel"', functions["pagina"])
-        self.assertIn('_open_onderdeel(doel)', functions["ontdekken"])
+        self.assertIn('on_click=_open_onderdeel, args=(doel,)', functions["ontdekken"])
         self.assertNotIn('st.session_state.winkelen_deel = doel', functions["ontdekken"])
+        self.assertNotIn('st.rerun()', functions["ontdekken"])
 
     def test_all_buyer_categories_visible(self):
         self.assertIn('if d != "winkel"', functions["pagina"])
