@@ -5153,10 +5153,10 @@ def paginas() -> list:
 
 def communicatie_hub() -> None:
     """Centraal communicatiepunt voor doelgroepen, profiel, agenda en assistent."""
-    st.title("Chat & communicatie")
+    st.markdown("## Chat & communicatie")
     st.caption("Beheer gesprekken en ga direct naar je profiel en afspraken.")
 
-    st.markdown("### Mijn profiel en bereikbaarheid")
+    st.markdown("#### Profiel & privacy")
     links, rechts = st.columns(2)
     with links:
         if st.button("Profiel wijzigen", icon=":material/manage_accounts:",
@@ -5170,10 +5170,9 @@ def communicatie_hub() -> None:
             st.session_state.inst_groep = "Privacy en beveiliging"
             ga_naar("instellingen")
             st.rerun()
-    st.caption("Instellingen voor wie je mag benaderen moeten door de chatdienst zelf worden afgedwongen; "
-               "een profielvoorkeur alleen blokkeert nog geen berichten.")
+    st.caption("Beheer je profiel, privacy en geblokkeerde contacten.")
 
-    st.markdown("### Gesprekken")
+    st.markdown("#### Gesprekken")
     opties = [
         ("Verkopers en klanten", "berichten", ":material/storefront:",
          "Berichten over producten en bestellingen"),
@@ -5189,7 +5188,7 @@ def communicatie_hub() -> None:
     if "chat" not in PAGINA or "berichten" not in PAGINA:
         st.info("Voor community- en verkoperschat is een actieve online verbinding nodig.")
 
-    st.markdown("### Agenda en assistent")
+    st.markdown("#### Agenda & assistent")
     for naam, route, icoon in [
         ("Mijn agenda", "agenda", ":material/calendar_month:"),
         ("AI-assistent", "assistent", ":material/smart_toy:"),
