@@ -4049,6 +4049,9 @@ def feestdagen_instellen() -> None:
 def agendas_instellen() -> None:
     """Je eigen agenda's (Apple, Google, Outlook) koppelen, alleen om te lezen."""
     st.caption("Je afspraken uit je eigen agenda verschijnen in Vandaag en Agenda, en de assistent plant eromheen.")
+    st.caption("Apple ondersteunt lezen en schrijven via CalDAV. Google en Outlook gebruiken "
+               "momenteel een privé iCal-link (alleen lezen); OAuth-schrijftoegang is nog niet beschikbaar.")
+    st.caption("Je kunt bestaande afspraken ook overnemen via Agenda › Bestaande afspraken overnemen.")
     gekoppeld = agendas.gekoppeld()
     if gekoppeld:
         fouten = agendas.fouten()
