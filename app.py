@@ -4964,6 +4964,10 @@ def paginas() -> list:
     if online and "Marktplaats" not in uit:
         pagina(winkelen_scherm.pagina, "Winkelen", ":material/shopping_bag:", "winkelen")
     pagina(instellingen_tabblad, "Instellingen", ":material/settings:", "instellingen")
+    # Eigen URL per tool; niet eerst naar Zakelijk/Vandaag navigeren.
+    pagina(zaak_scherm.rooster_pagina, "Rooster", ":material/calendar_month:", "rooster")
+    pagina(zaak_scherm.klanten_pagina, "Klanten", ":material/groups:", "klantenbeheer")
+    pagina(zaak_scherm.boekhouding_pagina, "Boekhouding", ":material/account_balance:", "boekhoudingbeheer")
 
     def als(aan: bool, *args, **kwargs) -> str | None:
         return pagina(*args, **kwargs).url_path if aan else None
@@ -4976,7 +4980,7 @@ def paginas() -> list:
               "bestellingen", nieuw.get("bestellingen", 0)),
           als(online and "Marktplaats" not in uit, samen_scherm.berichten, "Berichten", ":material/inbox:", "berichten",
               nieuw.get("berichten", 0)),
-          als(online and "Marktplaats" not in uit and ik().get("niveau") in ("verkoper", "ondernemer"),
+          als(online and "Marktplaats" not in uit,
               samen_scherm.mijn_webshop, "Mijn webshop", ":material/inventory_2:", "webshop"),
           als(online and "Marktplaats" not in uit and ik().get("niveau") in ("verkoper", "ondernemer"),
               samen_scherm.verkoopoverzicht, "Verkoopoverzicht", ":material/bar_chart:", "verkoopoverzicht"))
