@@ -103,10 +103,8 @@ def ontdekken() -> None:
         with st.container(border=True):
             with st.container(horizontal=True, vertical_alignment="center"):
                 st.markdown(f"{icoon} **{naam}**", width="stretch")
-                if st.button("Openen", icon=":material/arrow_forward:", key=f"ontdek_{doel}",
-                             type="tertiary"):
-                    _open_onderdeel(doel)
-                    st.rerun()
+                st.button("Openen", icon=":material/arrow_forward:", key=f"ontdek_{doel}",
+                          type="tertiary", on_click=_open_onderdeel, args=(doel,))
             st.caption(uitleg)
 
 
