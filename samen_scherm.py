@@ -918,6 +918,7 @@ def tweedehands_aanbieden() -> None:
     st.caption("Voeg alleen echte informatie toe. Deel geen woonadres als je daar geen kopers wilt ontvangen.")
 
 
+@st.fragment
 def mijn_webshop(inkopen=None) -> None:
     """Pagina 🏬 Mijn webshop: winkel instellen, producten en voorraad, en delen."""
     m = samen.mijn_winkel()
@@ -945,8 +946,10 @@ def mijn_webshop(inkopen=None) -> None:
         delen = ["Overzicht", "Winkel", "Producten", "Tweedehands", "Bestellingen", "Reserveren", "Marketing", "Reviews"]
         if inkopen:
             delen.insert(2, "Inkopen")
-        deel = st.segmented_control("Onderdeel", delen, default="Overzicht",
-                                    key="webshop_deel", label_visibility="collapsed") or "Overzicht"
+        deel = st.selectbox("Winkelonderdeel", delen,
+                            index=None, placeholder="Kies een onderdeel",
+                            key="webshop_deel", help="Open alleen het onderdeel dat je nodig hebt. "
+                            "Dit houdt de winkel overzichtelijk en voorkomt onnodig laden.") or "Overzicht"
         if deel == "Inkopen":
             inkopen()
             return
