@@ -171,6 +171,8 @@ def beroep_instellingen() -> None:
                     with st.spinner("Gemini denkt na..."):
                         antwoord = gemini_service.get_gemini_response(vraag, context)
                     st.markdown(antwoord)
+    st.caption("De Co-Pilot gebruikt uitsluitend de hierboven beschreven basisinstellingen; "
+               "geen fictieve voorraad, roosters of documentgegevens.")
     st.markdown("**Webshop en verkoop**")
     st.caption("Je winkel, bestellingen en diensten.")
     with st.container(key="onderneming_snel"):
