@@ -2500,8 +2500,8 @@ def vandaag_overzicht() -> None:
                 unsafe_allow_html=True)
 
     st.markdown("### Agenda & afspraken")
-    st.caption("Je afspraken en planning staan altijd bovenaan.")
-    dagschema()
+    st.caption("Maandweergave staat standaard aan. Wissel naar week of dag.")
+    agenda_overzicht()
 
     st.markdown("#### Afspraken beheren")
     afspraak_routes = [
@@ -2519,7 +2519,9 @@ def vandaag_overzicht() -> None:
 
     st.divider()
     st.markdown("### Chat & community")
-    st.page_link(PAGINA["communicatie"], label="Chatprofiel en bereikbaarheid", icon=":material/manage_accounts:", width="stretch") if "communicatie" in PAGINA else None
+    if "communicatie" in PAGINA:
+        st.page_link(PAGINA["communicatie"], label="Chatprofiel en bereikbaarheid",
+                     icon=":material/manage_accounts:", width="stretch")
 
     st.caption("Praat met verkopers, bekijk je berichten of open de community.")
     communicatie_routes = [
