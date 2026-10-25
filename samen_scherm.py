@@ -828,6 +828,45 @@ def winkel_opslaan(adres: str, naam: str, *rest) -> bool:
     return False
 
 
+def tweedehands_aanbieden() -> None:
+    """Een eigen tweedehands kledingadvertentie via de bestaande marktplaats-backend."""
+    st.markdown("#### Tweedehands kleding")
+    st.caption("Verkoop kleding per stuk. Beschrijf de echte staat en eventuele beschadigingen. "
+               "Je advertentie verschijnt op de marktplaats, niet automatisch in de webshopcatalogus.")
+    status = _fout(samen.betalen_status) or {}
+    wijzen = [w for w in samen.BETAALWIJZEN if w != "app" or status.get("ik_kan_ontvangen")]
+    with st.form("tweedehands_kleding", clear_on_submit=True, border=False):
+        categorie = st.selectbox("Categorie", ["Dames", "Heren", "Kinderen", "Schoenen", "Accessoires"])
+        titel = st.text_input("Artikel", max_chars=100, placeholder="Bijv. Winterjas zwart")
+        merk = st.text_input("Merk", max_chars=60, placeholder="Merk of geen merk")
+        maat = st.text_input("Maat", max_chars=20, placeholder="Bijv. M, 38 of 42")
+        staat = st.selectbox("Staat", ["Nieuw met label", "Als nieuw", "Heel goed", "Goed", "Veelgebruikt"])
+        gebreken = st.text_area("Gebreken en bijzonderheden", max_chars=600,
+                               placeholder="Beschrijf slijtage, vlekken, reparaties of andere details.")
+        prijs = st.number_input("Vraagprijs (€)", min_value=0.0, value=10.0, step=1.0)
+        plaats = st.text_input("Plaats", max_chars=100)
+        betaal = st.pills("Betalen", wijzen, selection_mode="multi",
+                          default=["app"] if "app" in wijzen else ["contant"],
+                          format_func=samen.BETAALWIJZEN.get)
+        levering = st.pills("Levering", [l for l in samen.LEVERING if l != "bezorgen"],
+                            selection_mode="multi", default=["ophalen"],
+                            format_func=samen.LEVERING.get)
+        akkoord = st.checkbox("Ik bevestig dat de beschrijving klopt en het artikel van mij is.")
+        if st.form_submit_button("Kleding aanbieden", type="primary", width="stretch"):
+            if not titel.strip() or not maat.strip() or not merk.strip():
+                st.error("Vul artikel, merk en maat in.")
+            elif not akkoord:
+                st.error("Bevestig eerst dat de gegevens kloppen.")
+            else:
+                omschrijving = (f"Tweedehands kleding | {categorie} | Merk: {merk.strip()} | "
+                                f"Maat: {maat.strip()} | Staat: {staat}. "
+                                f"Bijzonderheden: {gebreken.strip() or 'Geen opgegeven'}.")
+                if _fout(samen.aanbod_plaatsen, "product", titel.strip(), omschrijving,
+                         prijs, "per stuk", plaats.strip(), "", betaal, levering) is not None:
+                    st.success("Je kledingadvertentie is op de marktplaats geplaatst.")
+    st.caption("Voeg alleen echte informatie toe. Deel geen woonadres als je daar geen kopers wilt ontvangen.")
+
+
 def mijn_webshop(inkopen=None) -> None:
     """Pagina 🏬 Mijn webshop: winkel instellen, producten en voorraad, en delen."""
     m = samen.mijn_winkel()
@@ -849,7 +888,8 @@ def mijn_webshop(inkopen=None) -> None:
         c.metric("Producten", len([p for p in producten if p.get("actief") and not p.get("geblokkeerd")]))
         st.caption("Omzet en bestellingen zijn gebaseerd op geregistreerde verkopen in deze app. "
                    "Verkopen via externe winkels tellen niet mee.")
-        delen = ["Overzicht", "Winkel", "Reserveren", "Marketing", "Reviews"]
+        st.caption("Beheer je winkel, voorraad, verkopen en afspraken vanuit één plek.")
+        delen = ["Overzicht", "Winkel", "Producten", "Tweedehands", "Bestellingen", "Reserveren", "Marketing", "Reviews"]
         if inkopen:
             delen.insert(2, "Inkopen")
         deel = st.segmented_control("Onderdeel", delen, default="Overzicht",
@@ -860,6 +900,17 @@ def mijn_webshop(inkopen=None) -> None:
         if deel == "Reserveren":
             plannen_scherm.zaak_beheer()
             return
+        if deel == "Tweedehands":
+            tweedehands_aanbieden()
+            return
+        if deel == "Producten":
+            st.markdown("#### Producten en voorraad")
+            st.caption("Kies welke producten in je webshop staan en beheer de voorraad.")
+            winkel_producten_beheren(m)
+            return
+        if deel == "Bestellingen":
+            bestellingen()
+            return
         if deel == "Marketing":
             marketing(w)
             return
@@ -867,6 +918,19 @@ def mijn_webshop(inkopen=None) -> None:
             winkel_reviews()
             return
         if deel == "Overzicht":
+            st.markdown("**Snel naar**")
+            acties = [
+                ("Winkel ontwerpen", "Winkel", ":material/storefront:"),
+                ("Producten beheren", "Producten", ":material/inventory_2:"),
+                ("Tweedehands kleding", "Tweedehands", ":material/checkroom:"),
+                ("Bestellingen", "Bestellingen", ":material/receipt_long:"),
+                ("Afspraken", "Reserveren", ":material/event:"),
+            ]
+            for tekst, bestemming, icoon in acties:
+                if st.button(tekst, icon=icoon, key=f"winkel_snel_{bestemming}",
+                             width="stretch", type="secondary"):
+                    st.session_state.webshop_deel = bestemming
+                    st.rerun()
             st.markdown("**Winkel beheren**")
             st.caption("Ontwerp je winkel, voeg producten toe en deel je winkeladres vanuit één plek.")
             if st.button("Winkel aanpassen", icon=":material/edit:", width="stretch", key="shop_to_editor"):
@@ -970,6 +1034,11 @@ def mijn_webshop(inkopen=None) -> None:
                             st.rerun()
 
     bezorgen_instellen(w, m["niveau"])
+
+
+
+def winkel_producten_beheren(m: dict) -> None:
+    """Producten apart beheren, ook op kleine schermen."""
     st.markdown("**Producten in je winkel**")
     producten = [p for p in m["producten"] if not p["geblokkeerd"] and (p["actief"] or p["voorraad"] is not None)]
     if not producten:
