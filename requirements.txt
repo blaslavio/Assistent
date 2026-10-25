@@ -12,3 +12,4 @@ recurring-ical-events
 caldav
 fitdecode
 google-genai>=1.0,<2
+defusedxml>=0.7.1,<1
