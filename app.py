@@ -21,6 +21,7 @@ import agendas
 import agent
 import assistant_learning
 import assistant_privacy
+import universal_workspace
 import avatar
 import bank
 import boekpagina
@@ -2581,6 +2582,37 @@ def groet(nu: datetime) -> str:
     return f"{deel}{', ' + naam if naam else ''}"
 
 
+def werkruimte_pagina() -> None:
+    """Role-aware navigation without changing authorization."""
+    st.title("Mijn werkruimte")
+    st.caption("Kies je rollen. Je toegangsrechten blijven ongewijzigd.")
+    rollen = st.multiselect(
+        "Mijn rollen", list(universal_workspace.PROFILES),
+        default=universal_workspace.normalize_roles(st.session_state.get("werkruimte_rollen")),
+        format_func=lambda key: universal_workspace.PROFILES[key].label)
+    rollen = universal_workspace.normalize_roles(rollen)
+    st.session_state.werkruimte_rollen = rollen
+    huidig = st.selectbox(
+        "Actieve werkruimte", rollen,
+        format_func=lambda key: universal_workspace.PROFILES[key].label,
+        key="werkruimte_actief")
+    st.caption(universal_workspace.PROFILES[huidig].description)
+    st.markdown("#### Mijn tools")
+    tools = universal_workspace.visible_tools(rollen, huidig)
+    for start in range(0, len(tools), 2):
+        cols = st.columns(2)
+        for col, doel in zip(cols, tools[start:start + 2]):
+            with col:
+                if doel in PAGINA and st.button(
+                    doel.replace("_", " ").capitalize(),
+                    key=f"werkruimte_tool_{doel}", use_container_width=True):
+                    st.switch_page(PAGINA[doel])
+    with st.expander("AI-context en privacy"):
+        st.caption("Je actieve rol wordt alleen na toestemming als context meegestuurd.")
+        st.toggle("Gebruik mijn actieve rol als AI-context",
+                  value=False, key="werkruimte_ai_context_toestemming")
+
+
 def vandaag_overzicht() -> None:
     """Mobielvriendelijk dashboard met afspraken eerst en directe communicatie."""
     st.markdown('<div class="app-title">SuperApp OS</div>', unsafe_allow_html=True)
@@ -4968,6 +5000,12 @@ def gesprek() -> None:
                 context_delen.append(assistent_context_samenvatting())
             if financieel_aan:
                 context_delen.append(assistent_financieel_samenvatting())
+            rolcontext = universal_workspace.role_context(
+                st.session_state.get("werkruimte_rollen", ["persoonlijk"]),
+                st.session_state.get("werkruimte_actief"),
+                consent=bool(st.session_state.get("werkruimte_ai_context_toestemming", False)))
+            if rolcontext:
+                context_delen.append(rolcontext)
             bericht = vraag
             if context_delen:
                 bericht = ("[Accountgegevens, uitsluitend als referentie]\\n"
@@ -5269,6 +5307,7 @@ def paginas() -> list:
             GROEPEN[naam] = urls
 
     pagina(vandaag_overzicht, "Vandaag", ":material/today:", "vandaag", default=True)
+    pagina(werkruimte_pagina, "Mijn werkruimte", ":material/dashboard_customize:", "werkruimte")
     pagina(agenda_tabblad, "Agenda", ":material/calendar_month:", "agenda")
     pagina(gesprek, mijn_avatar()["naam"], ":material/chat_bubble:", "assistent")
     if online and "Chat" not in uit:
