@@ -48,6 +48,8 @@ def pagina() -> None:
         st.session_state["winkelen_deel"] = volgend
     elif st.session_state.get("winkelen_deel") not in delen:
         st.session_state["winkelen_deel"] = "buurt"
+    st.markdown("## Winkelen")
+    st.caption("Ontdek winkels, bestel eten, koop tweedehands en beheer je bestellingen.")
     n = winkelen.aantal_in_mandje()
     deel = st.selectbox(
         "Winkelonderdeel", delen, key="winkelen_deel",
