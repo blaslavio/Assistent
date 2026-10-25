@@ -903,9 +903,10 @@ def mijn_webshop(inkopen=None) -> None:
             tweedehands_aanbieden()
             return
         if deel == "Producten":
-            st.info("Beheer je voorraad onder Winkel, bij Producten in je winkel.")
-            st.session_state.webshop_deel = "Winkel"
-            st.rerun()
+            st.markdown("#### Producten en voorraad")
+            st.caption("Kies welke producten in je webshop staan en beheer de voorraad.")
+            winkel_producten_beheren(m)
+            return
         if deel == "Bestellingen":
             bestellingen()
             return
@@ -1019,6 +1020,11 @@ def mijn_webshop(inkopen=None) -> None:
                             st.rerun()
 
     bezorgen_instellen(w, m["niveau"])
+
+
+
+def winkel_producten_beheren(m: dict) -> None:
+    """Producten apart beheren, ook op kleine schermen."""
     st.markdown("**Producten in je winkel**")
     producten = [p for p in m["producten"] if not p["geblokkeerd"] and (p["actief"] or p["voorraad"] is not None)]
     if not producten:
