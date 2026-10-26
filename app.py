@@ -3,6 +3,7 @@
 import life_swarm_core
 import event_swarm_core
 import neural_video_core
+import service_intake_core
 
 import calendar
 import html
@@ -2607,7 +2608,7 @@ def master_hub_pagina() -> None:
                                 default="Alles", key="master_stream_lens")
     with st.form("master_stream_form", clear_on_submit=True):
         opdracht = st.text_input("Bericht of opdracht", max_chars=500,
-                                placeholder="Bijvoorbeeld: verkoop mijn fiets")
+                                placeholder="Schrijf een bericht of opdracht")
         verzenden = st.form_submit_button("Concept bewaren")
     if verzenden:
         try:
@@ -2635,6 +2636,27 @@ def master_hub_pagina() -> None:
                         st.rerun()
                 except Exception:
                     st.error("Verwijderen is niet gelukt.")
+    with st.expander("Dienstverlening - intake", expanded=False):
+        st.caption("Leg een privéconcept vast. Er wordt geen cliëntdossier, afspraak of behandeladvies aangemaakt.")
+        with st.form("service_intake_draft_form", clear_on_submit=True):
+            service_kind = st.selectbox("Dienst", service_intake_core.SERVICES)
+            service_subject = st.text_input("Onderwerp", max_chars=100)
+            service_note = st.text_area("Notitie", max_chars=250)
+            service_save = st.form_submit_button("Intakeconcept bewaren")
+        if service_save:
+            try:
+                intake = service_intake_core.make_intake_draft(service_kind, service_subject, service_note)
+                multistream_store.add_draft(
+                    "[Intake] " + intake.service + " | " + intake.subject
+                    + (" | " + intake.note if intake.note else ""), "Privé"
+                )
+                st.success("Intakeconcept privé opgeslagen.")
+            except ValueError as fout:
+                st.warning(str(fout))
+            except Exception:
+                st.error("Intakeconcept kon niet worden opgeslagen.")
+        st.caption("Cliëntdossiers, individuele hersteladviezen en agendasynchronisatie zijn niet actief.")
+
     with st.expander("Life Swarm - persoonlijk", expanded=False):
         st.caption("Persoonlijke notities blijven privé. Geen automatische publicatie, locatiebepaling of agenda-actie.")
         with st.form("life_swarm_private_form", clear_on_submit=True):
