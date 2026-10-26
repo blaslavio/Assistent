@@ -34,7 +34,7 @@ def classify(text: str) -> str:
 def make_draft(text: str) -> StreamDraft:
     if not isinstance(text, str) or not 1 <= len(text.strip()) <= 500:
         raise ValueError("Bericht moet 1 tot 500 tekens bevatten.")
-    if any(ord(char) < 32 and char not in "\\n\\t" for char in text):
+    if any((ord(char) < 32 and char not in "\n\t") or ord(char) == 127 for char in text):
         raise ValueError("Bericht bevat ongeldige besturingstekens.")
     return StreamDraft(classify(text), text.strip())
 
