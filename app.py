@@ -36,6 +36,7 @@ import multistream_store
 import resource_booking_core
 import video_project_core
 import avatar
+import rive_chat_state
 import bank
 import boekpagina
 import beleggen
@@ -5314,6 +5315,9 @@ def gesprek() -> None:
     vraag = st.session_state.pop("vooraf_vraag", None)
     if not vraag:
         vraag = st.chat_input("Stel je vraag aan de assistent...", key="assistent_chat_input")
+    # Optional Rive UI: nothing is rendered until the approved .riv is supplied.
+    # The request state is driven by actual chat input, not simulated responses.
+    rive_chat_state.render_for_event("request_started" if vraag else "ready", height=150)
     if not vraag:
         if st.session_state.chat and st.button("Nieuw gesprek"):
             st.session_state.chat = []
