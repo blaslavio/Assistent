@@ -44,7 +44,7 @@ def main():
     if args.live_app:
         try:
             # A health response does not prove authenticated user workflows or deployment revision.
-            response = httpx.get("https://eisreyyrtvlgtjpqiyhpm2.streamlit.app/_stcore/health",
+            response = httpx.get("https://eisreyyrtvlgtjpqiyhpm2.streamlit.app/~/+/_stcore/health",
                                  timeout=20, follow_redirects=True)
             healthy = response.status_code == 200 and response.content.strip() == b"ok"
         except httpx.HTTPError:
