@@ -146,6 +146,46 @@ st.markdown("""
     border-radius: 7px;
     font-weight: 500;
 }
+
+/* SuperApp assistant UI refinement */
+[data-testid="stAppViewContainer"] [data-testid="stChatInput"] {
+    border-radius: 16px !important;
+    box-shadow: 0 2px 14px rgba(15, 23, 42, 0.045);
+}
+[data-testid="stAppViewContainer"] [data-testid="stChatInput"] textarea {
+    font-size: 0.98rem !important;
+    line-height: 1.45 !important;
+}
+[data-testid="stAppViewContainer"] [data-testid="stChatMessage"] {
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+[data-testid="stAppViewContainer"] [data-testid="stChatMessage"] pre {
+    max-width: 100%;
+    overflow-x: auto;
+}
+[data-testid="stAppViewContainer"] button:focus-visible,
+[data-testid="stAppViewContainer"] textarea:focus-visible,
+[data-testid="stSidebar"] button:focus-visible {
+    outline: 2px solid #2563eb !important;
+    outline-offset: 3px !important;
+}
+@media (max-width: 640px) {
+  [data-testid="stMainBlockContainer"] {
+      padding-left: 0.85rem !important;
+      padding-right: 0.85rem !important;
+  }
+  [data-testid="stAppViewContainer"] [data-testid="stChatMessage"] {
+      max-width: 100% !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-testid="stAppViewContainer"] * {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+  }
+}
 </style>
 """, unsafe_allow_html=True)
 taal.installeren()
