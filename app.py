@@ -5762,6 +5762,8 @@ def chat_communicatie_instellingen() -> None:
 
 def chat_met_profiel() -> None:
     """Chat met één herkenbare ingang voor alle communicatie-instellingen."""
+    if st.button("Assistent openen", icon=":material/smart_toy:", key="chat_open_assistent", width="stretch"):
+        ga_naar("assistent")
     chat_communicatie_instellingen()
     chat.pagina()
 
