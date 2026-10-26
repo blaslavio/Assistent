@@ -1,3 +1,4 @@
+import life_swarm_core
 """Webinterface van de assistent. Starten met: streamlit run app.py"""
 
 import calendar
@@ -2631,6 +2632,23 @@ def master_hub_pagina() -> None:
                         st.rerun()
                 except Exception:
                     st.error("Verwijderen is niet gelukt.")
+    with st.expander("Life Swarm - persoonlijk", expanded=False):
+        st.caption("Persoonlijke notities blijven privé. Geen automatische publicatie, locatiebepaling of agenda-actie.")
+        with st.form("life_swarm_private_form", clear_on_submit=True):
+            levensrol = st.selectbox("Focus", life_swarm_core.LIFE_ROLES)
+            life_tekst = st.text_area("Privénotitie", max_chars=500)
+            life_save = st.form_submit_button("Privé bewaren")
+        if life_save:
+            try:
+                life_swarm_core.validate_life_role(levensrol)
+                opgeslagen = multistream_store.add_draft(life_tekst, "Privé")
+                st.success("Privénotitie bewaard.")
+            except ValueError as fout:
+                st.warning(str(fout))
+            except Exception:
+                st.error("Privénotitie kon niet worden opgeslagen.")
+        st.caption("Bekijk je privénotities via privacyprofiel Privé en streamfilter Alles.")
+
     if profile == "Zakelijk":
         with st.expander("Verhuur en rooster", expanded=False):
             st.caption("Beheer eigen ruimtes, stoelen, materialen en tijdsloten.")
