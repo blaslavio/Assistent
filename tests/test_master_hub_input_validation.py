@@ -16,8 +16,6 @@ def test_routing(message, category):
 
 @pytest.mark.parametrize("bad", ["\x00test", "test\x1b", "\x7ftest", "x" * 501, ""])
 def test_reject_invalid_input(bad):
-    if bad == "\x7ftest":
-        pytest.skip("DEL handled separately")
     with pytest.raises(ValueError):
         make_draft(bad)
 
