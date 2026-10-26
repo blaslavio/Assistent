@@ -69,4 +69,4 @@ def test_master_hub_has_no_intake_input_or_write_path():
     block = next(n for n in ast.walk(hub) if isinstance(n, ast.With) and any(
         isinstance(v, ast.Constant) and v.value == 'Dienstverlening - intake' for v in ast.walk(n.items[0].context_expr)))
     calls = [ast.unparse(n.func) for n in ast.walk(block) if isinstance(n, ast.Call)]
-    assert calls == ['st.expander', 'st.warning', 'st.caption']
+    assert calls == ['st.expander', 'service_intake_ui.render_preparation']

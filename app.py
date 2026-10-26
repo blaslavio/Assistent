@@ -4,6 +4,7 @@ import life_swarm_core
 import event_swarm_core
 import neural_video_core
 import service_intake_core
+import service_intake_ui
 
 import calendar
 import html
@@ -2637,8 +2638,7 @@ def master_hub_pagina() -> None:
                 except Exception:
                     st.error("Verwijderen is niet gelukt.")
     with st.expander("Dienstverlening - intake", expanded=False):
-        st.warning("Intake-invoer en opslag zijn uitgeschakeld totdat account- en tenantisolatie zijn geverifieerd. Voer geen cliëntgegevens in.")
-        st.caption("Cliëntdossiers, individuele hersteladviezen en agendasynchronisatie zijn niet actief.")
+        service_intake_ui.render_preparation(st)
 
     with st.expander("Life Swarm - persoonlijk", expanded=False):
         st.caption("Persoonlijke notities blijven privé. Geen automatische publicatie, locatiebepaling of agenda-actie.")

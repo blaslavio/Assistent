@@ -20,3 +20,11 @@ These are offline contract tests, NOT deployed database, RLS, tenant isolation o
 Before any later enablement, independently test two authenticated accounts (and distinct tenants where applicable) against deployed storage with synthetic markers: read, write, delete, account switching, token expiry/revocation, missing/wrong credentials and concurrent sessions. Verify actual server-derived account identity, deployed RPC permissions/policies and absence of bypass keys. Verify real Microsoft login/logout separately. No deployed configuration is changed by this PR.
 
 Merge gate: require the new workflow for the exact final head and its PR merge ref, review any full-suite failures, recheck the base SHA, and retain the intake block. No merge or deployment is performed here.
+
+## Privacy-first service preparation
+
+The intake section now offers only fixed service and purpose choices with no default selection. It has no name, contact, symptom, injury or treatment-note fields. Submission displays only the validated choices in the current response; it does not persist a draft, invoke AI/learning, publish, create a ticket or synchronize calendars. Form choices still reach the Streamlit server and can be associated with its session: this is data minimization, not a claim of anonymity or encryption. Invalid payloads are never echoed.
+
+Sensitive client-record persistence remains unconditionally disabled. This is consistent with assistant_privacy's default-off learning consent and community_privacy's default-off discovery/personalization. A privacy profile label alone is not an authorization boundary. The existing generic free-text stream and Life Swarm notes are outside this scoped change and are not certified for clinical records.
+
+Validation adds all supported service/purpose pairs, unknown/type-invalid content, no default selection, invalid-payload non-echo, and checks that the preparation flow never calls storage, recovery advice or calendar synchronization.

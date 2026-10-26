@@ -36,3 +36,26 @@ def save_intake_draft(*args, **kwargs):
     No payload is validated, logged, forwarded or persisted by this entry point.
     """
     raise RuntimeError("Intakeopslag is uitgeschakeld totdat opslagisolatie is geverifieerd.")
+
+
+PURPOSES = ("Kennismaking", "Informatie over aanbod", "Informatie over werkwijze")
+
+
+@dataclass(frozen=True)
+class ServicePreparation:
+    service: str
+    purpose: str
+    status: str = "voorbereiding"
+
+
+def prepare_service_request(service: str, purpose: str) -> ServicePreparation:
+    """Allow only fixed choices; no identity, contact details or clinical free text.
+
+    This produces a transient value, not an anonymous database record. Session
+    choices can still be associated with a signed-in account by the hosting app.
+    """
+    if type(service) is not str or service not in SERVICES:
+        raise ValueError("Kies een dienst.")
+    if type(purpose) is not str or purpose not in PURPOSES:
+        raise ValueError("Kies een doel.")
+    return ServicePreparation(service, purpose)
