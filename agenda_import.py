@@ -3,7 +3,7 @@
 Geen upload naar externe AI-diensten. Eerst een voorbeeld, dan pas opslaan.
 """
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import re
 
 MAX_BYTES = 2_000_000
@@ -37,7 +37,10 @@ def _tijd(waarde: str, zone: str = "") -> datetime:
         raise ValueError("Onbekend tijdformaat in agenda.")
     utc = waarde.endswith("Z")
     moment = datetime.strptime(waarde.rstrip("Z"), "%Y%m%dT%H%M%S")
-    tz = timezone.utc if utc else (ZoneInfo(zone) if zone else LOCAL_ZONE)
+    try:
+        tz = timezone.utc if utc else (ZoneInfo(zone) if zone else LOCAL_ZONE)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ValueError("Onbekende tijdzone in het agenda-bestand.") from None
     return moment.replace(tzinfo=tz).astimezone(LOCAL_ZONE)
 
 
@@ -109,7 +112,7 @@ def conflicten(nieuw: list[dict], bestaand: list[dict]) -> list[dict]:
             continue
     conflicten = []
     for item in nieuw:
-        begin = datetime.fromisoformat(item["start"])
+        begin = lokaal(item["start"])
         einde = lokaal(item["einde"])
         if any(begin < eind and einde > start for start, eind in aanwezig):
             conflicten.append(item)
@@ -120,6 +123,8 @@ def conflicten(nieuw: list[dict], bestaand: list[dict]) -> list[dict]:
 def voorstellen(bestaand: list[dict], minuten: int = 30, limiet: int = 3,
                 nu: datetime | None = None) -> list[datetime]:
     """Vrije momenten tijdens kantooruren; suggesties zijn geen definitieve reserveringen."""
+    if type(minuten) is not int or not 1 <= minuten <= 480 or type(limiet) is not int or not 1 <= limiet <= 100:
+        raise ValueError("Kies een geldige duur (1 tot 480 minuten) en maximaal 100 suggesties.")
     nu = nu or datetime.now(LOCAL_ZONE)
     dagen = []
     for i in range(1, 15):
@@ -130,6 +135,8 @@ def voorstellen(bestaand: list[dict], minuten: int = 30, limiet: int = 3,
             for minuut in (0, 30):
                 start = datetime(dag.year, dag.month, dag.day, uur, minuut)
                 einde = start + timedelta(minutes=minuten)
+                if einde > start.replace(hour=17, minute=0):
+                    continue
                 if not conflicten([{"start": start.isoformat(), "einde": einde.isoformat()}], bestaand):
                     dagen.append(start)
                     if len(dagen) == limiet:
