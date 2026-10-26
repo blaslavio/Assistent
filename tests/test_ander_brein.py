@@ -1,5 +1,6 @@
 """Regressietests voor AI-providerafhandeling; geen echte API-sleutels nodig."""
 import importlib
+import os
 import sys
 import types
 import unittest
@@ -95,6 +96,24 @@ class BreinTests(unittest.TestCase):
         with patch.object(self.mod.httpx, "post", return_value=r):
             with self.assertRaisesRegex(self.mod.Fout, "sleutel"):
                 self.mod.antwoord("ChatGPT", [{"role": "user", "content": "Hoi"}])
+
+    def test_azure_gebruikt_serverdeployment_en_bestaande_chatroute(self):
+        with patch.dict(os.environ, {"AZURE_OPENAI_API_KEY": "server-secret",
+                                     "AZURE_OPENAI_DEPLOYMENT": "gpt-5-mini"}):
+            with patch.object(self.mod.httpx, "post", return_value=FakeResponse(
+                    {"role": "assistant", "content": "Azure antwoord"})) as post:
+                self.assertEqual(self.mod.antwoord("Azure OpenAI", [{"role": "user", "content": "Hoi"}]),
+                                 "Azure antwoord")
+        self.assertTrue(post.call_args.args[0].startswith("https://blaslavio-7458-resource.openai.azure.com/"))
+        self.assertEqual(post.call_args.kwargs["json"]["model"], "gpt-5-mini")
+        self.assertNotIn("tools", post.call_args.kwargs["json"])
+
+    def test_azure_zonder_serversleutel_doet_geen_api_aanroep(self):
+        with patch.dict(os.environ, {"AZURE_OPENAI_API_KEY": ""}):
+            with patch.object(self.mod.httpx, "post") as post:
+                with self.assertRaisesRegex(self.mod.Fout, "niet geconfigureerd"):
+                    self.mod.antwoord("Azure OpenAI", [{"role": "user", "content": "Hoi"}])
+                post.assert_not_called()
 
 
 if __name__ == "__main__":

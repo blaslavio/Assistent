@@ -12,8 +12,11 @@ import httpx
 
 import agent
 import opslag
+import azure_services
 
 AANBIEDERS = {
+    "Azure OpenAI": {"model": azure_services.OPENAI_DEPLOYMENT, "sleutel": "azure_server",
+                     "waar": "Azure-configuratie op de server"},
     "ChatGPT": {"url": "https://api.openai.com/v1/chat/completions", "model": "gpt-5", "sleutel": "openai_sleutel",
                 "waar": "platform.openai.com › API keys"},
     "Gemini": {"url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
@@ -33,10 +36,19 @@ def keuze() -> str:
 
 
 def sleutel(brein: str) -> str:
+    if brein == "Azure OpenAI":
+        try:
+            config = azure_services.openai_config()
+            return config.api_key if config else ""
+        except azure_services.AzureError:
+            return ""
     return opslag.instellingen().get(AANBIEDERS[brein]["sleutel"], "")
 
 
 def model(brein: str) -> str:
+    if brein == "Azure OpenAI":
+        config = azure_services.openai_config()
+        return config.deployment if config else azure_services.OPENAI_DEPLOYMENT
     return (opslag.instellingen().get("brein_modellen") or {}).get(brein) or AANBIEDERS[brein]["model"]
 
 
@@ -156,12 +168,23 @@ def antwoord(brein: str, berichten: list, bij_tekst=None, bij_hulpmiddel=None, s
     gesprek.extend(_geschiedenis(berichten))
     hulpmiddelen, per_naam = _hulpmiddelen(brein)
     a = AANBIEDERS[brein]
+    if brein == "Azure OpenAI":
+        try:
+            config = azure_services.openai_config()
+            if not config:
+                raise azure_services.AzureError("Azure OpenAI is nog niet geconfigureerd op de server.")
+        except azure_services.AzureError as fout:
+            raise Fout(str(fout)) from None
+        url, api_key, modelnaam = config.base_url + "chat/completions", config.api_key, config.deployment
+    else:
+        url, api_key, modelnaam = a["url"], sleutel(brein), model(brein)
     tekst = ""
     afgerond = False
     for _ in range(MAX_RONDES):
         try:
-            r = httpx.post(a["url"], headers={"Authorization": f"Bearer {sleutel(brein)}"}, timeout=120,
-                           json={"model": model(brein), "messages": gesprek, "tools": hulpmiddelen})
+            r = httpx.post(url, headers={"Authorization": f"Bearer {api_key}"}, timeout=120,
+                           json={"model": modelnaam, "messages": gesprek,
+                                 **({"tools": hulpmiddelen} if hulpmiddelen else {})})
         except httpx.HTTPError:
             raise Fout(f"{brein} is even niet bereikbaar. Probeer het zo nog eens.")
         if r.status_code in (401, 403):
