@@ -2,6 +2,7 @@
 
 import life_swarm_core
 import event_swarm_core
+import neural_video_core
 
 import calendar
 import html
@@ -2650,6 +2651,34 @@ def master_hub_pagina() -> None:
             except Exception:
                 st.error("Privénotitie kon niet worden opgeslagen.")
         st.caption("Bekijk je privénotities via privacyprofiel Privé en streamfilter Alles.")
+
+    with st.expander("Neural Video Studio - montageplanning", expanded=False):
+        st.caption("Stel een montageconcept op. Er worden geen video's gesynchroniseerd, vervaagd of gerenderd.")
+        video_projects = video_project_core.projects()
+        if not video_projects:
+            st.info("Maak eerst een videoproject aan via het bestaande videobeheer.")
+        else:
+            video_choices = {p.get("id"): p.get("title", "Naamloos") for p in video_projects if p.get("id")}
+            with st.form("neural_video_plan_form", clear_on_submit=True):
+                video_project_id = st.selectbox("Videoproject", list(video_choices), format_func=lambda v: video_choices.get(v, v))
+                video_sources = st.text_area("Bronbestanden (één bestandsnaam per regel)", max_chars=1000)
+                video_notes = st.text_area("Montage-instructies", max_chars=500)
+                video_save = st.form_submit_button("Montageconcept bewaren")
+            if video_save:
+                try:
+                    plan = neural_video_core.make_edit_plan(
+                        video_project_id, video_sources.splitlines(), video_notes
+                    )
+                    video_project_core.add_note(
+                        plan.project_id, 0,
+                        "Montageconcept: " + ", ".join(plan.sources) + " | " + plan.notes
+                    )
+                    st.success("Montageconcept opgeslagen. Er is geen video verwerkt.")
+                except ValueError as fout:
+                    st.warning(str(fout))
+                except Exception:
+                    st.error("Montageconcept kon niet worden opgeslagen.")
+        st.caption("AI-cut, multi-cam sync, gezichtsvervaging en rendering worden pas ingeschakeld na een echte verwerkingsintegratie.")
 
     with st.expander("Event Swarm - evenementen", expanded=False):
         st.caption("Maak een privéconcept. Tickets, wachtlijsten, betalingen en agenda's worden niet automatisch aangepast.")
