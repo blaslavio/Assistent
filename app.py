@@ -1,5 +1,6 @@
-import life_swarm_core
 """Webinterface van de assistent. Starten met: streamlit run app.py"""
+
+import life_swarm_core
 
 import calendar
 import html
@@ -2636,7 +2637,7 @@ def master_hub_pagina() -> None:
         st.caption("Persoonlijke notities blijven privé. Geen automatische publicatie, locatiebepaling of agenda-actie.")
         with st.form("life_swarm_private_form", clear_on_submit=True):
             levensrol = st.selectbox("Focus", life_swarm_core.LIFE_ROLES)
-            life_tekst = st.text_area("Privénotitie", max_chars=500)
+            life_tekst = st.text_area("Privénotitie", max_chars=450)
             life_save = st.form_submit_button("Privé bewaren")
         if life_save:
             try:
