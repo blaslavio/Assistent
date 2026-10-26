@@ -35,7 +35,7 @@ def _request(config, action, payload):
                 key=config.api_key, params={"api-version": API_VERSION}, json=payload)
     try:
         value = response.json().get("value")
-        if isinstance(value, list):
+        if isinstance(value, list) and all(isinstance(item, dict) for item in value):
             return value
     except (ValueError, AttributeError):
         pass
