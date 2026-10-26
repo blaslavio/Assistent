@@ -153,6 +153,30 @@ def _geschiedenis(berichten: list) -> list[dict]:
     return geldig
 
 
+def _providerbericht(response, brein: str) -> dict:
+    """Validate external provider output before using it as text or a tool call."""
+    try:
+        bericht = response.json()["choices"][0]["message"]
+        if not isinstance(bericht, dict) or not isinstance(bericht.get("content", "") or "", str):
+            raise ValueError
+        calls = bericht.get("tool_calls") or []
+        if not isinstance(calls, list):
+            raise ValueError
+        ids = set()
+        for call in calls:
+            if (not isinstance(call, dict) or not isinstance(call.get("id"), str)
+                    or not call["id"] or call["id"] in ids or not isinstance(call.get("function"), dict)):
+                raise ValueError
+            ids.add(call["id"])
+            functie = call["function"]
+            if (not isinstance(functie.get("name"), str) or not functie["name"]
+                    or not isinstance(functie.get("arguments", ""), str)):
+                raise ValueError
+        return {**bericht, "role": "assistant"}
+    except (ValueError, KeyError, IndexError, TypeError):
+        raise Fout(f"{brein} gaf een ongeldig antwoord. Probeer je vraag opnieuw.") from None
+
+
 def antwoord(brein: str, berichten: list, bij_tekst=None, bij_hulpmiddel=None, spraak: bool = False) -> str:
     """Zelfde werking als agent.antwoord, maar met ChatGPT of Gemini. Vult `berichten` aan met het antwoord."""
     try:
@@ -191,9 +215,9 @@ def antwoord(brein: str, berichten: list, bij_tekst=None, bij_hulpmiddel=None, s
             raise Fout(f"Je {brein}-sleutel werkt niet. Kijk bij Instellingen › Assistent › Brein.")
         if r.status_code == 429:
             raise Fout(f"{brein} zegt dat het tegoed op is of dat het te druk is. Probeer het later of kies een ander brein.")
-        if r.status_code >= 400:
+        if not 200 <= r.status_code < 300:
             raise Fout(f"{brein} gaf een fout ({r.status_code}). Klopt het model bij Instellingen › Assistent › Brein?")
-        bericht = r.json()["choices"][0]["message"]
+        bericht = _providerbericht(r, brein)
         aanroepen = bericht.get("tool_calls") or []
         gesprek.append({k: v for k, v in bericht.items() if k in ("role", "content", "tool_calls") and v is not None})
         if not aanroepen:

@@ -115,6 +115,23 @@ class BreinTests(unittest.TestCase):
                     self.mod.antwoord("Azure OpenAI", [{"role": "user", "content": "Hoi"}])
                 post.assert_not_called()
 
+    def test_ongeldig_providerantwoord_wordt_gebruikersmelding(self):
+        for payload in ({"choices": []}, {"choices": [{"message": None}]},
+                        {"choices": [{"message": {"content": ["unexpected"]}}]}):
+            with self.subTest(payload=payload):
+                response = FakeResponse({})
+                response.json = lambda: payload
+                with patch.object(self.mod.httpx, "post", return_value=response):
+                    with self.assertRaisesRegex(self.mod.Fout, "ongeldig antwoord"):
+                        self.mod.antwoord("ChatGPT", [{"role": "user", "content": "Hoi"}])
+
+    def test_provider_met_ongeldige_json_geeft_geen_crash(self):
+        response = FakeResponse({})
+        response.json = lambda: (_ for _ in ()).throw(ValueError("invalid JSON"))
+        with patch.object(self.mod.httpx, "post", return_value=response):
+            with self.assertRaisesRegex(self.mod.Fout, "ongeldig antwoord"):
+                self.mod.antwoord("ChatGPT", [{"role": "user", "content": "Hoi"}])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -26,6 +26,17 @@ def test_azure_configuration_rejects_credential_redirects_and_private_hosts():
     assert search_config.azure_config({}) is None
 
 
+def test_invalid_port_is_a_safe_configuration_error():
+    with pytest.raises(azure.AzureError):
+        azure.openai_config({"AZURE_OPENAI_API_KEY": "secret",
+                             "AZURE_OPENAI_BASE_URL": "https://x.openai.azure.com:wrong/openai/v1"})
+
+
+def test_invalid_search_configuration_does_not_crash_settings():
+    assert "ongeldig" in search_config.azure_status({"AZURE_SEARCH_ENDPOINT": "not-a-url",
+          "AZURE_SEARCH_INDEX": "docs", "AZURE_SEARCH_API_KEY": "secret"})
+
+
 def test_transport_never_follows_redirect_or_echoes_response_secret():
     response = httpx.Response(403, text="credential: secret-key")
     with patch.object(azure.httpx, "request", return_value=response) as request:

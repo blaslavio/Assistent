@@ -37,9 +37,13 @@ def openai_config(settings=None):
         return None
     endpoint = settings.get("AZURE_OPENAI_BASE_URL", OPENAI_ENDPOINT).strip().rstrip("/")
     model = settings.get("AZURE_OPENAI_DEPLOYMENT", OPENAI_DEPLOYMENT).strip()
-    url = urlsplit(endpoint)
+    try:
+        url = urlsplit(endpoint)
+        port = url.port
+    except ValueError:
+        raise AzureError("Controleer het Azure OpenAI-adres en de deploymentnaam.") from None
     if (url.scheme != "https" or not url.hostname or url.username or url.password
-            or url.port not in (None, 443) or url.query or url.fragment
+            or port not in (None, 443) or url.query or url.fragment
             or not url.hostname.endswith((".openai.azure.com", ".services.ai.azure.com"))
             or url.path != "/openai/v1" or not re.fullmatch(r"[\w.-]{1,128}", model)):
         raise AzureError("Controleer het Azure OpenAI-adres en de deploymentnaam.")

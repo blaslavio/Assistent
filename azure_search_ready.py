@@ -54,7 +54,10 @@ def azure_config(settings=None) -> AzureConfig | None:
 
 
 def azure_status(settings=None) -> str:
-    return "Configuratie aanwezig; verbinding niet getest" if azure_config(settings) else "Niet geconfigureerd"
+    try:
+        return "Configuratie aanwezig; verbinding niet getest" if azure_config(settings) else "Niet geconfigureerd"
+    except ValueError:
+        return "Configuratie ongeldig; controleer de serverinstellingen"
 
 
 def prepare_search_request(query: str, owner_id: str, scope: str, *, consent: bool) -> dict:
