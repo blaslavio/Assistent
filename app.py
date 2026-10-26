@@ -2641,7 +2641,7 @@ def master_hub_pagina() -> None:
         if life_save:
             try:
                 life_swarm_core.validate_life_role(levensrol)
-                opgeslagen = multistream_store.add_draft(life_tekst, "Privé")
+                multistream_store.add_draft("[" + levensrol + "] " + life_tekst, "Privé")
                 st.success("Privénotitie bewaard.")
             except ValueError as fout:
                 st.warning(str(fout))
