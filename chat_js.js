@@ -312,6 +312,7 @@ const ICOON = {
   peiling: '<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',
   lijstje: '<svg viewBox="0 0 24 24"><path d="M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17M11 6h9M11 12h9M11 18h9"/></svg>',
   plek: '<svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-12a7 7 0 0114 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
+  cursus: '<svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5L2 9zM6 11v5c3 2 9 2 12 0v-5M22 9v6"/></svg>',
   geld: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v.01M18 15v.01"/></svg>',
   bel: '<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2"/></svg>',
   video: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg>',
@@ -559,8 +560,8 @@ function toonCommunityInfo(st) {
     <div class="c-inhoud c-vulling">
       <div class="c-profiel">${communityAvatar(c.naam, true)}<b>${esc(c.naam)}</b>
         ${c.omschrijving ? `<small>${esc(c.omschrijving)}</small>` : ""}<small>${leden(c.leden)}</small></div>
-      <div class="c-kaart"><button class="c-blad-knop" data-a="community-pot" data-id="${c.id}"><span>${T("Inzamelen")}<br><small>${beheer ? T("Spaardoel of donaties voor de community") : T("Spaardoelen van de community")}</small></span></button>
-        <button class="c-blad-knop" data-a="community-cursussen" data-id="${c.id}"><span>${T("Cursussen en abonnement")}<br><small>${beheer ? T("Cursussen maken en verkopen") : T("Online cursussen volgen")}</small></span></button></div>
+      <div class="c-kaart"><button class="c-blad-knop" data-a="community-pot" data-id="${c.id}">${ICOON.geld}<span>${T("Inzamelen")}<br><small>${beheer ? T("Spaardoel of donaties voor de community") : T("Spaardoelen van de community")}</small></span></button>
+        <button class="c-blad-knop" data-a="community-cursussen" data-id="${c.id}">${ICOON.cursus}<span>${T("Cursussen en abonnement")}<br><small>${beheer ? T("Cursussen maken en verkopen") : T("Online cursussen volgen")}</small></span></button></div>
       <div class="c-sectie">${T("Uitnodigen")}</div>
       <div class="c-zoek"><input class="c-veld" id="c-c-wie" placeholder="${esc(T("Gebruikersnaam"))}" autocapitalize="none" autocomplete="off">
         <button class="c-knop c-hoofd" data-a="c-uitnodigen">${T("Uitnodigen")}</button></div>
