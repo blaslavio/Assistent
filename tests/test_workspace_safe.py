@@ -26,3 +26,5 @@ def test_ai_without_key(monkeypatch):
     assert "niet geconfigureerd" in ai_answer("vraag", "Gebruiker")
 
 # CI verification run
+
+# Re-run requested 2026-10-26
