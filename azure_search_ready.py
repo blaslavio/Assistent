@@ -2,7 +2,7 @@
 
 Preparation only: no Azure connection or data synchronization occurs here.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 from urllib.parse import urlsplit
 
@@ -32,18 +32,19 @@ def search_filter(owner_id: str, scope: str) -> str:
 class AzureConfig:
     endpoint: str
     index_name: str
-    api_key: str
+    api_key: str = field(repr=False)
 
 
 def azure_config(settings=None) -> AzureConfig | None:
     """Read secrets on server; never expose API key in UI or logs."""
-    settings = settings or os.environ
+    settings = os.environ if settings is None else settings
     values = [settings.get(key, "") for key in AZURE_SETTINGS]
     if not all(isinstance(value, str) and value.strip() for value in values):
         return None
     endpoint, index, api_key = values
     parsed = urlsplit(endpoint)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.path not in ("", "/"):
+    if (parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password
+            or parsed.path not in ("", "/") or parsed.query or parsed.fragment or parsed.port not in (None, 443)):
         raise ValueError("Ongeldig Azure Search endpoint")
     if not parsed.hostname.endswith(".search.windows.net"):
         raise ValueError("Azure AI Search endpoint verwacht")

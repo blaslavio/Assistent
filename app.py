@@ -24,6 +24,8 @@ import assistant_privacy
 import universal_workspace
 import intent_engine
 import azure_search_ready
+import azure_services
+import azure_ui
 import universal_search
 import predictive_context
 import dating_core
@@ -3890,6 +3892,10 @@ def brein_instellingen() -> None:
     if brein == "Claude":
         st.caption("Claude van Anthropic. De sleutel staat hieronder bij Anthropic-sleutel.")
         return
+    if brein == "Azure OpenAI":
+        st.caption("Microsoft Azure OpenAI. De deployment en sleutel worden uitsluitend op de server ingesteld.")
+        st.caption("Open Azure-diensten hieronder om de verbinding te testen.")
+        return
     a = ander_brein.AANBIEDERS[brein]
     st.caption(("Sleutel ingesteld. " if ander_brein.sleutel(brein) else "") + f"Een sleutel maak je bij {a['waar']}.")
     with st.form(f"sleutel_{brein}", border=False):
@@ -4444,6 +4450,8 @@ def idee_of_probleem() -> None:
 
 
 def instellingen_assistent() -> None:
+    with st.expander("Azure-diensten"):
+        azure_ui.settings()
     with st.expander(f"Naam en uiterlijk ({mijn_avatar()['naam']})"):
         avatar_instellingen()
     with st.expander("Hoe de assistent praat"):
@@ -5298,6 +5306,10 @@ def gesprek() -> None:
         woning.knoppen(st.session_state.get("woning_onder", []), "gesprek")
         feedback_vragen_antwoord()
 
+    azure_opname = azure_ui.recording()
+    if azure_opname:
+        st.session_state.vooraf_vraag = azure_opname
+        st.session_state.ingesproken = True
     vraag = st.session_state.pop("vooraf_vraag", None)
     if not vraag:
         vraag = st.chat_input("Stel je vraag aan de assistent...", key="assistent_chat_input")
@@ -5383,7 +5395,15 @@ def gesprek() -> None:
     # Voorlezen gebeurt na de rerun door de spraakknop, één keer per antwoord.
     if ingesproken or stemkeuze["voorlezen"]:
         st.session_state.voorlezen_id = f"antwoord-{len(st.session_state.chat)}"
-        if sleutel and stemkeuze.get("natuurlijk") and (stem_sleutel := opslag.instellingen().get("elevenlabs_sleutel")):
+        if sleutel and opslag.instellingen().get("azure_spraak_aan", False):
+            try:
+                st.session_state.voorlezen_geluid = azure_services.speech_audio(
+                    spraak.voor_voorlezen(spraak.zonder_labels(ruw))[:2500],
+                    language=spraak.REGIO.get(stemkeuze["regio"], "nl-NL"),
+                    gender=stemkeuze["geslacht"], speed=stemkeuze["snelheid"])
+            except azure_services.AzureError as fout:
+                st.session_state.stem_melding = str(fout) + " Ik gebruik de stem van je apparaat."
+        elif sleutel and stemkeuze.get("natuurlijk") and (stem_sleutel := opslag.instellingen().get("elevenlabs_sleutel")):
             with st.spinner("Stem maken..."):
                 try:
                     st.session_state.voorlezen_geluid = spraak.natuurlijk_voorlezen(ruw, gevoel, stemkeuze, stem_sleutel)
