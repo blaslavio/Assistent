@@ -2596,7 +2596,8 @@ def master_hub_pagina() -> None:
     """Account-scoped Multi-Stream drafts; never publish or send automatically."""
     st.title("Universal Master Hub")
     st.caption("Verkoop, chat, projecten en community in één overzicht.")
-    profile = st.segmented_control("Privacyprofiel", list(multistream_store.PROFILES),\n                                   default="Privé", key="master_privacy_profile")
+    profile = st.segmented_control("Privacyprofiel", list(multistream_store.PROFILES),
+                                   default="Privé", key="master_privacy_profile")
     st.caption("Profielwissel toont uitsluitend concepten van het gekozen profiel.")
     lens = st.segmented_control("Streamfilter", list(multistream_core.LENSES),
                                 default="Alles", key="master_stream_lens")
