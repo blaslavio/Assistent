@@ -12,7 +12,7 @@ def test_private_intake_is_only_a_draft(service):
     ("Training", "", ""),
     ("Training", "x" * 101, ""),
     ("Training", "Intake", "x" * 251),
-    ("Training", "Intake", "fout\\x00"),
+    ("Training", "Intake", "fout" + chr(0)),
 ])
 def test_invalid_intakes(service, subject, note):
     with pytest.raises(ValueError):
