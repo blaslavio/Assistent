@@ -17,7 +17,7 @@ class StreamDraft:
 _PATTERNS = (
     ("Video Project", r"\b(video|videoproject|film|montage|timeline|videobewerking|reel)\b"),
     ("Verhuur / Rooster", r"\b(verhuur|verhuren|zaal huren|ruimte huren|rooster|materiaal huren|stoel huren)\b"),
-    ("Sport", r"\b(sport|sportvereniging|wedstrijd|voetbal|bokstraining|training|scheidsrechter|bardienst)\b"),
+    ("Sport", r"\b(sport|sportvereniging|wedstrijd|voetbal|voetbalwedstrijd|bokstraining|training|scheidsrechter|bardienst)\b"),
     ("Verkoop", r"\b(verkoop|verkopen|te koop|advertentie|marktplaats|webshop|product aanbieden)\b"),
     ("Projecten", r"\b(project|projecten|taak|deadline|mijlpaal)\b"),
     ("Community", r"\b(community|publieke bijdrage|deel met de groep|buurtborrel)\b"),
