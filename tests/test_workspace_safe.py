@@ -24,3 +24,5 @@ def test_record_no_fake_status():
 def test_ai_without_key(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     assert "niet geconfigureerd" in ai_answer("vraag", "Gebruiker")
+
+# CI verification run
