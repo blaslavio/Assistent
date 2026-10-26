@@ -1,4 +1,4 @@
-"""Inloggen met Google, Apple of Microsoft via Supabase Auth (PKCE), zie sql/extern_inloggen.sql.
+"""Inloggen met Google, Apple of Microsoft Entra ID via Supabase Auth (PKCE), zie sql/extern_inloggen.sql.
 
 De knoppen verschijnen vanzelf zodra de beheerder een aanbieder aanzet in Supabase (Authentication › Providers).
 Stap 1: start() geeft de link naar de aanbieder, met een geheime 'verifier' die alleen deze server kent.
@@ -47,8 +47,21 @@ def aanbieders() -> list[str]:
     return aan
 
 
+def provider_ready(aanbieder: str) -> bool:
+    """Only configured and provider-reported enabled logins can be offered."""
+    if aanbieder not in AANBIEDERS:
+        return False
+    return aanbieder in aanbieders()
+
+
 def start(aanbieder: str, terug_adres: str) -> str:
     """De link naar de aanbieder. terug_adres is het adres van de app (met / aan het eind)."""
+    if aanbieder not in AANBIEDERS:
+        raise ValueError("Onbekende inlogaanbieder.")
+    if not provider_ready(aanbieder):
+        raise ValueError("Deze inlogaanbieder is nog niet geconfigureerd.")
+    if not isinstance(terug_adres, str) or not terug_adres.startswith("https://"):
+        raise ValueError("Een beveiligd terugkeeradres is vereist.")
     verifier = secrets.token_urlsafe(48)
     staat = secrets.token_urlsafe(16)
     with _slot:
