@@ -82,7 +82,7 @@ def pagina() -> None:
 
 def overzicht() -> None:
     with st.container(horizontal=True, gap="small", vertical_alignment="center"):
-        if st.button("Nieuw document", icon=":material/add:", type="primary"):
+        if st.button("Nieuw document", icon=":material/add:", type="secondary"):
             doc = documenten.maken("Naamloos document", "", apparaat())
             openen(doc["id"])
             st.rerun()
@@ -102,7 +102,7 @@ def overzicht() -> None:
         alle = documenten.lijst("")
         with st.container(width=240):
             zoek = zoekveld.zoekveld("doc_zoek", "Zoeken", [
-                zoekveld.suggestie(d["titel"] or "Naamloos", (d.get("gewijzigd") or "")[:10], "📄") for d in alle[:200]])
+                zoekveld.suggestie(d["titel"] or "Naamloos", (d.get("gewijzigd") or "")[:10], ":material/description:") for d in alle[:200]])
 
     lijst = documenten.lijst(zoek) if zoek else alle
     if not lijst:
