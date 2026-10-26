@@ -6,7 +6,7 @@ payment, listing or external AI request.
 import re
 from dataclasses import dataclass
 
-LENSES = ("Alles", "Verkoop", "Chat", "Projecten", "Community", "Video Project", "Verhuur / Rooster", "Sport")
+LENSES = ("Alles", "Verkoop", "Chat", "Projecten", "Community", "Video Project", "Verhuur / Rooster", "Sport", "Dienstverlening", "Herstel & Coaching")
 
 @dataclass(frozen=True)
 class StreamDraft:
@@ -15,12 +15,14 @@ class StreamDraft:
     status: str = "concept"
 
 _PATTERNS = (
+    ("Herstel & Coaching", r"\b(herstel|massage|stijf|stijfheid|blessure|klacht|klachten|cliënt|client)\b"),
+    ("Dienstverlening", r"\b(dienst|diensten|dienstverlening|pass|micro-pass)\b"),
     ("Video Project", r"\b(video|videoproject|film|montage|timeline|videobewerking|reel)\b"),
     ("Verhuur / Rooster", r"\b(verhuur|verhuren|zaal huren|ruimte huren|rooster|materiaal huren|stoel huren)\b"),
-    ("Sport", r"\b(sport|sportvereniging|wedstrijd|voetbal|voetbalwedstrijd|bokstraining|training|scheidsrechter|bardienst)\b"),
-    ("Verkoop", r"\b(verkoop|verkopen|te koop|advertentie|marktplaats|webshop|product aanbieden)\b"),
+    ("Sport", r"\b(trainer|sport|sportvereniging|wedstrijd|voetbal|voetbalwedstrijd|bokstraining|training|scheidsrechter|bardienst)\b"),
+    ("Verkoop", r"\b(winkel|verkoop|verkopen|te koop|advertentie|marktplaats|webshop|product aanbieden)\b"),
     ("Projecten", r"\b(project|projecten|taak|deadline|mijlpaal)\b"),
-    ("Community", r"\b(community|publieke bijdrage|deel met de groep|buurtborrel)\b"),
+    ("Community", r"\b(community|groep|swarm|event|evenement|club|organiseer|publieke bijdrage|deel met de groep|buurtborrel)\b"),
 )
 
 def classify(text: str) -> str:

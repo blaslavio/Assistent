@@ -28,3 +28,11 @@ The intake section now offers only fixed service and purpose choices with no def
 Sensitive client-record persistence remains unconditionally disabled. This is consistent with assistant_privacy's default-off learning consent and community_privacy's default-off discovery/personalization. A privacy profile label alone is not an authorization boundary. The existing generic free-text stream and Life Swarm notes are outside this scoped change and are not certified for clinical records.
 
 Validation adds all supported service/purpose pairs, unknown/type-invalid content, no default selection, invalid-payload non-echo, and checks that the preparation flow never calls storage, recovery advice or calendar synchronization.
+
+## Supplied ecosystem prototype integration
+
+The supplied prototype is integrated into the existing Master Hub through ecosystem_core.py and ecosystem_ui.py, rather than replacing application authentication or account storage. The panel adds role context, local intent suggestions and explicit navigation through the existing route control. The shared classifier/feed filters now include Dienstverlening and Herstel & Coaching; store, service, community and sport terms use the same labels as the feed. Existing draft text renders as literal text rather than Markdown.
+
+The source's bitwise-OR condition is replaced by shared regex matching. Roles are display context only. There is no authenticated=True bypass, fabricated seed feed, default geolocation, regex claim of anonymization, raw message history, silent Gemini call or inferred learning consent. The compatibility infinite_swarm_neural_engine entry point returns truthful local suggestions. Real external AI and transactional pass claiming/waitlists are not activated in this flow. Existing event, video, service and resource workflows remain intact. Private client-record persistence remains blocked.
+
+Regression tests include real Streamlit AppTest form submission, health boundaries, empty/invalid request handling, stale-navigation clearing, independent sessions, no storage/external AI calls and actual integration into master_hub_pagina. Tests use synthetic input; live databases and provider calls are outside their scope.
