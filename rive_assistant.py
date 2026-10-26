@@ -78,7 +78,7 @@ def build_svg_fallback_html(svg: str, state: str = "idle") -> str:
     # SVG source is committed alongside the app. Explicitly reject active content.
     if not svg.lstrip().startswith("<svg") or "</svg>" not in svg:
         raise ValueError("Invalid SVG")
-    if re.search(r"<\\s*(script|foreignObject|iframe|image|use)\\b|\\bon\\w+\\s*=|javascript:|<\\!ENTITY", svg, re.I):
+    if re.search(r"<\s*(script|foreignObject|iframe|image|use)\b|\bon\w+\s*=|javascript:|<\!ENTITY", svg, re.I):
         raise ValueError("SVG contains unsupported elements")
     state = normalized_state(state)
     motion = {
