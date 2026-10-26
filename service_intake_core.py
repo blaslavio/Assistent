@@ -18,7 +18,7 @@ def make_intake_draft(service: str, subject: str, note: str = "") -> IntakeDraft
     if not isinstance(note, str) or len(note) > 250:
         raise ValueError("Notitie mag maximaal 250 tekens bevatten.")
     for value in (subject, note):
-        if any(ord(ch) < 32 and ch not in "\n\t" or ord(ch) == 127 for ch in value):
+        if any((ord(ch) < 32 and ch not in (chr(10), chr(9))) or ord(ch) == 127 for ch in value):
             raise ValueError("Ongeldige tekens in invoer.")
     return IntakeDraft(service, subject.strip(), note.strip())
 
