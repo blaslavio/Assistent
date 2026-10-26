@@ -14,3 +14,18 @@ Microsoft sign-in uses the existing Supabase Auth OAuth/PKCE implementation in `
 The app refuses to initiate an unknown, disabled, or unconfigured provider and rejects non-HTTPS return URLs. It does not claim that Azure is connected merely because environment variables exist.
 
 **Security gate:** before enabling sensitive client records, verify tenant restrictions, Supabase RLS and that account identifiers are derived from verified server-side authentication, not from user-supplied form fields. Do not use the Supabase service-role key in browser-facing app code.
+
+## Verified project configuration (2026-10-26)
+
+- Supabase project: `lnjsekmlpjyiwdlzcowa`
+- Supabase callback URL: `https://lnjsekmlpjyiwdlzcowa.supabase.co/auth/v1/callback`
+- Microsoft Entra client ID: `ab861c49-92d7-4bf0-a9bd-ce83ba09e196`
+- Microsoft Entra tenant ID: `fe1f2eaa-37a9-4358-910b-c68959f9fc08`
+- Microsoft tenant URL: `https://login.microsoftonline.com/fe1f2eaa-37a9-4358-910b-c68959f9fc08`
+- Supabase Azure provider configuration must include client ID, secret **value** (not secret ID), and tenant URL; enabling requires a privileged Supabase Management API call or Dashboard.
+- Entra app registration must list the Supabase callback as a **Web** redirect URI.
+- Microsoft Azure login requests `email` scope.
+- The single-tenant Microsoft app should expose `xms_edov` optional claim for email verification as recommended by Supabase.
+- No Azure provider login has been verified yet. Do not report a successful connection until an actual OAuth login completes.
+
+Supabase guide: https://supabase.com/docs/guides/auth/social-sign-in/auth-azure
