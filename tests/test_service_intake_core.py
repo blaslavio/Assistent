@@ -23,3 +23,14 @@ def test_no_fake_recovery_or_calendar_actions():
         recovery_advice("test")
     with pytest.raises(RuntimeError):
         sync_calendar("test")
+
+@pytest.mark.parametrize('subject,note', [(None, ''), (42, ''), ('   ', ''), ('Intake', None), ('Intake', 42), ('Intake', '\x7f'), ('Intake', '\x01')])
+def test_invalid_types_and_controls(subject, note):
+    with pytest.raises(ValueError):
+        make_intake_draft('Training', subject, note)
+
+def test_exact_limits_and_trimming():
+    item = make_intake_draft('Training', 'x' * 100, 'y' * 250)
+    assert len(item.subject) == 100
+    assert len(item.note) == 250
+    assert make_intake_draft('Training', '  Intake  ', '  note  ').subject == 'Intake'

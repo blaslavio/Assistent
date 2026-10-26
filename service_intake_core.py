@@ -27,3 +27,12 @@ def recovery_advice(*args, **kwargs):
 
 def sync_calendar(*args, **kwargs):
     raise RuntimeError("Agendasynchronisatie vereist een gekoppelde agenda en bevestigde actie.")
+
+
+def save_intake_draft(*args, **kwargs):
+    """Fail closed until deployed account/tenant isolation is independently verified.
+
+    Deliberately no environment flag: enabling requires a reviewed code change.
+    No payload is validated, logged, forwarded or persisted by this entry point.
+    """
+    raise RuntimeError("Intakeopslag is uitgeschakeld totdat opslagisolatie is geverifieerd.")

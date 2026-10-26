@@ -2637,24 +2637,7 @@ def master_hub_pagina() -> None:
                 except Exception:
                     st.error("Verwijderen is niet gelukt.")
     with st.expander("Dienstverlening - intake", expanded=False):
-        st.caption("Leg een privéconcept vast. Er wordt geen cliëntdossier, afspraak of behandeladvies aangemaakt.")
-        with st.form("service_intake_draft_form", clear_on_submit=True):
-            service_kind = st.selectbox("Dienst", service_intake_core.SERVICES)
-            service_subject = st.text_input("Onderwerp", max_chars=100)
-            service_note = st.text_area("Notitie", max_chars=250)
-            service_save = st.form_submit_button("Intakeconcept bewaren")
-        if service_save:
-            try:
-                intake = service_intake_core.make_intake_draft(service_kind, service_subject, service_note)
-                multistream_store.add_draft(
-                    "[Intake] " + intake.service + " | " + intake.subject
-                    + (" | " + intake.note if intake.note else ""), "Privé"
-                )
-                st.success("Intakeconcept privé opgeslagen.")
-            except ValueError as fout:
-                st.warning(str(fout))
-            except Exception:
-                st.error("Intakeconcept kon niet worden opgeslagen.")
+        st.warning("Intake-invoer en opslag zijn uitgeschakeld totdat account- en tenantisolatie zijn geverifieerd. Voer geen cliëntgegevens in.")
         st.caption("Cliëntdossiers, individuele hersteladviezen en agendasynchronisatie zijn niet actief.")
 
     with st.expander("Life Swarm - persoonlijk", expanded=False):
