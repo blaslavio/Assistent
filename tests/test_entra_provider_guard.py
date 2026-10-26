@@ -22,3 +22,4 @@ def test_enabled_azure_uses_pkce(monkeypatch):
     assert "provider=azure" in url
     assert "code_challenge_method=S256" in url
     assert "code_challenge=" in url
+    assert "scopes=email" in url
