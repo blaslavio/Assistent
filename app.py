@@ -5367,8 +5367,17 @@ def gesprek() -> None:
                 st.switch_page(PAGINA["agenda"])
             elif voorstel.kind == "communicatie" and st.button("Open communicatie", key="intent_mail_open"):
                 st.switch_page(PAGINA["communicatie"])
-            elif voorstel.kind in ("betaling", "inkomsten"):
-                st.info("Gebruik de bestaande financiële module voor verificatie en registratie.")
+            elif voorstel.kind == "betaling":
+                st.caption("Bereid een betaalverzoek voor in Pay-in-Chat; er wordt niet automatisch betaald.")
+                if st.button("Open Pay-in-Chat", key="intent_betaling_open"):
+                    st.session_state["toon_pay_in_chat"] = True
+                    st.switch_page(PAGINA["communicatie"])
+            elif voorstel.kind == "inkomsten":
+                if "budget" in PAGINA:
+                    if st.button("Open budget", key="intent_inkomsten_open"):
+                        st.switch_page(PAGINA["budget"])
+                else:
+                    st.info("Budget is momenteel niet beschikbaar.")
         elif snelle_opdracht.strip():
             st.caption("Geen eenduidige actie gevonden. Stel je vraag aan de assistent.")
     stemkeuze = stem()
