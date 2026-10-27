@@ -10,7 +10,7 @@ class IntentDraft:
 
 _TASK = re.compile(r"^\s*(?:maak|voeg toe|noteer|herinner me)\s+(?:een\s+)?taak\s*(?:voor|om|:)\s*(.+)$", re.I)
 _INCOME = re.compile(r"\b(?:ontvangen|ontving|gekregen)\s+(?:€\s*)?(\d+(?:[.,]\d{1,2})?)\s*(?:euro|€)?\s+(?:fooi|inkomsten)\b", re.I)
-_PAY = re.compile(r"\b(?:betaal|overmaken|overschrijven|afrekenen|betaalverzoek|factuur)\b", re.I)
+_PAY = re.compile(r"\b(?:betaal|overmaken|overschrijven|afrekenen|betaalverzoek|factuur|fooi|tip|stuur\s+(?:€\s*)?\d+(?:[.,]\d{1,2})?\s+(?:euro\s+)?naar)\b", re.I)
 _SEND = re.compile(r"\b(?:verstuur|verzend|mail\s+naar|stuur\s+een\s+bericht)\b", re.I)
 _APPOINTMENT = re.compile(r"\b(?:plan|inplannen|afspraak|reservering)\b", re.I)
 
