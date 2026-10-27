@@ -14,6 +14,7 @@ import bestanden
 import toegang
 import opslag
 import plannen_scherm
+import handelsafspraak
 import ruimte
 import kort
 import samen
@@ -578,6 +579,48 @@ def bestellingen() -> None:
         bestelling_kaart(b)
 
 
+def handelsafspraak_formulier(b: dict) -> None:
+    """Na akkoord een tijd voorstellen en de andere partij in diens agenda uitnodigen."""
+    if b.get("status") not in handelsafspraak.AFSPRAAK_STATUSES:
+        return
+    if b.get("levering") in ("verzenden", "bezorgen"):
+        if b.get("bezorgen_van"):
+            st.caption("Het verwachte bezorgmoment staat bij de verzendinformatie. "
+                       "Een bezorgvenster is geen onderling bevestigde afspraak.")
+        return
+    bestaand = handelsafspraak.bestaande(b["id"])
+    if bestaand:
+        st.caption("Afspraakvoorstel staat in je agenda. De andere partij ontvangt een uitnodiging.")
+        return
+    with st.expander("Overdracht of ontmoeting plannen", icon=":material/event:"):
+        st.caption("Jullie zijn akkoord over de bestelling. Stel nu een tijd voor; "
+                   "de andere partij moet de agenda-uitnodiging nog accepteren.")
+        with st.form(f"handel_afspraak_{b['id']}", border=False):
+            dag = st.date_input("Datum", value=date.today() + timedelta(days=1),
+                                min_value=date.today(), key=f"handel_dag_{b['id']}")
+            tijd = st.time_input("Tijd", value=datetime.now().replace(hour=12, minute=0).time(),
+                                 step=900, key=f"handel_tijd_{b['id']}")
+            duur = st.selectbox("Duur", [15, 30, 45, 60, 90, 120], index=1,
+                                format_func=lambda m: f"{m} minuten", key=f"handel_duur_{b['id']}")
+            locatie = st.text_input("Afgesproken ontmoetingsplek", max_chars=250,
+                                    key=f"handel_locatie_{b['id']}",
+                                    placeholder="Bijv. station of winkel")
+            if st.form_submit_button("Afspraakvoorstel versturen", icon=":material/event_available:"):
+                try:
+                    uitkomst = handelsafspraak.plannen(
+                        b, datetime.combine(dag, tijd), duur, locatie.strip())
+                except (ValueError, samen.Fout) as fout:
+                    st.error(str(fout))
+                except Exception:
+                    st.error("Uitnodigen is niet gelukt. Er is geen afspraak opgeslagen.")
+                else:
+                    if uitkomst["nieuw"]:
+                        st.success("Afspraak in je agenda gezet en uitnodiging verstuurd. "
+                                   "De andere partij kan deze accepteren of weigeren.")
+                    else:
+                        st.info("Dit voorstel staat al in je agenda.")
+
+
 def bestelling_kaart(b: dict) -> None:
     koper = b["rol"] == "koper"
     app = b["betaalwijze"] == "app"
@@ -593,6 +636,7 @@ def bestelling_kaart(b: dict) -> None:
             st.caption(v)
         verzenden_regel(b)
         bezorg_regel(b)
+        handelsafspraak_formulier(b)
         if b.get("webshop") and not koper and b.get("commissie") is not None:
             st.caption(f"Webshopcommissie {samen.euro(b['commissie'])}, je ontvangt "
                        f"{samen.euro(b['bedrag'] - b['commissie'])}.")
@@ -745,9 +789,16 @@ def boekingen() -> None:
                         + (f" · :material/location_on: {b['plaats']}" if b["plaats"] else "") + (f"  \n:gray[{b['opmerking']}]" if b["opmerking"] else ""))
             kol1, kol2 = st.columns(2)
             start = datetime.fromisoformat(b["start"]).astimezone().strftime("%Y-%m-%dT%H:%M")
-            if (b["titel"], start) not in in_agenda and kol1.button("In mijn agenda", key=f"ag_{b['id']}", width="stretch"):
-                samen.in_agenda_zetten(b)
-                st.rerun()
+            if (b["titel"], start) not in in_agenda:
+                try:
+                    samen.in_agenda_zetten(b)
+                    in_agenda.add((b["titel"], start))
+                except Exception:
+                    if kol1.button("Opnieuw aan agenda toevoegen", key=f"ag_{b['id']}", width="stretch"):
+                        if _fout(samen.in_agenda_zetten, b) is not None:
+                            st.rerun()
+            else:
+                kol1.caption("Staat in je agenda")
             if kol2.button("Annuleren", key=f"ann_{b['id']}", width="stretch"):
                 samen.boeking_annuleren(b["id"])
                 st.toast("Geannuleerd. Laat de ander even weten waarom via Berichten.", icon=":material/info:")
@@ -829,6 +880,45 @@ def winkel_opslaan(adres: str, naam: str, *rest) -> bool:
     return False
 
 
+def tweedehands_aanbieden() -> None:
+    """Een eigen tweedehands kledingadvertentie via de bestaande marktplaats-backend."""
+    st.markdown("#### Tweedehands kleding")
+    st.caption("Verkoop kleding per stuk. Beschrijf de echte staat en eventuele beschadigingen. "
+               "Je advertentie verschijnt op de marktplaats, niet automatisch in de webshopcatalogus.")
+    status = _fout(samen.betalen_status) or {}
+    wijzen = [w for w in samen.BETAALWIJZEN if w != "app" or status.get("ik_kan_ontvangen")]
+    with st.form("tweedehands_kleding", clear_on_submit=True, border=False):
+        categorie = st.selectbox("Categorie", ["Dames", "Heren", "Kinderen", "Schoenen", "Accessoires"])
+        titel = st.text_input("Artikel", max_chars=100, placeholder="Bijv. Winterjas zwart")
+        merk = st.text_input("Merk", max_chars=60, placeholder="Merk of geen merk")
+        maat = st.text_input("Maat", max_chars=20, placeholder="Bijv. M, 38 of 42")
+        staat = st.selectbox("Staat", ["Nieuw met label", "Als nieuw", "Heel goed", "Goed", "Veelgebruikt"])
+        gebreken = st.text_area("Gebreken en bijzonderheden", max_chars=600,
+                               placeholder="Beschrijf slijtage, vlekken, reparaties of andere details.")
+        prijs = st.number_input("Vraagprijs (€)", min_value=0.0, value=10.0, step=1.0)
+        plaats = st.text_input("Plaats", max_chars=100)
+        betaal = st.pills("Betalen", wijzen, selection_mode="multi",
+                          default=["app"] if "app" in wijzen else ["contant"],
+                          format_func=samen.BETAALWIJZEN.get)
+        levering = st.pills("Levering", [l for l in samen.LEVERING if l != "bezorgen"],
+                            selection_mode="multi", default=["ophalen"],
+                            format_func=samen.LEVERING.get)
+        akkoord = st.checkbox("Ik bevestig dat de beschrijving klopt en het artikel van mij is.")
+        if st.form_submit_button("Kleding aanbieden", type="primary", width="stretch"):
+            if not titel.strip() or not maat.strip() or not merk.strip():
+                st.error("Vul artikel, merk en maat in.")
+            elif not akkoord:
+                st.error("Bevestig eerst dat de gegevens kloppen.")
+            else:
+                omschrijving = (f"Tweedehands kleding | {categorie} | Merk: {merk.strip()} | "
+                                f"Maat: {maat.strip()} | Staat: {staat}. "
+                                f"Bijzonderheden: {gebreken.strip() or 'Geen opgegeven'}.")
+                if _fout(samen.aanbod_plaatsen, "product", titel.strip(), omschrijving,
+                         prijs, "per stuk", plaats.strip(), "", betaal, levering) is not None:
+                    st.success("Je kledingadvertentie is op de marktplaats geplaatst.")
+    st.caption("Voeg alleen echte informatie toe. Deel geen woonadres als je daar geen kopers wilt ontvangen.")
+
+
 def mijn_webshop(inkopen=None) -> None:
     """Pagina Mijn webshop: winkel instellen, producten en voorraad, en delen."""
     m = samen.mijn_winkel()
@@ -836,17 +926,53 @@ def mijn_webshop(inkopen=None) -> None:
         st.info("Een eigen webshop kan met accounttype 'Privé, verkoopt vaak' of 'Bedrijf of zzp'. Kies dat gratis bij "
                 "Instellingen › Account › Accounttype.")
         return
-    w = m["winkel"]
-    if w:
-        delen = ["Winkel", "Inkopen", "Reserveren", "Marketing", "Reviews"] if inkopen else \
-            ["Winkel", "Reserveren", "Marketing", "Reviews"]
-        deel = st.segmented_control("Onderdeel", delen, default="Winkel",
-                                    key="webshop_deel", label_visibility="collapsed") or "Winkel"
+    # Nieuwe accounts hebben nog geen winkelrecord. De editor moet dan met
+    # lege standaardwaarden openen in plaats van None.get(...) aan te roepen.
+    w = m.get("winkel") or {}
+    st.markdown("### Mijn webshop")
+    if not w:
+        st.caption("Start met een nieuwe winkel. Je kunt deze eerst als concept opslaan en later publiceren.")
+    else:
+        v = m.get("verkopen") or {}
+        producten = m.get("producten") or []
+        st.markdown("**Verkoopoverzicht**")
+        a, b, c = st.columns(3)
+        a.metric("Bestellingen", int(v.get("aantal") or 0))
+        b.metric("Omzet", samen.euro(v.get("omzet") or 0))
+        c.metric("Producten", len([p for p in producten if p.get("actief") and not p.get("geblokkeerd")]))
+        st.caption("Omzet en bestellingen zijn gebaseerd op geregistreerde verkopen in deze app. "
+                   "Verkopen via externe winkels tellen niet mee.")
+        st.caption("Beheer je winkel, voorraad, verkopen en afspraken vanuit één plek.")
+        delen = ["Overzicht", "Winkel", "Producten", "Tweedehands", "Bestellingen", "Reserveren", "Marketing", "Reviews"]
+        if inkopen:
+            delen.insert(2, "Inkopen")
+        # Een selectbox-key mag niet na het renderen van de widget worden gewijzigd.
+        # Navigatieknoppen schrijven daarom naar een tijdelijke keuze voor de volgende run.
+        volgend = st.session_state.pop("_webshop_volgende_deel", None)
+        if volgend in delen:
+            st.session_state["webshop_deel"] = volgend
+        elif st.session_state.get("webshop_deel") not in delen:
+            st.session_state["webshop_deel"] = "Overzicht"
+        deel = st.selectbox("Winkelonderdeel", delen,
+                            index=None, placeholder="Kies een onderdeel",
+                            key="webshop_deel", help="Open alleen het onderdeel dat je nodig hebt. "
+                            "Dit houdt de winkel overzichtelijk en voorkomt onnodig laden.") or "Overzicht"
         if deel == "Inkopen":
             inkopen()
             return
         if deel == "Reserveren":
             plannen_scherm.zaak_beheer()
+            return
+        if deel == "Tweedehands":
+            tweedehands_aanbieden()
+            return
+        if deel == "Producten":
+            st.markdown("#### Producten en voorraad")
+            st.caption("Kies welke producten in je webshop staan en beheer de voorraad.")
+            winkel_producten_beheren(m)
+            return
+        if deel == "Bestellingen":
+            bestellingen()
             return
         if deel == "Marketing":
             marketing(w)
@@ -854,12 +980,53 @@ def mijn_webshop(inkopen=None) -> None:
         if deel == "Reviews":
             winkel_reviews()
             return
+        if deel == "Overzicht":
+            st.markdown("**Snel naar**")
+            acties = [
+                ("Winkel ontwerpen", "Winkel", ":material/storefront:"),
+                ("Producten beheren", "Producten", ":material/inventory_2:"),
+                ("Tweedehands kleding", "Tweedehands", ":material/checkroom:"),
+                ("Bestellingen", "Bestellingen", ":material/receipt_long:"),
+                ("Afspraken", "Reserveren", ":material/event:"),
+            ]
+            for tekst, bestemming, icoon in acties:
+                if st.button(tekst, icon=icoon, key=f"winkel_snel_{bestemming}",
+                             width="stretch", type="secondary"):
+                    st.session_state["_webshop_volgende_deel"] = bestemming
+                    st.rerun()
+            st.markdown("**Winkel beheren**")
+            st.caption("Ontwerp je winkel, voeg producten toe en deel je winkeladres vanuit één plek.")
+            if st.button("Winkel aanpassen", icon=":material/edit:", width="stretch", key="shop_to_editor"):
+                st.session_state["_webshop_volgende_deel"] = "Winkel"
+                st.rerun()
+            if st.button("Afspraken en beschikbaarheid", icon=":material/event:", width="stretch", key="shop_to_booking"):
+                st.session_state["_webshop_volgende_deel"] = "Reserveren"
+                st.rerun()
+            if w.get("open"):
+                st.code(winkel_link(w["adres"]), language=None)
+                st.caption("Deellink van je openbare winkel.")
+            else:
+                st.info("Je winkel is nog niet openbaar. Open 'Winkel aanpassen' om deze te publiceren.")
+            return
+    if w:
+        st.markdown("**Ontwerp en deel je winkel**")
+        st.caption("Pas naam, beschrijving en merkkleur aan bij Winkel instellen. Je deelt altijd dezelfde link.")
+        st.code(winkel_link(w["adres"]), language=None)
+        with st.expander("Winkelvoorbeeld", icon=":material/visibility:"):
+            import html
+            st.markdown(
+                f'<div style="border-top:7px solid {html.escape(w.get("kleur") or "#2563eb", quote=True)};padding:18px;border-radius:12px;background:rgba(128,128,128,.06)">'
+                f'<h3>{html.escape(w.get("naam") or "Mijn winkel")}</h3>'
+                f'<p>{html.escape(w.get("omschrijving") or "Welkom in mijn winkel.")}</p></div>',
+                unsafe_allow_html=True)
+        st.caption("Via Reserveren beheer je je agenda en beschikbare tijden.")
+
     st.caption(f"Je eigen winkel in de app, die je kunt delen. Klanten betalen veilig via de app en "
                f"betalen niets extra. Per verkoop betaal je {m['commissie_procent']:g}% commissie (minimaal "
                f"{samen.euro(m['commissie_min'])}), inclusief betaalkosten. Geen abonnement.")
     if not m["kan_betalen"]:
         st.warning("Om je winkel te openen, meld je je eerst aan om betalingen via de app te ontvangen "
-                   "(Verkopen › Betalen).")
+                   "(Verkopen › Betalingen).")
     if w and w["open"]:
         st.success("Je winkel is open.")
         kort.deel_blok("winkel", w["adres"], w["naam"], "winkel")
@@ -870,23 +1037,71 @@ def mijn_webshop(inkopen=None) -> None:
         c1.metric("Verkocht via de webshop", f"{v['aantal']}×", samen.euro(v["omzet"]), delta_color="off")
         c2.metric("Commissie betaald", samen.euro(v["commissie"]))
 
-    with st.expander("Winkel instellen" if w else "Winkel aanmaken", expanded=not w):
-        w = w or {}
-        with st.form("winkel", border=False):
-            naam = st.text_input("Naam van je winkel", value=w.get("naam", ""), max_chars=60)
-            omschrijving = st.text_area("Over je winkel", value=w.get("omschrijving", ""), height=90)
-            kleur = st.color_picker("Kleur", value=w.get("kleur", "#2563eb"))
-            k1, k2 = st.columns(2)
-            verzend = k1.number_input("Verzendkosten (€)", 0.0, 100.0, float(w.get("verzendkosten") or 0), 0.5)
-            gratis = k2.number_input("Gratis verzenden vanaf (€, 0 = nooit)", 0.0, 10000.0,
-                                     float(w.get("gratis_vanaf") or 0), 5.0)
-            retour = st.text_area("Verzenden en retour", value=w.get("retour", ""), height=70,
-                                  placeholder="Bijv. verzending met PostNL")
-            open_ = st.toggle("Winkel open", value=bool(w.get("open")))
-            if st.form_submit_button("Opslaan", type="primary"):
-                if winkel_opslaan(w.get("adres", ""), naam, omschrijving, kleur, verzend, gratis or None, retour,
-                                  open_):
+    st.markdown("### Winkelbouwer")
+    st.caption("Kies wat je wilt aanpassen. Je hoeft niet steeds door alle instellingen te scrollen.")
+    gereedschap = {
+        "Identiteit": (":material/badge:", "Naam, introductie en herkenbaarheid van je winkel."),
+        "Vormgeving": (":material/palette:", "Kies een rustige stijl en accentkleur voor je winkel."),
+        "Verzending": (":material/local_shipping:", "Verzendkosten, gratis verzending en retourvoorwaarden."),
+        "Publicatie": (":material/publish:", "Bepaal of klanten je winkel al kunnen bezoeken."),
+    }
+    onderdeel = st.segmented_control("Winkeltool", list(gereedschap), default="Identiteit",
+                                     key="winkelbouwer_tool", label_visibility="collapsed") or "Identiteit"
+    st.caption(gereedschap[onderdeel][1])
+    with st.popover("Wat kan ik hiermee?", icon=":material/help_outline:"):
+        st.write(gereedschap[onderdeel][1])
+        st.caption("Je wijzigingen worden pas bewaard wanneer je op Opslaan klikt.")
+    with st.container(key="winkelbouwer_editor"):
+        with st.form(f"winkel_{onderdeel}", border=False):
+            naam = w.get("naam", "")
+            omschrijving = w.get("omschrijving", "")
+            kleur = w.get("kleur") or "#2563eb"
+            verzend = float(w.get("verzendkosten") or 0)
+            gratis = float(w.get("gratis_vanaf") or 0)
+            retour = w.get("retour", "")
+            open_ = bool(w.get("open"))
+            if onderdeel == "Identiteit":
+                st.markdown("**Naam en introductie**")
+                naam = st.text_input("Naam van je winkel", value=naam, max_chars=60,
+                                     placeholder="Bijvoorbeeld Mijn studio",
+                                     help="De naam die bezoekers op je winkelpagina zien.")
+                omschrijving = st.text_area("Introductie voor bezoekers", value=omschrijving,
+                                            height=90, max_chars=800,
+                                            placeholder="Vertel wat klanten bij je kunnen vinden",
+                                            help="Korte beschrijving die klanten helpt je winkel te herkennen.")
+            elif onderdeel == "Vormgeving":
+                st.markdown("**Kleur en uitstraling**")
+                stijl = st.selectbox("Startstijl", ["Eigen kleur", "Minimalistisch", "Nacht", "Natuur", "Levendig"],
+                                     help="Een startstijl bepaalt de accentkleur; kies Eigen kleur voor maatwerk.")
+                kleuren = {"Eigen kleur": kleur, "Minimalistisch": "#343a40",
+                           "Nacht": "#202c4a", "Natuur": "#39785d", "Levendig": "#6750a4"}
+                kleur = st.color_picker("Accentkleur", value=kleuren[stijl],
+                                        help="Wordt gebruikt voor de herkenbare kleuraccenten in je winkel.")
+            elif onderdeel == "Verzending":
+                st.markdown("**Levering en retour**")
+                verzend = st.number_input("Verzendkosten (€)", 0.0, 100.0, verzend, 0.5,
+                                          help="Het bedrag dat de koper voor verzending betaalt.")
+                gratis = st.number_input("Gratis verzending vanaf (€)", 0.0, 10000.0, gratis, 5.0,
+                                         help="Vanaf dit bestelbedrag worden geen verzendkosten berekend.")
+                retour = st.text_area("Verzend- en retourinformatie", value=retour,
+                                      height=100, help="Leg uit hoe en wanneer je levert en hoe retouren werken.")
+            else:
+                st.markdown("**Publicatie**")
+                open_ = st.toggle("Winkel openbaar maken", value=open_,
+                                  help="Uit: winkel blijft concept. Aan: bezoekers kunnen je winkel zien.")
+                if not m["kan_betalen"]:
+                    st.warning("Activeer eerst het ontvangen van betalingen om bestellingen te kunnen aannemen.")
+            if st.form_submit_button("Wijzigingen opslaan", type="primary", width="stretch"):
+                if winkel_opslaan(w.get("adres", ""), naam, omschrijving, kleur, verzend,
+                                  gratis or None, retour, open_):
+                    st.toast("Winkel opgeslagen.", icon=":material/check_circle:")
                     st.rerun()
+    if w:
+        st.markdown("**Bekijk als bezoeker**")
+        if st.button("Open mijn winkelpagina", icon=":material/open_in_new:",
+                     key="winkelbouwer_preview", width="stretch"):
+            naar_winkel(w["adres"])
+        st.caption("Diensten en beschikbare tijden beheer je bij Reserveren; de bestaande boekingspagina gebruikt je agenda.")
     if not w:
         return
     with st.expander("Op de winkelkaart" + (f" ({w['winkeladres']})" if w.get("winkeladres") else "")):
@@ -910,6 +1125,11 @@ def mijn_webshop(inkopen=None) -> None:
                             st.rerun()
 
     bezorgen_instellen(w, m["niveau"])
+
+
+
+def winkel_producten_beheren(m: dict) -> None:
+    """Producten apart beheren, ook op kleine schermen."""
     st.markdown("**Producten in je winkel**")
     producten = [p for p in m["producten"] if not p["geblokkeerd"] and (p["actief"] or p["voorraad"] is not None)]
     if not producten:

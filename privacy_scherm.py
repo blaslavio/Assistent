@@ -237,7 +237,7 @@ def lekcheck() -> None:
     with st.form("lekcheck", border=False, clear_on_submit=True):
         ww = st.text_input("Wachtwoord", type="password", autocomplete="current-password")
         if st.form_submit_button("Controleren") and ww:
-            h = hashlib.sha1(ww.encode()).hexdigest().upper()
+            h = hashlib.sha1(ww.encode(), usedforsecurity=False).hexdigest().upper()
             try:
                 r = httpx.get(f"https://api.pwnedpasswords.com/range/{h[:5]}", timeout=8,
                               headers={"Add-Padding": "true", "User-Agent": "Mijn-assistent"})

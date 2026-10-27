@@ -12,8 +12,11 @@ import httpx
 
 import agent
 import opslag
+import azure_services
 
 AANBIEDERS = {
+    "Azure OpenAI": {"model": azure_services.OPENAI_DEPLOYMENT, "sleutel": "azure_server",
+                     "waar": "Azure-configuratie op de server"},
     "ChatGPT": {"url": "https://api.openai.com/v1/chat/completions", "model": "gpt-5", "sleutel": "openai_sleutel",
                 "waar": "platform.openai.com › API keys"},
     "Gemini": {"url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
@@ -33,10 +36,19 @@ def keuze() -> str:
 
 
 def sleutel(brein: str) -> str:
+    if brein == "Azure OpenAI":
+        try:
+            config = azure_services.openai_config()
+            return config.api_key if config else ""
+        except azure_services.AzureError:
+            return ""
     return opslag.instellingen().get(AANBIEDERS[brein]["sleutel"], "")
 
 
 def model(brein: str) -> str:
+    if brein == "Azure OpenAI":
+        config = azure_services.openai_config()
+        return config.deployment if config else azure_services.OPENAI_DEPLOYMENT
     return (opslag.instellingen().get("brein_modellen") or {}).get(brein) or AANBIEDERS[brein]["model"]
 
 
@@ -62,16 +74,107 @@ def _hulpmiddelen(brein: str) -> tuple[list[dict], dict]:
     return lijst, per_naam
 
 
+def _veld(blok, naam, standaard=None):
+    return blok.get(naam, standaard) if isinstance(blok, dict) else getattr(blok, naam, standaard)
+
+
 def _tekst(inhoud) -> str:
-    """Alleen de tekst uit een eerdere beurt (Claude bewaart ook hulpmiddelen; die laten we hier weg)."""
+    """Lees tekstblokken zonder de bestaande berichtstructuur te wijzigen."""
     if isinstance(inhoud, str):
         return inhoud
     delen = []
     for blok in inhoud or []:
-        soort = blok.get("type") if isinstance(blok, dict) else getattr(blok, "type", "")
-        if soort == "text":
-            delen.append(blok.get("text") if isinstance(blok, dict) else blok.text)
-    return "\n".join(d for d in delen if d)
+        if _veld(blok, "type") == "text":
+            waarde = _veld(blok, "text")
+            if waarde:
+                delen.append(waarde)
+    return "\\n".join(delen)
+
+
+def _geschiedenis(berichten: list) -> list[dict]:
+    """Zet Claude-berichten om naar geldige Chat Completions tool-calls.
+
+    Een assistent-tool-call en de bijbehorende resultaten moeten samen blijven.
+    Losse toolresultaten worden niet doorgestuurd.
+    """
+    resultaat = []
+    for beurt in berichten[-40:]:
+        rol = beurt.get("role")
+        if rol not in ("user", "assistant"):
+            continue
+        inhoud = beurt.get("content", "")
+        tekst = _tekst(inhoud)
+        if not isinstance(inhoud, list):
+            if tekst:
+                resultaat.append({"role": rol, "content": tekst})
+            continue
+        if rol == "user":
+            losse_tekst = []
+            for blok in inhoud:
+                soort = _veld(blok, "type")
+                if soort == "text":
+                    losse_tekst.append(_veld(blok, "text", ""))
+                elif soort == "tool_result":
+                    identificatie = _veld(blok, "tool_use_id")
+                    if identificatie:
+                        waarde = _veld(blok, "content", "")
+                        resultaat.append({"role": "tool", "tool_call_id": identificatie,
+                                          "content": _tekst(waarde) if isinstance(waarde, list) else str(waarde)})
+            if losse_tekst and any(losse_tekst):
+                resultaat.append({"role": "user", "content": "\\n".join(losse_tekst)})
+        else:
+            aanroepen = []
+            for blok in inhoud:
+                if _veld(blok, "type") == "tool_use":
+                    naam, identificatie = _veld(blok, "name"), _veld(blok, "id")
+                    if naam and identificatie:
+                        aanroepen.append({"id": identificatie, "type": "function",
+                                          "function": {"name": naam,
+                                                       "arguments": json.dumps(_veld(blok, "input", {}), default=str)}})
+            if tekst or aanroepen:
+                bericht = {"role": "assistant", "content": tekst or None}
+                if aanroepen:
+                    bericht["tool_calls"] = aanroepen
+                resultaat.append(bericht)
+    # Alleen complete tool-callgroepen mogen naar de provider: voorkom API 400.
+    ids = {b["tool_call_id"] for b in resultaat if b["role"] == "tool"}
+    geldig = []
+    for b in resultaat:
+        if b["role"] == "assistant" and b.get("tool_calls"):
+            calls = b["tool_calls"]
+            if not all(c["id"] in ids for c in calls):
+                continue
+        if b["role"] == "tool" and b["tool_call_id"] not in {
+            c["id"] for a in resultaat if a["role"] == "assistant"
+            for c in a.get("tool_calls", [])
+        }:
+            continue
+        geldig.append(b)
+    return geldig
+
+
+def _providerbericht(response, brein: str) -> dict:
+    """Validate external provider output before using it as text or a tool call."""
+    try:
+        bericht = response.json()["choices"][0]["message"]
+        if not isinstance(bericht, dict) or not isinstance(bericht.get("content", "") or "", str):
+            raise ValueError
+        calls = bericht.get("tool_calls") or []
+        if not isinstance(calls, list):
+            raise ValueError
+        ids = set()
+        for call in calls:
+            if (not isinstance(call, dict) or not isinstance(call.get("id"), str)
+                    or not call["id"] or call["id"] in ids or not isinstance(call.get("function"), dict)):
+                raise ValueError
+            ids.add(call["id"])
+            functie = call["function"]
+            if (not isinstance(functie.get("name"), str) or not functie["name"]
+                    or not isinstance(functie.get("arguments", ""), str)):
+                raise ValueError
+        return {**bericht, "role": "assistant"}
+    except (ValueError, KeyError, IndexError, TypeError):
+        raise Fout(f"{brein} gaf een ongeldig antwoord. Probeer je vraag opnieuw.") from None
 
 
 def antwoord(brein: str, berichten: list, bij_tekst=None, bij_hulpmiddel=None, spraak: bool = False) -> str:
@@ -86,29 +189,40 @@ def antwoord(brein: str, berichten: list, bij_tekst=None, bij_hulpmiddel=None, s
                "het eerlijk als je actuele informatie niet kunt opzoeken.\n\n" + extra
                + ("\n\n" + agent.SPRAAK if spraak else ""))
     gesprek = [{"role": "system", "content": systeem}]
-    for b in berichten[-40:]:
-        if (tekst := _tekst(b["content"])) and b["role"] in ("user", "assistant"):
-            gesprek.append({"role": b["role"], "content": tekst})
+    gesprek.extend(_geschiedenis(berichten))
     hulpmiddelen, per_naam = _hulpmiddelen(brein)
     a = AANBIEDERS[brein]
+    if brein == "Azure OpenAI":
+        try:
+            config = azure_services.openai_config()
+            if not config:
+                raise azure_services.AzureError("Azure OpenAI is nog niet geconfigureerd op de server.")
+        except azure_services.AzureError as fout:
+            raise Fout(str(fout)) from None
+        url, api_key, modelnaam = config.base_url + "chat/completions", config.api_key, config.deployment
+    else:
+        url, api_key, modelnaam = a["url"], sleutel(brein), model(brein)
     tekst = ""
+    afgerond = False
     for _ in range(MAX_RONDES):
         try:
-            r = httpx.post(a["url"], headers={"Authorization": f"Bearer {sleutel(brein)}"}, timeout=120,
-                           json={"model": model(brein), "messages": gesprek, "tools": hulpmiddelen})
+            r = httpx.post(url, headers={"Authorization": f"Bearer {api_key}"}, timeout=120,
+                           json={"model": modelnaam, "messages": gesprek,
+                                 **({"tools": hulpmiddelen} if hulpmiddelen else {})})
         except httpx.HTTPError:
             raise Fout(f"{brein} is even niet bereikbaar. Probeer het zo nog eens.")
         if r.status_code in (401, 403):
             raise Fout(f"Je {brein}-sleutel werkt niet. Kijk bij Instellingen › Assistent › Brein.")
         if r.status_code == 429:
             raise Fout(f"{brein} zegt dat het tegoed op is of dat het te druk is. Probeer het later of kies een ander brein.")
-        if r.status_code >= 400:
+        if not 200 <= r.status_code < 300:
             raise Fout(f"{brein} gaf een fout ({r.status_code}). Klopt het model bij Instellingen › Assistent › Brein?")
-        bericht = r.json()["choices"][0]["message"]
+        bericht = _providerbericht(r, brein)
         aanroepen = bericht.get("tool_calls") or []
         gesprek.append({k: v for k, v in bericht.items() if k in ("role", "content", "tool_calls") and v is not None})
         if not aanroepen:
             tekst = (bericht.get("content") or "").strip()
+            afgerond = True
             break
         for aanroep in aanroepen:
             naam = aanroep["function"]["name"]
@@ -120,7 +234,9 @@ def antwoord(brein: str, berichten: list, bij_tekst=None, bij_hulpmiddel=None, s
                 uitkomst = f"Fout: {fout}"
             gesprek.append({"role": "tool", "tool_call_id": aanroep["id"],
                             "content": uitkomst if isinstance(uitkomst, str) else json.dumps(uitkomst, default=str)})
-    tekst = tekst or "Klaar."
+    if not afgerond:
+        raise Fout("De assistent heeft te veel opeenvolgende hulpmiddelacties uitgevoerd. Probeer je vraag opnieuw.")
+    tekst = tekst or "De assistent heeft geen antwoord teruggegeven."
     if bij_tekst:
         bij_tekst(tekst)
     berichten.append({"role": "assistant", "content": tekst})

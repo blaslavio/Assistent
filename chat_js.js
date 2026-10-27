@@ -626,6 +626,7 @@ function toonContacten(st) {
           <button class="c-item-knop" data-a="chat-met" data-naam="${esc(c.gebruikersnaam || "")}" ${c.chat ? "" : "disabled"}>
             ${avatar(c.naam, false, c.id)}<span class="c-item-tekst"><b>${esc(c.naam)}</b>
             <small>${c.chat ? "@" + esc(c.gebruikersnaam || "") : T("Gebruikt de chat nog niet")}</small></span></button>
+          <button class="c-knop c-rood" data-a="contact-blokkeer" data-id="${c.id}" data-naam="${esc(c.naam)}" ${c.chat ? "" : "disabled"}>${T("Blokkeren")}</button>
           <button class="c-mini" data-a="contact-weg" data-id="${c.id}" data-naam="${esc(c.naam)}" aria-label="${esc(T("Weghalen"))}">×</button>
         </div>`).join("") : `<div class="c-leeg">${T("Nog geen contacten.")}</div>`}
     </div>
@@ -1868,6 +1869,17 @@ async function actie(st, a, el) {
     if (a === "contacten") { st.scherm = "contacten"; st.gesprek = null; toon(st); await contactenLaden(st); return toon(st); }
     if (a === "groep-nieuw") { st.scherm = "groep"; if (!st.contacten) await contactenLaden(st); return toon(st); }
     if (a === "apparaten") { st.scherm = "apparaten"; return toon(st); }
+    if (a === "contact-blokkeer") {
+      const id = Number(el.dataset.id);
+      if (!Number.isSafeInteger(id) || id <= 0) return;
+      if (!confirm(T("{} blokkeren? Jullie kunnen elkaar dan geen berichten meer sturen.", el.dataset.naam))) return;
+      const resultaat = await rpc(st, "chat_blokkeren", { p_wie: id, p_aan: true });
+      if (resultaat?.fout) throw new Error(resultaat.fout);
+      st.contacten = null;
+      await contactenLaden(st);
+      melding(st, T("Geblokkeerd."));
+      return toon(st);
+    }
     if (a === "deblokkeer") {
       if (!confirm(T("{} deblokkeren?", el.dataset.naam))) return;
       await rpc(st, "chat_blokkeren", { p_wie: Number(el.dataset.id), p_aan: false });

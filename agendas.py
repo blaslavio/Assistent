@@ -9,6 +9,9 @@ Afspraken worden een paar minuten onthouden, zodat de app niet bij elke klik opn
 """
 
 import hashlib
+import ipaddress
+import socket
+from urllib.parse import urlsplit
 import re
 import secrets
 import threading
@@ -95,6 +98,15 @@ def koppel_link(naam: str, url: str) -> dict:
     return koppeling
 
 
+def mogelijkheden() -> dict[str, dict]:
+    """Eerlijke status van beschikbare integraties; geen niet-bestaande OAuth-koppeling tonen."""
+    return {
+        "apple": {"lezen": True, "schrijven": True, "methode": "CalDAV met app-specifiek wachtwoord"},
+        "google": {"lezen": True, "schrijven": False, "methode": "Privé iCal-feed, alleen lezen"},
+        "outlook": {"lezen": True, "schrijven": False, "methode": "Privé iCal-feed, alleen lezen"},
+    }
+
+
 def ontkoppelen(koppeling_id: str) -> None:
     _bewaar([a for a in gekoppeld() if a["id"] != koppeling_id])
 
@@ -124,15 +136,50 @@ def _caldav_agendas(url: str, gebruiker: str, wachtwoord: str) -> list[str]:
                    "niet je gewone Apple-wachtwoord.")
 
 
-def _ophalen_link(url: str) -> bytes:
+def _veilige_agenda_url(url: str) -> None:
+    """Blokkeer onveilige hosts voordat een externe kalender wordt opgehaald."""
     try:
-        r = httpx.get(url, timeout=12, follow_redirects=True, headers={"User-Agent": "MijnAssistent/1.0"})
+        delen = urlsplit(url)
+        host = delen.hostname
+        if delen.scheme not in ("https", "http") or not host or delen.username or delen.password:
+            raise ValueError("ongeldige URL")
+        if host.lower() == "localhost" or host.lower().endswith((".localhost", ".local", ".internal")):
+            raise ValueError("intern adres")
+        adressen = socket.getaddrinfo(host, delen.port or (443 if delen.scheme == "https" else 80),
+                                      type=socket.SOCK_STREAM)
+        if not adressen or any(not ipaddress.ip_address(item[4][0]).is_global for item in adressen):
+            raise ValueError("niet-publiek IP-adres")
+    except (ValueError, OSError, UnicodeError):
+        raise Fout("Deze agendalink verwijst naar een onveilig of niet-bereikbaar netwerkadres.")
+
+
+def _ophalen_link(url: str) -> bytes:
+    # Handmatige redirects: elke volgende bestemming wordt opnieuw gevalideerd.
+    # Een egress-firewall blijft nodig tegen DNS-rebinding tussen validatie en verbinding.
+    try:
+        with httpx.Client(timeout=12, follow_redirects=False,
+                          headers={"User-Agent": "MijnAssistent/1.0"}) as client:
+            for _ in range(6):
+                _veilige_agenda_url(url)
+                with client.stream("GET", url) as r:
+                    if r.status_code in (301, 302, 303, 307, 308):
+                        locatie = r.headers.get("location")
+                        if not locatie:
+                            raise Fout("De agendalink verwijst door zonder bestemming.")
+                        url = str(r.url.join(locatie))
+                        continue
+                    if r.status_code in (401, 403, 404):
+                        raise Fout("De agendalink werkt niet (meer). Vraag een nieuwe link op in je agenda.")
+                    r.raise_for_status()
+                    inhoud = bytearray()
+                    for deel in r.iter_bytes():
+                        inhoud.extend(deel)
+                        if len(inhoud) > 5_000_000:
+                            raise Fout("Deze agenda is te groot om veilig op te halen.")
+                    return bytes(inhoud)
+            raise Fout("De agendalink verwijst te vaak door.")
     except httpx.HTTPError:
         raise Fout("De agendalink is niet bereikbaar.")
-    if r.status_code in (401, 403, 404):
-        raise Fout("De agendalink werkt niet (meer). Vraag een nieuwe link op in je agenda.")
-    r.raise_for_status()
-    return r.content
 
 
 def _als_tekst(waarde) -> str:
@@ -174,10 +221,10 @@ def _gebeurtenissen(koppeling: dict, agenda: str, kalender, van: date, tot: date
         elif not hele_dag and gebeurtenis.get("DURATION") is not None:
             einde = (datetime.fromisoformat(start) + gebeurtenis.get("DURATION").dt).strftime("%Y-%m-%dT%H:%M")
         titel = _als_tekst(gebeurtenis.get("SUMMARY")).strip() or "Afspraak"
-        uid = _als_tekst(gebeurtenis.get("UID")) or hashlib.sha1(f"{titel}{start}".encode()).hexdigest()[:12]
+        uid = _als_tekst(gebeurtenis.get("UID")) or hashlib.sha1(f"{titel}{start}".encode(), usedforsecurity=False).hexdigest()[:12]
         if uid.startswith("assistent-") and uid.endswith("@mijn-assistent"):
             continue  # zelf vanuit de app naar je agenda gezet: staat al in de app
-        uit.append({"id": f"ext:{koppeling['id']}:{hashlib.sha1(f'{uid}|{start}'.encode()).hexdigest()[:16]}",
+        uit.append({"id": f"ext:{koppeling['id']}:{hashlib.sha1(f'{uid}|{start}'.encode(), usedforsecurity=False).hexdigest()[:16]}",
                     "titel": titel, "start": start, "einde": einde,
                     "locatie": re.sub(r"\s+", " ", _als_tekst(gebeurtenis.get("LOCATION"))).strip(),
                     "notitie": _als_tekst(gebeurtenis.get("DESCRIPTION")).strip()[:500],
@@ -309,7 +356,7 @@ def schrijf_koppeling() -> dict | None:
 
 def _vingerafdruk(a: dict) -> str:
     velden = [a.get(k) or "" for k in ("titel", "start", "einde", "locatie", "notitie")]
-    return hashlib.sha1("|".join(velden).encode()).hexdigest()[:16]
+    return hashlib.sha1("|".join(velden).encode(), usedforsecurity=False).hexdigest()[:16]
 
 
 def _ics(a: dict) -> str:
@@ -395,7 +442,7 @@ def wegschrijven_vanzelf(afspraken: list[dict], wachten: float = 0) -> None:
     van, tot = (vandaag - timedelta(days=SCHRIJF_TERUG)).isoformat(), (vandaag + timedelta(days=SCHRIJF_VOORUIT)).isoformat()
     gewenst = {UID.format(a["id"]): a for a in afspraken
                if not a.get("extern") and isinstance(a.get("id"), int) and van <= a["start"][:10] <= tot}
-    afdruk = hashlib.sha1("".join(sorted(u + _vingerafdruk(a) for u, a in gewenst.items())).encode()).hexdigest()
+    afdruk = hashlib.sha1("".join(sorted(u + _vingerafdruk(a) for u, a in gewenst.items())).encode(), usedforsecurity=False).hexdigest()
     sleutel = _sleutel(k)
     with _slot:
         laatst = _geschreven.get(sleutel)

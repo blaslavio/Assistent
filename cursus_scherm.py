@@ -6,6 +6,7 @@ from datetime import datetime
 import streamlit as st
 
 import cursus
+import documenten
 import samen
 import samen_scherm
 import slim
@@ -73,7 +74,37 @@ def pagina() -> None:
     elif st.session_state.get("cursus_bij"):
         community(int(st.session_state.cursus_bij))
     else:
-        overzicht()
+        tab_cursussen, tab_documenten = st.tabs(["Cursussen", "Documenten"])
+        with tab_cursussen:
+            overzicht()
+        with tab_documenten:
+            documenten_hub()
+
+
+def documenten_hub() -> None:
+    """Toon bestaande centrale documenten; geen fictieve synchronisatie of client-side adminrechten."""
+    st.subheader("Academie & documenten")
+    st.caption("Documenten worden rechtstreeks uit je bestaande accountopslag geladen. "
+               "Wijzigingen en versieconflicten worden afgehandeld in de documentenmodule.")
+    zoek = st.text_input("Document zoeken", key="academie_doc_zoek")
+    if st.button("Vernieuwen", key="academie_doc_vernieuw"):
+        st.rerun()
+    try:
+        items = documenten.lijst(zoek=zoek)
+    except Exception:
+        st.error("Documenten konden niet worden geladen. Probeer het opnieuw.")
+        return
+    if not items:
+        st.info("Geen documenten gevonden.")
+        return
+    for doc in items:
+        with st.container(border=True):
+            st.markdown(f"**{doc.get('titel') or 'Naamloos document'}**")
+            st.caption(f"Versie {doc.get('versie', 'onbekend')}")
+            if st.button("Openen in Documenten", key=f"academie_doc_{doc['id']}"):
+                st.session_state.open_document = int(doc["id"])
+                st.session_state.ga_naar = "documenten"
+                st.rerun()
 
 
 def _openen(cursus_id: int) -> None:

@@ -326,7 +326,7 @@ CSS = """
 """
 
 _JS = (Path(__file__).parent / "chat_js.js").read_text()
-_chat = st.components.v2.component("chat_" + hashlib.sha1((_JS + CSS).encode()).hexdigest()[:10],
+_chat = st.components.v2.component("chat_" + hashlib.sha1((_JS + CSS).encode(), usedforsecurity=False).hexdigest()[:10],
                                    html='<div class="c-wortel"></div>', css=CSS, js=_JS)
 
 # Ongelezen berichten per account, kort onthouden zodat de kopbalk niet bij elke klik de database vraagt.
