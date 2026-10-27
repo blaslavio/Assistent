@@ -1315,13 +1315,15 @@ def agenda_tabblad() -> None:
     # Compacte navigatie met behoud van de bestaande modules.
     opties = ["Agenda", "Activiteiten", "Taken", "Samenwerking", "Overzicht"]
     oude_waarden = {"Plannen": "Activiteiten", "Samen": "Samenwerking"}
-    huidige = oude_waarden.get(st.session_state.get("agenda_deel"), st.session_state.get("agenda_deel"))
-    if huidige not in opties:
-        huidige = "Agenda"
-    st.session_state.pop("agenda_deel", None)
-    deel = st.selectbox("Navigatie", opties, index=opties.index(huidige),
-                        key="agenda_keuze", label_visibility="collapsed")
-    st.session_state.agenda_deel = {"Activiteiten": "Plannen", "Samenwerking": "Samen"}.get(deel, deel)
+    # agenda_deel kan elders gezet zijn (bijv. "Uit mijn mail" opent Taken): dan wint die keuze van de vorige.
+    gevraagd = st.session_state.get("agenda_deel")
+    if gevraagd != st.session_state.get("agenda_getoond") or "agenda_keuze" not in st.session_state:
+        st.session_state.agenda_keuze = oude_waarden.get(gevraagd, gevraagd)
+    if st.session_state.get("agenda_keuze") not in opties:
+        st.session_state.agenda_keuze = "Agenda"
+    deel = st.selectbox("Navigatie", opties, key="agenda_keuze", label_visibility="collapsed")
+    st.session_state.agenda_deel = st.session_state.agenda_getoond = (
+        {"Activiteiten": "Plannen", "Samenwerking": "Samen"}.get(deel, deel))
     if melding := st.session_state.pop("agenda_melding", None):
         st.warning(melding)
     if deel == "Taken":
@@ -2649,7 +2651,7 @@ def master_hub_pagina() -> None:
                                 default="Alles", key="master_stream_lens")
     with st.form("master_stream_form", clear_on_submit=True):
         opdracht = st.text_input("Bericht of opdracht", max_chars=500,
-                                placeholder="Bijvoorbeeld: verkoop mijn fiets")
+                                placeholder="Bijv. verkoop mijn fiets")
         verzenden = st.form_submit_button("Concept bewaren")
     if verzenden:
         try:
@@ -2918,7 +2920,7 @@ def dating_pagina() -> None:
                               key="dating_opt_in", value=False)
         st.caption("Deze instellingen gelden alleen in deze sessie. Er wordt geen profiel gepubliceerd.")
     with st.expander("Date of singles-evenement voorbereiden", expanded=True):
-        titel = st.text_input("Titel", placeholder="Bijvoorbeeld: singleswandeling", key="dating_titel")
+        titel = st.text_input("Titel", placeholder="Bijv. singleswandeling", key="dating_titel")
         datum = st.date_input("Datum", min_value=date.today(), key="dating_datum")
         plaats = st.text_input("Openbare ontmoetingslocatie (optioneel)", key="dating_plaats")
         if st.button("Concept maken", key="dating_concept"):
