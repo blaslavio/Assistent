@@ -5424,6 +5424,11 @@ def gesprek() -> None:
             st.session_state["pay_chat_opdracht"] = laatste_vraag
             st.switch_page(PAGINA["communicatie"])
 
+    if chat_voorstel and chat_voorstel.kind == "agenda" and "agenda" in PAGINA:
+        st.caption("Deze afspraak is nog niet ingepland. Open de agenda om de gegevens in te vullen.")
+        if st.button("Open agenda", key="assistent_chat_agenda_open"):
+            st.switch_page(PAGINA["agenda"])
+
     azure_opname = azure_ui.recording()
     if azure_opname:
         st.session_state.vooraf_vraag = azure_opname
