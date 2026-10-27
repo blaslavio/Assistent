@@ -27,8 +27,11 @@ def pagina() -> None:
         with st.form("integratie_betaalconcept"):
             ontvanger = st.text_input("Ontvanger of klant")
             omschrijving = st.text_input("Omschrijving")
-            bedrag = st.number_input("Bedrag in euro", min_value=0.01, value=25.00, step=1.0)
-            if st.form_submit_button("Concept bewaren"):
+            bedrag = st.number_input("Bedrag in euro", min_value=0.01, value=None, step=0.01, placeholder="Vul een bedrag in")
+            ingediend = st.form_submit_button("Concept bewaren")
+            if ingediend and bedrag is None:
+                st.error("Vul een bedrag in.")
+            elif ingediend:
                 st.session_state["betaalverzoek_concept"] = {
                     "ontvanger": ontvanger.strip()[:160],
                     "omschrijving": omschrijving.strip()[:300],
