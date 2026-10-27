@@ -2979,67 +2979,115 @@ def werkruimte_pagina() -> None:
 
 
 def vandaag_overzicht() -> None:
-    """Mobielvriendelijk dashboard met afspraken eerst en directe communicatie."""
-    st.markdown('<div class="app-title">SuperApp OS</div>', unsafe_allow_html=True)
-    st.markdown('<div class="app-subtitle">Agenda, afspraken en communicatie</div>',
-                unsafe_allow_html=True)
+    """Compacte, herkenbare startpagina met dagagenda en snelle routes."""
+    st.markdown("""
+    <style>
+    .so-home-hero{background:linear-gradient(115deg,#fff 0%,#f1f5f4 100%);
+       border:1px solid #e0e7e5;border-radius:22px;padding:25px 26px 21px;margin-bottom:18px}
+    .so-home-kicker{font-size:12px;color:#486b5f;letter-spacing:.11em;text-transform:uppercase;font-weight:700}
+    .so-home-title{font-size:clamp(26px,4vw,38px);letter-spacing:-.045em;
+       color:#142d25;font-weight:720;line-height:1.16;margin:8px 0}
+    .so-home-description{font-size:14px;color:#597169;line-height:1.55}
+    .so-day-label{font-size:13px;color:#60736c;font-weight:550}
+    .so-section-title{font-size:18px;color:#203a32;font-weight:700;letter-spacing:-.025em;margin:8px 0 12px}
+    .so-appointment{padding:13px 16px;border-radius:13px;background:#fff;
+       border:1px solid #e4e9e7;margin:7px 0;color:#244136}
+    .so-appointment-time{color:#32735c;font-size:12px;font-weight:750;letter-spacing:.02em}
+    .so-appointment-name{font-weight:600;font-size:15px;overflow-wrap:anywhere}
+    @media(max-width:640px){.so-home-hero{padding:20px 17px;border-radius:17px}
+      .so-appointment{padding:11px 13px}}
+    </style>
+    """, unsafe_allow_html=True)
 
-    with st.expander("Vraag de AI-assistent", icon=":material/smart_toy:", expanded=False):
-        snelle_assistent_vraag("dashboard")
+    now = datetime.now()
+    header, portrait = st.columns([5, 1], vertical_alignment="center")
+    with header:
+        st.markdown(
+            '<section class="so-home-hero">'
+            '<div class="so-home-kicker">SUPERAPP OS · VANDAAG</div>'
+            '<div class="so-home-title">Jouw dag, overzichtelijk.</div>'
+            '<div class="so-home-description">Afspraken, gesprekken en taken op één plek.</div>'
+            '</section>', unsafe_allow_html=True)
+    with portrait:
+        try:
+            beeld = avatar.plaatje(mijn_avatar())
+            if beeld:
+                st.image(beeld, width=90)
+            else:
+                st.markdown(":material/account_circle:")
+        except Exception:
+            st.markdown(":material/account_circle:")
 
-    st.markdown("### Agenda & afspraken")
-    st.caption("Maandweergave staat standaard aan. Wissel naar week of dag.")
-    agenda_overzicht()
-
-    st.markdown("#### Afspraken beheren")
-    afspraak_routes = [
-        ("Agenda openen", "agenda", ":material/calendar_month:"),
-        ("Datum prikken", "prikken", ":material/event_available:"),
-        ("Boekingen", "boekingen", ":material/event_note:"),
-        ("In de buurt", "buurt", ":material/place:"),
-    ]
-    beschikbare_afspraken = [(naam, route, icoon) for naam, route, icoon in afspraak_routes if route in PAGINA]
-    for begin in range(0, len(beschikbare_afspraken), 2):
-        cols = st.columns(2)
-        for col, (naam, route, icoon) in zip(cols, beschikbare_afspraken[begin:begin + 2]):
+    # Primary navigation stays visible without endless scrolling.
+    quick = [("Agenda", "agenda", ":material/calendar_month:"),
+             ("Assistent", "assistent", ":material/auto_awesome:"),
+             ("Berichten", "communicatie", ":material/chat_bubble_outline:"),
+             ("Instellingen", "instellingen", ":material/tune:")]
+    available = [(name, route, icon) for name, route, icon in quick if route in PAGINA]
+    if available:
+        columns = st.columns(len(available))
+        for col, (name, route, icon) in zip(columns, available):
             with col:
-                st.page_link(PAGINA[route], label=naam, icon=icoon, width="stretch")
+                st.page_link(PAGINA[route], label=name, icon=icon, width="stretch")
 
-    st.divider()
-    st.markdown("### Chat & community")
-    if "communicatie" in PAGINA:
-        st.page_link(PAGINA["communicatie"], label="Chatprofiel en bereikbaarheid",
-                     icon=":material/manage_accounts:", width="stretch")
+    tab_day, tab_calendar, tab_messages, tab_tasks = st.tabs(
+        ["Vandaag", "Agenda", "Communicatie", "Taken & plannen"])
 
-    st.caption("Praat met verkopers, bekijk je berichten of open de community.")
-    communicatie_routes = [
-        ("Verkopersberichten", "berichten", ":material/markunread_mailbox:"),
-        ("Communitychat", "chat", ":material/forum:"),
-        ("Alle communicatie", "communicatie", ":material/chat:"),
-        ("AI-assistent", "assistent", ":material/smart_toy:"),
-    ]
-    beschikbare_communicatie = [(naam, route, icoon) for naam, route, icoon in communicatie_routes if route in PAGINA]
-    for begin in range(0, len(beschikbare_communicatie), 2):
-        cols = st.columns(2)
-        for col, (naam, route, icoon) in zip(cols, beschikbare_communicatie[begin:begin + 2]):
-            with col:
-                st.page_link(PAGINA[route], label=naam, icon=icoon, width="stretch")
-    if "chat" not in PAGINA or "berichten" not in PAGINA:
-        st.caption("Sommige chatfuncties vereisen een actieve online verbinding en ingeschakelde modules.")
+    with tab_day:
+        chosen_day = st.date_input("Dag bekijken", value=now.date(),
+                                   key="superapp_dashboard_day")
+        try:
+            items = dagplanning_veilig(chosen_day.isoformat())
+        except opslag.GeenToegang:
+            raise
+        except Exception:
+            items = []
+            st.caption("Je afspraken zijn momenteel niet beschikbaar.")
+        st.markdown('<div class="so-section-title">Je afspraken</div>', unsafe_allow_html=True)
+        if not items:
+            st.caption("Geen afspraken gevonden voor deze dag.")
+        for appointment in items[:8]:
+            start = str(appointment.get("start", ""))
+            time_label = start[11:16] if "T" in start else "Hele dag"
+            title = html.escape(str(appointment.get("titel") or "Afspraak"))
+            st.markdown(
+                '<div class="so-appointment"><div class="so-appointment-time">'
+                + html.escape(time_label) + '</div><div class="so-appointment-name">'
+                + title + '</div></div>', unsafe_allow_html=True)
+        if len(items) > 8:
+            st.caption(f"Nog {len(items) - 8} afspraken. Open Agenda voor het volledige overzicht.")
+        if "agenda" in PAGINA:
+            st.page_link(PAGINA["agenda"], label="Volledige agenda openen",
+                         icon=":material/arrow_forward:", width="stretch")
+        with st.expander("AI-assistent gebruiken", icon=":material/auto_awesome:"):
+            snelle_assistent_vraag("dashboard")
 
-    st.divider()
-    st.markdown("### Planning & taken")
-    st.caption("Beheer je taken en werk verder aan je plannen.")
-    with st.expander("Taken bekijken", expanded=False, icon=":material/checklist:"):
-        takenlijst()
-    with st.expander("Plannen bekijken", expanded=False, icon=":material/assignment:"):
-        plannen_scherm.pagina()
+    with tab_calendar:
+        st.markdown('<div class="so-section-title">Agenda en boekingen</div>', unsafe_allow_html=True)
+        agenda_overzicht()
+        for name, route, icon in [
+            ("Datum prikken", "prikken", ":material/event_available:"),
+            ("Boekingen", "boekingen", ":material/event_note:")]:
+            if route in PAGINA:
+                st.page_link(PAGINA[route], label=name, icon=icon, width="stretch")
 
-    st.divider()
-    if "samen" in PAGINA:
-        st.page_link(PAGINA["samen"], label="Samenwerking", icon=":material/groups:", width="stretch")
-    if "instellingen" in PAGINA:
-        st.page_link(PAGINA["instellingen"], label="Instellingen", icon=":material/settings:", width="stretch")
+    with tab_messages:
+        for name, route, icon in [
+            ("Alle communicatie", "communicatie", ":material/chat:"),
+            ("Verkopersberichten", "berichten", ":material/markunread_mailbox:"),
+            ("Community", "chat", ":material/forum:")]:
+            if route in PAGINA:
+                st.page_link(PAGINA[route], label=name, icon=icon, width="stretch")
+        st.caption("De beschikbare functies hangen af van je geactiveerde koppelingen.")
+
+    with tab_tasks:
+        with st.expander("Mijn taken", expanded=True, icon=":material/checklist:"):
+            takenlijst()
+        with st.expander("Mijn plannen", icon=":material/assignment:"):
+            plannen_scherm.pagina()
+        if "samen" in PAGINA:
+            st.page_link(PAGINA["samen"], label="Samenwerken",
+                         icon=":material/groups:", width="stretch")
 
 
 def zaak_vandaag() -> None:
