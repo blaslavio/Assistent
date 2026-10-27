@@ -85,8 +85,11 @@ def intent_naar_concept(tekst: str) -> dict:
 def intent_parser_pagina() -> None:
     st.markdown("#### Slimme opdracht")
     st.caption("Beschrijf je verzoek. De assistent maakt alleen een voorstel, nooit automatisch een betaling.")
+    if "pay_chat_opdracht" in st.session_state:
+        st.session_state["intent_parser_opdracht"] = st.session_state.pop("pay_chat_opdracht")
+        st.session_state.pop("intent_voorstel", None)
     with st.form("intent_parser_concept_form"):
-        opdracht = st.text_input("Opdracht", value=st.session_state.pop("pay_chat_opdracht", ""), placeholder="Maak een betaalverzoek van 75 euro voor een intake")
+        opdracht = st.text_input("Opdracht", key="intent_parser_opdracht", placeholder="Maak een betaalverzoek van 75 euro voor een intake")
         ingediend = st.form_submit_button("Voorstel maken")
     if ingediend:
         st.session_state["intent_voorstel"] = intent_naar_concept(opdracht)
