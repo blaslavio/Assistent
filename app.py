@@ -2997,7 +2997,7 @@ def vandaag_overzicht() -> None:
     @media(max-width:640px){
       .st-key-superapp_mobile_header [data-testid="stHorizontalBlock"]{flex-wrap:nowrap !important;gap:10px !important;align-items:center}
       .st-key-superapp_mobile_header [data-testid="stColumn"]:first-child{flex:1 1 auto !important;min-width:0 !important;width:auto !important}
-      .st-key-superapp_mobile_header [data-testid="stColumn"]:last-child{flex:0 0 78px !important;min-width:78px !important;width:78px !important}
+      .st-key-superapp_mobile_header [data-testid="stColumn"]:last-child{flex:0 0 92px !important;min-width:92px !important;width:92px !important}
       .so-home-hero{padding:13px 14px;border-radius:17px;margin-bottom:9px}
       .so-home-title{font-size:21px}
       .so-home-description{font-size:12px}
@@ -3019,7 +3019,7 @@ def vandaag_overzicht() -> None:
             try:
                 beeld = avatar.plaatje(mijn_avatar())
                 if beeld:
-                    st.image(beeld, width=76)
+                    st.image(beeld, width=90)
                 else:
                     st.markdown(":material/account_circle:")
             except Exception:
