@@ -5414,6 +5414,16 @@ def gesprek() -> None:
         woning.knoppen(st.session_state.get("woning_onder", []), "gesprek")
         feedback_vragen_antwoord()
 
+    # Use the existing payment flow for a payment request from the current chat.
+    laatste_vraag = next((tekst for rol, tekst in reversed(st.session_state.chat) if rol == "user"), "")
+    chat_voorstel = intent_engine.parse_intent(laatste_vraag)
+    if chat_voorstel and chat_voorstel.kind == "betaling" and "communicatie" in PAGINA:
+        st.caption("Een betaling is nog niet uitgevoerd. Controleer het voorstel in Pay-in-Chat.")
+        if st.button("Open Pay-in-Chat", key="assistent_chat_betaal_open"):
+            st.session_state["toon_pay_in_chat"] = True
+            st.session_state["pay_chat_opdracht"] = laatste_vraag
+            st.switch_page(PAGINA["communicatie"])
+
     azure_opname = azure_ui.recording()
     if azure_opname:
         st.session_state.vooraf_vraag = azure_opname
