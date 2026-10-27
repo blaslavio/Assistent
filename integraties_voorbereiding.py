@@ -66,12 +66,12 @@ def intent_naar_concept(tekst: str) -> dict:
     """Herken uitsluitend een eenvoudig betaalverzoek; voer niets uit."""
     import re
     tekst = tekst.strip()
-    patroon = re.search(r"(?:€\s*|(?:van|voor)\s+)(\d+(?:[.,]\d{1,2})?)\s*(?:euro)?", tekst, re.I)
+    patroon = re.search(r"(?:€\s*|(?:van|voor)\s+)(\d+(?:[.,]\d{1,2})?)\s*(?:euro)?|\b(\d+(?:[.,]\d{1,2})?)\s*euro\b", tekst, re.I)
     is_betaling = bool(re.search(r"betaalverzoek|betaling vragen|factuur", tekst, re.I))
     if not is_betaling or not patroon:
         return {"type": "onbekend", "tekst": tekst}
     try:
-        cent = int((Decimal(patroon.group(1).replace(",", ".")) * 100).quantize(Decimal("1")))
+        cent = int((Decimal((patroon.group(1) or patroon.group(2)).replace(",", ".")) * 100).quantize(Decimal("1")))
     except (InvalidOperation, ValueError):
         return {"type": "onbekend", "tekst": tekst}
     if not 1 <= cent <= 100000000:
