@@ -18,15 +18,15 @@ _APPOINTMENT = re.compile(r"\b(?:plan|inplannen|afspraak|reservering)\b", re.I)
 def parse_intent(text: str) -> IntentDraft | None:
     if not isinstance(text, str) or not 1 <= len(text.strip()) <= 2000:
         return None
-    if _PAY.search(text):
-        return IntentDraft("betaling", "Betaling of factuur: controleer gegevens en bevestig via de bestaande betaaltool.")
-    if _SEND.search(text):
-        return IntentDraft("communicatie", "Stel een bericht op en bevestig verzending in de communicatietool.")
     income = _INCOME.search(text)
     if income:
         amount = float(income.group(1).replace(",", "."))
         if 0 < amount <= 1000000:
             return IntentDraft("inkomsten", f"Concept inkomstenregistratie: € {amount:.2f}. Nog niet geboekt.")
+    if _PAY.search(text):
+        return IntentDraft("betaling", "Betaling of factuur: controleer gegevens en bevestig via de bestaande betaaltool.")
+    if _SEND.search(text):
+        return IntentDraft("communicatie", "Stel een bericht op en bevestig verzending in de communicatietool.")
     task = _TASK.match(text)
     if task and task.group(1).strip():
         return IntentDraft("taak", task.group(1).strip()[:200])
