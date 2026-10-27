@@ -1164,7 +1164,7 @@ def feedback() -> list[dict]:
 
 
 def feedback_geven(goed: bool, vraag: str, antwoord: str, opmerking: str = "", antwoord_id: str = "") -> dict:
-    """Bewaart 👍 of 👎 (met een eventuele opmerking) bij een antwoord. Opnieuw geven vervangt het oude oordeel."""
+    """Bewaart duim omhoog of omlaag (met een eventuele opmerking) bij een antwoord. Opnieuw geven vervangt het oude oordeel."""
     with _slot:
         g = laden()
         lijst = [f for f in g.get("feedback", []) if not antwoord_id or f.get("antwoord_id") != antwoord_id]
@@ -1287,8 +1287,8 @@ def schrijfproject_archiveren(project_id: int) -> None:
 # --- Namens de gebruiker -----------------------------------------------------
 # Hoe zelfstandig de assistent mag reageren (instellingen.namens) en een logboek van wat hij namens je stuurde.
 
-NAMENS = {"vragen": "✋ Eerst aan mij vragen", "bekenden": "👥 Zelf reageren aan mijn contacten, de rest eerst vragen",
-          "zelf": "🤖 Zelf reageren, ik lees het overzicht"}
+NAMENS = {"vragen": "Eerst aan mij vragen", "bekenden": "Zelf reageren aan mijn contacten, de rest eerst vragen",
+          "zelf": "Zelf reageren, ik lees het overzicht"}
 NAMENS_PER_DAG = 25
 
 

@@ -17,6 +17,7 @@ import plannen_scherm
 import ruimte
 import kort
 import samen
+import symbool
 import teksten
 import winkelen
 import winkelkaart
@@ -121,7 +122,7 @@ def voor_jou(gedeeld: list[dict]) -> None:
             if kol1.button("Overnemen", key=f"neem_{item['id']}", type="primary", width="stretch"):
                 plek = samen.gedeeld_aannemen(item)
                 _vergeet_nieuw()
-                st.toast(f"Staat nu in {plek}.", icon="✅")
+                st.toast(f"Staat nu in {plek}.", icon=":material/check_circle:")
                 st.rerun()
             if kol2.button("Nee, bedankt", key=f"weiger_{item['id']}", width="stretch"):
                 samen.gedeeld_afwijzen(item["id"])
@@ -199,7 +200,7 @@ def project_kaart(project: dict) -> None:
         extra = " · ".join(x for x in [item["datum"][:16].replace("T", " "),
                                        f"{item['toegewezen_aan']}" if item["toegewezen_aan"] else ""] if x)
         if item["soort"] in ("taak", "afspraak"):
-            label = f"{'📅 ' if item['soort'] == 'afspraak' else ''}{item['titel']}" + (f"  \n:gray[{extra}]" if extra else "")
+            label = f"{':material/event: ' if item['soort'] == 'afspraak' else ''}{item['titel']}" + (f"  \n:gray[{extra}]" if extra else "")
             klaar = kol1.checkbox(f"~~{item['titel']}~~" if item["klaar"] else label, value=item["klaar"],
                                   key=f"pi_{item['id']}")
             if klaar != item["klaar"]:
@@ -212,7 +213,7 @@ def project_kaart(project: dict) -> None:
             kol1.markdown(f"**{item['titel']}**  \n{item['inhoud']}")
         if item["soort"] != "link" and item["inhoud"] and item["soort"] != "notitie":
             kol1.caption(item["inhoud"])
-        if kol2.button("✕", key=f"pi_weg_{item['id']}", help="Weghalen"):
+        if kol2.button("", icon=":material/close:", key=f"pi_weg_{item['id']}", help="Weghalen"):
             samen.item_bijwerken(item["id"], verwijderd=True)
             st.rerun()
     if not items:
@@ -240,7 +241,7 @@ def project_kaart(project: dict) -> None:
             naam = kol1.text_input("Gebruikersnaam", placeholder="@gebruikersnaam")
             if kol2.form_submit_button("Toevoegen") and naam.strip():
                 if lid := _fout(samen.lid_toevoegen, project["id"], naam):
-                    st.toast(f"{lid} doet nu mee.", icon="👥")
+                    st.toast(f"{lid} doet nu mee.", icon=":material/group:")
                     st.rerun()
         if st.button("Project verlaten", key=f"verlaat_{project['id']}"):
             samen.project_verlaten(project["id"])
@@ -257,13 +258,13 @@ def veilig_handelen() -> None:
 
 
 def markt_zoeken() -> None:
-    """Pagina 🔎 Zoeken: onze eigen marktplaats."""
+    """Pagina Zoeken: onze eigen marktplaats."""
     zoeken()
     veilig_handelen()
 
 
 def markt_bestellingen() -> None:
-    """Pagina 🧾 Bestellingen: wat je koopt en verkoopt, en je geboekte tijden."""
+    """Pagina Bestellingen: wat je koopt en verkoopt, en je geboekte tijden."""
     bestellingen()
     if samen.mijn_boekingen():
         st.markdown("**Boekingen**")
@@ -463,7 +464,7 @@ def verkoper_aanmelden(status: dict) -> None:
     with st.container(border=True):
         st.markdown("**Betalingen via de app ontvangen**")
         st.caption("Meld je eenmalig aan bij Stripe, onze betaaldienst. Stripe controleert je identiteit en vraagt je "
-                   "rekeningnummer. Daarna krijg je ✅ geverifieerd bij je aanbod, en kopers betalen veilig via de app.")
+                   "rekeningnummer. Daarna krijg je het label geverifieerd bij je aanbod, en kopers betalen veilig via de app.")
         kol1, kol2 = st.columns(2)
         if kol1.button("Aanmelden bij Stripe" if not status.get("ik_ben_aangemeld") else "Aanmelding afmaken",
                        type="primary", width="stretch"):
@@ -517,7 +518,7 @@ def aanbieden() -> None:
                     st.error("Vul een titel in.")
                 elif _fout(samen.aanbod_plaatsen, soort, titel.strip(), omschrijving.strip(), prijs, per, plaats.strip(),
                            contact.strip(), betaal, levering) is not None:
-                    st.toast("Je aanbod staat online.", icon="🏪")
+                    st.toast("Je aanbod staat online.", icon=":material/storefront:")
                     st.rerun()
     mijn = samen.mijn_aanbod()
     st.session_state.markt_heeft_aanbod = bool(mijn)
@@ -541,7 +542,7 @@ def tijden_beheren(aanbod: dict) -> None:
         kol1, kol2 = st.columns([6, 1], vertical_alignment="center")
         wie = f"geboekt door **{t['klant']}**" + (f" · {t['opmerking']}" if t.get("opmerking") else "") if not t["vrij"] else "vrij"
         kol1.markdown(f"{samen.tijd_tekst(t['start'])} · {t['minuten']} min · {wie}")
-        if kol2.button("✕", key=f"slot_weg_{t['id']}", help="Deze tijd laten vervallen"):
+        if kol2.button("", icon=":material/close:", key=f"slot_weg_{t['id']}", help="Deze tijd laten vervallen"):
             samen.boeking_annuleren(t["id"])
             st.rerun()
     with st.popover("Tijden toevoegen"):
@@ -563,7 +564,7 @@ def tijden_beheren(aanbod: dict) -> None:
                         if _fout(samen.tijd_toevoegen, aanbod["id"], moment, int(minuten)) is not None:
                             gelukt += 1
                 if gelukt:
-                    st.toast(f"{gelukt} tijd(en) toegevoegd.", icon="📅")
+                    st.toast(f"{gelukt} tijd(en) toegevoegd.", icon=":material/event:")
                     st.rerun()
 
 
@@ -749,7 +750,7 @@ def boekingen() -> None:
                 st.rerun()
             if kol2.button("Annuleren", key=f"ann_{b['id']}", width="stretch"):
                 samen.boeking_annuleren(b["id"])
-                st.toast("Geannuleerd. Laat de ander even weten waarom via 💬 Berichten.", icon="ℹ️")
+                st.toast("Geannuleerd. Laat de ander even weten waarom via Berichten.", icon=":material/info:")
                 st.rerun()
 
 
@@ -771,19 +772,19 @@ def berichten() -> None:
     gekozen = st.selectbox("Gesprek", sleutels, format_func=namen.get, label_visibility="collapsed")
     gesprek = gesprekken[sleutels.index(gekozen)]
     for b in gesprek["berichten"][-30:]:
-        with st.chat_message("user" if b["van_mij"] else "assistant", avatar="🙂" if b["van_mij"] else "👤"):
+        with st.chat_message("user" if b["van_mij"] else "assistant", avatar=":material/person:" if b["van_mij"] else ":material/person:"):
             st.markdown(b["tekst"])
             st.caption(datetime.fromisoformat(b["aangemaakt"]).astimezone().strftime("%d-%m %H:%M"))
             if not b["van_mij"] and samen.VERDACHT.search(b["tekst"]):
                 st.warning("Let op: betaal nooit via een link, rekeningnummer of telefoonnummer uit een bericht. "
-                           "Betaal via de app, dan ben je beschermd.", icon="⚠️")
+                           "Betaal via de app, dan ben je beschermd.", icon=":material/warning:")
     if gesprek["ongelezen"]:
         samen.gelezen(gesprek["aanbod_id"], gesprek["ander_id"])
         _vergeet_nieuw()
     with st.form("antwoord", clear_on_submit=True, border=False):
         kol1, kol2 = st.columns([5, 1], vertical_alignment="bottom")
         tekst = kol1.text_input("Antwoord", label_visibility="collapsed", placeholder=f"Bericht aan {gesprek['ander']}")
-        if kol2.form_submit_button("➤") and tekst.strip():
+        if kol2.form_submit_button("", icon=":material/send:") and tekst.strip():
             if _fout(samen.bericht_sturen, gesprek["aanbod_id"], tekst.strip(), gesprek["ander_id"]) is not None:
                 st.rerun()
 
@@ -829,7 +830,7 @@ def winkel_opslaan(adres: str, naam: str, *rest) -> bool:
 
 
 def mijn_webshop(inkopen=None) -> None:
-    """Pagina 🏬 Mijn webshop: winkel instellen, producten en voorraad, en delen."""
+    """Pagina Mijn webshop: winkel instellen, producten en voorraad, en delen."""
     m = samen.mijn_winkel()
     if m["niveau"] not in ("verkoper", "ondernemer"):
         st.info("Een eigen webshop kan met accounttype 'Privé, verkoopt vaak' of 'Bedrijf of zzp'. Kies dat gratis bij "
@@ -858,7 +859,7 @@ def mijn_webshop(inkopen=None) -> None:
                f"{samen.euro(m['commissie_min'])}), inclusief betaalkosten. Geen abonnement.")
     if not m["kan_betalen"]:
         st.warning("Om je winkel te openen, meld je je eerst aan om betalingen via de app te ontvangen "
-                   "(Verkopen › 💳).")
+                   "(Verkopen › Betalen).")
     if w and w["open"]:
         st.success("Je winkel is open.")
         kort.deel_blok("winkel", w["adres"], w["naam"], "winkel")
@@ -915,7 +916,7 @@ def mijn_webshop(inkopen=None) -> None:
         st.caption("Nog geen producten.")
     for p in producten:
         with st.container(border=True):
-            st.markdown(f"**{p['titel']}** · {samen.euro(p['prijs'])}" + (" · 🏬 in de winkel" if p["in_winkel"] else ""))
+            st.markdown(f"**{p['titel']}** · {samen.euro(p['prijs'])}" + (" · in de winkel" if p["in_winkel"] else ""))
             with st.form(f"wp_{p['id']}", border=False):
                 k1, k2, k3 = st.columns([2, 2, 1], vertical_alignment="bottom")
                 in_winkel = k1.toggle("In de winkel", value=p["in_winkel"])
@@ -923,7 +924,7 @@ def mijn_webshop(inkopen=None) -> None:
                                            placeholder="1 stuk")
                 if k3.form_submit_button("Opslaan"):
                     if _fout(samen.winkel_product, p["id"], in_winkel, voorraad) is not None:
-                        st.toast("Opgeslagen.", icon="✅")
+                        st.toast("Opgeslagen.", icon=":material/check_circle:")
                         st.rerun()
 
 
@@ -1002,12 +1003,12 @@ def marketing(w: dict) -> None:
                                  placeholder="Bijv. nieuwe collectie binnen")
             if st.form_submit_button("Delen met volgers", type="primary") and tekst.strip():
                 if _fout(samen.winkel_nieuws_plaatsen, tekst.strip()) is not None:
-                    st.toast("Gedeeld met je volgers.", icon="📰")
+                    st.toast("Gedeeld met je volgers.", icon=":material/campaign:")
                     st.rerun()
         for n in m["nieuws"]:
             k1, k2 = st.columns([5, 1], vertical_alignment="center")
             k1.caption(f"{n['datum'][:10]} · {n['tekst']}")
-            if k2.button("🗑️", key=f"nieuws_{n['id']}", help="Weghalen"):
+            if k2.button("", icon=":material/delete:", key=f"nieuws_{n['id']}", help="Weghalen"):
                 _fout(samen.winkel_nieuws_weg, n["id"])
                 st.rerun()
 
@@ -1064,7 +1065,7 @@ def post_schrijven(w: dict, link: str, kanaal: str, onderwerp: str) -> None:
     k1.link_button("Via WhatsApp", f"https://wa.me/?text={quote(t['tekst'])}", width="stretch")
     if kanaal == "Nieuwtje voor volgers" and k2.button("Delen met volgers", width="stretch"):
         if _fout(samen.winkel_nieuws_plaatsen, t["tekst"][:500]) is not None:
-            st.toast("Gedeeld met je volgers.", icon="📰")
+            st.toast("Gedeeld met je volgers.", icon=":material/campaign:")
     st.caption("Tik lang op de tekst om te kopiëren, of gebruik het kopieerknopje rechtsboven.")
 
 
@@ -1134,7 +1135,7 @@ def naar_winkel(adres: str) -> None:
 
 
 def winkelstraat() -> None:
-    """Pagina 🏬 Winkels: een kaart met alle winkels in de buurt, de winkels uit de app voorop.
+    """Pagina Winkels: een kaart met alle winkels in de buurt, de winkels uit de app voorop.
 
     Een winkel uit de app opent hier; je verlaat de app niet.
     """
@@ -1179,7 +1180,7 @@ def winkelstraat() -> None:
                 st.caption(w["omschrijving"][:140] + ("..." if len(w["omschrijving"]) > 140 else ""))
             v = w.get("vertrouwen") or {}
             st.caption(" · ".join(filter(None, [
-                f"★ {str(v['sterren']).replace('.', ',')} ({v['beoordelingen']})" if v.get("beoordelingen") else "",
+                f":material/star: {str(v['sterren']).replace('.', ',')} ({v['beoordelingen']})" if v.get("beoordelingen") else "",
                 w["verkoper"], f"{w['producten']} producten", w.get("winkeladres") or "online",
                 "zakelijk" if samen.zakelijk(v) else ""])))
             if st.button("Binnenlopen", key=f"open_{w['adres']}", width="stretch"):
@@ -1242,7 +1243,7 @@ def winkelkaart_tonen(winkels: list[dict], zoek: str) -> None:
         pdk.Layer("ScatterplotLayer", id="onze", pickable=True, get_radius=40, radius_min_pixels=11, radius_max_pixels=16,
                   get_position=["lon", "lat"], get_fill_color="kleur", stroked=True, get_line_color=[255, 255, 255],
                   line_width_min_pixels=3,
-                  data=[{"naam": "⭐ " + w["naam"], "tip": "In de app · tik om binnen te lopen", "adres": w["adres"],
+                  data=[{"naam": w["naam"], "tip": "In de app · tik om binnen te lopen", "adres": w["adres"],
                          "lat": w["lat"], "lon": w["lon"], "kleur": _rgb(w["kleur"])} for w in op_kaart]),
     ]
     deck = pdk.Deck(layers=lagen, map_style=None, tooltip={"html": "<b>{naam}</b><br/>{tip}"},
@@ -1253,10 +1254,10 @@ def winkelkaart_tonen(winkels: list[dict], zoek: str) -> None:
     if gekozen and gekozen[0].get("adres"):
         st.session_state.open_winkel = gekozen[0]["adres"]
         st.rerun()
-    st.caption("⭐ Gekleurde stippen: winkels in de app, daar koop je veilig en blijf je in de app. "
+    st.caption("Gekleurde stippen: winkels in de app, daar koop je veilig en blijf je in de app. "
                "Grijze stippen: andere winkels (OpenStreetMap).")
 
-    st.markdown(f"**⭐ In de app** ({len(eigen)})")
+    st.markdown(f"**In de app** ({len(eigen)})")
     if not eigen:
         st.caption("Nog geen winkels in de app hier.")
     for w in eigen[:30]:
@@ -1275,7 +1276,7 @@ def winkelkaart_tonen(winkels: list[dict], zoek: str) -> None:
         st.caption("Geen andere winkels gevonden binnen deze straal.")
     for w in overig[:40]:
         route = f"https://maps.apple.com/?daddr={w['lat']},{w['lon']}&q={quote(w['naam'])}"
-        regel = f"{w['icoon']} **{w['naam']}** · {w['soort']} · {_km(w['afstand_km'])} · [Route]({route})"
+        regel = f"{symbool.md(w['icoon'])} **{w['naam']}** · {w['soort']} · {_km(w['afstand_km'])} · [Route]({route})"
         extra = " · ".join(x for x in (w["adres"], w["openingstijden"]) if x)
         st.markdown(regel + (f"  \n:gray[{extra}]" if extra else ""))
     if len(overig) > 40:
@@ -1294,7 +1295,7 @@ def winkel_pagina(adres: str, ingelogd: bool) -> None:
     st.markdown(f'<div style="border-top:6px solid {kleur};padding-top:6px"></div>', unsafe_allow_html=True)
     st.title(w["naam"])
     if w.get("actie"):
-        st.info(w["actie"], icon="📣")
+        st.info(w["actie"], icon=":material/campaign:")
     if w["omschrijving"]:
         st.write(w["omschrijving"])
     st.caption(f"Winkel van {w['verkoper']} · {samen.vertrouwen_tekst(w.get('vertrouwen'))}"
@@ -1388,7 +1389,7 @@ def reviews_blok(w: dict, adres: str, reviews: dict, ingelogd: bool) -> None:
                         if keuze is None:
                             st.error("Kies eerst het aantal sterren.")
                         elif _fout(samen.winkel_beoordelen, bezoek["id"], keuze + 1, tekst.strip()) is not None:
-                            st.toast("Bedankt voor je review!", icon="⭐")
+                            st.toast("Bedankt voor je review!", icon=":material/star:")
                             st.rerun()
 
 
@@ -1427,36 +1428,55 @@ def _foto_klein(bestand) -> str:
     return "data:image/jpeg;base64," + base64.b64encode(uit.getvalue()).decode()
 
 
-def profielfoto_instellingen(gebruiker: dict) -> None:
-    with st.expander("Profielfoto"):
-        foto = opslag.profielfoto(gebruiker["id"]) if gebruiker.get("heeft_foto") else None
-        if foto:
-            st.image(foto, width=96)
-        nieuw = st.file_uploader("Foto kiezen", type=["jpg", "jpeg", "png", "webp"], key="profielfoto_kiezen",
-                                 label_visibility="collapsed")
-        if nieuw is not None and st.session_state.get("profielfoto_klaar") != nieuw.file_id:
-            try:
-                klein = _foto_klein(nieuw)
-            except Exception:
-                st.error("Deze foto kan de app niet lezen. Kies een andere.")
+def profielkop(gebruiker: dict) -> None:
+    """Bovenaan je account: je foto en naam, met de knop om je foto te wijzigen er direct naast.
+    Zo zie je meteen dat de nieuwe foto er staat, zonder te scrollen."""
+    foto = opslag.profielfoto(gebruiker["id"]) if gebruiker.get("heeft_foto") else None
+    naam = gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Jij"
+    if foto:
+        beeld = f'<img src="{html.escape(foto)}" width="72" height="72" style="border-radius:50%;object-fit:cover">'
+    else:
+        beeld = ('<div style="width:72px;height:72px;border-radius:50%;background:#e0e7ff;color:#4338ca;'
+                 'display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:600">'
+                 f'{html.escape(naam[:1].upper())}</div>')
+    with st.container(horizontal=True, vertical_alignment="center", gap="medium"):
+        st.html(beeld, width="content")
+        with st.container(gap=None):
+            st.markdown(f"**{html.escape(naam)}**")
+            if gebruiker.get("naam"):
+                st.caption(f"@{gebruiker['naam']}")
+        with st.popover("Foto wijzigen" if foto else "Foto toevoegen", icon=":material/photo_camera:"):
+            profielfoto_wijzigen(gebruiker, foto)
+
+
+def profielfoto_wijzigen(gebruiker: dict, foto: str | None) -> None:
+    teller = st.session_state.get("profielfoto_teller", 0)
+    nieuw = st.file_uploader("Kies een foto", type=["jpg", "jpeg", "png", "webp"],
+                             key=f"profielfoto_kiezen_{teller}")
+    if nieuw is not None:
+        try:
+            klein = _foto_klein(nieuw)
+        except Exception:
+            st.error("Deze foto kan de app niet lezen. Kies een andere.")
+        else:
+            if fout := opslag.profielfoto_instellen(klein):
+                st.error(fout)
             else:
-                if fout := opslag.profielfoto_instellen(klein):
-                    st.error(fout)
-                else:
-                    st.session_state.profielfoto_klaar = nieuw.file_id
-                    _gebruiker_verversen()
-                    st.rerun()
-        huidig = gebruiker.get("foto_zichtbaar") or "contacten"
-        wie = st.segmented_control("Wie ziet je foto", list(FOTO_ZICHTBAAR), default=huidig, format_func=FOTO_ZICHTBAAR.get,
-                                   key="profielfoto_wie")
-        if wie and wie != huidig:
-            opslag.profielfoto_instellen(None, wie)
-            _gebruiker_verversen()
-            st.rerun()
-        if foto and st.button("Foto weghalen", type="tertiary", icon=":material/delete:"):
-            opslag.profielfoto_instellen("")
-            _gebruiker_verversen()
-            st.rerun()
+                # Een nieuwe sleutel maakt het kiesvak weer leeg, zodat je zo nog een andere foto kunt kiezen.
+                st.session_state.profielfoto_teller = teller + 1
+                _gebruiker_verversen()
+                st.rerun()
+    huidig = gebruiker.get("foto_zichtbaar") or "contacten"
+    wie = st.segmented_control("Wie ziet je foto", list(FOTO_ZICHTBAAR), default=huidig, format_func=FOTO_ZICHTBAAR.get,
+                               key="profielfoto_wie")
+    if wie and wie != huidig:
+        opslag.profielfoto_instellen(None, wie)
+        _gebruiker_verversen()
+        st.rerun()
+    if foto and st.button("Foto weghalen", type="tertiary", icon=":material/delete:"):
+        opslag.profielfoto_instellen("")
+        _gebruiker_verversen()
+        st.rerun()
 
 
 def telefoon_instellingen(gebruiker: dict) -> None:
@@ -1496,6 +1516,8 @@ def _gebruiker_verversen() -> None:
 def account_instellingen() -> None:
     """Profiel, voorwaarden, gegevens downloaden en account verwijderen."""
     gebruiker = ik()
+    if samen.beschikbaar():
+        profielkop(gebruiker)
     if samen.beschikbaar() and not gebruiker.get("email"):
         st.warning("Vul je mailadres in bij Mijn account. Zonder mailadres kun je niet kopen of verkopen.")
     with st.expander("Mijn account" + (f" (@{gebruiker['naam']})" if gebruiker.get("naam") else "")):
@@ -1526,7 +1548,6 @@ def account_instellingen() -> None:
                                                               st.session_state.wachtwoord)
                         st.success("Opgeslagen.")
     if samen.beschikbaar():
-        profielfoto_instellingen(gebruiker)
         telefoon_instellingen(gebruiker)
     if samen.beschikbaar():
         niveau = gebruiker.get("niveau") or "particulier"
@@ -1594,12 +1615,12 @@ def accounttype(gebruiker: dict) -> None:
         if _fout(samen.niveau_instellen, keuze, bedrijf) is not None:
             st.session_state.ik = opslag.inloggen(st.session_state.get("naam", ""), st.session_state.wachtwoord)
             _vergeet_nieuw()
-            st.toast(f"Accounttype: {samen.NIVEAUS[keuze][0]}.", icon="✅")
+            st.toast(f"Accounttype: {samen.NIVEAUS[keuze][0]}.", icon=":material/check_circle:")
             st.rerun()
 
 
 def verkoopoverzicht() -> None:
-    """Pagina 📊 Verkoopoverzicht voor verkopers en ondernemers."""
+    """Pagina Verkoopoverzicht voor verkopers en ondernemers."""
     o = samen.verkoop_overzicht()
     ondernemer = ik().get("niveau") == "ondernemer"
     deze_maand = date.today().strftime("%Y-%m")
@@ -1634,7 +1655,7 @@ def verkoopoverzicht() -> None:
         for f in o["facturen"]:
             kol1, kol2 = st.columns([4, 1], vertical_alignment="center")
             kol1.markdown(f"{factuurnummer(f)} · {f['titel']} · {samen.euro(f['bedrag'])} · {f['klant']}")
-            kol2.download_button("⬇️", factuur_html(f, bedrijf), file_name=f"factuur-{factuurnummer(f)}.html",
+            kol2.download_button("", factuur_html(f, bedrijf), icon=":material/download:", file_name=f"factuur-{factuurnummer(f)}.html",
                                  mime="text/html", key=f"factuur_{f['id']}", help="Factuur downloaden")
         if not o["facturen"]:
             st.caption("Facturen verschijnen hier zodra een bestelling betaald is.")
@@ -1712,7 +1733,7 @@ def beveiliging() -> None:
     st.markdown("**Ingelogd op**")
     for sessie in b["sessies"]:
         laatst = datetime.fromisoformat(sessie["laatst"]).astimezone().strftime("%d-%m %H:%M")
-        st.markdown(f"{'📍 ' if sessie['deze'] else ''}{sessie['apparaat'] or 'onbekend'} · laatst {laatst}"
+        st.markdown(f"{':material/my_location: ' if sessie['deze'] else ''}{sessie['apparaat'] or 'onbekend'} · laatst {laatst}"
                     + (" · :green[dit apparaat]" if sessie["deze"] else ""))
     apparaten = opslag.mijn_apparaten()
     if (len(b["sessies"]) > 1 or apparaten) and st.button("Op alle andere apparaten uitloggen"):
@@ -1721,7 +1742,7 @@ def beveiliging() -> None:
             # Dit apparaat blijft onthouden: het krijgt een nieuwe sleutel.
             nieuw = opslag.apparaat_onthouden(st.session_state.get("apparaat_naam", ""))
             st.session_state.apparaat_token = st.session_state.apparaat_bewaar = nieuw
-        st.toast("Andere apparaten zijn uitgelogd.", icon="🔐")
+        st.toast("Andere apparaten zijn uitgelogd.", icon=":material/lock:")
         st.rerun()
     if apparaten:
         st.markdown("**Ingelogd blijven op**")
@@ -1739,7 +1760,7 @@ def beveiliging() -> None:
             for i in b["inlogs"]:
                 tijd = datetime.fromisoformat(i["tijd"]).astimezone().strftime("%d-%m %H:%M")
                 reden = {"wachtwoord": "fout wachtwoord", "code": "foute code", "sleutel": "Face ID geweigerd"}.get(i["reden"], "")
-                st.markdown(f"{'✅' if i['gelukt'] else '❌'} {tijd} · {i['apparaat'] or 'onbekend'}"
+                st.markdown(f"{':material/check_circle:' if i['gelukt'] else ':material/cancel:'} {tijd} · {i['apparaat'] or 'onbekend'}"
                             + (f" · :red[{reden}]" if reden else ""))
             st.caption("Zie je iets wat jij niet was? Kies een nieuw wachtwoord bij Mijn account; andere "
                        "apparaten worden dan uitgelogd.")
