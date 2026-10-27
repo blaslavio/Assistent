@@ -18,6 +18,18 @@ _APPOINTMENT = re.compile(r"\b(?:plan|inplannen|afspraak|reservering)\b", re.I)
 def parse_intent(text: str) -> IntentDraft | None:
     if not isinstance(text, str) or not 1 <= len(text.strip()) <= 2000:
         return None
+    # An instruction mentioning several distinct actions must not be routed as
+    # a single payment or appointment. The existing assistant can clarify it.
+    signals = {
+        "betaling": bool(_PAY.search(text)),
+        "communicatie": bool(_SEND.search(text)),
+        "agenda": bool(_APPOINTMENT.search(text)),
+    }
+    if sum(signals.values()) > 1:
+        return IntentDraft(
+            "meervoudig",
+            "Deze opdracht bevat meerdere acties. Stel ze aan de assistent of behandel ze één voor één.",
+        )
     income = _INCOME.search(text)
     if income:
         amount = float(income.group(1).replace(",", "."))
