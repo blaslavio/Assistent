@@ -2994,46 +2994,54 @@ def vandaag_overzicht() -> None:
        border:1px solid #e4e9e7;margin:7px 0;color:#244136}
     .so-appointment-time{color:#32735c;font-size:12px;font-weight:750;letter-spacing:.02em}
     .so-appointment-name{font-weight:600;font-size:15px;overflow-wrap:anywhere}
-    @media(max-width:640px){.so-home-hero{padding:20px 17px;border-radius:17px}
+    @media(max-width:640px){
+      .st-key-superapp_mobile_header [data-testid="stHorizontalBlock"]{flex-wrap:nowrap !important;gap:10px !important;align-items:center}
+      .st-key-superapp_mobile_header [data-testid="stColumn"]:first-child{flex:1 1 auto !important;min-width:0 !important;width:auto !important}
+      .st-key-superapp_mobile_header [data-testid="stColumn"]:last-child{flex:0 0 78px !important;min-width:78px !important;width:78px !important}
+      .so-home-hero{padding:13px 14px;border-radius:17px;margin-bottom:9px}
+      .so-home-title{font-size:21px}
+      .so-home-description{font-size:12px}
       .so-appointment{padding:11px 13px}}
     </style>
     """, unsafe_allow_html=True)
 
     now = datetime.now()
-    header, portrait = st.columns([5, 1], vertical_alignment="center")
-    with header:
-        st.markdown(
+    with st.container(key="superapp_mobile_header"):
+        header, portrait = st.columns([4, 1], vertical_alignment="center")
+        with header:
+            st.markdown(
             '<section class="so-home-hero">'
             '<div class="so-home-kicker">SUPERAPP OS · VANDAAG</div>'
             '<div class="so-home-title">Jouw dag, overzichtelijk.</div>'
             '<div class="so-home-description">Afspraken, gesprekken en taken op één plek.</div>'
             '</section>', unsafe_allow_html=True)
-    with portrait:
-        try:
-            beeld = avatar.plaatje(mijn_avatar())
-            if beeld:
-                st.image(beeld, width=90)
-            else:
+        with portrait:
+            try:
+                beeld = avatar.plaatje(mijn_avatar())
+                if beeld:
+                    st.image(beeld, width=76)
+                else:
+                    st.markdown(":material/account_circle:")
+            except Exception:
                 st.markdown(":material/account_circle:")
-        except Exception:
-            st.markdown(":material/account_circle:")
 
-    # Primary navigation stays visible without endless scrolling.
-    quick = [("Agenda", "agenda", ":material/calendar_month:"),
-             ("Assistent", "assistent", ":material/auto_awesome:"),
-             ("Berichten", "communicatie", ":material/chat_bubble_outline:"),
-             ("Instellingen", "instellingen", ":material/tune:")]
-    available = [(name, route, icon) for name, route, icon in quick if route in PAGINA]
-    if available:
-        columns = st.columns(len(available))
-        for col, (name, route, icon) in zip(columns, available):
-            with col:
+    # Compact menu avoids four full-width mobile rows.
+    with st.popover("Menu en snelkoppelingen", icon=":material/menu:", use_container_width=True):
+        for name, route, icon in [
+            ("Agenda", "agenda", ":material/calendar_month:"),
+            ("Assistent", "assistent", ":material/auto_awesome:"),
+            ("Berichten", "communicatie", ":material/chat_bubble_outline:"),
+            ("Instellingen", "instellingen", ":material/tune:"),
+        ]:
+            if route in PAGINA:
                 st.page_link(PAGINA[route], label=name, icon=icon, width="stretch")
 
-    tab_day, tab_calendar, tab_messages, tab_tasks = st.tabs(
-        ["Vandaag", "Agenda", "Communicatie", "Taken & plannen"])
+    section = st.selectbox(
+        "Onderdeel", ["Vandaag", "Agenda", "Communicatie", "Taken & plannen"],
+        key="superapp_dashboard_section",
+    )
 
-    with tab_day:
+    if section == "Vandaag":
         chosen_day = st.date_input("Dag bekijken", value=now.date(),
                                    key="superapp_dashboard_day")
         try:
@@ -3062,7 +3070,7 @@ def vandaag_overzicht() -> None:
         with st.expander("AI-assistent gebruiken", icon=":material/auto_awesome:"):
             snelle_assistent_vraag("dashboard")
 
-    with tab_calendar:
+    elif section == "Agenda":
         st.markdown('<div class="so-section-title">Agenda en boekingen</div>', unsafe_allow_html=True)
         agenda_overzicht()
         for name, route, icon in [
@@ -3071,7 +3079,7 @@ def vandaag_overzicht() -> None:
             if route in PAGINA:
                 st.page_link(PAGINA[route], label=name, icon=icon, width="stretch")
 
-    with tab_messages:
+    elif section == "Communicatie":
         for name, route, icon in [
             ("Alle communicatie", "communicatie", ":material/chat:"),
             ("Verkopersberichten", "berichten", ":material/markunread_mailbox:"),
@@ -3080,7 +3088,7 @@ def vandaag_overzicht() -> None:
                 st.page_link(PAGINA[route], label=name, icon=icon, width="stretch")
         st.caption("De beschikbare functies hangen af van je geactiveerde koppelingen.")
 
-    with tab_tasks:
+    else:
         with st.expander("Mijn taken", expanded=True, icon=":material/checklist:"):
             takenlijst()
         with st.expander("Mijn plannen", icon=":material/assignment:"):
