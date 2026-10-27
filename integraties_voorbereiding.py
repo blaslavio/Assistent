@@ -66,7 +66,7 @@ def intent_naar_concept(tekst: str) -> dict:
     """Herken uitsluitend een eenvoudig betaalverzoek; voer niets uit."""
     import re
     tekst = tekst.strip()
-    patroon = re.search(r"(?:€\\s*|(?:van|voor)\\s+)(\\d+(?:[.,]\\d{1,2})?)\\s*(?:euro)?", tekst, re.I)
+    patroon = re.search(r"(?:€\s*|(?:van|voor)\s+)(\d+(?:[.,]\d{1,2})?)\s*(?:euro)?", tekst, re.I)
     is_betaling = bool(re.search(r"betaalverzoek|betaling vragen|factuur", tekst, re.I))
     if not is_betaling or not patroon:
         return {"type": "onbekend", "tekst": tekst}
@@ -83,7 +83,7 @@ def intent_parser_pagina() -> None:
     st.markdown("#### Slimme opdracht")
     st.caption("Beschrijf je verzoek. De assistent maakt alleen een voorstel, nooit automatisch een betaling.")
     with st.form("intent_parser_concept_form"):
-        opdracht = st.text_input("Opdracht", placeholder="Maak een betaalverzoek van 75 euro voor een intake")
+        opdracht = st.text_input("Opdracht", value=st.session_state.pop("pay_chat_opdracht", ""), placeholder="Maak een betaalverzoek van 75 euro voor een intake")
         ingediend = st.form_submit_button("Voorstel maken")
     if ingediend:
         st.session_state["intent_voorstel"] = intent_naar_concept(opdracht)
