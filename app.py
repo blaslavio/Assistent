@@ -5316,7 +5316,13 @@ def assistent_financieel_samenvatting() -> str:
 
 def gesprek() -> None:
     """Het gesprek met de assistent; antwoorden verschijnen woord voor woord."""
-    st.session_state.setdefault("chat", [])
+    if "chat" not in st.session_state:
+        try:
+            opgeslagen = opslag._rpc_ik("assistent_berichten_lezen")
+            st.session_state.chat = [(m["rol"], m["inhoud"]) for m in opgeslagen]
+        except Exception:
+            st.session_state.chat = []
+            st.warning("Gespreksgeschiedenis kon niet worden geladen.")
     # Twee lijsten: wat de gebruiker ziet, en de volledige geschiedenis voor Claude.
     st.session_state.setdefault("berichten", [])
     context_aan = st.checkbox(
@@ -5492,6 +5498,11 @@ def gesprek() -> None:
         tekst = spraak.zonder_labels(tekst) or "Klaar."
         st.markdown(tekst)
     st.session_state.chat.append(("assistant", tekst))
+    try:
+        opslag._rpc_ik("assistent_bericht_toevoegen", p_rol="user", p_inhoud=zichtbaar)
+        opslag._rpc_ik("assistent_bericht_toevoegen", p_rol="assistant", p_inhoud=tekst)
+    except Exception:
+        st.warning("Dit gesprek kon niet volledig worden opgeslagen.")
     st.session_state.laatste_vraag = zichtbaar
     st.session_state.laatste_gevoel = gevoel
     st.session_state.voorlezen_geluid = None
