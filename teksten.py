@@ -76,7 +76,7 @@ def voorwaarden() -> str:
    tot de beheerder heeft gekeken, en wordt alleen verborgen als hij deze regels breekt. Kortingscodes, acties en
    nieuwtjes moeten kloppen: geen nep-"van"-prijzen of misleidende beloftes. Nieuwtjes gaan alleen naar mensen die
    een winkel zelf volgen, hooguit één per dag; volgen kun je altijd stoppen.
-10. **Melden en blokkeren.** Zie je iets wat niet mag? Gebruik de knop 🚩 Melden. De beheerder bekijkt meldingen zo
+10. **Melden en blokkeren.** Zie je iets wat niet mag? Gebruik de knop Melden. De beheerder bekijkt meldingen zo
    snel mogelijk en kan aanbod offline halen of een account blokkeren. Wordt iets door meerdere mensen gemeld, dan
    gaat het automatisch offline tot de beheerder heeft gekeken. Nieuwe accounts kunnen de eerste week minder
    tegelijk aanbieden en bestellen. Je kunt bezwaar maken via {_contact()}.
@@ -106,7 +106,13 @@ Heb je een winkel, dan zijn je winkelnaam, je reacties op reviews en (als je dat
 voor iedereen zichtbaar. Reviews tonen je weergavenaam, de sterren, je tekst en de datum. We tellen hoe vaak een
 winkelpagina is bekeken, zonder bij te houden door wie. Een winkel ziet hoeveel volgers hij heeft, niet wie.
 
-Je 👍/👎 en opmerkingen bij antwoorden bewaren we bij je eigen gegevens, zodat de assistent ervan leert. Zet je de
+Je duimpjes en opmerkingen bij antwoorden bewaren we bij je eigen gegevens, zodat de assistent ervan leert.
+
+**Samen leren (alleen als je het aanzet).** Standaard uit. Zet je het aan, dan delen we met de app: welke categorie je
+in je budget aan een winkel of bedrijf geeft, hoeveel minuten een soort afspraak bij jou gemiddeld uitloopt, en per
+onderwerp hoe vaak je een antwoord goed of niet goed vond. Nooit de tekst van je vragen, antwoorden, mails of berichten,
+geen bedragen en geen namen van mensen. Anderen zien alleen wat minstens 5 mensen samen bijdroegen. Zet je het uit,
+dan maken we je bijdrage meteen leeg. Zet je de
 natuurlijke stem aan, dan gaat de tekst van het antwoord via je eigen sleutel naar ElevenLabs (Verenigde Staten) om
 voorgelezen te worden.
 

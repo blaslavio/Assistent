@@ -99,7 +99,9 @@ PAGINA = r"""<!doctype html>
   .tegels { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
   .tegel { font: inherit; font-size: 13px; border: 1px solid var(--rand); background: #fafafa; border-radius: 12px; padding: 10px 4px;
     display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; color: inherit; }
-  .tegel span { font-size: 28px; line-height: 1; } .tegel img { width: 100%; height: 54px; object-fit: cover; border-radius: 8px; }
+  .tegel span { font-size: 28px; line-height: 1; }
+  .tegel .stip { display: block; width: 26px; height: 26px; border-radius: 50%; margin: 2px auto 6px;
+    border: 1px solid rgba(17,24,39,.15); } .tegel img { width: 100%; height: 54px; object-fit: cover; border-radius: 8px; }
   .tegel.breed small { font-size: 11px; opacity: .6; text-align: center; }
   #hud { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 4; pointer-events: none; }
   #hud span { background: rgba(17,24,39,.7); color: #fff; border-radius: 999px; padding: 4px 11px; font-weight: 600; font-size: 15px; }
