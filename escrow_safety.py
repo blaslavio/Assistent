@@ -26,6 +26,8 @@ class EscrowProposal:
 def parse_amount(text: str) -> Decimal:
     if not isinstance(text, str):
         raise ValueError("Amount must be text.")
+    if re.search(r"\d+[.,]\d{3,}", text):
+        raise ValueError("Amount has more than two decimal places.")
     matches = AMOUNT_PATTERN.findall(text)
     if len(matches) != 1:
         raise ValueError("Specify exactly one amount with up to two decimals.")
