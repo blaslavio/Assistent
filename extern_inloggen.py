@@ -11,7 +11,7 @@ import os
 import secrets
 import threading
 import time
-from urllib.parse import quote, urlencode
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import opslag
 
@@ -39,6 +39,8 @@ def aanbieders() -> list[str]:
     aan = []
     try:
         r = opslag._verbinding.get(f"{_url()}/auth/v1/settings", headers={"apikey": _sleutel()}, timeout=4)
+        if not 200 <= r.status_code < 300:
+            raise ValueError("Providerinstellingen niet beschikbaar")
         extern = r.json().get("external") or {}
         aan = [a for a in AANBIEDERS if extern.get(a)]
     except Exception:
@@ -62,6 +64,13 @@ def start(aanbieder: str, terug_adres: str) -> str:
         raise ValueError("Deze inlogaanbieder is nog niet geconfigureerd.")
     if not isinstance(terug_adres, str) or not terug_adres.startswith("https://"):
         raise ValueError("Een beveiligd terugkeeradres is vereist.")
+    try:
+        redirect = urlsplit(terug_adres)
+        if (not redirect.hostname or redirect.username or redirect.password
+                or redirect.port not in (None, 443)):
+            raise ValueError
+    except ValueError:
+        raise ValueError("Een geldig beveiligd terugkeeradres is vereist.") from None
     verifier = secrets.token_urlsafe(48)
     staat = secrets.token_urlsafe(16)
     with _slot:
@@ -69,7 +78,7 @@ def start(aanbieder: str, terug_adres: str) -> str:
             _wacht.pop(s, None)
         _wacht[staat] = (verifier, time.time() + 900)
     uitdaging = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
-    terug = terug_adres.split("?")[0] + "?extern=" + quote(staat)
+    terug = urlunsplit((redirect.scheme, redirect.netloc, redirect.path, urlencode({"extern": staat}), ""))
     return f"{_url()}/auth/v1/authorize?" + urlencode({"provider": aanbieder, "redirect_to": terug,
                                                          "code_challenge": uitdaging,
                                                          "code_challenge_method": "S256",
@@ -85,12 +94,16 @@ def afronden(staat: str, code: str, apparaat: str, akkoord: bool = True) -> dict
     try:
         r = opslag._verbinding.post(f"{_url()}/auth/v1/token?grant_type=pkce", headers={"apikey": _sleutel()},
                                     json={"auth_code": code, "code_verifier": verifier}, timeout=15)
+        if not 200 <= r.status_code < 300:
+            return {"fout": "Inloggen lukte niet. Probeer het opnieuw."}
         toegang = r.json().get("access_token")
         if not toegang:
             return {"fout": "Inloggen lukte niet. Probeer het opnieuw."}
         r = opslag._verbinding.post(f"{_url()}/rest/v1/rpc/inloggen_extern",
                                     json={"p_apparaat": apparaat, "p_akkoord": akkoord},
                                     headers={"apikey": _sleutel(), "Authorization": f"Bearer {toegang}"}, timeout=15)
+        if not 200 <= r.status_code < 300:
+            return {"fout": "Inloggen lukte niet. Probeer het opnieuw."}
         return r.json() if isinstance(r.json(), dict) else {"fout": "Inloggen lukte niet."}
     except Exception:
         return {"fout": "Even niet bereikbaar. Probeer het zo opnieuw."}

@@ -9,6 +9,7 @@ import email
 import imaplib
 import re
 import smtplib
+import ssl
 from email.header import decode_header, make_header
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid, parseaddr, parsedate_to_datetime
@@ -60,8 +61,13 @@ def _imap(m: dict | None = None) -> imaplib.IMAP4_SSL:
     m = m or instellingen()
     if not (m.get("adres") and m.get("wachtwoord") and m.get("imap")):
         raise GeenMail()
-    verbinding = imaplib.IMAP4_SSL(m["imap"], int(m.get("imap_poort") or 993), timeout=30)
-    verbinding.login(m.get("gebruiker") or m["adres"], m["wachtwoord"])
+    verbinding = imaplib.IMAP4_SSL(m["imap"], int(m.get("imap_poort") or 993), timeout=30,
+                                  ssl_context=ssl.create_default_context())
+    try:
+        verbinding.login(m.get("gebruiker") or m["adres"], m["wachtwoord"])
+    except Exception:
+        verbinding.shutdown()
+        raise
     return verbinding
 
 
@@ -228,12 +234,17 @@ def versturen(aan: str, onderwerp: str, tekst: str, in_antwoord_op: str = "", re
     bericht.set_content(tekst)
     poort = int(m.get("smtp_poort") or 587)
     if poort == 465:
-        server = smtplib.SMTP_SSL(m["smtp"], poort, timeout=30)
+        server = smtplib.SMTP_SSL(m["smtp"], poort, timeout=30, context=ssl.create_default_context())
     else:
         server = smtplib.SMTP(m["smtp"], poort, timeout=30)
-        server.starttls()
     try:
+        if poort != 465:
+            server.starttls(context=ssl.create_default_context())
+            server.ehlo()
         server.login(m.get("gebruiker") or m["adres"], m["wachtwoord"])
         server.send_message(bericht)
     finally:
-        server.quit()
+        try:
+            server.quit()
+        except (smtplib.SMTPException, OSError):
+            server.close()

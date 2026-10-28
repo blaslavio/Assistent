@@ -1,11 +1,20 @@
 """Account-scoped resource bookings with overlap validation."""
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from uuid import uuid4
 import opslag
 
 KEY = "resource_bookings"
 RESOURCE_KEY = "resource_catalog"
 KINDS = ("Zaal", "Werkplek", "Kappersstoel", "Materiaal", "Sportveld", "Overig")
+
+
+def _instant(moment):
+    if not isinstance(moment, datetime):
+        raise ValueError("Kies een geldig tijdstip.")
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
+    return moment.astimezone(timezone.utc)
 
 def _read(key):
     value = opslag.laden().get(key, [])
@@ -32,9 +41,10 @@ def add_resource(name, kind):
     return item
 
 def create_booking(resource_id, start, end, description):
-    if not isinstance(start, datetime) or not isinstance(end, datetime) or end <= start:
+    begin, einde = _instant(start), _instant(end)
+    if einde <= begin:
         raise ValueError("Eindtijd moet na de begintijd liggen.")
-    if (end - start).days > 30:
+    if einde - begin > timedelta(days=30):
         raise ValueError("Reserveringen mogen maximaal 30 dagen duren.")
     description = description.strip()
     if len(description) > 200:
@@ -46,7 +56,7 @@ def create_booking(resource_id, start, end, description):
         for b in data.get(KEY, []):
             if b.get("resource_id") != resource_id or b.get("status") == "geannuleerd":
                 continue
-            if start < datetime.fromisoformat(b["end"]) and end > datetime.fromisoformat(b["start"]):
+            if begin < _instant(datetime.fromisoformat(b["end"])) and einde > _instant(datetime.fromisoformat(b["start"])):
                 raise ValueError("Deze voorziening is al gereserveerd in dit tijdvak.")
         item = {"id": uuid4().hex, "resource_id": resource_id,
                 "start": start.isoformat(), "end": end.isoformat(),

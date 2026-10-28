@@ -172,7 +172,7 @@ def winkel_regel(w: dict) -> None:
         if w.get("bezorgt_hier"):
             delen.append(f"bezorgt in {w['bezorg_minuten']} min")
         if v := (w.get("vertrouwen") or {}).get("beoordelingen"):
-            delen.append(f"★ {str(w['vertrouwen']['sterren']).replace('.', ',')} ({v})")
+            delen.append(f":material/star: {str(w['vertrouwen']['sterren']).replace('.', ',')} ({v})")
         st.markdown(f'<span style="color:{w["kleur"]}">●</span> **{w["naam"]}**  \n'
                     f'<span style="color:#6b7280;font-size:14px">{" · ".join(delen)}</span>',
                     unsafe_allow_html=True, width="stretch")
@@ -301,7 +301,7 @@ def mandje_winkel(adres: str, w: dict | None) -> None:
         st.caption("Deze producten kun je niet samen bestellen. Haal er een weg.")
         return
     with st.form(f"afrekenen_{adres}", border=False):
-        levering = st.radio("Hoe?", opties, horizontal=True, format_func=lambda l: samen.LEVERING[l][2:],
+        levering = st.radio("Hoe?", opties, horizontal=True, format_func=samen.LEVERING.get,
                             label_visibility="collapsed")
         bezorgadres = st.text_input("Bezorgadres", value=opslag.instellingen().get("thuisadres", ""),
                                     placeholder="Bijv. Dorpsstraat 1, Ede")

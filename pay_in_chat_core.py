@@ -43,8 +43,17 @@ def verified_payment_status(*, provider_verified: bool, provider_status: str,
                             amount_cents: int, expected_amount_cents: int,
                             currency: str = "EUR") -> PaymentStatus:
     """Alleen aanroepen na server-side verificatie van een provider webhook/API."""
-    if not provider_verified:
+    if provider_verified is not True:
         raise PermissionError("Betaalprovider-verificatie ontbreekt.")
+    if (not isinstance(provider_reference, str) or not provider_reference.strip()
+            or not isinstance(expected_reference, str) or not expected_reference.strip()
+            or type(amount_cents) is not int or type(expected_amount_cents) is not int
+            or amount_cents <= 0 or expected_amount_cents <= 0):
+        raise ValueError("Betalingsreferentie of bedrag ontbreekt of is ongeldig.")
     if provider_reference != expected_reference or amount_cents != expected_amount_cents or currency != "EUR":
         raise ValueError("Betalingsgegevens komen niet overeen.")
-    return PaymentStatus.PAID if provider_status == "paid" else PaymentStatus.PENDING
+    if provider_status == "paid":
+        return PaymentStatus.PAID
+    if provider_status in ("failed", "canceled", "cancelled", "expired"):
+        return PaymentStatus.FAILED
+    return PaymentStatus.PENDING

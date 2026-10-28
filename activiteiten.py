@@ -13,28 +13,28 @@ import reizen
 # Voorkeuren waarop de gebruiker kan sorteren.
 VOORKEUREN = ["Cultuur", "Muziek", "Film", "Natuur", "Dieren", "Actief", "Sport", "Familie", "Bezienswaardigheden"]
 
-# OpenStreetMap-soort: (omschrijving, icoon, binnen?, voorkeur)
+# OpenStreetMap-soort: (omschrijving, symbool (Material Symbols), binnen?, voorkeur)
 SOORTEN = {
-    "museum": ("Museum", "🏛️", True, "Cultuur"), "gallery": ("Galerie", "🖼️", True, "Cultuur"),
-    "theatre": ("Theater", "🎭", True, "Cultuur"), "arts_centre": ("Cultuurcentrum", "🎨", True, "Cultuur"),
-    "music_venue": ("Muziekpodium", "🎵", True, "Muziek"), "concert_hall": ("Concertzaal", "🎻", True, "Muziek"),
-    "cinema": ("Bioscoop", "🎬", True, "Film"),
-    "nature_reserve": ("Natuurgebied", "🌳", False, "Natuur"), "park": ("Park", "🌳", False, "Natuur"),
-    "beach_resort": ("Strand", "🏖️", False, "Natuur"),
-    "zoo": ("Dierentuin", "🦁", False, "Dieren"), "aquarium": ("Aquarium", "🐠", True, "Dieren"),
-    "farm": ("Kinderboerderij", "🐐", False, "Dieren"),
-    "bowling_alley": ("Bowling", "🎳", True, "Actief"), "escape_game": ("Escaperoom", "🔐", True, "Actief"),
-    "trampoline_park": ("Trampolinepark", "🤸", True, "Actief"), "ice_rink": ("IJsbaan", "⛸️", True, "Actief"),
-    "climbing": ("Klimhal", "🧗", True, "Actief"), "miniature_golf": ("Midgetgolf", "⛳", False, "Actief"),
-    "water_park": ("Zwemparadijs", "🌊", True, "Familie"), "swimming_pool": ("Zwembad", "🏊", True, "Sport"),
-    "stadium": ("Stadion", "🏟️", False, "Sport"),
-    "theme_park": ("Pretpark", "🎢", False, "Familie"), "playground": ("Speeltuin", "🛝", False, "Familie"),
-    "attraction": ("Bezienswaardigheid", "📸", False, "Bezienswaardigheden"),
-    "viewpoint": ("Uitzichtpunt", "🔭", False, "Bezienswaardigheden"),
-    "castle": ("Kasteel", "🏰", False, "Bezienswaardigheden"), "monument": ("Monument", "🗿", False, "Bezienswaardigheden"),
-    "restaurant": ("Restaurant", "🍽️", True, "Eten"), "cafe": ("Café", "☕", True, "Eten"),
-    "bar": ("Bar", "🍸", True, "Eten"), "pub": ("Kroeg", "🍺", True, "Eten"), "ice_cream": ("IJssalon", "🍦", True, "Eten"),
-    "indoor_play": ("Binnenspeeltuin", "🧸", True, "Familie"),
+    "museum": ("Museum", "museum", True, "Cultuur"), "gallery": ("Galerie", "image", True, "Cultuur"),
+    "theatre": ("Theater", "theater_comedy", True, "Cultuur"), "arts_centre": ("Cultuurcentrum", "palette", True, "Cultuur"),
+    "music_venue": ("Muziekpodium", "music_note", True, "Muziek"), "concert_hall": ("Concertzaal", "music_note", True, "Muziek"),
+    "cinema": ("Bioscoop", "movie", True, "Film"),
+    "nature_reserve": ("Natuurgebied", "park", False, "Natuur"), "park": ("Park", "park", False, "Natuur"),
+    "beach_resort": ("Strand", "beach_access", False, "Natuur"),
+    "zoo": ("Dierentuin", "pets", False, "Dieren"), "aquarium": ("Aquarium", "set_meal", True, "Dieren"),
+    "farm": ("Kinderboerderij", "pets", False, "Dieren"),
+    "bowling_alley": ("Bowling", "sports_score", True, "Actief"), "escape_game": ("Escaperoom", "lock", True, "Actief"),
+    "trampoline_park": ("Trampolinepark", "sports_gymnastics", True, "Actief"), "ice_rink": ("IJsbaan", "ice_skating", True, "Actief"),
+    "climbing": ("Klimhal", "landscape", True, "Actief"), "miniature_golf": ("Midgetgolf", "golf_course", False, "Actief"),
+    "water_park": ("Zwemparadijs", "pool", True, "Familie"), "swimming_pool": ("Zwembad", "pool", True, "Sport"),
+    "stadium": ("Stadion", "stadium", False, "Sport"),
+    "theme_park": ("Pretpark", "attractions", False, "Familie"), "playground": ("Speeltuin", "toys", False, "Familie"),
+    "attraction": ("Bezienswaardigheid", "photo_camera", False, "Bezienswaardigheden"),
+    "viewpoint": ("Uitzichtpunt", "visibility", False, "Bezienswaardigheden"),
+    "castle": ("Kasteel", "castle", False, "Bezienswaardigheden"), "monument": ("Monument", "account_balance", False, "Bezienswaardigheden"),
+    "restaurant": ("Restaurant", "restaurant", True, "Eten"), "cafe": ("Café", "local_cafe", True, "Eten"),
+    "bar": ("Bar", "local_bar", True, "Eten"), "pub": ("Kroeg", "sports_bar", True, "Eten"), "ice_cream": ("IJssalon", "icecream", True, "Eten"),
+    "indoor_play": ("Binnenspeeltuin", "toys", True, "Familie"),
 }
 
 _cache: dict[tuple, tuple[float, list]] = {}

@@ -3,9 +3,9 @@ toolbarMode = "viewer"
 
 [theme]
 base = "light"
-primaryColor = "#4f46e5"
-baseRadius = "small"
-buttonRadius = "small"
+primaryColor = "#34383c"
+baseRadius = "medium"
+buttonRadius = "medium"
 
 [server]
 maxUploadSize = 10
