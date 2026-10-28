@@ -25,6 +25,10 @@ Werkwijze:
 - Kijk eerst in de agenda voordat je iets inplant en voorkom overlap.
 - Wat je doet met een hulpmiddel ziet de gebruiker als een kaartje onder je antwoord, met een knop om het ongedaan
   te maken. Herhaal dus niet alle details; een korte bevestiging is genoeg.
+- Moet de gebruiker kiezen of iets bevestigen, gebruik dan keuze_voorleggen in plaats van een vraag in tekst: bij
+  verwijderen, bij iets dat niet terug kan, of als er meerdere redelijke opties zijn (tijden, plekken, producten).
+  Labels zijn één tot drie woorden, het gevolg is één korte zin, en je raadt er één aan. Herhaal de vraag en de opties
+  daarna niet in tekst. Is het duidelijk genoeg, doe het dan gewoon zonder te vragen.
 - Verwijderen doe je alleen nadat de gebruiker het bevestigd heeft.
 - Actuele informatie (openingstijden, prijzen, nieuws): zoek op internet en noem je bron kort.
 - Geheugen: je krijgt hieronder wat je al over de gebruiker weet; gebruik het zonder ernaar te vragen. Hoor je iets
@@ -84,6 +88,18 @@ const LIJST: Hulpmiddel[] = [
       onderwerp: tekst("Bijvoorbeeld eten, sport, werk, familie, vervoer, planning of algemeen.") }, required: ["feit"] },
   },
   {
+    name: "keuze_voorleggen",
+    description: "Laat de gebruiker met één tik kiezen of bevestigen. De gebruiker ziet een kaart met knoppen; zijn keuze "
+      + "komt terug als resultaat. Gebruik dit in plaats van een vraag in tekst.",
+    input_schema: { type: "object", properties: {
+      vraag: tekst("De vraag, kort, met werkwoord voorop. Bijvoorbeeld: Etentje met Bram vrijdag of zaterdag?"),
+      opties: { type: "array", minItems: 2, maxItems: 4, description: "Twee tot vier opties.",
+        items: { type: "object", properties: { label: tekst("Eén tot drie woorden."),
+          gevolg: tekst("Eén korte zin: wat er gebeurt als de gebruiker dit kiest.") }, required: ["label", "gevolg"] } },
+      aanbevolen: { type: "integer", description: "Nummer van de aanbevolen optie, beginnend bij 0." },
+    }, required: ["vraag", "opties", "aanbevolen"] },
+  },
+  {
     name: "vergeten", description: "Vergeet een bewaard feit dat niet meer klopt.",
     input_schema: { type: "object", properties: { feit_id: { type: "integer" } }, required: ["feit_id"] },
   },
@@ -107,9 +123,57 @@ export function klopt(naam: string, invoer: unknown): invoer is Record<string, u
     if (s.type === "string" && typeof waarde !== "string") return false;
     if (s.type === "integer" && !Number.isInteger(waarde)) return false;
     if (s.type === "boolean" && typeof waarde !== "boolean") return false;
+    if (s.type === "array" && !Array.isArray(waarde)) return false;
     if (s.enum && !s.enum.includes(waarde as string)) return false;
   }
+  if (naam === "keuze_voorleggen") {
+    const opties = v.opties as unknown[];
+    if (opties.length < 2 || opties.length > 4) return false;
+    if (!opties.every((o) => o && typeof o === "object" && typeof (o as Keuze["opties"][number]).label === "string"
+      && typeof (o as Keuze["opties"][number]).gevolg === "string" && (o as Keuze["opties"][number]).label.trim())) return false;
+    if ((v.aanbevolen as number) < 0 || (v.aanbevolen as number) >= opties.length) return false;
+  }
   return true;
+}
+
+/** Een vraag met knoppen. De keuze gaat als resultaat van het hulpmiddel terug naar Claude. */
+export type Keuze = { vraag: string; opties: { label: string; gevolg: string }[]; aanbevolen: number };
+
+// Een kaart die nog op een tik wacht, met de resultaten van de andere hulpmiddelen uit dezelfde beurt.
+let openKeuze: { id: string; resultaten: Anthropic.ToolResultBlockParam[] } | null = null;
+// Wat de gebruiker intussen met knoppen deed (zoals ongedaan maken); gaat mee met het volgende bericht.
+let nootjes: string[] = [];
+
+export function notitie(tekst: string) {
+  nootjes.push(tekst);
+}
+
+export function gesprekLeeg() {
+  openKeuze = null;
+  nootjes = [];
+}
+
+/**
+ * Zet de beurt van de gebruiker in het gesprek: een getypt bericht, of een tik op een kaart (gekozen).
+ * Geeft een functie terug die alles terugzet als de vraag mislukt.
+ */
+export function gebruikerBeurt(berichten: Anthropic.MessageParam[], tekst: string, gekozen?: string) {
+  const vorig = { openKeuze, nootjes, lengte: berichten.length };
+  const inhoud: Anthropic.ContentBlockParam[] = [];
+  if (openKeuze) {
+    inhoud.push(...openKeuze.resultaten, { type: "tool_result", tool_use_id: openKeuze.id,
+      content: gekozen ? `Gekozen: ${gekozen}` : "Niet op de kaart getikt; de gebruiker schreef zelf iets." });
+  }
+  const regels = [...nootjes.map((n) => `(${n})`), tekst].filter(Boolean);
+  if (regels.length) inhoud.push({ type: "text", text: regels.join("\n") });
+  berichten.push({ role: "user", content: inhoud });
+  openKeuze = null;
+  nootjes = [];
+  return () => {
+    berichten.length = vorig.lengte;
+    openKeuze = vorig.openKeuze;
+    nootjes = vorig.nootjes;
+  };
 }
 
 const DATUM = /^\d{4}-\d{2}-\d{2}$/;
@@ -311,13 +375,14 @@ export function zonderLabels(t: string) {
 export const BEZIG: Record<string, string> = {
   agenda_bekijken: "Kijkt in je agenda", taken_bekijken: "Kijkt naar je taken", afspraak_toevoegen: "Zet het in je agenda",
   afspraak_verwijderen: "Haalt het uit je agenda", taak_toevoegen: "Zet het op je lijst", taak_afronden: "Vinkt af",
-  onthouden: "Onthoudt dit", vergeten: "Vergeet dit", web_search: "Zoekt op internet", web_fetch: "Leest een pagina",
+  onthouden: "Onthoudt dit", vergeten: "Vergeet dit", keuze_voorleggen: "Zet de keuzes klaar", web_search: "Zoekt op internet", web_fetch: "Leest een pagina",
 };
 
 export type Gebeurtenissen = {
   tekst: (stukje: string) => void;
   bezig: (wat: string) => void;
   actie: (a: Actie) => void;
+  keuze: (k: Keuze) => void;
 };
 
 /**
@@ -368,7 +433,12 @@ export async function antwoord(client: Anthropic, berichten: Anthropic.MessagePa
       return "Het antwoord werd te lang. Probeer het korter te vragen.";
     }
     const resultaten: Anthropic.ToolResultBlockParam[] = [];
+    let keuze: Anthropic.ToolUseBlock | null = null;
     for (const v of verzoeken) {
+      if (v.name === "keuze_voorleggen" && !keuze && klopt(v.name, v.input)) {
+        keuze = v;
+        continue;
+      }
       if (!klopt(v.name, v.input)) {
         resultaten.push({ type: "tool_result", tool_use_id: v.id, is_error: true,
           content: JSON.stringify({ INVALID_JSON: JSON.stringify(v.input) }) });
@@ -381,6 +451,12 @@ export async function antwoord(client: Anthropic, berichten: Anthropic.MessagePa
       } catch {
         resultaten.push({ type: "tool_result", tool_use_id: v.id, is_error: true, content: "Opslaan lukte niet." });
       }
+    }
+    if (keuze) {
+      // De beurt stopt hier: de gebruiker kiest op de kaart, en die keuze gaat mee met de volgende beurt.
+      openKeuze = { id: keuze.id, resultaten };
+      op.keuze(keuze.input as Keuze);
+      return "";
     }
     berichten.push({ role: "user", content: resultaten });
   }

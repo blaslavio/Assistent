@@ -2,10 +2,12 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Staat } from "../App";
 import { Herstel, Kalender, Microfoon, Pijl, Plus, Vinkje, Vonk } from "../iconen";
-import { antwoord, ongedaanMaken, verbinding, zonderLabels, type Actie } from "../lib/assistent";
+import { antwoord, gebruikerBeurt, gesprekLeeg, notitie, ongedaanMaken, verbinding, zonderLabels, type Actie,
+  type Keuze } from "../lib/assistent";
+import { KeuzeKaart } from "../keuzekaart";
 import { Opmaak } from "../lib/opmaak";
 
-type Beurt = { wie: "jij" | "assistent"; tekst: string; acties: Actie[]; fout?: boolean };
+type Beurt = { wie: "jij" | "assistent"; tekst: string; acties: Actie[]; fout?: boolean; keuze?: Keuze; gekozen?: number };
 
 // Het gesprek blijft bewaard zolang dit tabblad open is, ook als je even naar Vandaag gaat. Niet op het apparaat.
 const gesprek: { beurten: Beurt[]; berichten: Anthropic.MessageParam[] } = { beurten: [], berichten: [] };
@@ -43,14 +45,28 @@ export default function Assistent({ staat, vernieuw }: Props) {
     setBeurten((lijst) => lijst.map((b, j) => (j === i ? aanpassen(b) : b)));
   }
 
-  async function vraag(tekst: string) {
+  /** Een getypt of ingesproken bericht. */
+  function vraag(tekst: string) {
     const vraag = tekst.trim();
     if (!vraag || bezig) return;
     setInvoer("");
     if (veld.current) veld.current.style.height = "auto";
+    praat(vraag);
+  }
+
+  /** Een tik op een optie van een keuzekaart. */
+  function kies(i: number, j: number) {
+    const k = beurten[i].keuze;
+    if (!k || bezig || beurten[i].gekozen !== undefined) return;
+    wijzig(i, (b) => ({ ...b, gekozen: j }));
+    praat("", k.opties[j].label);
+  }
+
+  async function praat(vraag: string, gekozen?: string) {
     const client = await verbinding(staat.data);
-    const plek = beurten.length + 1;
-    setBeurten((l) => [...l, { wie: "jij", tekst: vraag, acties: [] }, { wie: "assistent", tekst: "", acties: [] }]);
+    const plek = beurten.length + (vraag ? 1 : 0);
+    setBeurten((l) => [...l, ...(vraag ? [{ wie: "jij" as const, tekst: vraag, acties: [] }] : []),
+      { wie: "assistent", tekst: "", acties: [] }]);
     if (!client) {
       wijzig(plek, (b) => ({ ...b, fout: true, tekst: "De assistent staat nog uit. Zet hem aan in de huidige app bij "
         + "Instellingen › Assistent, met je eigen sleutel of een abonnement." }));
@@ -58,8 +74,7 @@ export default function Assistent({ staat, vernieuw }: Props) {
     }
     setBezig("Denkt na");
     stoppen.current = new AbortController();
-    const voor = gesprek.berichten.length;
-    gesprek.berichten.push({ role: "user", content: vraag });
+    const terugzetten = gebruikerBeurt(gesprek.berichten, vraag, gekozen);
     let ruw = "";
     let veranderd = false;
     try {
@@ -74,13 +89,14 @@ export default function Assistent({ staat, vernieuw }: Props) {
           veranderd = true;
           wijzig(plek, (b) => ({ ...b, acties: [...b.acties, a] }));
         },
+        keuze: (k) => wijzig(plek, (b) => ({ ...b, keuze: k })),
       }, stoppen.current.signal);
       if (slot) wijzig(plek, (b) => ({ ...b, tekst: (zonderLabels(ruw) + "\n\n" + slot).trim() }));
-      else if (!ruw.trim()) wijzig(plek, (b) => ({ ...b, tekst: b.acties.length ? "" : "Klaar." }));
+      else if (!ruw.trim()) wijzig(plek, (b) => ({ ...b, tekst: b.acties.length || b.keuze ? "" : "Klaar." }));
     } catch (e) {
       if (!stoppen.current?.signal.aborted) {
         // Een gesprek dat halverwege afbrak, sturen we niet opnieuw mee: dan blijft het geldig.
-        gesprek.berichten.length = voor;
+        terugzetten();
         const status = (e as { status?: number }).status;
         wijzig(plek, (b) => ({ ...b, fout: true, tekst: status === 429
           ? "Je hebt deze maand je ruimte voor de assistent gebruikt, of het is even te druk. Probeer het later opnieuw."
@@ -129,9 +145,7 @@ export default function Assistent({ staat, vernieuw }: Props) {
     wijzig(i, (b) => ({ ...b, acties: b.acties.map((x, k) => (k === j ? { ...x, teruggedraaid: true } : x)) }));
     try {
       await ongedaanMaken(a.ongedaan);
-      gesprek.berichten.push(
-        { role: "user", content: `(De gebruiker heeft "${a.titel}" ongedaan gemaakt met de knop.)` },
-        { role: "assistant", content: "Begrepen." });
+      notitie(`De gebruiker heeft "${a.titel}" ongedaan gemaakt met de knop.`);
       vernieuw();
     } catch {
       wijzig(i, (b) => ({ ...b, acties: b.acties.map((x, k) => (k === j ? { ...x, teruggedraaid: false } : x)) }));
@@ -141,6 +155,7 @@ export default function Assistent({ staat, vernieuw }: Props) {
   function nieuw() {
     stoppen.current?.abort();
     gesprek.berichten = [];
+    gesprekLeeg();
     setBeurten([]);
     setBezig(null);
     veld.current?.focus();
@@ -184,6 +199,10 @@ export default function Assistent({ staat, vernieuw }: Props) {
                   <ul className="flex flex-col gap-2">
                     {b.acties.map((a, j) => <Kaartje key={j} actie={a} terug={() => terugdraaien(i, j)} />)}
                   </ul>
+                )}
+                {b.keuze && (
+                  <KeuzeKaart keuze={b.keuze} gekozen={b.gekozen} kies={(j) => kies(i, j)}
+                    open={i === beurten.length - 1 && !bezig && b.gekozen === undefined} />
                 )}
                 {i === beurten.length - 1 && bezig && (
                   <p className="flex items-center gap-2 text-[15px] text-rustig">
@@ -270,3 +289,4 @@ function Kaartje({ actie, terug }: { actie: Actie; terug: () => void }) {
     </li>
   );
 }
+
