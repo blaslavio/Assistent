@@ -43,19 +43,24 @@ export function tipsVoorNu(nu = new Date()): string[] {
 }
 export const TIPS = ALTIJD;
 
-/** Zweeft zachtjes, wiegt een beetje en knippert af en toe met zijn ogen. Staat stil bij "Minder beweging". */
-export function Mascotte({ className = "", hup = 0 }: { className?: string; hup?: number }) {
+export type Stemming = "wacht" | "kijkt" | "luistert" | "denkt";
+
+/** Zweeft zachtjes, wiegt een beetje en knippert af en toe met zijn ogen. Met een stemming reageert hij op wat je
+ * doet: hij kijkt mee als je typt, luistert als je praat en denkt na als hij bezig is. `hup` laat hem opspringen.
+ * Staat stil bij "Minder beweging". */
+export function Mascotte({ className = "", hup = 0, stemming = "wacht" }: { className?: string; hup?: number; stemming?: Stemming }) {
   return (
-    <span key={hup} className={`mascotte inline-block ${hup ? "mascotte-hup" : ""} ${className}`}>
-      <svg viewBox="533 199 493 621" aria-hidden className="mascotte-lijf pointer-events-none size-full select-none text-[#145b48] dark:text-[#6fcfae]">
+    <span key={hup} className={`mascotte stemming-${stemming} inline-block ${hup ? "mascotte-hup" : ""} ${className}`}>
+      <svg viewBox="533 199 493 621" aria-hidden className="mascotte-lijf pointer-events-none size-full select-none overflow-visible text-[#145b48] dark:text-[#6fcfae]">
         <path fill="currentColor" fillRule="evenodd" d={LIJF} />
-        <path className="mascotte-ogen" fill="currentColor" fillRule="evenodd" d={OGEN} />
+        <g className="mascotte-blik">
+          <path className="mascotte-ogen" fill="currentColor" fillRule="evenodd" d={OGEN} />
+        </g>
       </svg>
     </span>
   );
 }
 
-/** Mascotte met een tekstballon die elke paar seconden een andere tip laat zien. */
 export function MascotteMetTip({ tips: eigen }: { tips?: string[] }) {
   const [tips] = useState(() => eigen ?? tipsVoorNu());
   const [i, setI] = useState(0);

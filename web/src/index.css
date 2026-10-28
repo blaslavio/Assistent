@@ -132,6 +132,16 @@
 @keyframes mascotte-knipper { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
 @keyframes mascotte-hup { 0% { transform: translateY(0) scale(1, 1); } 30% { transform: translateY(-10%) scale(0.96, 1.04); }
   60% { transform: translateY(0) scale(1.04, 0.96); } 100% { transform: translateY(0) scale(1, 1); } }
+/* Stemmingen: waar hij naar kijkt en hoe hij beweegt. */
+.mascotte-blik { transition: transform 0.35s ease; }
+.stemming-kijkt .mascotte-blik { transform: translate(-18px, 34px); }
+.stemming-kijkt .mascotte-lijf { animation: mascotte-buig 2.4s ease-in-out infinite; }
+.stemming-luistert .mascotte-blik { transform: translate(10px, -22px); }
+.stemming-luistert { animation: mascotte-luister 0.9s ease-in-out infinite; }
+.stemming-denkt .mascotte-blik { transform: translate(22px, -30px); }
+.stemming-denkt .mascotte-lijf { animation: mascotte-wieg 2.2s ease-in-out infinite; }
+@keyframes mascotte-buig { 0%, 100% { transform: rotate(-7deg) translateY(2%); } 50% { transform: rotate(-4deg) translateY(2%); } }
+@keyframes mascotte-luister { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { .mascotte, .mascotte-lijf, .mascotte-ogen { animation: none !important; } }
 .minder-beweging .mascotte, .minder-beweging .mascotte-lijf, .minder-beweging .mascotte-ogen { animation: none !important; }
 
