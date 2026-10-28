@@ -29,7 +29,9 @@ export function huidigeSessie() {
 
 export async function alsIk<T = Record<string, unknown>>(functie: string, parameters: Record<string, unknown> = {}) {
   if (!sessie) throw new GeenToegang();
-  const antwoord = await rpc<T>(functie, { p_naam: sessie.naam, p_wachtwoord: sessie.token, ...parameters });
+  const account = sessie;
+  const antwoord = await rpc<T>(functie, { ...parameters, p_naam: account.naam, p_wachtwoord: account.token });
+  if (sessie !== account) throw new GeenToegang("Het account is intussen gewijzigd.");
   if (antwoord && typeof antwoord === "object" && (antwoord as { geen_toegang?: boolean }).geen_toegang) {
     sessie = null;
     throw new GeenToegang();
@@ -120,7 +122,8 @@ export type Gebruiker = { id: number; naam: string | null; weergavenaam?: string
 
 export async function gegevensLaden(): Promise<{ gebruiker: Gebruiker; data: Gegevens }> {
   const a = await alsIk<{ gebruiker: Gebruiker; data: Partial<Gegevens> }>("mijn_gegevens");
-  const data = { volgend_id: 1, ...(a.data ?? {}) } as Gegevens;
+  const data = { taken: [], afspraken: [], contacten: [], leerdoelen: [], sportdoelen: [], volgend_id: 1,
+    ...(a.data ?? {}) } as Gegevens;
   // Oudere gegevens kunnen een lijst missen of iets anders bevatten; dan begint die lijst leeg.
   if (!Array.isArray(data.taken)) data.taken = [];
   if (!Array.isArray(data.afspraken)) data.afspraken = [];
@@ -128,13 +131,30 @@ export async function gegevensLaden(): Promise<{ gebruiker: Gebruiker; data: Geg
   return { gebruiker: a.gebruiker ?? { id: 0, naam: null }, data };
 }
 
-/** Haalt eerst de nieuwste gegevens op, past ze aan en bewaart ze: zo gaat er niets verloren van elders. */
+/** Eén versiegebonden opslag; bij een conflict nooit automatisch nogmaals wijzigen. */
 export async function bijwerken(aanpassen: (g: Gegevens) => void): Promise<Gegevens> {
-  const { data } = await gegevensLaden();
+  const account = sessie;
+  const antwoord = await alsIk<{ data: Partial<Gegevens> }>("mijn_gegevens");
+  const basis = { taken: [], afspraken: [], contacten: [], leerdoelen: [], sportdoelen: [], volgend_id: 1,
+    ...(antwoord.data ?? {}) } as Gegevens;
+  const data = structuredClone(basis);
+  if (sessie !== account) throw new GeenToegang("Het account is intussen gewijzigd.");
   aanpassen(data);
-  const ok = await alsIk<boolean>("mijn_gegevens_bewaren", { p_data: data });
-  if (!ok) throw new GeenToegang();
+  const r = await alsIk<{ ok?: boolean; conflict?: boolean }>("mijn_gegevens_veilig_bewaren", { p_basis: basis, p_data: data });
+  if (r.conflict) throw new Error("De gegevens zijn elders gewijzigd. Vernieuw en controleer je keuze.");
+  if (r.ok !== true) throw new Error("Opslaan is niet bevestigd. Vernieuw voordat je opnieuw probeert.");
   return data;
+}
+
+/** Open dezelfde accountbeveiligde hulpmiddelen vanuit de nieuwe interface. */
+export function gereedschapAdres(route: string): string {
+  const toegestaan = ["communicatiecentrum", "gereedschappen", "werkzoeken", "werkdossier", "werkbronnen",
+    "taakplanning", "planning-backup", "sjablonen", "activiteitenoverzicht", "bestandsgereedschap", "gegevenscontrole"];
+  if (!toegestaan.includes(route)) throw new Error("Onbekend gereedschap.");
+  const url = new URL(OUDE_APP, window.location.href);
+  url.searchParams.set("oud", "1");
+  url.searchParams.set("gereedschap", route);
+  return url.toString();
 }
 
 /** Past je instellingen aan (bijvoorbeeld de stijl van de assistent) en bewaart ze meteen. */

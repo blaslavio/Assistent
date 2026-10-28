@@ -1,0 +1,58 @@
+[
+  {
+    "controle": "halvecente_afgerond",
+    "verwacht": 101,
+    "werkelijk": 100,
+    "afwijking": true
+  },
+  {
+    "controle": "onjuiste_prijs_wordt_geen_gratis_post",
+    "verwacht": "ValueError",
+    "werkelijk": 0,
+    "afwijking": true
+  },
+  {
+    "controle": "sjabloontype_beschadigd",
+    "verwacht": "ValueError",
+    "werkelijk": "TypeError",
+    "afwijking": true
+  },
+  {
+    "controle": "intentie_null",
+    "verwacht": "ValueError",
+    "werkelijk": "TypeError",
+    "afwijking": true
+  },
+  {
+    "controle": "concept_null",
+    "verwacht": "ValueError",
+    "werkelijk": "AttributeError",
+    "afwijking": true
+  },
+  {
+    "controle": "bron_onjuist_type",
+    "verwacht": "ValueError",
+    "werkelijk": "TypeError",
+    "afwijking": true
+  },
+  {
+    "controle": "boolean_taak_id",
+    "verwacht": "ValueError",
+    "werkelijk": [],
+    "afwijking": true
+  },
+  {
+    "controle": "niet_eindig_bankbedrag",
+    "verwacht": null,
+    "werkelijk": "inf",
+    "afwijking": true
+  },
+  {
+    "controle": "zoekresultaat_datuminhoud",
+    "verwacht": null,
+    "werkelijk": {
+      "verkeerd": "ingesloten"
+    },
+    "afwijking": true
+  }
+]

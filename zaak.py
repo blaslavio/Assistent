@@ -12,6 +12,7 @@ from datetime import date, datetime, timedelta
 import boekpagina
 import opslag
 import samen
+import geldwaarden
 
 SOORTEN_ZAAK = {"gym": "Gym of club", "trainer": "Personal trainer", "dienst": "Dienstverlener"}
 STANDAARD = {"soort": "gym", "groepslessen": True, "afspraken": True, "btw": 21, "naam": ""}
@@ -29,21 +30,12 @@ def btw() -> int:
 
 
 def bedrag(centen: int) -> str:
-    tekst = f"{abs(centen) / 100:,.2f}".replace(",", " ").replace(".", ",").replace(" ", ".")
-    return ("- " if centen < 0 else "") + "€ " + tekst
+    return geldwaarden.opmaak(centen)
 
 
 def centen(tekst) -> int:
-    """'12,50' of 12.5 → 1250."""
-    if isinstance(tekst, (int, float)):
-        return round(tekst * 100)
-    s = str(tekst).strip().replace("€", "").replace(" ", "")
-    if "," in s:
-        s = s.replace(".", "").replace(",", ".")
-    try:
-        return round(float(s) * 100)
-    except ValueError:
-        return 0
+    """Decimal-afronding, halve centen van nul af; ongeldige invoer wordt geweigerd."""
+    return geldwaarden.centen(tekst)
 
 
 def zorg_voor_profiel() -> str:

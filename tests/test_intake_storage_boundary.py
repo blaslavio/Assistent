@@ -18,9 +18,9 @@ def accounts(monkeypatch):
             return {'geen_toegang': True} if function == 'mijn_gegevens' else False
         if function == 'mijn_gegevens':
             return {'gebruiker': {'id': {'a': 1, 'b': 2}[name]}, 'data': copy.deepcopy(database.get(name, {}))}
-        assert function == 'mijn_gegevens_bewaren'
+        assert function == 'mijn_gegevens_veilig_bewaren'
         database[name] = copy.deepcopy(params['p_data'])
-        return True
+        return {'ok': True}
     monkeypatch.setattr(opslag, '_rpc', rpc)
     yield database
     opslag.gebruik_account('', '')

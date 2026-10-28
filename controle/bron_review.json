@@ -1,0 +1,2676 @@
+{
+  "formaat": "assistent-bronreview",
+  "tijd": "2026-10-28T12:42:02.550424+00:00",
+  "bestanden": [
+    {
+      "bestand": "actielinks.py",
+      "regels": 117,
+      "functies": 9,
+      "sha256": "6540b2a10354323b4052aa2515681104c363110b1784d1c8b50f0c93d5dd4f34",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "actielinks_scherm.py",
+      "regels": 107,
+      "functies": 4,
+      "sha256": "be52b9b4bc2909b45e978ea9dd06def90ea04c9cb2f83c6a1adde3a792fcc499",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "actieoverzicht.py",
+      "regels": 61,
+      "functies": 2,
+      "sha256": "0d2ef086320684731bedbaf8a1c28ccd9edf69d9af0ca63363e44df20c69f6f6",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "actieoverzicht_scherm.py",
+      "regels": 50,
+      "functies": 1,
+      "sha256": "07c06097d97a5991710833b25ed5fab25f7eeeffca71605dc71a5ba53341a76c",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "action_tools.py",
+      "regels": 37,
+      "functies": 2,
+      "sha256": "dd5ae50832a25d8cd94e7001b6fbe1c6973c71c6e28910d9984e492d2f4087ba",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "activiteiten.py",
+      "regels": 171,
+      "functies": 5,
+      "sha256": "62039789336d778abc4f3dbac7624ceb30f722a275be101e116d21766b846209",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 95
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 139
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "agenda_import.py",
+      "regels": 180,
+      "functies": 10,
+      "sha256": "bed1396920715f8d0372255ce7f0d4e7c46abb3ec5be453e9f93cbd8cf4700c7",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "agendacontrole.py",
+      "regels": 116,
+      "functies": 4,
+      "sha256": "7c73fced230cabcffa9747f350339497a3ed82c3579a958b045a1c01fe1bc3d3",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "agendas.py",
+      "regels": 530,
+      "functies": 36,
+      "sha256": "d70c7d8f9400df88efb707af45336f65df5750c3a60dd238f5031d0b8a5dc887",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 71
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 91
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 275
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 429
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "agent.py",
+      "regels": 2238,
+      "functies": 111,
+      "sha256": "06f8df5af89c4e2e757f2a8bcb82c42011c73db79630c2f1c2617b8de0462611",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 486
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 549
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 663
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1030
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1251
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1264
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1323
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1854
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2189
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 329
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 669
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1284
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "ander_brein.py",
+      "regels": 243,
+      "functies": 10,
+      "sha256": "c02e21f2daa8246543857ff17b15e89bb2a00ea0ff8185ca91e571279320375f",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 186
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 233
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "app.py",
+      "regels": 6655,
+      "functies": 225,
+      "sha256": "f4487de0be01fa89921508a4d56b8d1866a0fbd404fa369412c03a13c7dca832",
+      "signalen": [
+        {
+          "code": "groot_functieblok",
+          "regel": 1884,
+          "functie": "agenda_overzicht",
+          "lengte": 217
+        },
+        {
+          "code": "groot_functieblok",
+          "regel": 2692,
+          "functie": "master_hub_pagina",
+          "lengte": 202
+        },
+        {
+          "code": "groot_functieblok",
+          "regel": 4442,
+          "functie": "instellingen_tabblad",
+          "lengte": 207
+        },
+        {
+          "code": "groot_functieblok",
+          "regel": 5466,
+          "functie": "gesprek_ai",
+          "lengte": 220
+        },
+        {
+          "code": "groot_functieblok",
+          "regel": 6427,
+          "functie": "main",
+          "lengte": 210
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 6653
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 233
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 678
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 769
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 934
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 950
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1154
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1350
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1815
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2571
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2605
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2613
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2716
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 3187
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 3195
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 3697
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 3975
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 4038
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 4968
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 5247
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 5252
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 5314
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 5418
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 5426
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 5433
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 5450
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 6544
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 6551
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 6562
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 6569
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 6576
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 6581
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 423
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 645
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1966
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2029
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2712
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2910
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 3126
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 3228
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 3238
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 3244
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 3588
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 4233
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 4379
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 5164
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 5170
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 6260
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 6451
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 6535
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 6557
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 6587
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2749
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2844
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2964
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 3100
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 3900
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 4398
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 4608
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1243
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2729
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2744
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2840
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 3935
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1033
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1234
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2769
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 5683
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2783
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2857
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 2870
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "assistant_learning.py",
+      "regels": 34,
+      "functies": 3,
+      "sha256": "f9748e21bf23ee793d9225520d82e032799b487f6de6a416e8d99d003f85fa1e",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "assistant_learning_tests.py",
+      "regels": 23,
+      "functies": 4,
+      "sha256": "7acb83a480cd9fc0f91a374321293f29d2663818371ff23b76985b0366ec1850",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "assistant_privacy.py",
+      "regels": 51,
+      "functies": 5,
+      "sha256": "806256939ee4b0fb421fc7dea7037688d5542d1b508261ec8eba441bac85b638",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "assistant_privacy_tests.py",
+      "regels": 28,
+      "functies": 5,
+      "sha256": "c5dfa9c5b800afa3abedca6ec5ad2a50cc9aefe4abd732d00463b82cb00fb7c5",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "avatar.py",
+      "regels": 60,
+      "functies": 6,
+      "sha256": "1958c5438babdc99e20773459e73d73af1704c9965fc888e7b4be201041e8036",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "azure_documents.py",
+      "regels": 120,
+      "functies": 7,
+      "sha256": "4d82ad8c07f4af35d01bd6b6ce100174d2f4845cb4caf97a8af16962aa882fbe",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "azure_search_ready.py",
+      "regels": 71,
+      "functies": 5,
+      "sha256": "3c24fb269e92f0a3321628d75a7e2dc17061c007e90a85385b5c20c6f4af1724",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "azure_services.py",
+      "regels": 136,
+      "functies": 6,
+      "sha256": "d1acfb0dd1f2c9739665cd3f4c23813b6f30419577d2f718d0df46ee5b6ab11a",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "azure_ui.py",
+      "regels": 105,
+      "functies": 3,
+      "sha256": "11a8c52dddadaf1bf0f548c9ade4db657a36cc7f7dfc1ff30d14d4b0404eb0a9",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "bank.py",
+      "regels": 162,
+      "functies": 12,
+      "sha256": "dd99fd53e19e64420827c87dacfec1b1ed15f14540f8a5b2e3ebdeee1c2544ee",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 53
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 159
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "beleggen.py",
+      "regels": 266,
+      "functies": 19,
+      "sha256": "9d423098147e8401a97f1b61e824261b1f3301ee58b142cc5b2f4080fc8d2efd",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "beroep.py",
+      "regels": 251,
+      "functies": 11,
+      "sha256": "fa38e4ade7e9cfba900b385f4cbc0aba683718bff63b3fbbefe18baf4f953b78",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 182
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "bestanden.py",
+      "regels": 143,
+      "functies": 15,
+      "sha256": "c6f367f759ea7225fd90154de5ae88906a8e57552a2a094ab7349667de824bdb",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 112
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "bestanden_scherm.py",
+      "regels": 220,
+      "functies": 11,
+      "sha256": "3dcc774c23c2b6c4a5bd489b3d9afa1e507bde5c9d826059b09f8675dcf163f2",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "bestandsgereedschap.py",
+      "regels": 186,
+      "functies": 9,
+      "sha256": "870d459c22c41baf888f4de33e2eb6d0fc63cb08fb70cca32a7543bfb1972ef2",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "bestandsgereedschap_scherm.py",
+      "regels": 89,
+      "functies": 2,
+      "sha256": "b84b0ee7a4e5dd3742ad0983ef4c271b52d4e68cf4e7e8653216d0ee6c2545f6",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "boekpagina.py",
+      "regels": 145,
+      "functies": 16,
+      "sha256": "b53f7089c8d160f24f34759611c848aee7f9b1060e4e127081d6f420a68e28c4",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 139
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "boodschappen.py",
+      "regels": 229,
+      "functies": 10,
+      "sha256": "3afb2ba4fee5c83bb8be62467878fd1014a0cf85f253bc99a69bc5338f984260",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "boven.py",
+      "regels": 50,
+      "functies": 1,
+      "sha256": "d0103c9b2faa0c2fd79a12f4edce3267aae965e648f744574c6b9f1a98b7116d",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "browser.py",
+      "regels": 474,
+      "functies": 24,
+      "sha256": "dcd8f908696c11d430a0e7f7066b8005a01057b3755ebe40a9513830f6283989",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 312
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "budget.py",
+      "regels": 725,
+      "functies": 46,
+      "sha256": "578423f7386704bc946897a15c3499c4e3444e9829ee016f2e525856fc205ac4",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "capaciteit.py",
+      "regels": 72,
+      "functies": 2,
+      "sha256": "9d42983ccbe9631168fdcd0829e4e9fda1fd3f7d93b7c654e5a242bdbf0f7603",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "chat.py",
+      "regels": 618,
+      "functies": 16,
+      "sha256": "b6e9d2caade4f51f44dd3d0b98b6533ebce6e4c899477696728c8f2ece3ec6a3",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 346
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 599
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 355
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 446
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "communicatie.py",
+      "regels": 160,
+      "functies": 9,
+      "sha256": "e422a7913e055bb60f6888a66416c1897f6c5f32d03ab5482412d48857003c2d",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "communicatie_scherm.py",
+      "regels": 210,
+      "functies": 10,
+      "sha256": "a0355ea7c7fbc6fe027e334c174137bb3be750d156e9fae74d71a52b10ff227a",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "community_core.py",
+      "regels": 49,
+      "functies": 2,
+      "sha256": "095e8b6ab3c6037176b69b6230ab9dc5d90138fb3110c3df8b9bfed5f80c029d",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "community_privacy.py",
+      "regels": 67,
+      "functies": 3,
+      "sha256": "4e4cce1d94ff22174c82bacae544445bd6af8133a4a39c685dc2771db65278c1",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "community_safety.py",
+      "regels": 68,
+      "functies": 2,
+      "sha256": "55457d552cd972126b49674b589abb11dcd9dcf0f5f1ea979c2df0b7f8dfc454",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "community_safety_tests.py",
+      "regels": 32,
+      "functies": 7,
+      "sha256": "ff926a8cc8b2b46c39c20e427c2c96ba458f38a4606823b858872a29a81ffff9",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "cursus.py",
+      "regels": 109,
+      "functies": 17,
+      "sha256": "ee3ce8734097b15202a5ee5b8f574759125268dafb91bcc707628f5b8272b5b6",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "cursus_scherm.py",
+      "regels": 479,
+      "functies": 23,
+      "sha256": "6a3c866b05fbd64f29947aa44f4ecc5948cbfd7f8b75ddd87989b8bcc0912f2e",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 94
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "dagplan.py",
+      "regels": 143,
+      "functies": 7,
+      "sha256": "c69e39e98a6b9eeeaa49a744d3c33f1324e48898921b2c54c6ec3af6dab53422",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "dagplan_scherm.py",
+      "regels": 136,
+      "functies": 1,
+      "sha256": "0713b1e4ec64a97ff9e80635ab4c9b1618fdd08f81459a7352638417c5f49a8b",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "dating_core.py",
+      "regels": 17,
+      "functies": 2,
+      "sha256": "e085577132671ba5d647e16776abe0b8b36b7492820b57d110b53f570eeb1e97",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "dienst_tools.py",
+      "regels": 19,
+      "functies": 2,
+      "sha256": "27a61c10838a9c2ba5e954595d7777e5143eab5515ef0a39eb58f18597201225",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "dieptecontrole.py",
+      "regels": 254,
+      "functies": 20,
+      "sha256": "47f8fe6ea2b7384e61273e5466f97a03e04f90fe3d7eeb4c1c73fa53afb2575d",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "documenten.py",
+      "regels": 436,
+      "functies": 31,
+      "sha256": "27dac7eeb7c3185954d3e954355bf6ee9cd3fef4477cbd5d41d9abc4750b796f",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 325
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 389
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "documenten_scherm.py",
+      "regels": 313,
+      "functies": 17,
+      "sha256": "aa0e8742748a5534bef2454a7014f45c8d0d865c85f0d1d54bdf990ba0a8318c",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 97
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "editor.py",
+      "regels": 154,
+      "functies": 1,
+      "sha256": "9c5d4754f8bb037b00f3cece06f125294e77faeb271ad4c020c43cd3422e004b",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "events.py",
+      "regels": 77,
+      "functies": 4,
+      "sha256": "182e2d25101fd1142b3107e9d57ac8286c5c353037a6fb0a9a9506407d3f9b55",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "extern_inloggen.py",
+      "regels": 96,
+      "functies": 6,
+      "sha256": "6c2d7cae6fd15a1ff976451f9f94e461a30785dfb9d2af09fbaa13ea2aa68d7e",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 44
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 95
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "feestdagen.py",
+      "regels": 214,
+      "functies": 12,
+      "sha256": "e35b88a09b0b93bed136d68d93db72f8a40c4b6d879399f272e244ac63735d1f",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 143
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "focusplan.py",
+      "regels": 57,
+      "functies": 1,
+      "sha256": "a706b5bfab1758852aa4b2acf2d52e6fe297b51e4da474802620884cc9d3a457",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "gegevenscontrole.py",
+      "regels": 133,
+      "functies": 2,
+      "sha256": "cd12ad380bbb2d879d37b7b78ea7f41c60631581611b0261de345ed3ee285ddc",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "geld_scherm.py",
+      "regels": 747,
+      "functies": 32,
+      "sha256": "8f9ead0b803f814f1208f5c7a304faafd9b5661fca4ad15b3d05680509c977c1",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 126
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "geldwaarden.py",
+      "regels": 45,
+      "functies": 2,
+      "sha256": "7fe676e8d9f965211aafe1ace03346d29d14ebea9de90c61a39d7cf8ce137985",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "gemini_service.py",
+      "regels": 72,
+      "functies": 2,
+      "sha256": "0766887adaca0021512ab58d02349066eaf63dc4ae677acab47f0a4c625c3cad",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 70
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "gereedschappen.py",
+      "regels": 390,
+      "functies": 5,
+      "sha256": "b982253235a556ea71ca1abb034b542b2e5bb8092a0e5ea3183457b67f4dc335",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "gereedschappen_scherm.py",
+      "regels": 41,
+      "functies": 1,
+      "sha256": "07f5094b89bc52f15881bac1811deef799f154cf68aa532ae1fb1364314a3679",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "gezin.py",
+      "regels": 194,
+      "functies": 24,
+      "sha256": "b6d3589b44199b3d34bc1a4f58073357ce5ab939d1d91eb1abede326458a874c",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 104
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "gezin_scherm.py",
+      "regels": 336,
+      "functies": 17,
+      "sha256": "fb33c65a8c847d92725f90489bba4b8a23e7448383cd0699669a58d895b16b9a",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "gezondheid.py",
+      "regels": 392,
+      "functies": 26,
+      "sha256": "c93db33eef4097d36f889e54da193c0bfddf1fba1226ef3e6e8515b2f60c7af0",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 104
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 234
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "handelsafspraak.py",
+      "regels": 49,
+      "functies": 3,
+      "sha256": "8c667015425715dbbb51e8a8ca8e8729e146693c5c2fc0867d65ce8470be66b9",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 46
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "herplanning.py",
+      "regels": 153,
+      "functies": 4,
+      "sha256": "8f1c8f5870d5e344dff658c56f5fe7563434fbaa08e90c56192cf1185e1e3761",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "herstel.py",
+      "regels": 68,
+      "functies": 2,
+      "sha256": "f06716ab16164b19872ac5453f05f7e967c077a8cc39f3e9b4e869383301a71d",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "ics.py",
+      "regels": 60,
+      "functies": 4,
+      "sha256": "c58b693e25be25b19b27e7c8c96b505c914deedb7c130a1b593519ac1a4df967",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "indeling.py",
+      "regels": 134,
+      "functies": 9,
+      "sha256": "ccb888b449100f3b4c3f0e308f0879942eff0e59bff9ba376b5157f394d5d4eb",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "inplannen.py",
+      "regels": 117,
+      "functies": 6,
+      "sha256": "31008c70a0ad6a80bf8173a904224e5635f0d7acb2c39c366faf6b05fd246dc7",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "integratiecontrole.py",
+      "regels": 111,
+      "functies": 7,
+      "sha256": "ea597a8ad4a8270ca3e0630ca97056120f408e0c57510fc8c525a49d1ad9de30",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "integraties_voorbereiding.py",
+      "regels": 109,
+      "functies": 4,
+      "sha256": "9607de395000a04a779c6fd0e181697af0f018dfe444441ddc6a78440d05779b",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "intent_engine.py",
+      "regels": 56,
+      "functies": 1,
+      "sha256": "a6a88dc5e682d0d2cf17b08c57e77e84040573b413d0bed6f5d2a4c5bcfb081b",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "intenties.py",
+      "regels": 162,
+      "functies": 4,
+      "sha256": "5a65baa020d90a80f189f260fbdff49de69db8a9869877e8ece83e6104e8daf0",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "kort.py",
+      "regels": 90,
+      "functies": 9,
+      "sha256": "1105b3e3d794747bb1951cfc53b773332030c35428f576c249a229ab4b737233",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "mail.py",
+      "regels": 239,
+      "functies": 13,
+      "sha256": "9368c40a47d2312326660c0d827a9323441469daf7ef98494cb29f3aa5419acd",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 55
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 78
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 121
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 177
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "mailtaken.py",
+      "regels": 217,
+      "functies": 13,
+      "sha256": "6c3cd993066c7b6d343531067ccab56fed105fee4463e0f31013f213d5c583a8",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 168
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "master_hub_core.py",
+      "regels": 26,
+      "functies": 1,
+      "sha256": "2e08e6e6eb739f5bbbdb4d047df0398ee2575b316a9e54577454ba55d81a1b13",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "media.py",
+      "regels": 105,
+      "functies": 8,
+      "sha256": "46755aa93c797fcf56e62800469580420ccef3b2ad760b6f9e6a388342f7f9c0",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "meldingen.py",
+      "regels": 141,
+      "functies": 13,
+      "sha256": "be043e308d9f88637ded7d66c7285ebc37ffe7da0e5fbcf654788b78b4fabf6a",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 138
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "mens.py",
+      "regels": 105,
+      "functies": 3,
+      "sha256": "a72cd6423450e501bb5580ebf8bcf5955eea04f194f396d0955b5bfe7e7c6251",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "multistream_core.py",
+      "regels": 43,
+      "functies": 3,
+      "sha256": "d7e02520af4e51a44f56efc03d3b32fac45f5d758ae15d09659db766c2335012",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "multistream_store.py",
+      "regels": 52,
+      "functies": 4,
+      "sha256": "0ff60e4d20ec4d0abab0d7b997d75b351dcd81f7eb6927d5ddafe531ad5f81b4",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "nieuwe_app.py",
+      "regels": 69,
+      "functies": 3,
+      "sha256": "38ac70f4a2678cbbff2a9b4e0f6f692957576e9bb585df708366fc472fe2fae7",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "onthouden.py",
+      "regels": 48,
+      "functies": 3,
+      "sha256": "509124d112482e6b202ae5f59c36d97b8c7a0a1be51e5bba6b78802083181ac7",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "ontwerp.py",
+      "regels": 125,
+      "functies": 8,
+      "sha256": "4a22a90c0d88098b61f5f6719a6b59529a20fea61f211ba4be7613d019bd3df2",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "opslag.py",
+      "regels": 1893,
+      "functies": 139,
+      "sha256": "fbd2354c5d618354f3c9d0859bc541b1f18e890bd65cad894eb225f6c18e9331",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 637
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 283
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 312
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 599
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 605
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 615
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "overzicht.py",
+      "regels": 122,
+      "functies": 7,
+      "sha256": "2a1d9cc209fe4ae7128d981f1f854518e13d86e50d59c4c6ac1b8d46dbdc8821",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "pay_in_chat_core.py",
+      "regels": 50,
+      "functies": 2,
+      "sha256": "43fe6fd0c79b8276becf13f92fa8b94254280249b5df65ae11f4c6bee06aa387",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "plannen_scherm.py",
+      "regels": 1336,
+      "functies": 44,
+      "sha256": "3ff8d6567f14f68acabf649a0b1d6b0cae7ed62de1280b9aec13c9ebc941dbd3",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 291
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 328
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 391
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 447
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 626
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 772
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 976
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 597
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "planning.py",
+      "regels": 106,
+      "functies": 4,
+      "sha256": "19cc5741bed723a644a84919b6ba25547e90c45eaf742bc5ab9ec34f838f2f2f",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "planning_backup.py",
+      "regels": 218,
+      "functies": 9,
+      "sha256": "18f754b004130f47f22f29185f9147d2d61b4bccbc36f3c699362971393d86fd",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "planning_backup_scherm.py",
+      "regels": 93,
+      "functies": 2,
+      "sha256": "872b27cea1275a529d371f7e88d379f2fb22bde15bcd76fbcb8cacfd8bf1f07e",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "pot.py",
+      "regels": 73,
+      "functies": 12,
+      "sha256": "a35d43ad06677e6a46a0d8bdc85864f411168703bf2d75ada5321ec8045f7dd6",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "pot_scherm.py",
+      "regels": 184,
+      "functies": 7,
+      "sha256": "9f03b31a3c745de85270c9392e17902a8577694ef5f2bfc522fd3dbe7614ae66",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "predictive_context.py",
+      "regels": 34,
+      "functies": 2,
+      "sha256": "b0df5315d104c25de60c1e0f7e40df7dc9370ac2924e006a59915dafa4d8143a",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "prikker.py",
+      "regels": 75,
+      "functies": 10,
+      "sha256": "ed05793ffb15065042c28f570e11995210712342cc5b558926221a11105f44e7",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "privacy_scherm.py",
+      "regels": 323,
+      "functies": 15,
+      "sha256": "bceca4e38952a9f92d1bec84b14a62e1176962313941abaa9d2afbb564ad79ea",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 131
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 322
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "regression_tests.py",
+      "regels": 17,
+      "functies": 3,
+      "sha256": "efc5f0cf08b3a9b5abbcacf456b8fff656db9a6087c43dcf83275a2e94ed2fd6",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "reizen.py",
+      "regels": 154,
+      "functies": 5,
+      "sha256": "4b75ebb9bfbc0059d78bdaf357b8cfdc3688f128819537967650408e3e916436",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 48
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "reserveren.py",
+      "regels": 312,
+      "functies": 29,
+      "sha256": "74013ad0081cfead3965f5f4738eee8e5ff3048a61acebbb9ce773a5c1f8e0c5",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "resource_booking_core.py",
+      "regels": 67,
+      "functies": 6,
+      "sha256": "2551da10abbba67dad7496ba1e9aa48ea3e7b6bb73406c83d8465d8f5ee391eb",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "rive_assistant.py",
+      "regels": 116,
+      "functies": 4,
+      "sha256": "51c128d92a10fb03e2c74e480b06253413694a09962c6b4908e23572b69b103a",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "rive_chat_state.py",
+      "regels": 44,
+      "functies": 2,
+      "sha256": "5fd137edfd6c92adcc30532f68d52b8f51def0e8756ec54f8b67cfdffd364c54",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "rive_preview.py",
+      "regels": 26,
+      "functies": 0,
+      "sha256": "133bc679a48643c6e421453ec96078a9a1ed589af029675d8844a58642113131",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "ruimte.py",
+      "regels": 326,
+      "functies": 18,
+      "sha256": "41a5d4599cb9ba1010fca207c8a83cc952229c837712b4f3df431f40ec183ce2",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 71
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "ruimte_scherm.py",
+      "regels": 317,
+      "functies": 14,
+      "sha256": "d46329edc43c77ed768b29ae5c760ebdd3317f6b65ad5351e2f79ffb9620514a",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 206
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "samen.py",
+      "regels": 882,
+      "functies": 115,
+      "sha256": "b4e7403ac34ad684dbb92afa13ca2efb59dd0a8871c4853a5c5b597db71305b0",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 358
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 841
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 803
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "samen_leren.py",
+      "regels": 152,
+      "functies": 10,
+      "sha256": "9984d2b9008f4e77d595afaa0d02d49c1402abcb33f84091d701dfdddc099af5",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 123
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 105
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "samen_scherm.py",
+      "regels": 2222,
+      "functies": 76,
+      "sha256": "3bcf3463e4987cb9c1327f16bdeffbb29aa7ceca7583ef2319edd44d47529ba6",
+      "signalen": [
+        {
+          "code": "groot_functieblok",
+          "regel": 939,
+          "functie": "mijn_webshop",
+          "lengte": 206
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 283
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1461
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1467
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 55
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1548
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1698
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 631
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 813
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 1138
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "schil.py",
+      "regels": 46,
+      "functies": 2,
+      "sha256": "c835bc791f6b7b050748a09def5addaa4a8811e38af749f1e7b7d93c7294882a",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "scripts/azure_validate.py",
+      "regels": 77,
+      "functies": 2,
+      "sha256": "5076a3620dcae015d2f1c66dbf7bc280bde004e9149eb7b39317bd62dfc5a7a0",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "sjablonen.py",
+      "regels": 73,
+      "functies": 3,
+      "sha256": "7a2ffd693c5043227a6f72919358a153c9e051c8dbc0df7693b7c9f155ef660c",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "sjablonen_scherm.py",
+      "regels": 173,
+      "functies": 5,
+      "sha256": "b8e5ae877c9e18cadc8198fb69fa1c2ff4ee774e9a1a38631a1e4e4330e4d2b5",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "slim.py",
+      "regels": 378,
+      "functies": 19,
+      "sha256": "c5660c88e64ffde6c7072b485d48a7dc98aa59f75a5206fd469d3fac43befaad",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "snelinvoer.py",
+      "regels": 215,
+      "functies": 6,
+      "sha256": "45d31cc6781805805181ae4d5f7c5d4d8d1d95125813f8157e9d11128baa781a",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "sport_scherm.py",
+      "regels": 311,
+      "functies": 13,
+      "sha256": "d538b3efb6d7af8d8c3171e9ee2cbb5cc2c8416e707d6f140d315d2618379be3",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 66
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "spraak.py",
+      "regels": 462,
+      "functies": 9,
+      "sha256": "af59b6df28fb6c18f6a80e70fb9325fc2f5880093fbfdc8c250b87d80d5b3401",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "strava.py",
+      "regels": 100,
+      "functies": 8,
+      "sha256": "27381610955f82ec0d47ab9221880384f26a6f9fee03c448775aa38a8518052d",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "symbool.py",
+      "regels": 25,
+      "functies": 2,
+      "sha256": "a5044d6e206440fa2e81a902fd250182dc3a855e4d1862d3500316be7a7f4e46",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "taakplanning_scherm.py",
+      "regels": 78,
+      "functies": 3,
+      "sha256": "30124a97742c2bd6c029a3882cbda7a1cc41805d00143d05dc5a9e4b160dcb93",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "taakvolgorde.py",
+      "regels": 47,
+      "functies": 3,
+      "sha256": "219f4b027103caf8e78103cbf0902604697dae65d8bf0813d1ef025a70cd2042",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "taal.py",
+      "regels": 294,
+      "functies": 23,
+      "sha256": "5ee6e8f0b8c7fee46663611df38fece9a17d8b8de3c76d0f2b87add43c107d31",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 94
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tekstcontrole.py",
+      "regels": 9,
+      "functies": 1,
+      "sha256": "7efaac754530615cdbeb83ffb34d65fcefaf0f790361a64481ec74f0b3cad68a",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "teksten.py",
+      "regels": 153,
+      "functies": 3,
+      "sha256": "696f76fa8b7a50cf4d63a007c8ace44590476efa613fc758dc9f54a787a85283",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_actielinks.py",
+      "regels": 155,
+      "functies": 14,
+      "sha256": "36f58992829f9414f315ce81455b837ed72f9f68e4258bc038534c4ab4245553",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_actieoverzicht.py",
+      "regels": 91,
+      "functies": 8,
+      "sha256": "d2926f913c6598c211908531c6452c4787d662dbb8aa76ad99cfcad4b882e757",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_agendacontrole.py",
+      "regels": 135,
+      "functies": 15,
+      "sha256": "dda6b0076782a69e6a2cda5209a5acc715a2460a22aa5a26fa2dc7bdc1741abd",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_bestandsgereedschap.py",
+      "regels": 167,
+      "functies": 17,
+      "sha256": "4fa63824df56b8c86bed26b86c7ef19687651c890acc672b1318b9e2d860e25b",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_communicatie.py",
+      "regels": 182,
+      "functies": 18,
+      "sha256": "6a57c8f2e8bec33b6ea9b0d65e5fa079aaf37ad93b16968e217da3a5a82fad39",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_controlegereedschap.py",
+      "regels": 79,
+      "functies": 8,
+      "sha256": "739a4f30112ca4546c7cfc213e377f7b730248756813f70fad88fe937fdc0110",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_dagplan.py",
+      "regels": 192,
+      "functies": 19,
+      "sha256": "29f4a5e4c877cca1f34d9cd651730e056c4e9b10d3c88fd35609ebd85c04b85f",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_focusplan.py",
+      "regels": 109,
+      "functies": 11,
+      "sha256": "4e31cbfe7b3fe2405e20abc38990d065a920b02d21f5650fe5fca12f15a07885",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_gebruikersstroom.py",
+      "regels": 67,
+      "functies": 1,
+      "sha256": "e3c2e692a3bdfdb45402723117064ffb69bbdfcd87e878d5e28636c2c3ed2f27",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_herplanning.py",
+      "regels": 201,
+      "functies": 21,
+      "sha256": "64d87ed2180baee4ff8d1f478211241ad362e2da684742f1a1bc9bbae2be3d88",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_integratie.py",
+      "regels": 225,
+      "functies": 17,
+      "sha256": "25e5387d7019761a2195467082873c897edcf78f797f723c8394e6e7d879336e",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_intenties.py",
+      "regels": 281,
+      "functies": 26,
+      "sha256": "80dc7ef9712b3ca8a633e331872d980acabdf5071be2819f568d49b939c79390",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_interface.py",
+      "regels": 175,
+      "functies": 9,
+      "sha256": "a889cde51791ab921a66874abf7fe5fd983c14e4dd6f190f37815aec72b32bea",
+      "signalen": [
+        {
+          "code": "dynamische_code_beoordelen",
+          "regel": 68
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_interface_scherm.py",
+      "regels": 82,
+      "functies": 6,
+      "sha256": "78b2f10aceeb43043dd81bde53b0c6300d5c18900a2f4148c41747bc9c4d003d",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_planning_backup.py",
+      "regels": 137,
+      "functies": 12,
+      "sha256": "0fd9b15e3d3b97c49ca312331eba52efe1bde868a69d2b09c268a16fd02a7933",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_sjablonen.py",
+      "regels": 138,
+      "functies": 12,
+      "sha256": "2a441d5837df692e8246a170ffab4746f00ad6e6e98aae9494d171109dfac2d2",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_taakplanning.py",
+      "regels": 149,
+      "functies": 15,
+      "sha256": "09f9a698b36af38af5b92a4790c0b7a1281c4807aa303ad08022322f281c2aa1",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_veilige_opslag.py",
+      "regels": 551,
+      "functies": 57,
+      "sha256": "7f46b0c4821974c782b754de4e54e44d6e054804a67b21621648dc77e301006d",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_verdieping.py",
+      "regels": 200,
+      "functies": 18,
+      "sha256": "6242e581d613b2bb173b4574fc103497ad6e08cb7cc7193a928fddde979fbe51",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_werkbronnen.py",
+      "regels": 135,
+      "functies": 11,
+      "sha256": "80f799fb53687c2f47ab250b57c2078ed1f10eb1459f0e26c7fd4d067e8174cb",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "test_werkcontrole.py",
+      "regels": 130,
+      "functies": 13,
+      "sha256": "00750a92f40a68f14ec7ba24f0e1d6f854cb9e6684e2c86609fdee1508f50f11",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_action_tools.py",
+      "regels": 27,
+      "functies": 7,
+      "sha256": "feab70aefc55e468c47b06df79938f997304a9709f22a4a0e4b9d6f49416e8a8",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_agenda_import.py",
+      "regels": 29,
+      "functies": 3,
+      "sha256": "e6a3a050a4fe583656a6e761020d5039fda6b6353dfd8290e8e80f9510454a57",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_agenda_security.py",
+      "regels": 45,
+      "functies": 5,
+      "sha256": "7b07890bbc4fa66cba9743e0b7f5ef39b6faaf348aa8ccc9c6b386795112a8a7",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_ander_brein.py",
+      "regels": 137,
+      "functies": 14,
+      "sha256": "4760de41713b2e6a9dc3ea4aebfdf6748db6b39ebdaa083ce4567cd56f1127a3",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_app_sections_layout.py",
+      "regels": 20,
+      "functies": 1,
+      "sha256": "21a78d6d0c2ed8c3e7d734b09ea96a03f8374a51d3b3e84b7e6d220aafc83561",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_azure_services.py",
+      "regels": 145,
+      "functies": 14,
+      "sha256": "af899d8fd905eb5c330f90e6491c07b7ffbe2693e5dfe9e520b180fbaa4c5c05",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_beleggen_yahoo.py",
+      "regels": 37,
+      "functies": 4,
+      "sha256": "d7e949353b84f2a35b7d109ac3932e9017f694f2153ce2d4de55ef475e6494c5",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_booking_abuse_guards.py",
+      "regels": 43,
+      "functies": 4,
+      "sha256": "589c9e4ed04ab6cf9ba29c4572ec3f2f4d9d9d9c0e654277fbdddf5b20cb3374",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_business_navigation_contract.py",
+      "regels": 53,
+      "functies": 6,
+      "sha256": "e40fe5e36e829efbfda45fdc0606c35a79a733e9e2bddc940b08b9feac681199",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_business_responsive_layout.py",
+      "regels": 19,
+      "functies": 1,
+      "sha256": "5171b40026ac2bd8aa91b1a04ef56dd4306ad729a419cf8f580a132fcaf5493e",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_business_settings_builder_ux.py",
+      "regels": 34,
+      "functies": 3,
+      "sha256": "6945349f9e44a8767e4abe29513c77e511ed7ba32c2e87acb68b6916f364d4b3",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_business_workspace.py",
+      "regels": 34,
+      "functies": 4,
+      "sha256": "f334ad7b4d44ad6697ac38e86bbb15f17a751727fff4898de8e3c39bd915a9bd",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_calendar_feedback.py",
+      "regels": 18,
+      "functies": 2,
+      "sha256": "cdf1c930057e9edfa890baf4cf460eeb5bc4464d977334c42bee6fc2814072eb",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_calendar_suggestions.py",
+      "regels": 22,
+      "functies": 2,
+      "sha256": "70bf3c15aa122cd6accdcc8044bc5f5f1154ea59f4fa9bad1ba2ed0bf05541d4",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_dienst_tools.py",
+      "regels": 9,
+      "functies": 1,
+      "sha256": "f598b5e9705337439a921f4d91ec858f84aed7aca4c90be05791926e7995bfff",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_gemini_service.py",
+      "regels": 20,
+      "functies": 4,
+      "sha256": "baebefff74bf205a8d6650fc2099d21c61d9ddfbe26b6c870e82807c6d7d5703",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_labels.py",
+      "regels": 18,
+      "functies": 1,
+      "sha256": "24e2f705fe778590d2bc9671990eed83908a802db96707bf13de3c6b3f1fea73",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_login_hint.py",
+      "regels": 17,
+      "functies": 1,
+      "sha256": "2221a8a1a82cbf655710a62de58b3e94ac0bca52a029aeb7a09318bf76fcd716",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_master_hub_stream_routing.py",
+      "regels": 40,
+      "functies": 5,
+      "sha256": "e2d59f0af0a94bf0a90e03266d5fac1b6caaa57d5741614a2d1e894bb3bb218c",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_multiple_intents.py",
+      "regels": 19,
+      "functies": 3,
+      "sha256": "a0c0aed778e83180dc446f93f4e5fa11fef6f0c417e88e11047634b310bf7405",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_private_session_cache.py",
+      "regels": 26,
+      "functies": 2,
+      "sha256": "ebbf6be1e5985cf6a29a8c8c4676d34f0f73d3865554c1f7cddd65563dbe4735",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_profession_picker.py",
+      "regels": 20,
+      "functies": 1,
+      "sha256": "029bfa1c59d8588b89cb9c7fb56e95c80031ece40e69fc5c3f69c3646696f3ab",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_professional_business_options.py",
+      "regels": 26,
+      "functies": 3,
+      "sha256": "e7dcbaa4269be0b0eb04bb16d20a848feb22152d0ff39a72a4fd70f905e98039",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_profile.py",
+      "regels": 42,
+      "functies": 6,
+      "sha256": "312251fcd4cfa34350d4eb240ae9ea94724277bbd9908c8762402f658fad06ad",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_rive_assistant.py",
+      "regels": 25,
+      "functies": 4,
+      "sha256": "d5064af5fce4125b47f046057cad433e4791c7b1a122d3b8a4ee986150f54e69",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_rive_chat_state.py",
+      "regels": 25,
+      "functies": 3,
+      "sha256": "3f190aacde16bac4ce5265f630767098d832a07fc4efc073130683314c91b607",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_rive_svg_fallback.py",
+      "regels": 21,
+      "functies": 2,
+      "sha256": "6c3256be2481ba99c0f85cca82d4d47e9a247624223e1422c76b297fce7a5418",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_settings_grid_alignment.py",
+      "regels": 19,
+      "functies": 1,
+      "sha256": "7f11ab6c28e497269c30a5035a3edbe3f6568489cbff82b0aa963304d5040716",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_settings_layout.py",
+      "regels": 30,
+      "functies": 3,
+      "sha256": "2c1f9b8fcc2e83a88d86abd1eac106b3dd9107c1c5a0253e6589a81c7e6f99a0",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_settings_profile_avatar.py",
+      "regels": 16,
+      "functies": 1,
+      "sha256": "64bb5ef7e77158f6f2cc5f22b46d822e5e65707cfec954ffaf22837c95a16af7",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_shop_dashboard.py",
+      "regels": 19,
+      "functies": 1,
+      "sha256": "6d40519cde54a923dc65690ea202858627455234e9e59b375ea5d479f1f4ab8f",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_shop_empty_store.py",
+      "regels": 18,
+      "functies": 1,
+      "sha256": "ae9e9cd574a888df66aec285ed5805e777d2107dd4b2867e89cc9e0b85d882f4",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_shopping_hub.py",
+      "regels": 36,
+      "functies": 3,
+      "sha256": "efe8d4fa36cdbf28a4bc87e9f53300bd7daa5fd87597d677c536deed0ad8185e",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_shopping_navigation_state.py",
+      "regels": 32,
+      "functies": 3,
+      "sha256": "fd90375eb90392b9d827eccf4b0964846661cdaa0fc03aaeb2a0c41f5f0c49b0",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_shopping_polish.py",
+      "regels": 32,
+      "functies": 3,
+      "sha256": "090c3c9342fb9cb41cc409c0971498e69983e78a7bac58740f823b4b26993120",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_storefront_preview.py",
+      "regels": 16,
+      "functies": 1,
+      "sha256": "4946225b9efcd95cf9c2af89c4f632f33ca990ff08b1e731d54b5f206df2797e",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_storefront_secondhand.py",
+      "regels": 32,
+      "functies": 3,
+      "sha256": "14bd6bb68479e912a8ff08e4de9d641e32e46ced068a260c760a3732a235e587",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_trade_calendar.py",
+      "regels": 39,
+      "functies": 4,
+      "sha256": "e4f4f7b93ff5c3493401fe4f1a1b58180ee42e56b77ccb0bd16a6ce7699d1047",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_werkrooster.py",
+      "regels": 39,
+      "functies": 4,
+      "sha256": "26c9492e31c28015031778d9b996937781529fffe41b45ac72fb5c5aa9580e05",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_winkelen.py",
+      "regels": 57,
+      "functies": 6,
+      "sha256": "c2843ab1377fbb945f31e3d2a14ade0cb5f92bb9caba072d0705023b6d852197",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tests/test_workspace_safe.py",
+      "regels": 30,
+      "functies": 5,
+      "sha256": "bb15d53b966f62e0a3d5ce2597a4b37c817ca1b7714446d02ace186aec923c59",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tijd.py",
+      "regels": 260,
+      "functies": 20,
+      "sha256": "4fa28c722ad3ede2f9ca83fdc18f4652a46a4258665b47f6f6b2a91178e74659",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "toegang.py",
+      "regels": 155,
+      "functies": 16,
+      "sha256": "01e8f8172dd16e79adf4d4d96a23adcb1c916a5bf42fa9fd0125e9091d2821c2",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 65
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "toegangssleutel.py",
+      "regels": 201,
+      "functies": 12,
+      "sha256": "c0993b69c22d12be584b460d3a8bd092afdf58b34e93abb422b31185a7d4a852",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 103
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 187
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tools/audit_100.py",
+      "regels": 79,
+      "functies": 3,
+      "sha256": "e9ffcb365aecd6d0b5518f7353938d49f8bfa29dc3652e00d73b7fde243d90a1",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tools/bron_review.py",
+      "regels": 120,
+      "functies": 8,
+      "sha256": "d2338f3979a1ecdb1fc90f57752cfb152c5f2c59d7e2bbb85b96671fe3057be1",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tools/diepte_controle.py",
+      "regels": 93,
+      "functies": 4,
+      "sha256": "6923b117f425a9aad64e80554075948ed51c2d03a5c62e445d9e8053deb1904e",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 41
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tools/integratie_controle.py",
+      "regels": 56,
+      "functies": 2,
+      "sha256": "f67cdbb926d57c6c17bf4b7ae1523b26355ccdcbf4cbaf0cd3cb3e590ccec48a",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tools/interface_browser_controle.py",
+      "regels": 142,
+      "functies": 8,
+      "sha256": "a812bf5e04f96737fdb6f82f9071a985c545b88d0d461b0f9a326c506d85ce93",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tools/interface_controle.py",
+      "regels": 91,
+      "functies": 4,
+      "sha256": "c1d797ee1ca4edbc9b8ad1b3774d607883986ae884406fbc133928b1b3c2c1f3",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tools/interface_lokaal.py",
+      "regels": 108,
+      "functies": 5,
+      "sha256": "7732f9d521bd8fb116132129dea19c2c4d4e8ecc348bc73745487d651684a84e",
+      "signalen": [
+        {
+          "code": "dynamische_code_beoordelen",
+          "regel": 86
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tools/omgeving_controle.py",
+      "regels": 64,
+      "functies": 4,
+      "sha256": "93df3284fd3f6576b0e5714bb8245007ef7fec7bd127592038266fe7df101055",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tools/planning_controle.py",
+      "regels": 139,
+      "functies": 11,
+      "sha256": "686ef5f88b957ec387993f72381a36dc6e7deed61db75c798636b28752a8e33b",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "tools/werkdata_controle.py",
+      "regels": 53,
+      "functies": 3,
+      "sha256": "a82c3321d250d74a750bcda9d6d7b48ab47e1b5623c7ec5060186e0f0ea7f5e3",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "universal_os.py",
+      "regels": 232,
+      "functies": 7,
+      "sha256": "acfab69f85aa7bacd3b0a276718f3d4f9c7f6acc7f85af6acff00a578ddc7b78",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "universal_search.py",
+      "regels": 38,
+      "functies": 4,
+      "sha256": "6aa413341493a9e5cc9e09999d3b9ccdf8bd1eaa0d1dc8ebd90a21b20bfb44c9",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "universal_workspace.py",
+      "regels": 45,
+      "functies": 4,
+      "sha256": "89576d6c2305367a27df7b567d616e9969c4bb4e7c17d54fdb06c0ba1f41a8d4",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "verbeteren.py",
+      "regels": 37,
+      "functies": 3,
+      "sha256": "5e0281eeeda76a83565b10183c6b0cfa3fdd000d4bfe298fe4969fa1c36e4a23",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 36
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "vertalingen/samenvoegen.py",
+      "regels": 27,
+      "functies": 0,
+      "sha256": "8339a002943bb27b9e6d4073432baadcb211e49c27a83568775f0a821a69ebd2",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "vertalingen/verzamelen.py",
+      "regels": 59,
+      "functies": 3,
+      "sha256": "04d67d70e53af0a50d7f2a860c8a4dd4c454f15b412ca04c73523d7d10aeed43",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "video_project_core.py",
+      "regels": 48,
+      "functies": 4,
+      "sha256": "7405ad3ccf94d320f235970eee9b47c1a2d25b65724b5f2a7eb215f25fec2ec4",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "video_trim.py",
+      "regels": 46,
+      "functies": 1,
+      "sha256": "27a5426b0bde6b65117033ee9b1b869df0491eca1f40c07030d388c9dd2c46ca",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 21
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "web/teksten.py",
+      "regels": 18,
+      "functies": 0,
+      "sha256": "6fd1e4b1547ab61bab872fb24bbe305e0a52cda47d9f675b6ec18b10413cb3e9",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "weer.py",
+      "regels": 87,
+      "functies": 4,
+      "sha256": "cd6de4612272bd6c50862de2c34d0f8550ab5dc7573425af7b6f32d6294f253f",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "wereld.py",
+      "regels": 164,
+      "functies": 1,
+      "sha256": "43ff862c2f82c0761c4d9001aa5a50e513f7418c13050c34ba0946c4f0c7244a",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "werk_scherm.py",
+      "regels": 526,
+      "functies": 24,
+      "sha256": "dd82f198d0aaaaf502cf979b42a38699d8e1497a2a5fdb0c625270c5241335a3",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "werkbronnen.py",
+      "regels": 103,
+      "functies": 6,
+      "sha256": "ef63646027be1f7eb0eda67825e93cfff14630ef9aa546462161d8193fcabbff",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "werkbronnen_scherm.py",
+      "regels": 199,
+      "functies": 8,
+      "sha256": "93ad74b2c54becee38d1c5f2238ac98363825f72e64d3b8fa9640eb6537e912f",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "werkcontext.py",
+      "regels": 127,
+      "functies": 4,
+      "sha256": "4698de93b8cdc685ca5d5ab098f850afdaac470973d619446a6cadd480fc6d88",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "werkcontext_scherm.py",
+      "regels": 115,
+      "functies": 5,
+      "sha256": "d6bd15a7a21888a1ff7fc005e7cf86b1a2ea335c24f357dc5b8bf46312dd1b55",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "werkcontrole_scherm.py",
+      "regels": 70,
+      "functies": 3,
+      "sha256": "f5af3b9857bb632af1abd9f7408982f5034a798f094d60f30b94211708d39743",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "werkrooster.py",
+      "regels": 54,
+      "functies": 3,
+      "sha256": "cf34a917150448db327312636d991d0b05f12ea22fda69623ced9d2841aa4544",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "werkzoeken.py",
+      "regels": 98,
+      "functies": 3,
+      "sha256": "82833c4a48e9d2dc505fa556d88fcd83104593b33d9777402e41ab88da491925",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "wetenschap.py",
+      "regels": 121,
+      "functies": 7,
+      "sha256": "64106a99b620bf7e7f89fa964bda34a8b4f708cc6817a8e6a0747e3b7cd3a6f7",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "winkelen.py",
+      "regels": 123,
+      "functies": 11,
+      "sha256": "22e140d8525e866c4fef7d9f32f7e510dde6ddc55bd5fcd6b2e7b9e7083da26c",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 84
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 108
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 101
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "winkelen_scherm.py",
+      "regels": 321,
+      "functies": 14,
+      "sha256": "6897296513b407cedea275f27dd93658ea7d964b9cfdcc849ec7c62526b13249",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "winkelkaart.py",
+      "regels": 113,
+      "functies": 5,
+      "sha256": "1148ffa0124379c180b61211d4725e0acf988d231bf8cf0b11a0a70352361b26",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "woning.py",
+      "regels": 49,
+      "functies": 5,
+      "sha256": "c41912263d0842bb656be3edc5c1131f6980a10baad958c7475cb8b1d362c645",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "workspace_hub.py",
+      "regels": 73,
+      "functies": 2,
+      "sha256": "85f40e03eac1fc4fb4356a590b3678578c2429a2439540391dc6d2ee4db04477",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "workspace_safe.py",
+      "regels": 70,
+      "functies": 5,
+      "sha256": "cd60337f05ce6708b91da16ee2a2b4b913c30fffb9d8efb4510ee268d1cf989d",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 48
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "zaak.py",
+      "regels": 150,
+      "functies": 20,
+      "sha256": "dd693772e7560ba5faa1c5dc2e9a8ab4dac3a0eb64cf9352cbf01c5e569c19b2",
+      "signalen": [],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "zaak_scherm.py",
+      "regels": 615,
+      "functies": 19,
+      "sha256": "f4965287dbdca0e10110e320f82dbf6e162a4d5ebd380bdbda9d01319a8b2f96",
+      "signalen": [
+        {
+          "code": "groot_functieblok",
+          "regel": 91,
+          "functie": "beroep_instellingen",
+          "lengte": 190
+        },
+        {
+          "code": "brede_exceptie",
+          "regel": 345
+        }
+      ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "zoekveld.py",
+      "regels": 179,
+      "functies": 4,
+      "sha256": "6456a58befced2a024abde61a75508030ff95ac765c59c7ae683c11b45cebd6e",
+      "signalen": [
+        {
+          "code": "brede_exceptie",
+          "regel": 166
+        }
+      ],
+      "syntax": "geldig"
+    }
+  ],
+  "aantal_bestanden": 229,
+  "signalen": {
+    "brede_exceptie": 167,
+    "groot_functieblok": 7,
+    "dynamische_code_beoordelen": 2
+  },
+  "scope": "Statische Python-bronbeoordeling. Lange functies, brede uitzonderingen en dynamische code vragen context; zijn niet automatisch bugs of beveiligingslekken. Geen runtime- of dienstgarantie.",
+  "javascript": [
+    {
+      "bestand": "chat_js.js",
+      "syntax": "geldig",
+      "sha256": "391906fddac3c8b8ed7e24c951cdb25c2ae27d92f6bb2e77279a993eff867a6f"
+    },
+    {
+      "bestand": "docs/app/assets/Assistent-CqVNHvEb.js",
+      "syntax": "geldig",
+      "sha256": "a36905d4b91a9733ab82d604ea525c66173fa9bcc301161a0f4b9ed28aa366d2"
+    },
+    {
+      "bestand": "docs/app/assets/assistent-dRnpz6w8.js",
+      "syntax": "geldig",
+      "sha256": "95f6beec1f490e8801e9846645d5709bf6f3b08345ff1e95668823ceeaa509fc"
+    },
+    {
+      "bestand": "docs/app/assets/error-BTdmRKoB.js",
+      "syntax": "geldig",
+      "sha256": "5d028005d9790dc9a98fca59048d8d37711d1a4fe56340273c6d3742f7f0c76e"
+    },
+    {
+      "bestand": "docs/app/assets/index-Bkbovhf6.js",
+      "syntax": "geldig",
+      "sha256": "de8a7e01fd19bf6643726a4796bf657d3ed419dd36e6c2a63811ab199c6d34b6"
+    },
+    {
+      "bestand": "docs/app/assets/node.browser-BlfRYjV_.js",
+      "syntax": "geldig",
+      "sha256": "9d757c11e1097e21436ff2c5d146da90f7a9a9d0c7abb0507eedb6d5f99c321f"
+    },
+    {
+      "bestand": "docs/app/assets/node.browser-HQ5SKBOf.js",
+      "syntax": "geldig",
+      "sha256": "e614a898f7f1ac3d3f5fe1ebdd4514cb8df0fb735ab96776e1863cca38c8b79f"
+    },
+    {
+      "bestand": "docs/index.html#inline-1",
+      "syntax": "geldig",
+      "sha256": "d7e3e1d547ce126c99c3414346702ff872483430e60854b564bd71f143df955c"
+    },
+    {
+      "bestand": "docs/sw.js",
+      "syntax": "geldig",
+      "sha256": "a7d5e0898b830f37b8d7b3dc3df65e1f2b4c53d9719f9a0433bbc860dd036e1e"
+    },
+    {
+      "bestand": "nieuwe_app/app.js",
+      "syntax": "geldig",
+      "sha256": "2a1023b3ca23c1463b056ea191d2e0274b5cd37961c4782dc57f3d912d1bd63b"
+    },
+    {
+      "bestand": "ontwerp_js.js",
+      "syntax": "geldig",
+      "sha256": "f1f3d506f9a868defffa57820f0ba09c4fff8dbebbad76c5cd88118a9300b845"
+    },
+    {
+      "bestand": "vormen_js.js",
+      "syntax": "geldig",
+      "sha256": "9fe920dcb50c02ad958d85421f2df427a3f133030f3e895785a97ecaf6f904af"
+    },
+    {
+      "bestand": "wereld_js.js",
+      "syntax": "geldig",
+      "sha256": "cdb75a7514d2eed18053509b193343193be2b5510b1412bfef7d696bff6794db"
+    }
+  ]
+}
