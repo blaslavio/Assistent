@@ -64,6 +64,23 @@ def pagina() -> None:
         boekhouding_deel()
 
 
+# Eigen pagina's per hulpmiddel, zodat een link of knop er direct naartoe gaat.
+def rooster_pagina() -> None:
+    st.title("Rooster en planning")
+    st.caption("Beheer lessen en beschikbaarheid.")
+    rooster_deel()
+
+
+def klanten_pagina() -> None:
+    st.title("Klanten")
+    klanten_deel()
+
+
+def boekhouding_pagina() -> None:
+    st.title("Boekhouding en omzet")
+    boekhouding_deel()
+
+
 # --- Beroep (Instellingen › Werk) --------------------------------------------------------------------------------------
 
 # Waar een hulpmiddel opent: (pagina, sleutel van het onderdeel op die pagina, welk onderdeel).
@@ -198,6 +215,14 @@ def beroep_instellingen() -> None:
             st.rerun()
         if st.button("Omzet en bedrijfsresultaten", icon=":material/monitoring:", width="stretch", key="bedrijf_omzet"):
             _openen("zakelijk", "omzet")
+            st.rerun()
+        if st.button("Klanten", icon=":material/groups:", width="stretch", key="bedrijf_klanten",
+                     help="Beheer klanten en hun gegevens. Een afzonderlijk klantsaldo is nog niet beschikbaar."):
+            _openen("zakelijk", "klanten")
+            st.rerun()
+        if st.button("Boekhouding en btw", icon=":material/receipt_long:", width="stretch", key="bedrijf_boekhouding",
+                     help="Inkomsten en uitgaven bijhouden; controleer de btw zelf vóór je aangifte."):
+            _openen("zakelijk", "boekhouding")
             st.rerun()
     st.caption("De assistent kan adviseren over je winkelindeling en verkoopresultaten op basis van beschikbare bedrijfsgegevens.")
     st.markdown("**Vakgebied en specialisatie**")

@@ -90,6 +90,8 @@ def verwacht(online, uit, niveau):
                               ("Leren", "cursussen"), ("Samen", "samen"), ("VR-ruimtes", "ruimtes"), ("Budget", "budget"), ("Zakelijk", "zakelijk")):
             if module not in uit:
                 routes.add(route)
+        if "Zakelijk" not in uit:
+            routes.update({"rooster", "klantenbeheer", "boekhoudingbeheer"})
         if "Marktplaats" not in uit:
             routes.update({"winkelen", "zoeken", "winkels", "verkopen", "bestellingen", "berichten"})
             if niveau in {"verkoper", "ondernemer"}:

@@ -17,3 +17,9 @@ class MultipleIntentTests(unittest.TestCase):
         self.assertEqual(parse_intent("Betaal de factuur").kind, "betaling")
         self.assertEqual(parse_intent("Plan een afspraak").kind, "agenda")
         self.assertEqual(parse_intent("Verstuur een bericht").kind, "communicatie")
+
+    def test_overleg_is_calendar_intent(self):
+        self.assertEqual(parse_intent("Overleg morgen om 12 uur").kind, "agenda")
+
+    def test_om_alone_does_not_trigger_calendar(self):
+        self.assertIsNone(parse_intent("Waarom werkt dit?"))

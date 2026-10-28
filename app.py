@@ -1,5 +1,12 @@
 """Webinterface van de assistent. Starten met: streamlit run app.py"""
 
+import life_swarm_core
+import event_swarm_core
+import neural_video_core
+import service_intake_core
+import service_intake_ui
+import ecosystem_ui
+
 import calendar
 import html
 import importlib
@@ -151,7 +158,7 @@ import bestandsgereedschap_scherm
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
-for _module in (communicatie, communicatie_scherm, herstel, werkcontext, werkcontext_scherm, tekstcontrole, geldwaarden, gereedschappen, gereedschappen_scherm, gegevenscontrole, werkzoeken, werkcontrole_scherm, focusplan, planning_backup, planning_backup_scherm, werkbronnen, werkbronnen_scherm, taakvolgorde, capaciteit, taakplanning_scherm, sjablonen, sjablonen_scherm, actieoverzicht, actieoverzicht_scherm, opslag, actielinks, actielinks_scherm, intenties, agendacontrole, dagplan, herplanning, dagplan_scherm, bestandsgereedschap, bestandsgereedschap_scherm, universal_os, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap, mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, toegang, bestanden, bestanden_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, wereld, ontwerp, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, cursus, cursus_scherm, gezondheid, sport_scherm, symbool, samen_leren, azure_services, azure_search_ready, azure_documents, azure_ui):
+for _module in (symbool, opslag, agendas, agenda_import, resource_booking_core, integraties_voorbereiding, budget, samen_leren, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap, mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, azure_services, azure_search_ready, azure_documents, azure_ui, toegang, bestanden, bestanden_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, wereld, ontwerp, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, cursus, cursus_scherm, gezondheid, sport_scherm, communicatie, communicatie_scherm, herstel, werkcontext, werkcontext_scherm, tekstcontrole, geldwaarden, gereedschappen, gereedschappen_scherm, gegevenscontrole, werkzoeken, werkcontrole_scherm, focusplan, planning_backup, planning_backup_scherm, werkbronnen, werkbronnen_scherm, taakvolgorde, capaciteit, taakplanning_scherm, sjablonen, sjablonen_scherm, actieoverzicht, actieoverzicht_scherm, actielinks, actielinks_scherm, intenties, agendacontrole, dagplan, herplanning, dagplan_scherm, bestandsgereedschap, bestandsgereedschap_scherm, universal_os):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -252,10 +259,10 @@ def superapp_thema_toepassen() -> None:
     .app-subtitle {{ color: {muted} !important; }}
     .notion-card, .modern-card {{ background: {panel}; border: 1px solid {border}; color: {fg}; }}
     [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {{
-        background: #2563eb !important; border-radius: 16px 16px 4px 16px;
+        background: #e9e8e5 !important; border-radius: 18px 18px 6px 18px;
         padding: 12px 16px; max-width: 85%; margin-left: auto;
     }}
-    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) p {{ color: #fff !important; }}
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) p {{ color: #202124 !important; }}
     [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {{
         background: {panel} !important; border: 1px solid {border};
         border-radius: 16px 16px 16px 4px; padding: 12px 16px; max-width: 85%;
@@ -2692,7 +2699,8 @@ def groet(nu: datetime) -> str:
 def master_hub_pagina() -> None:
     """Account-scoped Multi-Stream drafts; never publish or send automatically."""
     st.title("Universal Master Hub")
-    st.caption("Verkoop, chat, projecten en community in één overzicht.")
+    st.caption("Diensten, winkels, sport, projecten en community in één overzicht.")
+    ecosystem_ui.render_command_stream(st)
     profile = st.segmented_control("Privacyprofiel", list(multistream_store.PROFILES),
                                    default="Privé", key="master_privacy_profile")
     st.caption("Profielwissel toont uitsluitend concepten van het gekozen profiel.")
@@ -2700,13 +2708,13 @@ def master_hub_pagina() -> None:
                                 default="Alles", key="master_stream_lens")
     with st.form("master_stream_form", clear_on_submit=True):
         opdracht = st.text_input("Bericht of opdracht", max_chars=500,
-                                placeholder="Bijv. verkoop mijn fiets")
+                                placeholder="Schrijf een bericht of opdracht")
         verzenden = st.form_submit_button("Concept bewaren")
     if verzenden:
         try:
             item = multistream_store.add_draft(opdracht, profile)
             st.session_state["master_hub_route"] = master_hub_core.classify(opdracht)
-            st.success("Privéconcept bewaard onder " + item["category"] + ".")
+            st.success("Concept bewaard in profiel " + profile + " onder " + item["category"] + ".")
         except ValueError as fout:
             st.warning(str(fout))
         except Exception:
@@ -2720,14 +2728,88 @@ def master_hub_pagina() -> None:
         if not concepten:
             st.caption("Geen concepten in deze categorie.")
         for item in concepten[:30]:
-            st.write(item.get("text", ""))
-            st.caption(str(item.get("category", "Chat")) + " - privéconcept")
+            st.text(item.get("text", ""))
+            st.caption(str(item.get("category", "Chat")) + " - concept in profiel " + profile)
             if st.button("Verwijder concept", key="master_del_" + str(item.get("id"))):
                 try:
                     if multistream_store.delete_draft(str(item.get("id")), profile):
                         st.rerun()
                 except Exception:
                     st.error("Verwijderen is niet gelukt.")
+    with st.expander("Dienstverlening - intake", expanded=False):
+        service_intake_ui.render_preparation(st)
+
+    with st.expander("Life Swarm - persoonlijk", expanded=False):
+        st.caption("Persoonlijke notities blijven privé. Geen automatische publicatie, locatiebepaling of agenda-actie.")
+        with st.form("life_swarm_private_form", clear_on_submit=True):
+            levensrol = st.selectbox("Focus", life_swarm_core.LIFE_ROLES)
+            life_tekst = st.text_area("Privénotitie", max_chars=450)
+            life_save = st.form_submit_button("Privé bewaren")
+        if life_save:
+            try:
+                life_swarm_core.validate_life_role(levensrol)
+                multistream_store.add_draft("[" + levensrol + "] " + life_tekst, "Privé")
+                st.success("Privénotitie bewaard.")
+            except ValueError as fout:
+                st.warning(str(fout))
+            except Exception:
+                st.error("Privénotitie kon niet worden opgeslagen.")
+        st.caption("Bekijk je privénotities via privacyprofiel Privé en streamfilter Alles.")
+
+    with st.expander("Neural Video Studio - montageplanning", expanded=False):
+        st.caption("Stel een montageconcept op. Er worden geen video's gesynchroniseerd, vervaagd of gerenderd.")
+        video_projects = video_project_core.projects()
+        if not video_projects:
+            st.info("Maak eerst een videoproject aan via het bestaande videobeheer.")
+        else:
+            video_choices = {p.get("id"): p.get("title", "Naamloos") for p in video_projects if p.get("id")}
+            with st.form("neural_video_plan_form", clear_on_submit=True):
+                video_project_id = st.selectbox("Videoproject", list(video_choices), format_func=lambda v: video_choices.get(v, v))
+                video_sources = st.text_area("Bronbestanden (één bestandsnaam per regel)", max_chars=200)
+                video_notes = st.text_area("Montage-instructies", max_chars=200)
+                video_save = st.form_submit_button("Montageconcept bewaren")
+            if video_save:
+                try:
+                    plan = neural_video_core.make_edit_plan(
+                        video_project_id, video_sources.splitlines(), video_notes
+                    )
+                    video_project_core.add_note(
+                        plan.project_id, 0,
+                        "Montageconcept: " + ", ".join(plan.sources) + " | " + plan.notes
+                    )
+                    st.success("Montageconcept opgeslagen. Er is geen video verwerkt.")
+                except ValueError as fout:
+                    st.warning(str(fout))
+                except Exception:
+                    st.error("Montageconcept kon niet worden opgeslagen.")
+        st.caption("AI-cut, multi-cam sync, gezichtsvervaging en rendering worden pas ingeschakeld na een echte verwerkingsintegratie.")
+
+    with st.expander("Event Swarm - evenementen", expanded=False):
+        st.caption("Maak een privéconcept. Tickets, wachtlijsten, betalingen en agenda's worden niet automatisch aangepast.")
+        with st.form("event_swarm_draft_form", clear_on_submit=True):
+            event_title = st.text_input("Evenement", max_chars=120)
+            event_capacity = st.number_input("Maximaal aantal deelnemers", min_value=1, max_value=100000, value=10)
+            event_day = st.date_input("Datum evenement", value=date.today())
+            event_time = st.time_input("Begintijd", value=kloktijd(18, 0))
+            event_zone = st.selectbox("Tijdzone", ("Europe/Amsterdam", "Europe/Brussels"))
+            event_save = st.form_submit_button("Eventconcept bewaren")
+        if event_save:
+            try:
+                from datetime import datetime as _event_datetime
+                from zoneinfo import ZoneInfo as _EventZoneInfo
+                start = _event_datetime.combine(event_day, event_time, tzinfo=_EventZoneInfo(event_zone)).isoformat()
+                event = event_swarm_core.create_event_draft(event_title, int(event_capacity), start)
+                multistream_store.add_draft(
+                    "[Eventconcept] " + event.title + " | " + event.starts_at
+                    + " | capaciteit " + str(event.capacity), "Privé"
+                )
+                st.success("Eventconcept privé bewaard. Er zijn geen tickets uitgegeven.")
+            except ValueError as fout:
+                st.warning(str(fout))
+            except Exception:
+                st.error("Eventconcept kon niet worden opgeslagen.")
+        st.caption("Ticketclaims zijn uitgeschakeld totdat reserveringen transactioneel en accountgebonden zijn.")
+
     if profile == "Zakelijk":
         with st.expander("Verhuur en rooster", expanded=False):
             st.caption("Beheer eigen ruimtes, stoelen, materialen en tijdsloten.")
@@ -5570,13 +5652,19 @@ def gesprek_ai() -> None:
             st.session_state["pay_chat_opdracht"] = laatste_vraag
             st.switch_page(PAGINA["communicatie"])
 
+    if chat_voorstel and chat_voorstel.kind == "agenda" and "agenda" in PAGINA:
+        st.caption("Deze afspraak is nog niet ingepland. Open de agenda om de gegevens in te vullen.")
+        if st.button("Open agenda", key="assistent_chat_agenda_open"):
+            st.switch_page(PAGINA["agenda"])
+
     azure_opname = azure_ui.recording()
     if azure_opname:
         st.session_state.vooraf_vraag = azure_opname
         st.session_state.ingesproken = True
     vraag = st.session_state.pop("vooraf_vraag", None)
     if not vraag:
-        vraag = st.chat_input("Stel je vraag aan de assistent...", key="assistent_chat_input", disabled=any(st.session_state.get(k) for k in ("_os_voorstel", "_os_dagplan", "_al_voorstel")))
+        with st.container(key="assistent_inline_input"):
+            vraag = st.chat_input("Stel je vraag aan de assistent...", key="assistent_chat_input", disabled=any(st.session_state.get(k) for k in ("_os_voorstel", "_os_dagplan", "_al_voorstel")))
         if vraag and universal_os.ontvang(vraag):
             st.rerun()
     # Optional Rive UI: nothing is rendered until the approved .riv is supplied.
@@ -6005,6 +6093,8 @@ def chat_communicatie_instellingen() -> None:
 
 def chat_met_profiel() -> None:
     """Chat met één herkenbare ingang voor alle communicatie-instellingen."""
+    if st.button("Assistent openen", icon=":material/smart_toy:", key="chat_open_assistent", width="stretch"):
+        ga_naar("assistent")
     chat_communicatie_instellingen()
     chat.pagina()
 
@@ -6416,7 +6506,10 @@ def assistent_invoer() -> None:
     st.html("<style>.st-key-microfoon_houder{display:none}</style>")
     if gezegd:
         assistent_opdracht(gezegd, ingesproken=True)
-    if vraag := st.chat_input("Vraag iets of geef een opdracht…", disabled=any(st.session_state.get(k) for k in ("_os_voorstel", "_os_dagplan", "_al_voorstel"))):
+    with st.container(key="snelle_assistent_inline_input"):
+        vraag = st.chat_input(f"Vraag {avatar.aanspreken(mijn_avatar())} iets...",
+                              disabled=any(st.session_state.get(k) for k in ("_os_voorstel", "_os_dagplan", "_al_voorstel")))
+    if vraag:
         assistent_opdracht(vraag)
 
 

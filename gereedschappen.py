@@ -333,6 +333,12 @@ TOOLS = ({'url': 'actielinks',
 TOOLS += ({"url": "communicatiecentrum", "titel": "Communicatie en privéconcepten", "icoon": ":material/mark_chat_unread:",
            "groep": "Thuis en handig", "functie": "communicatie_scherm.pagina",
            "online": False, "modules": [], "rollen": [], "een_van": []},)
+TOOLS += tuple({"url": url, "titel": titel, "icoon": icoon, "groep": "Zakelijk", "functie": functie,
+                "online": True, "modules": ["Zakelijk"], "rollen": [], "een_van": []}
+               for url, titel, icoon, functie in (
+                   ("rooster", "Rooster", ":material/calendar_month:", "zaak_scherm.rooster_pagina"),
+                   ("klantenbeheer", "Klanten", ":material/groups:", "zaak_scherm.klanten_pagina"),
+                   ("boekhoudingbeheer", "Boekhouding", ":material/account_balance:", "zaak_scherm.boekhouding_pagina")))
 GEDEELD = {
     "Kopen en verkopen": ["actielinks", "werkzoeken"],
     "Afspreken": ["agenda", "taakplanning"],

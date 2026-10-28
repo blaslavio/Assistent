@@ -6,10 +6,13 @@
 //
 // Wie je bent, staat in de kop x-api-key: "abo." + base64(JSON [naam, wachtwoord of sessie]).
 
+import { openaiAntwoord } from "./openai.ts";
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const ANTHROPIC_API = Deno.env.get("ANTHROPIC_API") ?? "https://api.anthropic.com";
-const MODELLEN = new Set(["claude-opus-5-5"]);
+const OPENAI_MODEL = "gpt-5.4";
+const MODELLEN = new Set(["claude-opus-5-5", OPENAI_MODEL]);
 const MAX_GROOTTE = 20_000_000;
 
 async function rpc(functie: string, parameters: Record<string, unknown> = {}) {
@@ -96,7 +99,15 @@ export async function verwerk(verzoek: Request): Promise<Response> {
     if (!MODELLEN.has(body.model)) return fout(400, "Dit model is niet beschikbaar.");
     body.max_tokens = Math.min(Number(body.max_tokens) || 4096, 32000);
 
-    const kop: Record<string, string> = { "x-api-key": toegang.sleutel, "content-type": "application/json",
+    const claudeSleutel = Deno.env.get("ANTHROPIC_API_KEY") || toegang.sleutel;
+    const openaiSleutel = Deno.env.get("OPENAI_API_KEY") || toegang.openai_sleutel;
+    if (body.model === OPENAI_MODEL || !claudeSleutel) {
+      if (!openaiSleutel) return fout(503, "De ChatGPT-sleutel is nog niet ingesteld.", "api_error");
+      return await openaiAntwoord(body, openaiSleutel, OPENAI_MODEL,
+        (euro) => rpc("ai_gebruik_bij", { p_gebruiker: id, p_euro: euro }));
+    }
+
+    const kop: Record<string, string> = { "x-api-key": claudeSleutel, "content-type": "application/json",
       "anthropic-version": verzoek.headers.get("anthropic-version") ?? "2023-06-01" };
     const beta = verzoek.headers.get("anthropic-beta");
     if (beta) kop["anthropic-beta"] = beta;

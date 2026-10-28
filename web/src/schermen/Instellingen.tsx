@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { alsIk, bijwerken, gereedschapAdres, instellingenBijwerken, uitloggen, weergavenaamWijzigen } from "../api";
+import { alsIk, bijwerken, instellingenBijwerken, uitloggen, weergavenaamWijzigen } from "../api";
 import { gekoppeld } from "../lib/mail";
 import { betaalStatus, platformInstellen, verkoperAanmelden, type BetaalStatus } from "../lib/bestellingen";
 import { MailKoppelen } from "./AgendaPanelen";
@@ -181,16 +181,6 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
           open={() => setPagina("afspraken")} />
       </ul>
 
-      <section className="mt-6 overflow-hidden rounded-[20px] bg-vlak" aria-label="Werktools en communicatie">
-        {[["communicatiecentrum", "Communicatie en privéconcepten"], ["gereedschappen", "Alle werktools"],
-          ["planning-backup", "Planningback-up en herstel"]].map(([route, titel]) => (
-          <a key={route} href={gereedschapAdres(route)} target="_top"
-            className="block border-b border-lijn px-4 py-4 last:border-b-0">
-            <span className="font-medium">{titel}</span>
-            <span className="mt-1 block text-sm text-rustig">Open de beveiligde werkruimte</span>
-          </a>
-        ))}
-      </section>
       <ul className="mt-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
         <Rij titel="Idee of probleem" uitleg="Zeg wat beter kan" open={() => setPagina("idee")} />
       </ul>
