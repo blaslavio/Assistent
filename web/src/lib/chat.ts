@@ -198,7 +198,7 @@ export const mijnApparaat = () => ik?.apparaat ?? 0;
 
 export type Kanaal = { id: number; naam: string; alleen_beheer: boolean; laatst?: string; ongelezen: number };
 export type Community = { id: number; naam: string; omschrijving: string; rol: "eigenaar" | "beheerder" | "lid";
-  status: "lid" | "uitgenodigd"; door?: string; leden: number; kanalen: Kanaal[] };
+  status: "lid" | "uitgenodigd"; door?: string; leden: number; kanalen: Kanaal[]; openbaar?: boolean };
 
 export async function overzicht() {
   const r = await rpc<{ gesprekken: Gesprek[]; communities?: Community[] }>("chat_gesprekken");
