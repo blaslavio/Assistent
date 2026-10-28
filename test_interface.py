@@ -65,7 +65,7 @@ def context(online, uit, niveau, voorkeur):
             setattr(env[mod], attr, dummy)
         else:
             env[mod] = dummy
-    exec(compile(ast.Module(body=[PAGINAS_FUNCTIE], type_ignores=[]), "app.py", "exec"), env)
+    exec(compile(ast.Module(body=[PAGINAS_FUNCTIE], type_ignores=[]), "app.py", "exec"), env)  # nosec B102: uitsluitend AST van het vertrouwde lokale app.py in een testcontext
     with patch.object(indeling.opslag, "instellingen", return_value={"indeling": voorkeur}), patch.object(indeling.beroep, "huidig", return_value={"soort": ""}):
         env["paginas"]()
         huidig = indeling.huidig()

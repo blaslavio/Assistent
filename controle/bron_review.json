@@ -1,6 +1,6 @@
 {
   "formaat": "assistent-bronreview",
-  "tijd": "2026-10-28T12:38:41.933442+00:00",
+  "tijd": "2026-10-28T12:42:02.550424+00:00",
   "bestanden": [
     {
       "bestand": "actielinks.py",
@@ -1202,9 +1202,9 @@
     },
     {
       "bestand": "nieuwe_app.py",
-      "regels": 65,
+      "regels": 69,
       "functies": 3,
-      "sha256": "a227f2f25e6232c25f7db15c1bf0a01d99fe9a00f894f8126d745ad49bdd0180",
+      "sha256": "38ac70f4a2678cbbff2a9b4e0f6f692957576e9bb585df708366fc472fe2fae7",
       "signalen": [],
       "syntax": "geldig"
     },
@@ -1793,7 +1793,7 @@
       "bestand": "test_interface.py",
       "regels": 175,
       "functies": 9,
-      "sha256": "bcbfd408841bf80cf423a28932ab5b65a9548d90858a37184d018a8fa41390a5",
+      "sha256": "a889cde51791ab921a66874abf7fe5fd983c14e4dd6f190f37815aec72b32bea",
       "signalen": [
         {
           "code": "dynamische_code_beoordelen",
@@ -1806,7 +1806,7 @@
       "bestand": "test_interface_scherm.py",
       "regels": 82,
       "functies": 6,
-      "sha256": "25ff8bee6ad5bddb89f4e4018f2e23220f5bff9bd4ea3889861fded2e03853c4",
+      "sha256": "78b2f10aceeb43043dd81bde53b0c6300d5c18900a2f4148c41747bc9c4d003d",
       "signalen": [],
       "syntax": "geldig"
     },
@@ -2289,7 +2289,7 @@
       "bestand": "tools/interface_lokaal.py",
       "regels": 108,
       "functies": 5,
-      "sha256": "21ed869bdbaedf81ce0fb0db0990c4e99a710f0154815326dc35aaa8f5fcaef5",
+      "sha256": "7732f9d521bd8fb116132129dea19c2c4d4e8ecc348bc73745487d651684a84e",
       "signalen": [
         {
           "code": "dynamische_code_beoordelen",
@@ -2394,6 +2394,14 @@
           "regel": 21
         }
       ],
+      "syntax": "geldig"
+    },
+    {
+      "bestand": "web/teksten.py",
+      "regels": 18,
+      "functies": 0,
+      "sha256": "6fd1e4b1547ab61bab872fb24bbe305e0a52cda47d9f675b6ec18b10413cb3e9",
+      "signalen": [],
       "syntax": "geldig"
     },
     {
@@ -2591,7 +2599,7 @@
       "syntax": "geldig"
     }
   ],
-  "aantal_bestanden": 228,
+  "aantal_bestanden": 229,
   "signalen": {
     "brede_exceptie": 167,
     "groot_functieblok": 7,
@@ -2605,14 +2613,14 @@
       "sha256": "391906fddac3c8b8ed7e24c951cdb25c2ae27d92f6bb2e77279a993eff867a6f"
     },
     {
-      "bestand": "docs/app/assets/Assistent-CiiDF-zy.js",
+      "bestand": "docs/app/assets/Assistent-CqVNHvEb.js",
       "syntax": "geldig",
-      "sha256": "9eaa881fe57636eaeae5fd11d2110f616a7b3e874948f5003fb916471760206d"
+      "sha256": "a36905d4b91a9733ab82d604ea525c66173fa9bcc301161a0f4b9ed28aa366d2"
     },
     {
-      "bestand": "docs/app/assets/assistent-bfDUnvez.js",
+      "bestand": "docs/app/assets/assistent-dRnpz6w8.js",
       "syntax": "geldig",
-      "sha256": "75f69fe9de3c01a0b35bf815daa475f13322303fca5bc45bd5d2da3a8f9286db"
+      "sha256": "95f6beec1f490e8801e9846645d5709bf6f3b08345ff1e95668823ceeaa509fc"
     },
     {
       "bestand": "docs/app/assets/error-BTdmRKoB.js",
@@ -2620,14 +2628,14 @@
       "sha256": "5d028005d9790dc9a98fca59048d8d37711d1a4fe56340273c6d3742f7f0c76e"
     },
     {
-      "bestand": "docs/app/assets/index-DXXQ_GhP.js",
+      "bestand": "docs/app/assets/index-Bkbovhf6.js",
       "syntax": "geldig",
-      "sha256": "75077f5e8396d6d2c56ebc77d09640ae0435111bf112980ec0a05b87d37a1657"
+      "sha256": "de8a7e01fd19bf6643726a4796bf657d3ed419dd36e6c2a63811ab199c6d34b6"
     },
     {
-      "bestand": "docs/app/assets/node.browser-CsLBiMpN.js",
+      "bestand": "docs/app/assets/node.browser-BlfRYjV_.js",
       "syntax": "geldig",
-      "sha256": "226f23ce72e8f5f2a4c83f0c1aab539588e36ca22c5249569c90287be363d499"
+      "sha256": "9d757c11e1097e21436ff2c5d146da90f7a9a9d0c7abb0507eedb6d5f99c321f"
     },
     {
       "bestand": "docs/app/assets/node.browser-HQ5SKBOf.js",
@@ -2647,7 +2655,7 @@
     {
       "bestand": "nieuwe_app/app.js",
       "syntax": "geldig",
-      "sha256": "545832081a43c06095d8bacf7a3baa8f33187e114762bf0d232850b794c60888"
+      "sha256": "2a1023b3ca23c1463b056ea191d2e0274b5cd37961c4782dc57f3d912d1bd63b"
     },
     {
       "bestand": "ontwerp_js.js",

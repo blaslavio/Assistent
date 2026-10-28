@@ -10,7 +10,7 @@ ROOT = Path(__file__).parent
 
 class InterfaceSchermTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(dir="/tmp")
+        self.tmp = tempfile.TemporaryDirectory(dir="/tmp")  # nosec B108: tempfile maakt een unieke, afgeschermde testmap
         self.addCleanup(self.tmp.cleanup)
         p = patch.dict(os.environ, {"ASSISTENT_LOKAAL": "1", "ASSISTENT_INTERFACE_DATA": str(Path(self.tmp.name) / "data.json")})
         p.start()

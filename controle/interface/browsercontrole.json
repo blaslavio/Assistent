@@ -1,6 +1,6 @@
 {
   "formaat": "assistent-browsercontrole",
-  "tijd": "2026-10-28T12:38:53.940500+00:00",
+  "tijd": "2026-10-28T12:42:14.187578+00:00",
   "scenarios": [
     {
       "scenario": "desktop-instellingen",
@@ -36,7 +36,7 @@
       "kopbalk_links": 6,
       "onbenoemde_links": 0,
       "kleine_aanraakdoelen": 0,
-      "alle_mappen": true
+      "alle_mappen": false
     },
     {
       "scenario": "mobiel-werkstroom",
@@ -84,7 +84,7 @@
     "gereedschappen.py": "b982253235a556ea71ca1abb034b542b2e5bb8092a0e5ea3183457b67f4dc335",
     "gereedschappen_scherm.py": "07f5094b89bc52f15881bac1811deef799f154cf68aa532ae1fb1364314a3679",
     "indeling.py": "ccb888b449100f3b4c3f0e308f0879942eff0e59bff9ba376b5157f394d5d4eb",
-    "tools/interface_lokaal.py": "21ed869bdbaedf81ce0fb0db0990c4e99a710f0154815326dc35aaa8f5fcaef5",
+    "tools/interface_lokaal.py": "7732f9d521bd8fb116132129dea19c2c4d4e8ecc348bc73745487d651684a84e",
     "tools/interface_browser_controle.py": "a812bf5e04f96737fdb6f82f9071a985c545b88d0d461b0f9a326c506d85ce93",
     "werkcontext.py": "4698de93b8cdc685ca5d5ab098f850afdaac470973d619446a6cadd480fc6d88",
     "werkcontext_scherm.py": "d6bd15a7a21888a1ff7fc005e7cf86b1a2ea335c24f357dc5b8bf46312dd1b55",

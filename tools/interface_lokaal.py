@@ -22,7 +22,7 @@ import opslag
 
 st.set_page_config(page_title="Assistent · lokale interfacecontrole", layout="centered")
 pad = Path(os.environ.get("ASSISTENT_INTERFACE_DATA", "/ongeldig")).resolve()
-if os.environ.get("ASSISTENT_LOKAAL") != "1" or not pad.is_relative_to(Path("/tmp")):
+if os.environ.get("ASSISTENT_LOKAAL") != "1" or not pad.is_relative_to(Path("/tmp")):  # nosec B108: alleen een grenscontrole; maakt geen voorspelbaar tijdelijk bestand
     st.error("Deze preview vereist een apart gegevensbestand onder /tmp en ASSISTENT_LOKAAL=1.")
     st.stop()
 opslag.DATA_BESTAND = pad
@@ -83,7 +83,7 @@ for naam, titel in (("werkruimte_pagina", "Mijn werkruimte"), ("master_hub_pagin
     env[naam] = afgeschermd(titel)
 env["winkelen_scherm"] = SimpleNamespace(pagina=afgeschermd("Winkelen"))
 setattr(env["chat"], "pagina", afgeschermd("Chat"))
-exec(compile(ast.Module(body=functies, type_ignores=[]), "app.py", "exec"), env)
+exec(compile(ast.Module(body=functies, type_ignores=[]), "app.py", "exec"), env)  # nosec B102: uitsluitend expliciet geselecteerde AST-functies uit het vertrouwde app.py
 
 
 def instellingen():
