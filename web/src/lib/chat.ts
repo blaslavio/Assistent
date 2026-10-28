@@ -290,10 +290,20 @@ export const verdwijnenInstellen = (gesprek: number, seconden: number) =>
   rpc("chat_instellen", { p_gesprek: gesprek, p_verdwijnen: seconden, p_stil: null, p_groepsnaam: null });
 
 // --- Stories ------------------------------------------------------------------------------------------------------
-// Een foto of korte tekst die 24 uur blijft staan en alleen je contacten zien. Versleuteld zoals een bericht, met
+// Een foto, filmpje of korte tekst die 24 uur blijft staan en alleen je contacten zien. Versleuteld zoals een bericht, met
 // "story" in plaats van een gespreksnummer, zodat een story nooit als chatbericht kan worden hergebruikt.
 
-export type StoryInhoud = { t: "tekst"; tekst: string; kleur: string } | { t: "foto"; foto: string; tekst?: string };
+export type StoryInhoud = { t: "tekst"; tekst: string; kleur: string } | { t: "foto"; foto: string; tekst?: string }
+  | { t: "video"; video: string; duur: number; tekst?: string };
+
+function geldig(b: StoryInhoud | undefined): b is StoryInhoud {
+  if (!b) return false;
+  if (b.t === "tekst") return typeof b.tekst === "string";
+  if (b.t === "foto") return /^data:image\/(jpeg|png|webp);base64,/.test(b.foto);
+  if (b.t === "video") return /^data:video\/(mp4|webm);base64,/.test(b.video)
+    && typeof b.duur === "number" && b.duur > 0 && b.duur <= 16;
+  return false;
+}
 type RuweStory = RuwBericht & { maker: number; naam: string; verloopt: string; gezien: boolean;
   kijkers?: { naam: string; gezien: string }[] | null };
 export type Story = { id: number; maker: number; naam: string; tijd: string; verloopt: string; gezien: boolean;
@@ -311,7 +321,7 @@ export async function stories(): Promise<Story[]> {
     try {
       const o = await ontsleutel(ik, "story", s);
       const b = o.bericht as unknown as StoryInhoud | undefined;
-      if (b && (b.t === "tekst" || (b.t === "foto" && /^data:image\/(jpeg|png|webp);base64,/.test(b.foto)))) story.inhoud = b;
+      if (geldig(b)) story.inhoud = b;
     } catch {
       /* niet te lezen op dit apparaat: overslaan */
     }
