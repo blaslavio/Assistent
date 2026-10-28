@@ -5906,6 +5906,10 @@ def paginas() -> list:
         pagina(winkelen_scherm.pagina, "Winkelen", ":material/shopping_bag:", "winkelen")
     pagina(instellingen_tabblad, "Instellingen", ":material/settings:", "instellingen")
     pagina(communicatie_hub, "Mail & Chat", ":material/forum:", "communicatie")
+    # Eigen pagina per zakelijk hulpmiddel, zodat een knop er direct naartoe gaat.
+    pagina(zaak_scherm.rooster_pagina, "Rooster", ":material/calendar_month:", "rooster")
+    pagina(zaak_scherm.klanten_pagina, "Klanten", ":material/groups:", "klantenbeheer")
+    pagina(zaak_scherm.boekhouding_pagina, "Boekhouding", ":material/account_balance:", "boekhoudingbeheer")
 
     def als(aan: bool, *args, **kwargs) -> str | None:
         return pagina(*args, **kwargs).url_path if aan else None

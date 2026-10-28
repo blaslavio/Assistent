@@ -64,6 +64,23 @@ def pagina() -> None:
         boekhouding_deel()
 
 
+# Eigen pagina's per hulpmiddel, zodat een link of knop er direct naartoe gaat.
+def rooster_pagina() -> None:
+    st.title("Rooster en planning")
+    st.caption("Beheer lessen en beschikbaarheid.")
+    rooster_deel()
+
+
+def klanten_pagina() -> None:
+    st.title("Klanten")
+    klanten_deel()
+
+
+def boekhouding_pagina() -> None:
+    st.title("Boekhouding en omzet")
+    boekhouding_deel()
+
+
 # --- Beroep (Instellingen › Werk) --------------------------------------------------------------------------------------
 
 # Waar een hulpmiddel opent: (pagina, sleutel van het onderdeel op die pagina, welk onderdeel).
