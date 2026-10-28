@@ -301,7 +301,7 @@ function geldig(b: StoryInhoud | undefined): b is StoryInhoud {
   if (b.t === "tekst") return typeof b.tekst === "string";
   if (b.t === "foto") return /^data:image\/(jpeg|png|webp);base64,/.test(b.foto);
   if (b.t === "video") return /^data:video\/(mp4|webm);base64,/.test(b.video)
-    && typeof b.duur === "number" && b.duur > 0 && b.duur <= 16;
+    && typeof b.duur === "number" && b.duur > 0 && b.duur <= 61;
   return false;
 }
 type RuweStory = RuwBericht & { maker: number; naam: string; verloopt: string; gezien: boolean;

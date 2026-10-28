@@ -308,7 +308,7 @@ function Maken({ sluit, geplaatst }: { sluit: () => void; geplaatst: () => void 
     }
   }
 
-  // Het voorbeeld speelt steeds het gekozen stuk van 15 seconden.
+  // Het voorbeeld speelt steeds het gekozen stuk.
   function stukAfspelen() {
     const v = voorbeeld.current;
     if (v && (v.currentTime < start || v.currentTime > start + MAX_SECONDEN)) v.currentTime = start;
@@ -358,7 +358,7 @@ function Maken({ sluit, geplaatst }: { sluit: () => void; geplaatst: () => void 
             ) : <img src={foto} alt="Gekozen foto" className="max-h-[70%] max-w-full rounded-2xl object-contain" />}
             {video && video.lengte > MAX_SECONDEN && (
               <label className="flex w-full max-w-md flex-col gap-1 text-center text-sm text-white/80">
-                Kies welke 15 seconden ({Math.floor(start)}–{Math.floor(start + MAX_SECONDEN)} s)
+                Kies welke minuut ({Math.floor(start)}–{Math.floor(start + MAX_SECONDEN)} s)
                 <input type="range" min={0} max={Math.max(0, video.lengte - MAX_SECONDEN)} step={0.1} value={start}
                   disabled={bezig} onChange={(e) => {
                     setStart(Number(e.target.value));

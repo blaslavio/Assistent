@@ -2,8 +2,9 @@
 // We spelen het gekozen stuk stil af op een onzichtbaar doek en nemen dat op (beeld en geluid). Dat duurt even lang
 // als het stuk zelf, maar werkt in Safari en Chrome zonder extra bibliotheken.
 
-export const MAX_SECONDEN = 15;
-const MAX_BYTES = 1_400_000; // versleuteld en verpakt blijft dat onder de grens van de server
+export const MAX_SECONDEN = 60;
+// Versleuteld en verpakt wordt dit ongeveer 1,8 keer zo groot; dat blijft onder de grens van de server (8 MB).
+const MAX_BYTES = 4_000_000;
 const SOORTEN = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm"];
 
 export async function duurVan(bestand: File) {
@@ -56,7 +57,9 @@ export async function videoKlaarmaken(bestand: File, start: number, duur: number
       uitgang.stream.getAudioTracks().forEach((t) => stroom.addTrack(t));
     } catch { /* zonder geluid */ }
 
-    const opname = new MediaRecorder(stroom, { mimeType: soort, videoBitsPerSecond: 600_000, audioBitsPerSecond: 64_000 });
+    // Hoe langer het stuk, hoe zuiniger: zo past ook een hele minuut.
+    const beeldBits = Math.min(600_000, Math.floor((MAX_BYTES * 0.85 * 8) / duur) - 48_000);
+    const opname = new MediaRecorder(stroom, { mimeType: soort, videoBitsPerSecond: beeldBits, audioBitsPerSecond: 48_000 });
     const stukjes: Blob[] = [];
     opname.ondataavailable = (e) => e.data.size && stukjes.push(e.data);
     const klaar = new Promise<void>((k) => (opname.onstop = () => k()));
