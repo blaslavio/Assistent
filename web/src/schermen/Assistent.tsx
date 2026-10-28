@@ -1,13 +1,15 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Staat } from "../App";
-import { Bestand, Bijlage, Herstel, Kalender, Kruis, Microfoon, Pijl, Plus, Vinkje, Vonk } from "../iconen";
+import { Bestand, Bijlage, Herstel, Kalender, Klok, Kruis, Microfoon, Pijl, Plus, Vinkje, Vonk } from "../iconen";
 import { GrafiekKaart, type Grafiek } from "../grafiek";
 import { ACCEPTEER, BijlageFout, MAX_SAMEN, lezen, type Bijlage as Bijlagebestand } from "../lib/bijlagen";
 import { antwoord, gebruikerBeurt, gesprekLeeg, notitie, ongedaanMaken, verbinding, zonderLabels, type Actie,
   type Keuze } from "../lib/assistent";
 import { KeuzeKaart } from "../keuzekaart";
-import { Mascotte } from "../mascotte";
+import { Mascotte, type Stemming } from "../mascotte";
+import { alsBerichten, bewaar, bewarenAan, nieuwId, schoon, type Opgeslagen } from "../lib/geschiedenis";
+import { Gesprekken } from "./Gesprekken";
 import { Opmaak } from "../lib/opmaak";
 import { BETAALWIJZE, LEVERING, bestellen, euro, onthouden, type Bestelling, type Product } from "../lib/winkelen";
 import { Bladen, ProductRij, type Blad } from "./Winkelen";
@@ -17,13 +19,22 @@ type Beurt = { wie: "jij" | "assistent"; tekst: string; acties: Actie[]; fout?: 
   producten?: Product[]; bestellingen?: Bestelkaart[]; bijlagen?: { naam: string; soort: Bijlagebestand["soort"] }[];
   grafieken?: Grafiek[] };
 
-// Het gesprek blijft bewaard zolang dit tabblad open is, ook als je even naar Vandaag gaat. Niet op het apparaat.
+// Het gesprek blijft staan zolang dit tabblad open is, ook als je even naar Vandaag gaat. Na elk antwoord gaat de
+// tekst ook naar je eerdere gesprekken (lib/geschiedenis), tenzij je dat uitzette. Niet op het apparaat.
 // `gebruikt` telt de meegestuurde bestanden op: het hele gesprek gaat bij elke vraag opnieuw mee.
-const gesprek: { beurten: Beurt[]; berichten: Anthropic.MessageParam[]; gebruikt: number } =
-  { beurten: [], berichten: [], gebruikt: 0 };
+const gesprek: { id: string; beurten: Beurt[]; berichten: Anthropic.MessageParam[]; gebruikt: number } =
+  { id: nieuwId(), beurten: [], berichten: [], gebruikt: 0 };
 
-const VOORBEELDEN = ["Wat staat er vandaag?", "Plan morgen een uur voor mijn taken", "Zet vrijdag 19:00 etentje met Sanne",
-  "Wat is er dit weekend te doen?"];
+// Eén voorstel tegelijk, passend bij het moment. Tik op de mascotte voor een ander.
+function voorstellen(nu = new Date()): string[] {
+  const uur = nu.getHours();
+  const dag = nu.getDay();
+  const lijst = uur < 11 ? ["Plan mijn dag tussen mijn afspraken door", "Wat staat er vandaag?"]
+    : uur < 17 ? ["Wat moet ik vandaag nog doen?", "Zoek een lunchplek in de buurt"]
+    : ["Wat staat er morgen?", "Zet morgen een uur vrij voor mijn taken"];
+  if (dag >= 4) lijst.push("Wat is er dit weekend te doen?");
+  return [...lijst, "Hoeveel heb ik deze maand uitgegeven?", "Zoek een tweedehands fiets onder de 150 euro"];
+}
 
 type Herkenning = {
   lang: string; interimResults: boolean; continuous: boolean; start(): void; stop(): void;
@@ -41,6 +52,13 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
   const [invoer, setInvoer] = useState("");
   const [bezig, setBezig] = useState<string | null>(null);
   const [luistert, setLuistert] = useState(false);
+  const [klaarNr, setKlaarNr] = useState(0);
+  const [geschiedenis, setGeschiedenis] = useState(false);
+  const stemming: Stemming = bezig ? "denkt" : luistert ? "luistert" : invoer.trim() ? "kijkt" : "wacht";
+  const [hup, setHup] = useState(0);
+  const [voorstelNr, setVoorstelNr] = useState(0);
+  const [lijstVoorstellen] = useState(voorstellen);
+  const voorstel = lijstVoorstellen[voorstelNr % lijstVoorstellen.length];
   const [bladen, setBladen] = useState<Blad[]>([]);
   const [klaar, setKlaar] = useState<Bijlagebestand[]>([]);
   const [lezend, setLezend] = useState(false);
@@ -56,6 +74,12 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
     onder.current?.scrollIntoView({ block: "end" });
   }, [beurten, bezig]);
   useEffect(() => () => stoppen.current?.abort(), []);
+  // Na elk afgerond antwoord de tekst bewaren bij je eerdere gesprekken.
+  useEffect(() => {
+    if (!klaarNr || !bewarenAan(staat.data)) return;
+    bewaar(gesprek.id, schoon(beurten)).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [klaarNr]);
 
   function wijzig(i: number, aanpassen: (b: Beurt) => Beurt) {
     setBeurten((lijst) => lijst.map((b, j) => (j === i ? aanpassen(b) : b)));
@@ -188,6 +212,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
     } finally {
       setBezig(null);
       stoppen.current = null;
+      setKlaarNr((n) => n + 1);
       if (veranderd) vernieuw();
     }
   }
@@ -253,6 +278,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
 
   function nieuw() {
     stoppen.current?.abort();
+    gesprek.id = nieuwId();
     gesprek.berichten = [];
     gesprek.gebruikt = 0;
     gesprekLeeg();
@@ -263,28 +289,51 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
     veld.current?.focus();
   }
 
+  /** Verder praten in een eerder gesprek: alleen de tekst komt terug, kaarten en bestanden niet. */
+  function verderIn(g: Opgeslagen) {
+    stoppen.current?.abort();
+    gesprekLeeg();
+    gesprek.id = g.id;
+    gesprek.berichten = alsBerichten(g.beurten);
+    gesprek.gebruikt = 0;
+    setKlaar([]);
+    setMelding(null);
+    setBezig(null);
+    setBeurten(g.beurten.map((b) => ({ ...b, acties: [] })));
+    setGeschiedenis(false);
+  }
+
   const leeg = beurten.length === 0;
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-10 flex items-center justify-between bg-white/85 px-6 pt-14 pb-3 backdrop-blur dark:bg-[#0b0b0e]/85">
         <h1 className="text-[32px] font-bold tracking-tight">Assistent</h1>
-        {!leeg && (
-          <button onClick={nieuw} className="flex h-10 items-center gap-1.5 rounded-full bg-vlak px-4 text-sm font-medium">
-            <Plus className="size-4" /> Nieuw
+        <div className="flex gap-2">
+          <button onClick={() => setGeschiedenis(true)} aria-label="Eerdere gesprekken"
+            className="flex size-10 items-center justify-center rounded-full bg-vlak">
+            <Klok className="size-5" />
           </button>
-        )}
+          {!leeg && (
+            <button onClick={nieuw} className="flex h-10 items-center gap-1.5 rounded-full bg-vlak px-4 text-sm font-medium">
+              <Plus className="size-4" /> Nieuw
+            </button>
+          )}
+        </div>
       </header>
 
       {leeg ? (
         <main className="flex flex-1 flex-col items-center justify-center gap-8 px-6 pb-10 text-center">
-          <Mascotte className="h-20 w-16" />
-          <h2 className="text-2xl font-semibold tracking-tight">Waarmee kan ik helpen?</h2>
-          {staat.data.instellingen?.voorbeeldvragen !== false && <div className="flex flex-wrap justify-center gap-2">
-            {VOORBEELDEN.map((v) => (
-              <button key={v} onClick={() => vraag(v)}
-                className="rounded-full border border-lijn px-4 py-2.5 text-[15px] text-rustig hover:bg-vlak">{v}</button>
-            ))}
-          </div>}
+          <button type="button" onClick={() => { setHup((h) => h + 1); setVoorstelNr((n) => n + 1); }}
+            aria-label="Ander voorstel" className="rounded-full p-2">
+            <Mascotte className="h-20 w-16" hup={hup} stemming={stemming} />
+          </button>
+          <h2 className="text-2xl font-semibold tracking-tight">{invoer.trim() ? "Ik lees mee…" : luistert ? "Ik luister" : "Waarmee kan ik helpen?"}</h2>
+          {staat.data.instellingen?.voorbeeldvragen !== false && !invoer.trim() && !luistert && (
+            <button key={voorstel} onClick={() => vraag(voorstel)}
+              className="opkomen flex items-center gap-2 rounded-full border border-lijn px-4 py-2.5 text-[15px] text-rustig hover:bg-vlak">
+              <Vonk className="size-4 text-accent dark:text-accent-donker" />{voorstel}
+            </button>
+          )}
         </main>
       ) : (
         <main className="flex flex-1 flex-col gap-6 px-6 pt-2 pb-6" aria-live="polite">
@@ -325,6 +374,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
       )}
 
       <Bladen stapel={bladen} zet={setBladen} bestel={koop} />
+      {geschiedenis && <Gesprekken sluit={() => setGeschiedenis(false)} open={verderIn} huidig={leeg ? undefined : gesprek.id} />}
 
       <form onSubmit={verstuur} className="sticky bottom-0 bg-white px-4 pb-3 pt-2 dark:bg-[#0b0b0e]">
         {melding && <p role="alert" className="px-3 pb-2 text-sm text-red-600 dark:text-red-400">{melding}</p>}

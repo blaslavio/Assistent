@@ -23,7 +23,12 @@
 :root { --reeks-1: #2a78d6; --reeks-2: #eb6834; --reeks-3: #1baf7a; }
 
 @layer base {
-  html, body, #root { height: 100%; }
+  /* Het scherm staat vast: de pagina zelf scrollt of verschuift nooit, alleen de lijsten in de app. */
+  html, body { position: fixed; inset: 0; overflow: hidden; overscroll-behavior: none; height: 100%; }
+  #root { height: 100%; }
+  /* Kleiner dan 16 px laat Safari inzoomen bij het typen, en dan schuift alles. */
+  input, textarea, select, [contenteditable=true] { font-size: max(16px, 1em); }
+  .overflow-y-auto, .overflow-auto, .overflow-x-auto { overscroll-behavior: none; }
   body {
     margin: 0;
     background: #ffffff;
@@ -57,7 +62,7 @@
     }
   :root[data-thema=donker] body { background: #0b0b0e; }
   /* Tekstgrootte uit Instellingen › Algemeen: de hele app schaalt mee. */
-  #root { zoom: var(--zoom, 1); height: calc(100% / var(--zoom, 1)); }
+  #root { zoom: var(--zoom, 1); height: calc(var(--app-hoogte, 100%) / var(--zoom, 1)); }
   .contrast { --color-rustig: #45454d; --color-zacht: #5c5c66; --color-lijn: #c9c9d1; }
   .contrast a { text-decoration: underline; }
   @media (prefers-color-scheme: dark) {
@@ -127,5 +132,18 @@
 @keyframes mascotte-knipper { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
 @keyframes mascotte-hup { 0% { transform: translateY(0) scale(1, 1); } 30% { transform: translateY(-10%) scale(0.96, 1.04); }
   60% { transform: translateY(0) scale(1.04, 0.96); } 100% { transform: translateY(0) scale(1, 1); } }
+/* Stemmingen: waar hij naar kijkt en hoe hij beweegt. */
+.mascotte-blik { transition: transform 0.35s ease; }
+.stemming-kijkt .mascotte-blik { transform: translate(-18px, 34px); }
+.stemming-kijkt .mascotte-lijf { animation: mascotte-buig 2.4s ease-in-out infinite; }
+.stemming-luistert .mascotte-blik { transform: translate(10px, -22px); }
+.stemming-luistert { animation: mascotte-luister 0.9s ease-in-out infinite; }
+.stemming-denkt .mascotte-blik { transform: translate(22px, -30px); }
+.stemming-denkt .mascotte-lijf { animation: mascotte-wieg 2.2s ease-in-out infinite; }
+@keyframes mascotte-buig { 0%, 100% { transform: rotate(-7deg) translateY(2%); } 50% { transform: rotate(-4deg) translateY(2%); } }
+@keyframes mascotte-luister { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { .mascotte, .mascotte-lijf, .mascotte-ogen { animation: none !important; } }
 .minder-beweging .mascotte, .minder-beweging .mascotte-lijf, .minder-beweging .mascotte-ogen { animation: none !important; }
+
+/* Toetsenbord open: de balken onderin maken plaats, zoals in WhatsApp. */
+.toetsenbord-open nav[aria-label=Hoofdmenu], .toetsenbord-open nav[aria-label=Chat] { display: none !important; }

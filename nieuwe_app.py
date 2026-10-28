@@ -27,6 +27,20 @@ export default function (component) {
   venster.srcdoc = data.html.replace("__OUDE_APP__", JSON.stringify(location.origin + "/"));
   document.body.appendChild(venster);
   window.__nieuweApp = venster;
+  // Het scherm staat vast: de pagina eronder scrollt nooit mee, ook niet als het toetsenbord opent. Het venster
+  // volgt precies het zichtbare deel, zodat het invoerveld vlak boven het toetsenbord staat.
+  document.documentElement.style.overflow = "hidden";
+  document.documentElement.style.overscrollBehavior = "none";
+  document.body.style.cssText += ";position:fixed;inset:0;overflow:hidden;overscroll-behavior:none";
+  const vv = window.visualViewport;
+  const pas = () => {
+    venster.style.height = Math.round(vv ? vv.height : window.innerHeight) + "px";
+    venster.style.top = Math.round(vv ? vv.offsetTop : 0) + "px";
+    if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  };
+  if (vv) { vv.addEventListener("resize", pas); vv.addEventListener("scroll", pas); }
+  window.addEventListener("scroll", pas, { passive: true });
+  pas();
 }
 """
 
