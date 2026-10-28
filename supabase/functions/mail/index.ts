@@ -1,6 +1,7 @@
 // Je mailbox lezen voor de nieuwe app (die draait in de browser en kan zelf geen IMAP).
 //
 // Alleen lezen: de map wordt met EXAMINE geopend, dus niets wordt als gelezen gemarkeerd, verplaatst of gewist.
+// Versturen gaat alleen als je zelf op Versturen tikt, na het lezen van de precieze tekst (actie "versturen", via SMTP).
 // Je mailinstellingen haalt deze functie zelf uit je gegevens; je wachtwoord komt dus niet van de browser hierheen
 // (behalve bij "testen", voordat je het bewaart). Er wordt niets bewaard en niets gelogd van je mail.
 //
@@ -112,7 +113,8 @@ export function tekstVan(deel: Deel, diepte = 0): { soort: "plain" | "html" | ""
   return type.startsWith("text/html") ? { soort: "html", tekst: zonderHtml(tekst) } : { soort: "plain", tekst };
 }
 
-export type Kort = { uid: number; van: string; adres: string; onderwerp: string; datum: string; gelezen: boolean; tekst: string };
+export type Kort = { uid: number; van: string; adres: string; onderwerp: string; datum: string; gelezen: boolean; tekst: string;
+  id?: string };
 
 // Koppen horen ASCII te zijn, maar sommige afzenders sturen er gewoon UTF-8 in.
 const kopUtf = (s: string) => kopTekst(/[\x80-\xff]/.test(s) ? tekenset(bytes(s)) : s);
@@ -126,7 +128,8 @@ export function bericht(uid: number, gelezen: boolean, ruw: string, max = 1500):
   const tekst = tekstVan(deel).tekst.split(/\r?\n/).filter((r) => !r.startsWith(">")).join("\n")
     .replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim().slice(0, max);
   return { uid, van, adres, onderwerp: kopUtf(deel.koppen.subject ?? "") || "(geen onderwerp)",
-    datum: isNaN(d.getTime()) ? "" : d.toISOString(), gelezen, tekst };
+    datum: isNaN(d.getTime()) ? "" : d.toISOString(), gelezen, tekst,
+    ...(/^<[^<>\s]{3,300}>$/.test(deel.koppen["message-id"] ?? "") ? { id: deel.koppen["message-id"] } : {}) };
 }
 
 // --- IMAP --------------------------------------------------------------------------------------------------------
@@ -245,6 +248,118 @@ export async function lijst(imap: Imap, aantal = AANTAL): Promise<Kort[]> {
   return uit.sort((x, y) => y.uid - x.uid);
 }
 
+// --- SMTP --------------------------------------------------------------------------------------------------------
+
+export class SmtpFout extends Error {}
+export type Uitgaand = { aan: string[]; onderwerp: string; tekst: string; antwoord_op?: string };
+export type SmtpInstellingen = Instellingen & { smtp?: string; smtp_poort?: number | string };
+
+const ADRES = /^[^\s@<>",;:()\[\]\\]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
+
+/** Een kop met tekens buiten ASCII netjes coderen (RFC 2047). */
+export function kopCoderen(s: string) {
+  const schoon = s.replace(/[\r\n]+/g, " ").trim();
+  if (/^[\x20-\x7e]*$/.test(schoon)) return schoon;
+  return `=?utf-8?B?${btoa(String.fromCharCode(...new TextEncoder().encode(schoon)))}?=`;
+}
+
+/** Het hele bericht zoals het over de lijn gaat. Base64 in het lijf, dus geen punt- of regelproblemen. */
+export function opstellen(van: string, b: Uitgaand, nu = new Date()) {
+  const domein = van.split("@")[1] ?? "localhost";
+  const lijf = btoa(String.fromCharCode(...new TextEncoder().encode(b.tekst.replace(/\r?\n/g, "\r\n"))))
+    .replace(/.{1,76}/g, (r) => `${r}\r\n`);
+  return [
+    `From: ${van}`, `To: ${b.aan.join(", ")}`, `Subject: ${kopCoderen(b.onderwerp)}`, `Date: ${nu.toUTCString().replace("GMT", "+0000")}`,
+    `Message-ID: <${crypto.randomUUID()}@${domein}>`,
+    ...(b.antwoord_op ? [`In-Reply-To: ${b.antwoord_op}`, `References: ${b.antwoord_op}`] : []),
+    "MIME-Version: 1.0", "Content-Type: text/plain; charset=utf-8", "Content-Transfer-Encoding: base64", "", lijf,
+  ].join("\r\n");
+}
+
+export function controleren(b: Partial<Uitgaand>): Uitgaand {
+  const aan = (Array.isArray(b.aan) ? b.aan : []).map((a) => String(a).trim()).filter(Boolean);
+  if (!aan.length || aan.length > 10 || !aan.every((a) => ADRES.test(a))) throw new SmtpFout("Controleer het mailadres.");
+  const onderwerp = String(b.onderwerp ?? "").slice(0, 300);
+  const tekst = String(b.tekst ?? "");
+  if (!tekst.trim()) throw new SmtpFout("Het bericht is leeg.");
+  if (tekst.length > 20_000) throw new SmtpFout("Het bericht is te lang.");
+  const op = typeof b.antwoord_op === "string" && /^<[^<>\s]{3,300}>$/.test(b.antwoord_op) ? b.antwoord_op : undefined;
+  return { aan, onderwerp, tekst, antwoord_op: op };
+}
+
+class Smtp {
+  #buffer = "";
+  constructor(private v: Deno.Conn) {}
+  async #regel() {
+    while (!this.#buffer.includes("\n")) {
+      const stuk = new Uint8Array(4096);
+      const n = await this.v.read(stuk);
+      if (n === null) throw new SmtpFout("De mailserver verbrak de verbinding.");
+      this.#buffer += latin(stuk.subarray(0, n));
+      if (this.#buffer.length > 100_000) throw new SmtpFout("Antwoord te groot.");
+    }
+    const i = this.#buffer.indexOf("\n");
+    const r = this.#buffer.slice(0, i).replace(/\r$/, "");
+    this.#buffer = this.#buffer.slice(i + 1);
+    return r;
+  }
+  /** Leest een (meerregelig) antwoord en controleert de code. */
+  async antwoord(verwacht: number) {
+    const regels: string[] = [];
+    while (true) {
+      const r = await this.#regel();
+      regels.push(r);
+      if (!/^\d{3}-/.test(r)) break;
+    }
+    const code = Number(regels.at(-1)!.slice(0, 3));
+    if (Math.floor(code / 100) !== Math.floor(verwacht / 100)) throw new SmtpFout(String(code));
+    return regels;
+  }
+  async zeg(tekst: string, verwacht: number) {
+    await this.v.write(bytes(`${tekst}\r\n`));
+    return this.antwoord(verwacht);
+  }
+  wissel(v: Deno.Conn) { this.v = v; this.#buffer = ""; }
+  sluiten() { try { this.v.close(); } catch { /* al dicht */ } }
+}
+
+/** Verstuurt één bericht uit je eigen mailbox. Poort 465 is meteen versleuteld, anders eerst STARTTLS. */
+export async function versturen(m: SmtpInstellingen, b: Uitgaand, { direct: meteen, ...opties }:
+  { caCerts?: string[]; direct?: boolean } = {}) {
+  if (!m.smtp || !m.adres || !m.wachtwoord) throw new GeenMail();
+  if (!/^[a-z0-9.-]+$/i.test(m.smtp)) throw new SmtpFout("Onbekende mailserver.");
+  const poort = Number(m.smtp_poort) || 587;
+  const direct = meteen ?? poort === 465;
+  const kaal = direct ? await Deno.connectTls({ hostname: m.smtp, port: poort, ...opties })
+    : await Deno.connect({ hostname: m.smtp, port: poort });
+  const s = new Smtp(kaal);
+  try {
+    await s.antwoord(220);
+    await s.zeg("EHLO assistent", 250);
+    if (!direct) {
+      await s.zeg("STARTTLS", 220);
+      s.wissel(await Deno.startTls(kaal as Deno.TcpConn, { hostname: m.smtp, ...opties }));
+      await s.zeg("EHLO assistent", 250);
+    }
+    const plain = btoa(String.fromCharCode(...new TextEncoder().encode(`\0${m.gebruiker || m.adres}\0${m.wachtwoord}`)));
+    try {
+      await s.zeg(`AUTH PLAIN ${plain}`, 235);
+    } catch {
+      throw new SmtpFout("Inloggen om te versturen lukte niet. Klopt het app-wachtwoord?");
+    }
+    await s.zeg(`MAIL FROM:<${m.adres}>`, 250);
+    for (const a of b.aan) await s.zeg(`RCPT TO:<${a}>`, 250);
+    await s.zeg("DATA", 354);
+    await s.zeg(`${opstellen(m.adres, b)}\r\n.`, 250);
+    await s.zeg("QUIT", 221).catch(() => {});
+  } catch (e) {
+    if (e instanceof SmtpFout && /^\d{3}$/.test(e.message)) throw new SmtpFout("Versturen lukte niet. Controleer het adres en probeer het opnieuw.");
+    throw e;
+  } finally {
+    s.sluiten();
+  }
+}
+
 // --- Verzoeken ---------------------------------------------------------------------------------------------------
 
 const metTijd = <T>(p: Promise<T>) => Promise.race([p, new Promise<never>((_, nee) =>
@@ -262,7 +377,11 @@ export async function verwerk(verzoek: Request): Promise<Response> {
       imap.sluiten();
       return Response.json({ ok: true });
     }
-    const m: Instellingen = g.data?.instellingen?.mail ?? {};
+    const m: SmtpInstellingen = g.data?.instellingen?.mail ?? {};
+    if (body.actie === "versturen") {
+      await metTijd(versturen(m, controleren(body.bericht ?? {})));
+      return Response.json({ ok: true });
+    }
     const imap = await metTijd(inloggen(m));
     try {
       return Response.json({ berichten: await metTijd(lijst(imap)) });
@@ -271,7 +390,7 @@ export async function verwerk(verzoek: Request): Promise<Response> {
     }
   } catch (e) {
     if (e instanceof GeenMail) return Response.json({ geen_mail: true });
-    if (e instanceof ImapFout) return Response.json({ fout: e.message });
+    if (e instanceof ImapFout || e instanceof SmtpFout) return Response.json({ fout: e.message });
     console.error("mail", e instanceof Error ? e.name : "fout");
     return Response.json({ fout: "Je mail is even niet bereikbaar. Probeer het zo opnieuw." });
   }

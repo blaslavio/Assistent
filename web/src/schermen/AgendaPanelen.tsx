@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { bijwerken, instellingenBijwerken, type Afspraak, type Taak } from "../api";
 import type { Staat } from "../App";
-import { Bel, Envelop, Herstel, Prullenbak, Slot, Vinkje, Vonk } from "../iconen";
-import { AANBIEDERS, gekoppeld, mails, mailsBewaard, samenvatting, testen, type Mail } from "../lib/mail";
+import { Bel, Bewerk, Envelop, Euro, Herstel, Kalender, Plus, Prullenbak, Slot, Vinkje, Vonk } from "../iconen";
+import { AANBIEDERS, gekoppeld, mails, mailsBewaard, samenvatting, testen, voorstellen, type Mail, type Voorstel } from "../lib/mail";
+import { gegevensLaden } from "../api";
+import { Opstellen } from "./MailOpstellen";
 import { DAGEN, datumTekst, plusDagen, tijdje, uur } from "../lib/tijd";
 
 type Props = { staat: Staat; setStaat: (s: Staat) => void };
@@ -260,6 +262,7 @@ export function MailPaneel({ staat, setStaat }: Props) {
   const [fout, setFout] = useState("");
   const [open, setOpen] = useState<number | null>(null);
   const [bezig, setBezig] = useState(false);
+  const [schrijf, setSchrijf] = useState<Mail | "nieuw" | null>(null);
 
   async function laden(vers = false) {
     setFout("");
@@ -297,11 +300,17 @@ export function MailPaneel({ staat, setStaat }: Props) {
               <li key={i} className="flex gap-2 text-[15px] leading-snug"><span className="text-accent">•</span>
                 <span>{r.replace(/^[-•*]\s*/, "")}</span></li>))}</ul>}
       </div>
+      {lijst && lijst.some((m) => !m.gelezen) && <UitJeMail lijst={lijst} staat={staat} setStaat={setStaat} />}
       {fout && <p role="alert" className="pb-3 text-sm text-red-600 dark:text-red-400">{fout}</p>}
       <div className="flex items-center justify-between">
         <Kop>Inbox</Kop>
-        <button onClick={() => { setSamen(undefined); laden(true); }} disabled={bezig}
-          className="h-8 rounded-full px-3 text-sm text-accent disabled:opacity-40">{bezig ? "Ophalen" : "Vernieuwen"}</button>
+        <span className="flex items-center">
+          <button onClick={() => { setSamen(undefined); laden(true); }} disabled={bezig}
+            className="h-8 rounded-full px-3 text-sm text-rustig disabled:opacity-40">{bezig ? "Ophalen" : "Vernieuwen"}</button>
+          <button onClick={() => setSchrijf("nieuw")} className="flex h-8 items-center gap-1 rounded-full px-3 text-sm text-accent">
+            <Bewerk className="size-4" /> Nieuw
+          </button>
+        </span>
       </div>
       {lijst === null && bezig && <p className="bezig-tekst py-4 text-[15px]">Ophalen</p>}
       <ul className="flex flex-col">
@@ -317,14 +326,120 @@ export function MailPaneel({ staat, setStaat }: Props) {
               {open !== m.uid && <span className="truncate text-[13px] text-zacht">{m.tekst.slice(0, 120)}</span>}
             </button>
             {open === m.uid && (
-              <p className="opkomen mb-3 whitespace-pre-line rounded-2xl bg-vlak p-3 text-[14px] leading-relaxed text-rustig">
-                {m.tekst || "Geen tekst in dit bericht."}
-              </p>
+              <div className="opkomen mb-3 flex flex-col gap-2 rounded-2xl bg-vlak p-3">
+                <p className="whitespace-pre-line text-[14px] leading-relaxed text-rustig">{m.tekst || "Geen tekst in dit bericht."}</p>
+                {m.adres && (
+                  <button onClick={() => setSchrijf(m)}
+                    className="flex h-10 w-fit items-center gap-2 rounded-full bg-accent px-4 text-sm font-medium text-white">
+                    <Herstel className="size-4" /> Beantwoorden
+                  </button>
+                )}
+              </div>
             )}
           </li>
         ))}
       </ul>
-      <p className="mt-6 flex items-center gap-1.5 text-[13px] text-zacht"><Slot className="size-3.5" /> Alleen lezen. Er wordt niets verplaatst of als gelezen gemarkeerd.</p>
+      <p className="mt-6 flex items-center gap-1.5 text-[13px] text-zacht"><Slot className="size-3.5" /> Lezen verandert niets in je mailbox. Versturen doe je altijd zelf.</p>
+      {schrijf && <Opstellen data={staat.data} op={schrijf === "nieuw" ? undefined : schrijf} sluit={() => setSchrijf(null)} />}
+    </div>
+  );
+}
+
+/** Wat er uit je ongelezen mail te doen valt. Pas als jij erom vraagt, en alleen wat jij aanvinkt komt erin. */
+function UitJeMail({ lijst, staat, setStaat }: { lijst: Mail[]; staat: Staat; setStaat: (s: Staat) => void }) {
+  const [voorstel, setVoorstel] = useState<Voorstel[] | null | undefined>(undefined);
+  const [gekozen, setGekozen] = useState<Set<number>>(new Set());
+  const [bezig, setBezig] = useState(false);
+  const [melding, setMelding] = useState("");
+
+  async function kijken() {
+    setBezig(true);
+    setMelding("");
+    try {
+      const v = await voorstellen(lijst, staat.data, datumTekst(new Date()));
+      setVoorstel(v);
+      setGekozen(new Set((v ?? []).map((_, i) => i)));
+    } catch (e) {
+      setMelding(foutVan(e));
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  async function toevoegen() {
+    const kies = (voorstel ?? []).filter((_, i) => gekozen.has(i));
+    setBezig(true);
+    try {
+      await bijwerken((g) => {
+        for (const v of kies) {
+          const id = g.volgend_id++;
+          if (v.soort === "afspraak" && v.datum) {
+            const start = v.tijd ? `${v.datum}T${v.tijd}` : v.datum;
+            g.afspraken.push({ id, titel: v.titel, start, einde: null, locatie: "", soort: "afspraak", notitie: `Uit mail van ${v.van}` });
+          } else {
+            g.taken.push({ id, titel: v.soort === "betalen" && v.bedrag ? `${v.titel} (${v.bedrag})` : v.titel,
+              deadline: v.datum || null, klaar: false, ...(v.soort === "betalen" ? { prioriteit: "hoog" } : {}) });
+          }
+        }
+      });
+      setStaat(await gegevensLaden());
+      setVoorstel(undefined);
+      setMelding(`${kies.length} toegevoegd aan je agenda en taken`);
+    } catch (e) {
+      setMelding(foutVan(e));
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  const icoon = { taak: Vinkje, afspraak: Kalender, betalen: Euro };
+  return (
+    <div className="mb-4 flex flex-col gap-3 rounded-[22px] border border-lijn p-4">
+      {voorstel === undefined ? (
+        <button onClick={kijken} disabled={bezig} className="flex items-center gap-3 text-left disabled:opacity-60">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent"><Vonk className="size-[18px]" /></span>
+          <span className="flex flex-col">
+            <span className="font-medium">{bezig ? "Je mail doorlezen" : "Wat moet ik met mijn mail?"}</span>
+            <span className="text-[13px] text-rustig">{melding || "Taken, afspraken en rekeningen uit je ongelezen mail"}</span>
+          </span>
+        </button>
+      ) : voorstel === null ? (
+        <p className="text-[15px] text-rustig">Zet de assistent aan in Instellingen om je mail te laten nakijken.</p>
+      ) : voorstel.length === 0 ? (
+        <p className="text-[15px] text-rustig">Niets te doen in je ongelezen mail.</p>
+      ) : <>
+        <span className="text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig">Uit je mail</span>
+        <ul className="flex flex-col gap-1">
+          {voorstel.map((v, i) => {
+            const Icoon = icoon[v.soort];
+            const aan = gekozen.has(i);
+            return (
+              <li key={i}>
+                <button onClick={() => setGekozen((s) => { const n = new Set(s); if (aan) n.delete(i); else n.add(i); return n; })}
+                  aria-pressed={aan} className="flex w-full items-center gap-3 py-1.5 text-left">
+                  <span className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${aan ? "border-accent bg-accent text-white" : "border-lijn"}`}>
+                    {aan && <Vinkje className="size-3.5" />}
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate">{v.titel}{v.soort === "betalen" && v.bedrag ? ` · ${v.bedrag}` : ""}</span>
+                    <span className="truncate text-[13px] text-rustig">
+                      {[v.soort === "afspraak" ? "Afspraak" : v.soort === "betalen" ? "Betalen" : "Taak",
+                        v.datum ? `${v.datum.slice(8, 10)}/${Number(v.datum.slice(5, 7))}${v.tijd ? ` ${v.tijd}` : ""}` : "", v.van]
+                        .filter(Boolean).join(" · ")}
+                    </span>
+                  </span>
+                  <Icoon className="size-4 shrink-0 text-zacht" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        <button onClick={toevoegen} disabled={bezig || gekozen.size === 0}
+          className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-accent font-medium text-white disabled:opacity-30">
+          <Plus className="size-[18px]" /> {gekozen.size === 1 ? "1 toevoegen" : `${gekozen.size} toevoegen`}
+        </button>
+      </>}
+      {melding && voorstel !== undefined && <p role="status" className="text-sm text-rustig">{melding}</p>}
     </div>
   );
 }
