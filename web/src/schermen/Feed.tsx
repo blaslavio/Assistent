@@ -12,8 +12,8 @@ const foutVan = (e: unknown) => (e instanceof Error ? e.message : "Dat lukte nie
 const pil = (aan: boolean) => `h-9 shrink-0 rounded-full px-3.5 text-sm ${aan ? "bg-inkt font-medium text-white dark:text-[#0b0b0e]" : "bg-vlak"}`;
 
 /** De feed op het tabblad Community's. */
-export function Feed({ mijn, begin, open, vernieuw }: { mijn: Community[]; begin: FeedInstelling;
-  open: (id: number) => void; vernieuw: () => Promise<void> }) {
+export function Feed({ mijn, begin, open, vernieuw, maken }: { mijn: Community[]; begin: FeedInstelling;
+  open: (id: number) => void; vernieuw: () => Promise<void>; maken?: () => void }) {
   const [keuze, setKeuze] = useState(begin);
   const [aanpassen, setAanpassen] = useState(false);
   const [openbaar, setOpenbaar] = useState<Openbaar[]>([]);
@@ -68,6 +68,19 @@ export function Feed({ mijn, begin, open, vernieuw }: { mijn: Community[]; begin
         </section>
       )}
 
+      {mijn.length === 0 && maken && (
+        <section className="mx-6 flex flex-col gap-3 rounded-[20px] bg-vlak p-5">
+          <h3 className="text-lg font-semibold">Begin je eigen plek</h3>
+          <p className="text-[15px] text-rustig">Een community is een groep met eigen kanalen en een feed. Versleuteld, zonder reclame, en jij bepaalt wie erin mag.</p>
+          <div className="flex flex-wrap gap-2 text-sm">
+            {["Je straat", "Je sportclub", "Je klas", "Je familie", "Je klanten"].map((x) => (
+              <span key={x} className="rounded-full border border-lijn px-3 py-1.5 text-rustig">{x}</span>
+            ))}
+          </div>
+          <button onClick={maken} className="h-11 rounded-full bg-accent font-medium text-white">Maak een community of doe mee</button>
+        </section>
+      )}
+
       {mijn.length > 0 && <Schrijven mijn={mijn} geplaatst={() => setKeuze((k) => ({ ...k }))} />}
 
       {nieuw.length > 0 && keuze.bron !== "mijn" && (
@@ -85,7 +98,7 @@ export function Feed({ mijn, begin, open, vernieuw }: { mijn: Community[]; begin
       )}
 
       <Berichten keuze={keuze} leeg={mijn.length === 0 && nieuw.length === 0
-        ? "Nog niets te zien. Maak een community of doe mee met een code bij Groepen."
+        ? "Zodra je ergens lid van bent, verschijnen hier de berichten. Openbare community's zie je hierboven."
         : "Nog geen berichten. Schrijf als eerste iets."} />
     </div>
   );

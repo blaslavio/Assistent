@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { bijwerken, type Afspraak } from "../api";
-import type { Staat } from "../App";
-import { Persoon, Plus } from "../iconen";
+import { bijwerken, instellingenBijwerken, type Afspraak } from "../api";
+import type { Staat, Tab } from "../App";
+import { Camera, Envelop, Huis, Kalender, Kruis, Persoon, Plus, Terug, Vinkje } from "../iconen";
+import { gekoppeld } from "../lib/mail";
 import { KeuzeKaart } from "../keuzekaart";
 import { MascotteMetTip } from "../mascotte";
 import { opVandaag, type Weergave } from "./Algemeen";
@@ -11,9 +12,9 @@ import { weerNu, type Weer } from "../lib/weer";
 
 const kop = "mb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig";
 
-type Props = { staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () => void };
+type Props = { staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () => void; ga?: (t: Tab) => void };
 
-export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
+export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props) {
   const [nu, setNu] = useState(() => new Date());
   const [weer, setWeer] = useState<Weer | null>(null);
   const [invoer, setInvoer] = useState("");
@@ -42,6 +43,13 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
     .filter((t) => !t.klaar)
     .sort((a, b) => (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999"))
     .slice(0, 5);
+
+  // De komende dagen: wat er na vandaag aankomt, zodat je vooruit kunt kijken zonder de agenda te openen.
+  const komend = useMemo(() => {
+    const tot = datumTekst(new Date(nu.getTime() + 7 * 864e5));
+    return data.afspraken.filter((a) => a.start.slice(0, 10) > vandaag && a.start.slice(0, 10) <= tot)
+      .sort((a, b) => a.start.localeCompare(b.start)).slice(0, 4);
+  }, [data.afspraken, vandaag, nu]);
 
   const v = useMemo(() => voorstel(data, nu), [data, nu]);
   const [gekozen, setGekozen] = useState<{ sleutel: string; optie: number } | null>(null);
@@ -97,6 +105,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
 
       <main className="flex flex-1 flex-col gap-7 px-6 py-4">
         {toon("mascotte") && <MascotteMetTip />}
+        <AanDeSlag staat={staat} setStaat={setStaat} naarInstellingen={naarInstellingen} ga={ga} />
         {v && (
           <KeuzeKaart keuze={v} open={!gekozen} kies={kiesVoorstel} compact
             gekozen={gekozen?.sleutel === v.sleutel ? gekozen.optie : undefined} />
@@ -130,6 +139,21 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
 
         {toon("afspraken") && !straks && rest.length === 0 && <p className="text-rustig">Niets meer in je agenda vandaag.</p>}
 
+        {toon("afspraken") && komend.length > 0 && (
+          <section>
+            <h2 className={kop}>Komende dagen</h2>
+            <ul>
+              {komend.map((a) => (
+                <li key={a.id} className="flex items-baseline gap-4 py-2">
+                  <span className="w-20 shrink-0 text-sm text-rustig">{new Date(a.start.slice(0, 10) + "T12:00")
+                    .toLocaleDateString("nl-NL", { weekday: "short", day: "numeric" })}{heleDag(a.start) ? "" : ` ${uur(a.start)}`}</span>
+                  <span className="min-w-0 truncate">{a.titel}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {toon("taken") && <section>
           <h2 className={kop}>Taken</h2>
           {taken.length === 0 ? (
@@ -162,5 +186,53 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
         </label>
       </form>}
     </div>
+  );
+}
+
+/** Vier eerste stappen voor een nieuw account. Verdwijnt vanzelf als alles klaar is, of als je hem wegtikt. */
+function AanDeSlag({ staat, setStaat, naarInstellingen, ga }: Omit<Props, "ga"> & { ga?: (t: Tab) => void }) {
+  const { data, gebruiker } = staat;
+  const inst = (data.instellingen ?? {}) as Record<string, unknown>;
+  if (inst.aan_de_slag === "weg") return null;
+  const stappen = [
+    { klaar: Boolean(gebruiker.heeft_foto), icoon: Camera, titel: "Zet een foto bij je profiel", uitleg: "Zo herkennen mensen je in de chat", doe: naarInstellingen },
+    { klaar: Boolean(inst.thuisadres), icoon: Huis, titel: "Vul je woonplaats in", uitleg: "Voor het weer hier en reistijden in je agenda", doe: naarInstellingen },
+    { klaar: data.afspraken.length > 0, icoon: Kalender, titel: "Zet je eerste afspraak erin", uitleg: "Dan weet Vandaag wat er straks komt", doe: () => ga?.("agenda") },
+    { klaar: gekoppeld(data), icoon: Envelop, titel: "Koppel je mail", uitleg: "De assistent haalt er taken en afspraken uit", doe: naarInstellingen },
+  ];
+  const gedaan = stappen.filter((x) => x.klaar).length;
+  if (gedaan === stappen.length) return null;
+  async function weg() {
+    try { setStaat({ ...staat, data: await instellingenBijwerken((i) => { i.aan_de_slag = "weg"; }) as typeof data }); } catch { /* later opnieuw */ }
+  }
+  return (
+    <section className="rounded-[20px] bg-vlak p-4">
+      <div className="mb-3 flex items-center gap-3">
+        <div className="flex flex-1 flex-col">
+          <h2 className="font-semibold">Maak de app van jou</h2>
+          <p className="text-sm text-rustig">{gedaan} van {stappen.length} gedaan</p>
+        </div>
+        <button onClick={weg} aria-label="Verbergen" className="flex size-9 items-center justify-center rounded-full text-rustig">
+          <Kruis className="size-4" /></button>
+      </div>
+      <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-lijn">
+        <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${(gedaan / stappen.length) * 100}%` }} />
+      </div>
+      <ul className="flex flex-col">
+        {stappen.map(({ klaar, icoon: Icoon, titel, uitleg, doe }) => (
+          <li key={titel}>
+            <button onClick={doe} disabled={klaar} className="flex w-full items-center gap-3 py-2.5 text-left disabled:opacity-50">
+              <span className={`flex size-9 shrink-0 items-center justify-center rounded-full ${klaar ? "bg-accent text-white" : "bg-white text-accent dark:bg-[#2a2a31]"}`}>
+                {klaar ? <Vinkje className="size-4" /> : <Icoon className="size-4" />}</span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className={`font-medium ${klaar ? "line-through" : ""}`}>{titel}</span>
+                <span className="truncate text-[13px] text-rustig">{uitleg}</span>
+              </span>
+              {!klaar && <Terug className="size-4 rotate-180 text-zacht" />}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
