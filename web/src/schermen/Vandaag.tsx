@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { bijwerken, instellingenBijwerken, type Afspraak } from "../api";
 import type { Staat, Tab } from "../App";
 import { Camera, Envelop, Huis, Kalender, Kruis, Persoon, Plus, Terug, Vinkje } from "../iconen";
@@ -6,18 +6,27 @@ import { gekoppeld } from "../lib/mail";
 import { KeuzeKaart } from "../keuzekaart";
 import { MascotteMetTip, mascotteZeg } from "../mascotte";
 import { opVandaag, type Weergave } from "./Algemeen";
-import { afhandelen, voorstel } from "../lib/voorstellen";
-import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
+import { afhandelen, voorstel, type Voorstel } from "../lib/voorstellen";
+import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, uur } from "../lib/tijd";
 import { weerNu, type Weer } from "../lib/weer";
+import { gelijk, taakVoorstel, taakUitvoeren, taakResultaat, type DagActie } from "../lib/dagacties";
 
 const kop = "mb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig";
 
-type Props = { staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () => void; ga?: (t: Tab) => void };
+type Props = { staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () => void; naarAssistent?: () => void;
+  vernieuw?: () => Promise<void>; ga?: (t: Tab) => void };
 
-export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props) {
+export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssistent, vernieuw, ga }: Props) {
   const [nu, setNu] = useState(() => new Date());
   const [weer, setWeer] = useState<Weer | null>(null);
   const [invoer, setInvoer] = useState("");
+  const [actie, setActie] = useState<DagActie | null>(null);
+  const [voorstelKeuze, setVoorstelKeuze] = useState<{ voorstel: Voorstel; optie: number; basis: unknown } | null>(null);
+  const [bezig, setBezig] = useState(false);
+  const [onzeker, setOnzeker] = useState(false);
+  const [fout, setFout] = useState("");
+  const [resultaat, setResultaat] = useState("");
+  const slot = useRef(false);
   const { data, gebruiker } = staat;
   const toon = (k: string) => opVandaag((data.instellingen ?? {}) as Weergave, k);
 
@@ -54,43 +63,79 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
   const v = useMemo(() => voorstel(data, nu), [data, nu]);
   const [gekozen, setGekozen] = useState<{ sleutel: string; optie: number } | null>(null);
 
-  async function kiesVoorstel(optie: number) {
-    if (!v || gekozen) return;
-    setGekozen({ sleutel: v.sleutel, optie });
+  function kiesVoorstel(optie: number) {
+    if (!v || gekozen || actie || voorstelKeuze || slot.current) return;
+    setVoorstelKeuze({ voorstel: v, optie, basis: structuredClone({ taken: data.taken, afspraken: data.afspraken }) });
+    setFout(""); setResultaat(""); setOnzeker(false);
+  }
+
+  async function bevestigVoorstel() {
+    const k = voorstelKeuze;
+    if (!k || slot.current) return;
+    slot.current = true;
+    setFout("");
+    setOnzeker(true); setBezig(true);
+    setGekozen({ sleutel: k.voorstel.sleutel, optie: k.optie });
     try {
-      setStaat({ ...staat, data: await bijwerken((g) => afhandelen(g, v, optie)) });
+      setStaat({ ...staat, data: await bijwerken((g) => {
+        if ((g.instellingen?.voorstellen_gezien as string[] | undefined)?.includes(k.voorstel.sleutel)) return;
+        const actueel = voorstel(g);
+        if (!gelijk(k.basis, { taken: g.taken, afspraken: g.afspraken }) || !actueel || actueel.sleutel !== k.voorstel.sleutel
+          || actueel.opties[k.optie]?.label !== k.voorstel.opties[k.optie]?.label) {
+          throw new Error("Dit voorstel is niet meer actueel. Vernieuw en controleer opnieuw.");
+        }
+        afhandelen(g, k.voorstel, k.optie);
+      }) });
+      setResultaat("Je keuze is opgeslagen.");
+      setVoorstelKeuze(null); setOnzeker(false);
+    } catch (e) {
+      setFout((e instanceof Error ? e.message + " " : "") + "Je keuze is nog niet bevestigd. Vernieuw het overzicht voordat je opnieuw kiest.");
     } finally {
+      slot.current = false;
+      setBezig(false);
       setGekozen(null);
     }
   }
 
-  async function afvinken(id: number) {
-    const over = data.taken.filter((t) => !t.klaar && t.id !== id).length;
-    mascotteZeg(over === 0 ? "Alles afgevinkt. Daar mag je trots op zijn!" : over === 1 ? "Afgevinkt! Nog maar één te gaan."
-      : `Afgevinkt! Nog ${over} te gaan.`);
-    setStaat({ ...staat, data: { ...data, taken: data.taken.map((t) => (t.id === id ? { ...t, klaar: true } : t)) } });
-    const nieuw = await bijwerken((g) => {
-      const taak = g.taken.find((t) => t.id === id);
-      if (taak) taak.klaar = true;
-      // Ingeplande focusblokken voor deze taak die nog moeten komen, zijn niet meer nodig.
-      const nu = nuTekst();
-      g.afspraken = g.afspraken.filter((a) => (a as { taak_id?: number }).taak_id !== id || a.start < nu);
-    });
-    setStaat({ ...staat, data: nieuw });
+  function afvinken(id: number) {
+    if (actie || voorstelKeuze || slot.current) return;
+    const taak = data.taken.find(t => t.id === id);
+    if (taak) setActie({ soort: "afronden", taak: structuredClone(taak) });
+    setFout("");
+    setResultaat("");
   }
 
-  async function toevoegen(e: FormEvent) {
+  function toevoegen(e: FormEvent) {
     e.preventDefault();
-    const titel = invoer.trim();
-    if (!titel) return;
-    setInvoer("");
-    mascotteZeg(/\b(morgen|maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|zondag|\d{1,2}[:.u])/i.test(titel)
-      ? "Staat erop. Wil je het met een tijd in je agenda? Vraag het de assistent." : "Staat op je lijst.");
-    const nieuw = await bijwerken((g) => {
-      g.taken.push({ id: g.volgend_id, titel, deadline: null, klaar: false });
-      g.volgend_id += 1;
-    });
-    setStaat({ ...staat, data: nieuw });
+    if (actie || voorstelKeuze || slot.current) return;
+    try {
+      setActie(taakVoorstel(invoer, data.taken));
+      setFout("");
+      setResultaat("");
+    } catch (e) { setFout(e instanceof Error ? e.message : "Controleer de taaktekst."); }
+  }
+
+  async function bevestigen() {
+    if (!actie || slot.current) return;
+    slot.current = true;
+    setBezig(true);
+    setFout("");
+    setOnzeker(true);
+    try {
+      const nieuw = await bijwerken(g => taakUitvoeren(g, actie));
+      const taak = taakResultaat(nieuw, actie);
+      setStaat({ ...staat, data: nieuw });
+      setResultaat(`${actie.soort === "toevoegen" ? "Taak toegevoegd" : "Taak afgerond"}: ${taak.titel}`);
+      if (actie.soort === "afronden") {
+        const over = nieuw.taken.filter(t => !t.klaar).length;
+        mascotteZeg(over === 0 ? "Alles afgevinkt. Daar mag je trots op zijn!" : `Afgevinkt! Nog ${over} te gaan.`);
+      } else mascotteZeg("Staat op je lijst.");
+      if (actie.soort === "toevoegen") setInvoer("");
+      setActie(null);
+      setOnzeker(false);
+    } catch (e) {
+      setFout((e instanceof Error ? e.message + " " : "") + "Opslag is nog niet bevestigd. Dezelfde opdracht blijft klaarstaan.");
+    } finally { slot.current = false; setBezig(false); }
   }
 
   return (
@@ -109,10 +154,45 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
       </header>
 
       <main className="flex flex-1 flex-col gap-7 px-6 py-4">
+        {fout && <div role="alert" className="rounded-2xl border border-lijn p-4">
+          <p>{fout}</p>
+          {vernieuw && <button disabled={bezig} onClick={async () => {
+            try { await vernieuw(); setFout(""); } catch { setFout("Vernieuwen lukte niet. Je invoer blijft behouden."); }
+          }} className="mt-3 min-h-11 font-medium text-accent">Vernieuw overzicht</button>}
+        </div>}
+        {voorstelKeuze && <section aria-label="Controleer je keuze" className="rounded-[20px] border border-lijn p-5">
+          <h2 className="font-semibold">Controleer je keuze</h2>
+          <p className="mt-2">{voorstelKeuze.voorstel.vraag}</p>
+          <p className="mt-2 font-medium">{voorstelKeuze.voorstel.opties[voorstelKeuze.optie].label}</p>
+          <p className="mt-1 text-sm text-rustig">{voorstelKeuze.voorstel.opties[voorstelKeuze.optie].gevolg}</p>
+          {onzeker && <p className="mt-2 text-sm">De eerdere poging kan al zijn verwerkt. Opnieuw proberen controleert dezelfde keuze.</p>}
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button disabled={bezig} onClick={bevestigVoorstel} className="min-h-11 rounded-full bg-accent px-5 text-white disabled:opacity-50">{bezig ? "Opslaan…" : onzeker ? "Dezelfde keuze opnieuw controleren" : "Bevestigen"}</button>
+            <button disabled={bezig} onClick={() => { setVoorstelKeuze(null); setOnzeker(false); setFout(""); }} className="min-h-11 px-3">{onzeker ? "Sluiten zonder terugdraaien" : "Annuleren"}</button>
+          </div>
+        </section>}
+        {actie && <section aria-label="Controleer je taakopdracht" className="rounded-[20px] border border-lijn p-5">
+          <h2 className="font-semibold">{actie.soort === "toevoegen" ? "Nieuwe taak controleren" : "Taak afronden?"}</h2>
+          <p className="mt-2 break-words">{actie.soort === "toevoegen" ? actie.titel : actie.taak.titel}</p>
+          <p className="mt-2 text-sm text-rustig">{onzeker ? "Een eerdere poging kan al zijn verwerkt. Opnieuw proberen gebruikt dezelfde opdracht."
+            : actie.soort === "afronden" ? "Deze taak wordt als klaar gemarkeerd. Je afspraken blijven staan." : "Pas na bevestigen wordt deze taak opgeslagen."}</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button disabled={bezig} onClick={bevestigen} className="min-h-11 rounded-full bg-accent px-5 text-white disabled:opacity-50">
+              {bezig ? "Opslaan…" : onzeker ? "Dezelfde opdracht opnieuw proberen" : "Bevestigen"}
+            </button>
+            <button disabled={bezig} onClick={() => { setActie(null); setOnzeker(false); setFout(""); }} className="min-h-11 px-3">
+              {onzeker ? "Sluiten zonder terugdraaien" : "Annuleren"}
+            </button>
+          </div>
+        </section>}
+        {resultaat && <section role="status" className="rounded-[20px] bg-vlak p-5">
+          <h2 className="font-semibold">Opgeslagen</h2><p className="mt-1 break-words">{resultaat}</p>
+          {naarAssistent && <button onClick={naarAssistent} className="mt-3 min-h-11 font-medium text-accent">Bespreek je volgende stap met de assistent</button>}
+        </section>}
         {toon("mascotte") && <MascotteMetTip />}
         <AanDeSlag staat={staat} setStaat={setStaat} naarInstellingen={naarInstellingen} ga={ga} />
         {v && (
-          <KeuzeKaart keuze={v} open={!gekozen} kies={kiesVoorstel} compact
+          <KeuzeKaart keuze={v} open={!gekozen && !actie && !voorstelKeuze} kies={kiesVoorstel} compact
             gekozen={gekozen?.sleutel === v.sleutel ? gekozen.optie : undefined} />
         )}
         {toon("afspraken") && straks && (
@@ -168,7 +248,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
               {taken.map((t) => (
                 <li key={t.id}>
                   <label className="flex items-center gap-3.5 py-2.5">
-                    <input type="checkbox" className="size-[22px] accent-accent" onChange={() => afvinken(t.id)} />
+                    <input type="checkbox" checked={false} disabled={!!actie || !!voorstelKeuze || bezig || !!gekozen} className="size-[22px] accent-accent" onChange={() => afvinken(t.id)} />
                     <span>{t.titel}</span>
                     {t.deadline && t.deadline.slice(0, 10) < vandaag && <span className="text-sm text-red-600 dark:text-red-400">te laat</span>}
                   </label>
@@ -182,9 +262,9 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
       {toon("taken") && <form onSubmit={toevoegen} className="sticky bottom-0 bg-white px-4 pb-3 pt-2 dark:bg-[#0b0b0e]">
         <label className="flex h-13 items-center gap-2.5 rounded-full bg-vlak pr-2 pl-5">
           <span className="sr-only">Nieuwe taak</span>
-          <input value={invoer} onChange={(e) => setInvoer(e.target.value)} placeholder="Nieuwe taak"
-            className="flex-1 bg-transparent outline-none placeholder:text-zacht" />
-          <button aria-label="Toevoegen" disabled={!invoer.trim()}
+          <input value={invoer} onChange={(e) => setInvoer(e.target.value)} placeholder="Nieuwe taak" maxLength={160} disabled={!!actie || !!voorstelKeuze || bezig || !!gekozen}
+            className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-zacht" />
+          <button aria-label="Taak voorbereiden" disabled={!invoer.trim() || !!actie || !!voorstelKeuze || bezig || !!gekozen}
             className="flex size-10 items-center justify-center rounded-full bg-inkt text-white disabled:opacity-30 dark:text-black">
             <Plus className="size-5" />
           </button>

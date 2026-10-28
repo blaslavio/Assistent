@@ -691,3 +691,18 @@ Opslag beschermt tegen dubbele retries en verouderde formulieren. Wijzigingen
 uit een andere sessie vereisen eerst herladen; tijdelijke formulieren worden
 bij accountwisseling gewist. Zie [COMMUNICATIE.md](COMMUNICATIE.md) voor de
 werking, privacygrenzen en controlecommando’s.
+
+## Samenwerken vanuit chat en videobellen
+
+De nieuwe webinterface bevat een projectwerkruimte in geaccepteerde gesprekken.
+Deelnemers kunnen tegelijk tekst- en Markdown-bestanden bewerken; Yjs voegt
+wijzigingen samen via het bestaande versleutelde chattransport. Tijdens een
+één-op-één-videogesprek opent **Samen aan project werken** de werkruimte met
+een compact belvenster. Dit is geen Word-/Excel-editor.
+
+Vandaag vraagt voortaan eerst bevestiging voor taakacties en dagvoorstellen.
+Een mislukte opslag wist de invoer niet en toont geen onterechte voltooiing.
+
+Zie [PROJECTWERKRUIMTE.md](PROJECTWERKRUIMTE.md) voor werking, grenzen en
+controlecommando’s. 38 webtests en beide builds slagen; echte meerapparatentests
+blijven nodig. Deze toevoegingen zijn nog niet live.
