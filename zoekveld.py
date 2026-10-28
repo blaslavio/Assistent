@@ -30,7 +30,8 @@ CSS = """
 .zv-lijst li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer;
   color: var(--st-text-color, inherit); }
 .zv-lijst li.actief, .zv-lijst li:hover { background: var(--st-secondary-background-color, #f0f2f6); }
-.zv-lijst .zv-i { width: 22px; text-align: center; flex: none; }
+.zv-lijst .zv-i { width: 22px; text-align: center; flex: none; font-family: 'Material Symbols Rounded'; font-size: 19px;
+  line-height: 1; font-feature-settings: 'liga'; opacity: .7; }
 .zv-lijst .zv-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .zv-lijst small { opacity: .6; white-space: nowrap; }
 """

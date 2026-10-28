@@ -43,7 +43,7 @@ def resultaat_vragen(nu: datetime) -> None:
                     minuten = st.number_input("Minuten", 0, 600, tijd.sportminuten(a), step=5)
                     km = st.number_input("Afstand in km", 0.0, 500.0, 0.0, step=0.5, help="0 als het niet telt")
                     gevoel = st.select_slider("Hoe voelde het?", options=[1, 2, 3, 4, 5], value=3,
-                                              format_func=lambda g: ["😫", "😕", "🙂", "😀", "🤩"][g - 1])
+                                              format_func=lambda g: ["Zwaar", "Pittig", "Goed", "Lekker", "Top"][g - 1])
                     if st.form_submit_button("Opslaan", type="primary"):
                         opslag.sport_vastleggen(a["id"], int(minuten), float(km), gevoel)
                         st.rerun()
@@ -87,7 +87,7 @@ def gepland(dagen: int = 14) -> list[dict]:
 
 
 def training_regel(t: dict) -> None:
-    icoon = tijd.sport_icoon(t["sport"]) if t["sport"] else "🏅"
+    icoon = tijd.sport_icoon(t["sport"]) if t["sport"] else ":material/emoji_events:"
     extra = []
     if t.get("bij"):
         extra.append(("Les bij " if t["soort"] == "les" else "Bij ") + t["bij"])

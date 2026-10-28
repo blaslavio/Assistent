@@ -1,5 +1,7 @@
 """Webinterface van de assistent. Starten met: streamlit run app.py"""
 
+import life_swarm_core
+
 import calendar
 import html
 import importlib
@@ -24,6 +26,9 @@ import assistant_privacy
 import universal_workspace
 import intent_engine
 import azure_search_ready
+import azure_services
+import azure_documents
+import azure_ui
 import universal_search
 import predictive_context
 import dating_core
@@ -32,7 +37,9 @@ import multistream_core
 import multistream_store
 import resource_booking_core
 import video_project_core
+import video_trim
 import avatar
+import rive_chat_state
 import bank
 import boekpagina
 import beleggen
@@ -66,11 +73,13 @@ import reserveren
 import ruimte
 import ruimte_scherm
 import samen
+import samen_leren
 import samen_scherm
 import winkelen
 import winkelen_scherm
 import slim
 import spraak
+import symbool
 import strava
 import teksten
 import tijd
@@ -78,6 +87,7 @@ import werk_scherm
 import weer
 import wetenschap
 import inplannen
+import nieuwe_app
 import onthouden
 import snelinvoer
 import woning
@@ -109,8 +119,8 @@ import browser  # niet in de herlaadlijst: bevat onderdelen (components)
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
-for _module in (opslag, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, toegang, bestanden, bestanden_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, wereld, ontwerp, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, cursus, cursus_scherm, gezondheid, sport_scherm):
+for _module in (symbool, opslag, agendas, agenda_import, resource_booking_core, integraties_voorbereiding, budget, samen_leren, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
+                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, azure_services, azure_search_ready, azure_documents, azure_ui, toegang, bestanden, bestanden_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, wereld, ontwerp, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, cursus, cursus_scherm, gezondheid, sport_scherm):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -141,6 +151,46 @@ st.markdown("""
 .stButton > button {
     border-radius: 7px;
     font-weight: 500;
+}
+
+/* SuperApp assistant UI refinement */
+[data-testid="stAppViewContainer"] [data-testid="stChatInput"] {
+    border-radius: 16px !important;
+    box-shadow: 0 2px 14px rgba(15, 23, 42, 0.045);
+}
+[data-testid="stAppViewContainer"] [data-testid="stChatInput"] textarea {
+    font-size: 0.98rem !important;
+    line-height: 1.45 !important;
+}
+[data-testid="stAppViewContainer"] [data-testid="stChatMessage"] {
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+[data-testid="stAppViewContainer"] [data-testid="stChatMessage"] pre {
+    max-width: 100%;
+    overflow-x: auto;
+}
+[data-testid="stAppViewContainer"] button:focus-visible,
+[data-testid="stAppViewContainer"] textarea:focus-visible,
+[data-testid="stSidebar"] button:focus-visible {
+    outline: 2px solid #2563eb !important;
+    outline-offset: 3px !important;
+}
+@media (max-width: 640px) {
+  [data-testid="stMainBlockContainer"] {
+      padding-left: 0.85rem !important;
+      padding-right: 0.85rem !important;
+  }
+  [data-testid="stAppViewContainer"] [data-testid="stChatMessage"] {
+      max-width: 100% !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-testid="stAppViewContainer"] * {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+  }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -809,9 +859,9 @@ def strava_bijwerken(forceer: bool = False) -> None:
     st.session_state.strava_bijgewerkt = time.time()
     try:
         if nieuw := strava.bijwerken():
-            st.toast(f"{nieuw} training(en) uit Strava overgenomen.", icon="🏅")
+            st.toast(f"{nieuw} training(en) uit Strava overgenomen.", icon=":material/emoji_events:")
     except opslag.httpx.HTTPError:
-        st.toast("Strava is even niet bereikbaar.", icon="⚠️")
+        st.toast("Strava is even niet bereikbaar.", icon=":material/warning:")
 
 
 def strava_instellingen() -> None:
@@ -846,18 +896,18 @@ def strava_instellingen() -> None:
             st.link_button("Verbind met Strava", strava.koppel_link(inst["strava_client_id"], app_url()), type="primary")
 
 
-def weer_kort() -> str:
-    """Het weer in een paar woorden, voor naast de datum."""
+def weer_kort() -> tuple[str, str] | None:
+    """Het weer in een paar woorden, voor naast de datum: (naam van het symbool, tekst)."""
     try:
         data = weer.voorspelling(opslag.instellingen().get("thuisadres", ""))
     except Exception:
-        return ""
-    icoon, tekst = weer.omschrijving(data["current"]["weather_code"])
+        return None
+    naam, tekst = weer.CODES.get(data["current"]["weather_code"], ("thermostat", "onbekend"))
     dag = data["daily"]
     regen = dag["precipitation_probability_max"][0]
-    return (f"{icoon} {round(data['current']['temperature_2m'])}° {tekst}, "
-            f"{round(dag['temperature_2m_min'][0])}° tot {round(dag['temperature_2m_max'][0])}°"
-            + (f", {regen}% kans op regen" if regen >= 30 else ""))
+    return naam, (f"{round(data['current']['temperature_2m'])}° {tekst}, "
+                  f"{round(dag['temperature_2m_min'][0])}° tot {round(dag['temperature_2m_max'][0])}°"
+                  + (f", {regen}% kans op regen" if regen >= 30 else ""))
 
 
 def weer_bij_afspraak(regel: dict) -> None:
@@ -972,7 +1022,7 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
     with st.form(sleutel, clear_on_submit=not afspraak, border=False):
         titel = st.text_input("Wat", value=a.get("titel", ""), placeholder="Bijv. hardlopen")
         soort = st.pills("Soort", list(tijd.SOORTEN), default=tijd.soort_van(a), key=f"{sleutel}_soort",
-                         format_func=lambda s: f"{tijd.SOORTEN[s]} {s.capitalize()}") or "afspraak"
+                         format_func=tijd.soort_tekst) or "afspraak"
         kol1, kol2, kol3 = st.columns(3)
         dag = kol1.date_input("Datum", value=date.fromisoformat(a["start"][:10]) if a.get("start") else date.today(),
                               format="DD-MM-YYYY")
@@ -1060,7 +1110,7 @@ def afspraak_formulier(sleutel: str, afspraak: dict | None = None) -> None:
                         niet_gevonden.append(naam)
                 if niet_gevonden:
                     st.session_state.agenda_melding = f"Niet uitgenodigd (onbekende gebruikersnaam): {', '.join(niet_gevonden)}"
-            st.toast("Afspraak opgeslagen.", icon="✅")
+            st.toast("Afspraak opgeslagen.", icon=":material/check_circle:")
             st.rerun()
 
 
@@ -1269,13 +1319,15 @@ def agenda_tabblad() -> None:
     # Compacte navigatie met behoud van de bestaande modules.
     opties = ["Agenda", "Activiteiten", "Taken", "Samenwerking", "Overzicht"]
     oude_waarden = {"Plannen": "Activiteiten", "Samen": "Samenwerking"}
-    huidige = oude_waarden.get(st.session_state.get("agenda_deel"), st.session_state.get("agenda_deel"))
-    if huidige not in opties:
-        huidige = "Agenda"
-    st.session_state.pop("agenda_deel", None)
-    deel = st.selectbox("Navigatie", opties, index=opties.index(huidige),
-                        key="agenda_keuze", label_visibility="collapsed")
-    st.session_state.agenda_deel = {"Activiteiten": "Plannen", "Samenwerking": "Samen"}.get(deel, deel)
+    # agenda_deel kan elders gezet zijn (bijv. "Uit mijn mail" opent Taken): dan wint die keuze van de vorige.
+    gevraagd = st.session_state.get("agenda_deel")
+    if gevraagd != st.session_state.get("agenda_getoond") or "agenda_keuze" not in st.session_state:
+        st.session_state.agenda_keuze = oude_waarden.get(gevraagd, gevraagd)
+    if st.session_state.get("agenda_keuze") not in opties:
+        st.session_state.agenda_keuze = "Agenda"
+    deel = st.selectbox("Navigatie", opties, key="agenda_keuze", label_visibility="collapsed")
+    st.session_state.agenda_deel = st.session_state.agenda_getoond = (
+        {"Activiteiten": "Plannen", "Samenwerking": "Samen"}.get(deel, deel))
     if melding := st.session_state.pop("agenda_melding", None):
         st.warning(melding)
     if deel == "Taken":
@@ -1333,7 +1385,7 @@ def overzicht_scherm() -> None:
                 continue
             k = tijd.kleur(naam)
             regels.append(f'<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:14px">'
-                          f'<div style="width:118px;flex:none">{tijd.SOORTEN.get(naam, "")} {naam.capitalize()}</div>'
+                          f'<div style="width:118px;flex:none">{symbool.html(tijd.SOORTEN.get(naam, "event"))} {naam.capitalize()}</div>'
                           f'<div style="flex:1;background:rgba(128,128,128,.12);border-radius:4px;height:10px">'
                           f'<div style="width:{max(2, x["minuten"] * 100 // totaal)}%;background:{k};height:10px;'
                           f'border-radius:4px"></div></div><div style="width:52px;text-align:right;opacity:.7">'
@@ -1594,7 +1646,7 @@ def taak_rij(t: dict, gepland: str | None) -> None:
     rij = st.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
     if rij.checkbox(titel + (f"  \n:gray[{' · '.join(delen)}]" if delen else ""), key=f"takenlijst_{t['id']}"):
         opslag.taak_afronden(t["id"])
-        st.toast(f"Goed gedaan: {t['titel']}", icon="🎉")
+        st.toast(f"Goed gedaan: {t['titel']}", icon=":material/celebration:")
         st.rerun()
     with rij.popover("", icon=":material/more_horiz:"):
         with st.form(f"taak_wijzig_{t['id']}", border=False):
@@ -2035,7 +2087,7 @@ def snel_toevoegen(zin: str) -> dict:
             wanneer += f", {start:%H:%M}–{datetime.fromisoformat(r['einde']):%H:%M}"
         if r.get("herhaal"):
             wanneer += f" ({opslag.herhaal_tekst(opslag.afspraak_herhalen(item['id'], r['herhaal'])).lower()})"
-        tekst = f"{tijd.SOORTEN.get(r['soort_agenda'], '📅')} In je agenda: **{r['titel']}**, {wanneer}"
+        tekst = f"{tijd.teken(r['soort_agenda'])} In je agenda: **{r['titel']}**, {wanneer}"
         tekst += f" · :material/location_on: {r['locatie']}" if r["locatie"] else ""
     else:
         item = opslag.taak_toevoegen(r["titel"], r["deadline"], r["minuten"])
@@ -2111,7 +2163,7 @@ def taken_inplannen(context: str = "taken") -> None:
                    disabled=not any(r["blokken"] for r in plan)):
         aantal = inplannen.vastleggen(plan)
         st.session_state.pop("planvoorstel")
-        st.toast(f"{aantal} {'blok' if aantal == 1 else 'blokken'} ingepland. Vink de taak af als hij klaar is.", icon="🎯")
+        st.toast(f"{aantal} {'blok' if aantal == 1 else 'blokken'} ingepland. Vink de taak af als hij klaar is.", icon=":material/target:")
         st.rerun()
     if kol2.button("Annuleren", key=f"plan_annuleren_{context}", width="stretch"):
         st.session_state.pop("planvoorstel")
@@ -2130,9 +2182,9 @@ def taak_in_agenda(t: dict) -> None:
     kol1, kol2 = st.columns([6, 1], vertical_alignment="center")
     kol1.markdown(f'<div style="border-left:4px solid {k};padding:2px 10px"><b>Taak:</b> {html.escape(t["titel"])}'
                   f' <span style="opacity:.6">deadline</span></div>', unsafe_allow_html=True)
-    if kol2.button("✓", key=f"agenda_taak_{t['id']}", help="Afvinken"):
+    if kol2.button("", icon=":material/check:", key=f"agenda_taak_{t['id']}", help="Afvinken"):
         opslag.taak_afronden(t["id"])
-        st.toast(f"Goed gedaan: {t['titel']}", icon="🎉")
+        st.toast(f"Goed gedaan: {t['titel']}", icon=":material/celebration:")
         st.rerun()
 
 
@@ -2308,9 +2360,9 @@ def sport_tabblad(nu: datetime) -> None:
     for doel in doelen:
         v = tijd.doel_voortgang(doel)
         with st.container(border=True):
-            icoon = tijd.sport_icoon(doel["sport"]) if doel["sport"] else "🎯"
+            icoon = tijd.sport_icoon(doel["sport"]) if doel["sport"] else ":material/target:"
             st.markdown(f"{icoon} **{doel['omschrijving']}**")
-            st.progress(v["procent"] / 100, text=v["tekst"] + (" ✅" if v["procent"] >= 100 else ""))
+            st.progress(v["procent"] / 100, text=v["tekst"] + (" (gehaald)" if v["procent"] >= 100 else ""))
             if doel["maatstaf"] == "eigen":
                 stand = st.number_input(f"Waar sta je nu? ({doel.get('eenheid') or 'getal'})", min_value=0.0,
                                         value=float(doel.get("stand", 0)), step=1.0, key=f"stand_{doel['id']}")
@@ -2456,13 +2508,13 @@ def uitje_regel(a: dict, voorkeuren: list[str]) -> str:
         links.append(f"[website]({a['website']})")
     route = urlencode({"daddr": f"{a['lat']},{a['lon']}", "q": a["naam"]})
     links.append(f"[route](https://maps.apple.com/?{route})")
-    ster = " ⭐" if a["voorkeur"] in voorkeuren else ""
-    return f"{a['icoon']} **{a['naam']}**{ster} · {a['soort']} · {a['afstand_km']} km · " + " · ".join(links)
+    ster = " :material/star:" if a["voorkeur"] in voorkeuren else ""
+    return f"{symbool.md(a['icoon'])} **{a['naam']}**{ster} · {a['soort']} · {a['afstand_km']} km · " + " · ".join(links)
 
 
 def buurt_kaart(uitjes: list[dict], evenementen: list[dict], voorkeuren: list[str]) -> None:
     """Alle uitjes en events op één kaart. Namen worden leesbaar als je inzoomt."""
-    punten = [{"plek": [a["lon"], a["lat"]], "naam": f"{a['icoon']} {a['naam']}", "label": a["naam"], "info": f"{a['soort']}, {a['afstand_km']} km",
+    punten = [{"plek": [a["lon"], a["lat"]], "naam": a["naam"], "label": a["naam"], "info": f"{a['soort']}, {a['afstand_km']} km",
                "kleur": [47, 125, 225, 220] if a["voorkeur"] in voorkeuren else [120, 140, 170, 160]} for a in uitjes]
     punten += [{"plek": [e["lon"], e["lat"]], "naam": f"{e['naam']}", "label": e["naam"], "info": f"{e['datum']} {e['tijd']}, {e['locatie']}",
                 "kleur": [235, 120, 30, 230] if e["voorkeur"] in voorkeuren else [235, 170, 110, 170]}
@@ -2486,7 +2538,7 @@ def buurt_kaart(uitjes: list[dict], evenementen: list[dict], voorkeuren: list[st
     st.pydeck_chart(pdk.Deck(layers=lagen, initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=11.5),
                              map_provider="carto", map_style="road",
                              tooltip={"html": "<b>{naam}</b><br/>{info}"}), height=360)
-    st.caption("🔵 uitjes · 🟠 events · 🟢 thuis. Felle kleur past bij je voorkeur. Zoom in om de namen te lezen, "
+    st.caption("Blauw: uitjes · oranje: events · groen: thuis. Felle kleur past bij je voorkeur. Zoom in om de namen te lezen, "
                "tik op een punt voor meer.")
 
 
@@ -2603,7 +2655,7 @@ def master_hub_pagina() -> None:
                                 default="Alles", key="master_stream_lens")
     with st.form("master_stream_form", clear_on_submit=True):
         opdracht = st.text_input("Bericht of opdracht", max_chars=500,
-                                placeholder="Bijvoorbeeld: verkoop mijn fiets")
+                                placeholder="Bijv. verkoop mijn fiets")
         verzenden = st.form_submit_button("Concept bewaren")
     if verzenden:
         try:
@@ -2631,6 +2683,23 @@ def master_hub_pagina() -> None:
                         st.rerun()
                 except Exception:
                     st.error("Verwijderen is niet gelukt.")
+    with st.expander("Life Swarm - persoonlijk", expanded=False):
+        st.caption("Persoonlijke notities blijven privé. Geen automatische publicatie, locatiebepaling of agenda-actie.")
+        with st.form("life_swarm_private_form", clear_on_submit=True):
+            levensrol = st.selectbox("Focus", life_swarm_core.LIFE_ROLES)
+            life_tekst = st.text_area("Privénotitie", max_chars=450)
+            life_save = st.form_submit_button("Privé bewaren")
+        if life_save:
+            try:
+                life_swarm_core.validate_life_role(levensrol)
+                multistream_store.add_draft("[" + levensrol + "] " + life_tekst, "Privé")
+                st.success("Privénotitie bewaard.")
+            except ValueError as fout:
+                st.warning(str(fout))
+            except Exception:
+                st.error("Privénotitie kon niet worden opgeslagen.")
+        st.caption("Bekijk je privénotities via privacyprofiel Privé en streamfilter Alles.")
+
     if profile == "Zakelijk":
         with st.expander("Verhuur en rooster", expanded=False):
             st.caption("Beheer eigen ruimtes, stoelen, materialen en tijdsloten.")
@@ -2708,6 +2777,28 @@ def master_hub_pagina() -> None:
             if cut_intent:
                 st.write("Montageconcept: " + cut_intent["type"])
                 st.caption("Niet uitgevoerd. Voor verwerking is een video-upload en renderdienst nodig.")
+            with st.expander("Video knippen", expanded=False):
+                st.caption("Kies het begin en eventueel het einde. Upload maximaal 50 MB.")
+                video_upload = st.file_uploader("Video kiezen", type=["mp4", "mov"], key="video_trim_upload")
+                video_start = st.number_input("Begin (seconden)", min_value=0, value=0, step=1, key="video_trim_start_seconds")
+                video_tot_einde = st.checkbox("Tot het einde van de video", value=True, key="video_trim_to_end")
+                video_einde = None if video_tot_einde else st.number_input("Einde (seconden)", min_value=1, value=10, step=1, key="video_trim_end_seconds")
+                if st.button("Maak fragment", key="video_trim_start", disabled=video_upload is None):
+                    st.session_state.pop("video_trim_result", None)
+                    try:
+                        with st.spinner("Video verwerken..."):
+                            fragment = video_trim.trim_video(video_upload.getvalue(), int(video_start), None if video_einde is None else int(video_einde))
+                        st.session_state["video_trim_result"] = fragment
+                        st.success("Fragment is klaar.")
+                    except (ValueError, RuntimeError) as err:
+                        st.error(str(err))
+                if st.session_state.get("video_trim_result"):
+                    st.video(st.session_state["video_trim_result"])
+                    st.download_button("Download fragment", data=st.session_state["video_trim_result"],
+                                       file_name="fragment.mp4", mime="video/mp4", key="video_trim_download")
+                    if st.button("Fragment verwijderen", key="video_trim_clear"):
+                        st.session_state.pop("video_trim_result", None)
+                        st.rerun()
             with st.form("video_project_create", clear_on_submit=True):
                 projectnaam = st.text_input("Projectnaam", max_chars=120)
                 projectmaken = st.form_submit_button("Nieuw videoproject")
@@ -2753,7 +2844,7 @@ def master_hub_pagina() -> None:
                     for note in sorted(video.get("notes", []), key=lambda n: n.get("seconds", 0)):
                         minute, second = divmod(note.get("seconds", 0), 60)
                         st.write(f"{minute:02d}:{second:02d} — {note.get('text', '')}")
-            st.caption("Projectbeheer en reviewnotities; geen realtime montage, gedeelde toegang of rendering.")
+            st.caption("Projectbeheer en reviewnotities. Video knippen werkt afzonderlijk per sessie.")
     route = st.session_state.get("master_hub_route")
     if route:
         st.caption(route.description)
@@ -2872,7 +2963,7 @@ def dating_pagina() -> None:
                               key="dating_opt_in", value=False)
         st.caption("Deze instellingen gelden alleen in deze sessie. Er wordt geen profiel gepubliceerd.")
     with st.expander("Date of singles-evenement voorbereiden", expanded=True):
-        titel = st.text_input("Titel", placeholder="Bijvoorbeeld: singleswandeling", key="dating_titel")
+        titel = st.text_input("Titel", placeholder="Bijv. singleswandeling", key="dating_titel")
         datum = st.date_input("Datum", min_value=date.today(), key="dating_datum")
         plaats = st.text_input("Openbare ontmoetingslocatie (optioneel)", key="dating_plaats")
         if st.button("Concept maken", key="dating_concept"):
@@ -2935,67 +3026,123 @@ def werkruimte_pagina() -> None:
 
 
 def vandaag_overzicht() -> None:
-    """Mobielvriendelijk dashboard met afspraken eerst en directe communicatie."""
-    st.markdown('<div class="app-title">SuperApp OS</div>', unsafe_allow_html=True)
-    st.markdown('<div class="app-subtitle">Agenda, afspraken en communicatie</div>',
-                unsafe_allow_html=True)
+    """Compacte, herkenbare startpagina met dagagenda en snelle routes."""
+    st.markdown("""
+    <style>
+    .so-home-hero{background:linear-gradient(115deg,#fff 0%,#f1f5f4 100%);
+       border:1px solid #e0e7e5;border-radius:22px;padding:25px 26px 21px;margin-bottom:18px}
+    .so-home-kicker{font-size:12px;color:#486b5f;letter-spacing:.11em;text-transform:uppercase;font-weight:700}
+    .so-home-title{font-size:clamp(26px,4vw,38px);letter-spacing:-.045em;
+       color:#142d25;font-weight:720;line-height:1.16;margin:8px 0}
+    .so-home-description{font-size:14px;color:#597169;line-height:1.55}
+    .so-day-label{font-size:13px;color:#60736c;font-weight:550}
+    .so-section-title{font-size:18px;color:#203a32;font-weight:700;letter-spacing:-.025em;margin:8px 0 12px}
+    .so-appointment{padding:13px 16px;border-radius:13px;background:#fff;
+       border:1px solid #e4e9e7;margin:7px 0;color:#244136}
+    .so-appointment-time{color:#32735c;font-size:12px;font-weight:750;letter-spacing:.02em}
+    .so-appointment-name{font-weight:600;font-size:15px;overflow-wrap:anywhere}
+    @media(max-width:640px){
+      .st-key-superapp_mobile_header [data-testid="stHorizontalBlock"]{flex-wrap:nowrap !important;gap:10px !important;align-items:center}
+      .st-key-superapp_mobile_header [data-testid="stColumn"]:first-child{flex:1 1 auto !important;min-width:0 !important;width:auto !important}
+      .st-key-superapp_mobile_header [data-testid="stColumn"]:last-child{flex:0 0 92px !important;min-width:92px !important;width:92px !important}
+      .so-home-hero{padding:13px 14px;border-radius:17px;margin-bottom:9px}
+      .so-home-title{font-size:21px}
+      .so-home-description{font-size:12px}
+      .so-appointment{padding:11px 13px}}
+    </style>
+    """, unsafe_allow_html=True)
 
-    with st.expander("Vraag de AI-assistent", icon=":material/smart_toy:", expanded=False):
-        snelle_assistent_vraag("dashboard")
+    now = datetime.now()
+    with st.container(key="superapp_mobile_header"):
+        header, portrait = st.columns([4, 1], vertical_alignment="center")
+        with header:
+            st.markdown(
+            '<section class="so-home-hero">'
+            '<div class="so-home-kicker">SUPERAPP OS · VANDAAG</div>'
+            '<div class="so-home-title">Jouw dag, overzichtelijk.</div>'
+            '<div class="so-home-description">Afspraken, gesprekken en taken op één plek.</div>'
+            '</section>', unsafe_allow_html=True)
+        with portrait:
+            try:
+                beeld = avatar.plaatje(mijn_avatar())
+                if beeld:
+                    st.image(beeld, width=90)
+                else:
+                    st.markdown(":material/account_circle:")
+            except Exception:
+                st.markdown(":material/account_circle:")
 
-    st.markdown("### Agenda & afspraken")
-    st.caption("Maandweergave staat standaard aan. Wissel naar week of dag.")
-    agenda_overzicht()
+    # Compact menu avoids four full-width mobile rows.
+    with st.popover("Menu en snelkoppelingen", icon=":material/menu:", use_container_width=True):
+        for name, route, icon in [
+            ("Agenda", "agenda", ":material/calendar_month:"),
+            ("Assistent", "assistent", ":material/auto_awesome:"),
+            ("Berichten", "communicatie", ":material/chat_bubble_outline:"),
+            ("Instellingen", "instellingen", ":material/tune:"),
+        ]:
+            if route in PAGINA:
+                st.page_link(PAGINA[route], label=name, icon=icon, width="stretch")
 
-    st.markdown("#### Afspraken beheren")
-    afspraak_routes = [
-        ("Agenda openen", "agenda", ":material/calendar_month:"),
-        ("Datum prikken", "prikken", ":material/event_available:"),
-        ("Boekingen", "boekingen", ":material/event_note:"),
-        ("In de buurt", "buurt", ":material/place:"),
-    ]
-    beschikbare_afspraken = [(naam, route, icoon) for naam, route, icoon in afspraak_routes if route in PAGINA]
-    for begin in range(0, len(beschikbare_afspraken), 2):
-        cols = st.columns(2)
-        for col, (naam, route, icoon) in zip(cols, beschikbare_afspraken[begin:begin + 2]):
-            with col:
-                st.page_link(PAGINA[route], label=naam, icon=icoon, width="stretch")
+    section = st.selectbox(
+        "Onderdeel", ["Vandaag", "Agenda", "Communicatie", "Taken & plannen"],
+        key="superapp_dashboard_section",
+    )
 
-    st.divider()
-    st.markdown("### Chat & community")
-    if "communicatie" in PAGINA:
-        st.page_link(PAGINA["communicatie"], label="Chatprofiel en bereikbaarheid",
-                     icon=":material/manage_accounts:", width="stretch")
+    if section == "Vandaag":
+        chosen_day = st.date_input("Dag bekijken", value=now.date(),
+                                   key="superapp_dashboard_day")
+        try:
+            items = dagplanning_veilig(chosen_day.isoformat())
+        except opslag.GeenToegang:
+            raise
+        except Exception:
+            items = []
+            st.caption("Je afspraken zijn momenteel niet beschikbaar.")
+        st.markdown('<div class="so-section-title">Je afspraken</div>', unsafe_allow_html=True)
+        if not items:
+            st.caption("Geen afspraken gevonden voor deze dag.")
+        for appointment in items[:8]:
+            start = str(appointment.get("start", ""))
+            time_label = start[11:16] if "T" in start else "Hele dag"
+            title = html.escape(str(appointment.get("titel") or "Afspraak"))
+            st.markdown(
+                '<div class="so-appointment"><div class="so-appointment-time">'
+                + html.escape(time_label) + '</div><div class="so-appointment-name">'
+                + title + '</div></div>', unsafe_allow_html=True)
+        if len(items) > 8:
+            st.caption(f"Nog {len(items) - 8} afspraken. Open Agenda voor het volledige overzicht.")
+        if "agenda" in PAGINA:
+            st.page_link(PAGINA["agenda"], label="Volledige agenda openen",
+                         icon=":material/arrow_forward:", width="stretch")
+        with st.expander("AI-assistent gebruiken", icon=":material/auto_awesome:"):
+            snelle_assistent_vraag("dashboard")
 
-    st.caption("Praat met verkopers, bekijk je berichten of open de community.")
-    communicatie_routes = [
-        ("Verkopersberichten", "berichten", ":material/markunread_mailbox:"),
-        ("Communitychat", "chat", ":material/forum:"),
-        ("Alle communicatie", "communicatie", ":material/chat:"),
-        ("AI-assistent", "assistent", ":material/smart_toy:"),
-    ]
-    beschikbare_communicatie = [(naam, route, icoon) for naam, route, icoon in communicatie_routes if route in PAGINA]
-    for begin in range(0, len(beschikbare_communicatie), 2):
-        cols = st.columns(2)
-        for col, (naam, route, icoon) in zip(cols, beschikbare_communicatie[begin:begin + 2]):
-            with col:
-                st.page_link(PAGINA[route], label=naam, icon=icoon, width="stretch")
-    if "chat" not in PAGINA or "berichten" not in PAGINA:
-        st.caption("Sommige chatfuncties vereisen een actieve online verbinding en ingeschakelde modules.")
+    elif section == "Agenda":
+        st.markdown('<div class="so-section-title">Agenda en boekingen</div>', unsafe_allow_html=True)
+        agenda_overzicht()
+        for name, route, icon in [
+            ("Datum prikken", "prikken", ":material/event_available:"),
+            ("Boekingen", "boekingen", ":material/event_note:")]:
+            if route in PAGINA:
+                st.page_link(PAGINA[route], label=name, icon=icon, width="stretch")
 
-    st.divider()
-    st.markdown("### Planning & taken")
-    st.caption("Beheer je taken en werk verder aan je plannen.")
-    with st.expander("Taken bekijken", expanded=False, icon=":material/checklist:"):
-        takenlijst()
-    with st.expander("Plannen bekijken", expanded=False, icon=":material/assignment:"):
-        plannen_scherm.pagina()
+    elif section == "Communicatie":
+        for name, route, icon in [
+            ("Alle communicatie", "communicatie", ":material/chat:"),
+            ("Verkopersberichten", "berichten", ":material/markunread_mailbox:"),
+            ("Community", "chat", ":material/forum:")]:
+            if route in PAGINA:
+                st.page_link(PAGINA[route], label=name, icon=icon, width="stretch")
+        st.caption("De beschikbare functies hangen af van je geactiveerde koppelingen.")
 
-    st.divider()
-    if "samen" in PAGINA:
-        st.page_link(PAGINA["samen"], label="Samenwerking", icon=":material/groups:", width="stretch")
-    if "instellingen" in PAGINA:
-        st.page_link(PAGINA["instellingen"], label="Instellingen", icon=":material/settings:", width="stretch")
+    else:
+        with st.expander("Mijn taken", expanded=True, icon=":material/checklist:"):
+            takenlijst()
+        with st.expander("Mijn plannen", icon=":material/assignment:"):
+            plannen_scherm.pagina()
+        if "samen" in PAGINA:
+            st.page_link(PAGINA["samen"], label="Samenwerken",
+                         icon=":material/groups:", width="stretch")
 
 
 def zaak_vandaag() -> None:
@@ -3027,7 +3174,7 @@ def ochtend_tekst(nu: datetime) -> list[str]:
     """Het ochtendoverzicht in een paar korte zinnen, zonder Claude (snel en gratis)."""
     zinnen = []
     if w := weer_kort():
-        zinnen.append(f"Het weer: {w.split(' ', 1)[1] if ' ' in w else w}.")
+        zinnen.append(f"Het weer: {w[1]}.")
     regels = [r for r in dagplanning_veilig(nu.date().isoformat()) if "T" in r["start"]]
     hele_dag = [r["titel"] for r in dagplanning_veilig(nu.date().isoformat()) if "T" not in r["start"]]
     if regels:
@@ -3180,7 +3327,7 @@ def seintjes(nu: datetime) -> None:
     for a in overzicht.verjaardagen_binnenkort(3)[:2]:
         d = date.fromisoformat(a["start"][:10])
         wanneer = "vandaag" if d == nu.date() else "morgen" if d == nu.date() + timedelta(days=1) else DAGEN[d.weekday()]
-        delen.append(f"🎂 {a['titel']} ({wanneer})")
+        delen.append(f"{a['titel']} ({wanneer})")
     if not opslag.instellingen().get("thuisadres"):
         delen.append("vul je thuisadres in voor vertrektijden (Instellingen)")
     if delen:
@@ -3199,7 +3346,7 @@ def schema_html(regels: list[dict], nu: datetime) -> str:
 
     for r in regels:
         if "T" not in r["start"]:
-            rijen.append(rij("hele dag", f"{tijd.icoon(r)} {html.escape(r['titel'])}", kleur=tijd.kleur(tijd.soort_van(r))))
+            rijen.append(rij("hele dag", f"{tijd.icoon_html(r)} {html.escape(r['titel'])}", kleur=tijd.kleur(tijd.soort_van(r))))
             continue
         begin = r["start"][11:16]
         eind = (r.get("einde") or "")[11:16]
@@ -3215,7 +3362,7 @@ def schema_html(regels: list[dict], nu: datetime) -> str:
                 rijen.append(rij(moment, f'<span style="color:{BLAUW}">vertrekken naar {html.escape(r["titel"])}</span>', grijs))
             else:
                 bezig = begin <= klok < eind if eind else False
-                tekst = f"{tijd.icoon(r)} {html.escape(r['titel'])}"
+                tekst = f"{tijd.icoon_html(r)} {html.escape(r['titel'])}"
                 if eind:
                     tekst += f' <span style="opacity:.6">tot {eind}</span>'
                 if bezig:
@@ -3282,7 +3429,7 @@ def taken_blok() -> None:
     def afvinken(t: dict) -> None:
         if st.checkbox(taak_label(t, vandaag), key=f"taak_{t['id']}"):
             opslag.taak_afronden(t["id"])
-            st.toast(f"Goed gedaan: {t['titel']}", icon="🎉")
+            st.toast(f"Goed gedaan: {t['titel']}", icon=":material/celebration:")
             st.rerun()
 
     for t in taken[:5]:
@@ -3314,7 +3461,7 @@ def leerreeks_blok() -> None:
         return
     dagletters = ["ma", "di", "wo", "do", "vr", "za", "zo"]
     vandaag = date.today()
-    week = " ".join(f"{'🔥' if gehaald else '⚪'}{dagletters[(vandaag - timedelta(days=6 - i)).weekday()]}"
+    week = " ".join(f"{'●' if gehaald else '○'}{dagletters[(vandaag - timedelta(days=6 - i)).weekday()]}"
                     for i, gehaald in enumerate(r["week"]))
     kol1, kol2 = st.columns([2, 3], vertical_alignment="center")
     kol1.metric("Reeks", f"{r['reeks']} {'dag' if r['reeks'] == 1 else 'dagen'}",
@@ -3340,7 +3487,7 @@ def leerdoelen_onderdeel() -> None:
                 st.markdown(f"**{h['onderwerp']}**: stap {h['nummer']}, {h['titel']}")
                 score = st.select_slider("Hoe goed ken je dit?", options=list(range(6)), value=3,
                                          key=f"score_{h['leerdoel_id']}_{h['nummer']}",
-                                         format_func=lambda x: ["😶 0", "😣 1", "😕 2", "🙂 3", "😀 4", "🤩 5"][x])
+                                         format_func=lambda x: ["0, niet", "1", "2", "3", "4", "5, helemaal"][x])
                 if st.button("Opslaan", key=f"oefen_{h['leerdoel_id']}_{h['nummer']}"):
                     opslag.oefening_vastleggen(h["leerdoel_id"], h["nummer"], score)
                     st.rerun()
@@ -3467,7 +3614,7 @@ def schrijfproject_kaart(project: dict) -> None:
             for b in bronnen:
                 kol1, kol2 = st.columns([8, 1], vertical_alignment="center")
                 kol1.markdown((b.get("apa") or b["titel"]) + (f"  \n:gray[{b['waarom']}]" if b.get("waarom") else ""))
-                if kol2.button("✕", key=f"bron_weg_{pid}_{b['id']}", help="Verwijderen"):
+                if kol2.button("", icon=":material/close:", key=f"bron_weg_{pid}_{b['id']}", help="Verwijderen"):
                     opslag.bron_verwijderen(pid, b["id"])
                     st.rerun()
             if bronnen:
@@ -3614,14 +3761,14 @@ def stem_instellingen() -> None:
                     st.session_state.stem_test_ok = True
                     st.rerun()
     if st.session_state.pop("stem_test_ok", False):
-        st.success("De natuurlijke stem werkt. Tik op 🔊 hieronder om te luisteren.")
+        st.success("De natuurlijke stem werkt. Tik hieronder op Voorlezen om te luisteren.")
     nieuw = {"regio": regio, "geslacht": geslacht, "snelheid": snelheid, "voorlezen": voorlezen, "doorpraten": doorpraten,
              "natuurlijk": natuurlijk, "stem_id": stem_id}
     if nieuw != huidig:
         opslag.instellingen_bijwerken(stem=nieuw)
     spraak.knop(nieuw, "Hallo! Zo klink ik. Waar kan ik je mee helpen?", key="stem_test", alleen_voorlezen=True,
                 gevoel="blij", geluid=st.session_state.get("stem_test_geluid"))
-    st.caption("Tik op 🔊 om te luisteren. Zonder ElevenLabs klinkt het natuurlijker met een verbeterde stem op je "
+    st.caption("Tik op Voorlezen om te luisteren. Zonder ElevenLabs klinkt het natuurlijker met een verbeterde stem op je "
                "iPad: Instellingen > Toegankelijkheid > Gesproken materiaal > Stemmen > Nederlands, bijvoorbeeld "
                "Claire of Xander (Nederland) of Ellen (Vlaanderen).")
 
@@ -3634,30 +3781,61 @@ def geheugen_instellingen() -> None:
     for f in sorted(feiten, key=lambda f: (f["onderwerp"], f["id"])):
         kol1, kol2 = st.columns([6, 1], vertical_alignment="center")
         kol1.markdown(f"{f['feit']}  \n:gray[{f['onderwerp']}]")
-        if kol2.button("✕", key=f"vergeet_{f['id']}", help="Vergeten"):
+        if kol2.button("", icon=":material/close:", key=f"vergeet_{f['id']}", help="Vergeten"):
             opslag.vergeten(f["id"])
             st.rerun()
     with st.form("nieuw_feit", clear_on_submit=True, border=False):
         kol1, kol2 = st.columns([5, 1], vertical_alignment="bottom")
         feit = kol1.text_input("Iets dat de assistent moet weten", placeholder="Bijv. ik eet geen vlees")
-        if kol2.form_submit_button("➕") and feit.strip():
+        if kol2.form_submit_button("", icon=":material/add:") and feit.strip():
             opslag.onthouden(feit.strip())
             st.rerun()
     if oordelen := opslag.feedback():
         goed = sum(f["goed"] for f in oordelen)
-        st.markdown(f"**Wat je van de antwoorden vond** · {goed}× 👍 · {len(oordelen) - goed}× 👎")
+        st.markdown(f"**Wat je van de antwoorden vond** · {goed}× :material/thumb_up: · {len(oordelen) - goed}× :material/thumb_down:")
         for f in [f for f in reversed(oordelen) if f.get("opmerking")][:10]:
             kol1, kol2 = st.columns([6, 1], vertical_alignment="center")
-            kol1.caption(f"{'👍' if f['goed'] else '👎'} {f['opmerking']}  \n:gray[bij: {f['vraag'][:60]}]")
-            if kol2.button("✕", key=f"fbweg_{f['id']}", help="Vergeten"):
+            kol1.caption(f"{':material/thumb_up:' if f['goed'] else ':material/thumb_down:'} {f['opmerking']}  \n:gray[bij: {f['vraag'][:60]}]")
+            if kol2.button("", icon=":material/close:", key=f"fbweg_{f['id']}", help="Vergeten"):
                 opslag.feedback_vergeten(f["id"])
                 st.rerun()
     if gewoontes := tijd.gewoontes():
         st.markdown("**Geleerd uit je tijdregistratie**")
         for soort, g in gewoontes.items():
-            st.caption(f"{tijd.SOORTEN.get(soort, '')} {soort.capitalize()}: {g['aantal']} keer, gemiddeld "
+            st.caption(f"{tijd.teken(soort)} {soort.capitalize()}: {g['aantal']} keer, gemiddeld "
                        f"{g['gem_uitloop_min']} min uitloop en {g['gem_te_laat_min']} min te laat. "
                        "De assistent plant hier ruimte voor.")
+
+
+def samen_leren_instellingen() -> None:
+    """Zelf kiezen of de app ook leert van wat iedereen samen doet. Anoniem, en standaard uit."""
+    st.caption("De app wordt slimmer naarmate meer mensen meedoen. Er gaat alleen dit heen: welke categorie je aan een "
+               "winkel of bedrijf geeft, hoeveel minuten een soort afspraak bij jou uitloopt, en per onderwerp hoe vaak "
+               "je een antwoord goed vond. Nooit je vragen, mails, berichten, bedragen of namen van mensen. Anderen zien "
+               "alleen wat minstens 5 mensen samen bijdroegen.")
+    nu = samen_leren.aan()
+    keuze = st.toggle("Meedoen met samen leren", value=nu, key="samen_leren_aan")
+    if keuze != nu:
+        if fout := samen_leren.instellen(keuze):
+            st.error(fout)
+        else:
+            st.toast("Je doet mee. Dank je!" if keuze else "Uitgezet. Je bijdrage is leeggemaakt.",
+                     icon=":material/check_circle:")
+            st.rerun()
+    if nu:
+        items = samen_leren.bijdrage()
+        with st.popover(f"Bekijk wat er van jou meegaat ({len(items)})", icon=":material/visibility:"):
+            namen = {"categorie": "Categorie", "uitloop": "Uitloop in minuten", "oordeel": "Goed : niet goed"}
+            for soort, titel in namen.items():
+                regels = [f"{i['sleutel']}: {i['waarde']}" for i in items if i["soort"] == soort]
+                if regels:
+                    st.markdown(f"**{titel}**  \n" + "  \n".join(regels[:40]))
+            if not items:
+                st.caption("Nog niets.")
+    k = samen_leren.kennis()
+    if k.get("mensen"):
+        st.caption(f"Nu doen {k['mensen']} mensen mee. De app kent {len(k.get('categorie') or {})} winkels en bedrijven "
+                   f"die samen herkend worden.")
 
 
 # --- Mail -------------------------------------------------------------------
@@ -3730,7 +3908,7 @@ def mail_concepten() -> None:
                     st.error("Versturen lukte niet. Probeer het zo opnieuw.")
                 else:
                     opslag.mailconcept_weg(c["id"])
-                    st.toast("Verstuurd.", icon="📤")
+                    st.toast("Verstuurd.", icon=":material/send:")
                     st.rerun()
             if k2.button("Weggooien", key=f"cw_{c['id']}", width="stretch"):
                 opslag.mailconcept_weg(c["id"])
@@ -3789,7 +3967,7 @@ def namens_overzicht() -> None:
     with st.expander(f"Namens jou verstuurd ({len(log)})"):
         for r in reversed(log[-30:]):
             st.markdown(f"**{r['moment'][8:10]}-{r['moment'][5:7]} {r['moment'][11:16]}** · "
-                        f"{'✉️' if r['kanaal'] == 'mail' else '🏪'} aan {r['aan']} · {r['onderwerp']}")
+                        f"{':material/mail:' if r['kanaal'] == 'mail' else ':material/chat:'} aan {r['aan']} · {r['onderwerp']}")
             st.caption(r["tekst"][:600])
 
 
@@ -3806,7 +3984,7 @@ def namens_instellingen() -> None:
         keuze = st.radio(titel, opties, index=opties.index(nu), format_func=opslag.NAMENS.get, key=f"namens_{kanaal}")
         if keuze != nu:
             opslag.namens_instellen(kanaal, keuze)
-            st.toast("Opgeslagen.", icon="✅")
+            st.toast("Opgeslagen.", icon=":material/check_circle:")
 
 
 def kleuren_instellingen() -> None:
@@ -3889,6 +4067,10 @@ def brein_instellingen() -> None:
         opslag.instellingen_bijwerken(brein=brein)
     if brein == "Claude":
         st.caption("Claude van Anthropic. De sleutel staat hieronder bij Anthropic-sleutel.")
+        return
+    if brein == "Azure OpenAI":
+        st.caption("Microsoft Azure OpenAI. De deployment en sleutel worden uitsluitend op de server ingesteld.")
+        st.caption("Open Azure-diensten hieronder om de verbinding te testen.")
         return
     a = ander_brein.AANBIEDERS[brein]
     st.caption(("Sleutel ingesteld. " if ander_brein.sleutel(brein) else "") + f"Een sleutel maak je bij {a['waar']}.")
@@ -3978,7 +4160,13 @@ def welkom_voorkeuren() -> None:
                         index=None, placeholder="Kies of typ je werk (mag ook later)", accept_new_options=True,
                         key="welkom_beroep")
     voorbeelden = st.toggle("Voorbeeldvragen bij de assistent", value=True, key="welkom_voorbeelden")
+    samen = opslag.online() and st.toggle("Help de app slimmer worden (anoniem)", value=False, key="welkom_samen",
+                                          help="Alleen categorieën van winkels, uitloop per soort afspraak en of "
+                                               "antwoorden goed waren. Nooit je teksten, bedragen of namen. "
+                                               "Altijd uit te zetten bij Instellingen › Assistent.")
     if st.button("Klaar", type="primary", width="stretch"):
+        if samen:
+            samen_leren.instellen(True)
         opslag.instellingen_bijwerken(onderdelen_uit=[o for o in ONDERDELEN if o not in (gekozen or [])],
                                       onderdelen_bekend=NIEUW_UIT,
                                       voorbeeldvragen=voorbeelden)
@@ -4419,6 +4607,12 @@ def instellingen_tabblad() -> None:
     with st.expander("Alle apponderdelen", icon=":material/apps:"):
         onderdelen_tegels()
 
+    if nieuwe_app.beschikbaar():
+        # De nieuwe app op dit adres (zie nieuwe_app.py). Een gewone link, zodat hij het hele venster krijgt.
+        st.html('<a href="?nieuw=1" target="_top" style="display:block;margin-top:12px;padding:12px 16px;'
+                'border-radius:12px;background:rgba(79,70,229,.08);color:#4f46e5;text-decoration:none;'
+                'font-weight:500">Nieuwe app openen</a>')
+
 
 def idee_of_probleem() -> None:
     """Meldingen gaan naar de vaste verbeterronde; wat ermee gebeurd is, staat eronder."""
@@ -4444,6 +4638,8 @@ def idee_of_probleem() -> None:
 
 
 def instellingen_assistent() -> None:
+    with st.expander("Azure-diensten"):
+        azure_ui.settings()
     with st.expander(f"Naam en uiterlijk ({mijn_avatar()['naam']})"):
         avatar_instellingen()
     with st.expander("Hoe de assistent praat"):
@@ -4459,6 +4655,9 @@ def instellingen_assistent() -> None:
         namens_instellingen()
     with st.expander(f"Wat de assistent over je weet ({len(opslag.geheugen())})"):
         geheugen_instellingen()
+    if opslag.online():
+        with st.expander("Samen leren" + (" (aan)" if samen_leren.aan() else "")):
+            samen_leren_instellingen()
     eigen = bool(opslag.instellingen().get("anthropic_sleutel"))
     gratis = toegang.status().get("ai_platform")
     with st.expander("Eigen Anthropic-sleutel" + (" (niet nodig)" if gratis and not eigen else "")):
@@ -4687,7 +4886,7 @@ def agendas_instellen() -> None:
                         st.error(str(fout))
                     else:
                         st.session_state.pop("agenda_soort", None)
-                        st.toast(f"Gekoppeld: {len(k['agendas'])} agenda's gevonden.", icon="✅")
+                        st.toast(f"Gekoppeld: {len(k['agendas'])} agenda's gevonden.", icon=":material/check_circle:")
                         st.rerun()
         return
     if keuze in ("Google", "Outlook", "Andere"):
@@ -4720,7 +4919,7 @@ def agendas_instellen() -> None:
                         st.error(str(fout))
                     else:
                         st.session_state.pop("agenda_soort", None)
-                        st.toast("Agenda gekoppeld.", icon="✅")
+                        st.toast("Agenda gekoppeld.", icon=":material/check_circle:")
                         st.rerun()
 
 
@@ -4925,25 +5124,25 @@ def zelftest() -> None:
     with st.spinner("Database controleren..."):
         try:
             opslag.laden()
-            st.write("✅ Database werkt")
+            st.write(":material/check_circle: Database werkt")
         except Exception as fout:
-            st.write(f"❌ Database: {type(fout).__name__}: {fout}")
+            st.write(f":material/cancel: Database: {type(fout).__name__}: {fout}")
     with st.spinner("Routedienst controleren..."):
         try:
             reis = reizen.reistijd("Dam 1, Amsterdam", "Coolsingel 40, Rotterdam")
-            st.write(f"✅ Reistijd Amsterdam naar Rotterdam: {reis['reistijd_minuten']} min, {reis['afstand_km']} km")
+            st.write(f":material/check_circle: Reistijd Amsterdam naar Rotterdam: {reis['reistijd_minuten']} min, {reis['afstand_km']} km")
         except Exception as fout:
-            st.write(f"❌ Routedienst: {type(fout).__name__}: {fout}")
+            st.write(f":material/cancel: Routedienst: {type(fout).__name__}: {fout}")
     if not anthropic_sleutel():
-        st.write("➖ Claude: nog geen sleutel ingesteld")
+        st.write(":material/remove: Claude: nog geen sleutel ingesteld")
         return
     client = toegang.claude(anthropic_sleutel())
     with st.spinner("Claude controleren..."):
         try:
             tekst = agent.antwoord(client, [{"role": "user", "content": "Zelftest: gebruik geen hulpmiddelen en antwoord alleen met OK."}])
-            st.write(f"✅ Claude antwoordt: {spraak.zonder_labels(tekst)[:100]}")
+            st.write(f":material/check_circle: Claude antwoordt: {spraak.zonder_labels(tekst)[:100]}")
         except anthropic.APIError as fout:
-            st.write(f"❌ Claude: {foutmelding(fout)}")
+            st.write(f":material/cancel: Claude: {foutmelding(fout)}")
 
 
 foutmelding = slim.foutmelding
@@ -5070,7 +5269,7 @@ def samenvatting_tonen(s: dict, buurt: dict) -> None:
 def product_vergelijken() -> None:
     """Eén product bij alle supermarkten naast elkaar, met de prijs per kilo, liter of stuk."""
     term = zoekveld.zoekveld("product_zoek", "Welk product? Bijv. halfvolle melk",
-                             [zoekveld.suggestie(p, icoon="🛒") for p in VEEL_GEKOCHT])
+                             [zoekveld.suggestie(p, icoon="shopping_cart") for p in VEEL_GEKOCHT])
     if not term:
         st.caption("Typ een product. Je ziet dan per supermarkt wat het kost, ook per kilo of liter.")
         return
@@ -5260,6 +5459,11 @@ def gesprek() -> None:
         if voorstel:
             st.write(voorstel.description)
             st.caption("Er is nog niets opgeslagen, betaald of verzonden.")
+            if voorstel.kind == "actielink":
+                st.caption("Gebruik de bestaande winkel of boekingspagina voor publicatie en de echte deellink. Dit voorstel stelt geen vervaltijd of betaling in.")
+                for label, route in (("Open winkels", "winkels"), ("Open agenda en boekingspagina", "agenda")):
+                    if route in PAGINA and st.button(label, key="intent_link_" + route):
+                        st.switch_page(PAGINA[route])
             if voorstel.kind == "taak" and st.button("Open taken om toe te voegen", key="intent_taak_open"):
                 if "planning" in PAGINA:
                     st.switch_page(PAGINA["planning"])
@@ -5269,8 +5473,18 @@ def gesprek() -> None:
                 st.switch_page(PAGINA["agenda"])
             elif voorstel.kind == "communicatie" and st.button("Open communicatie", key="intent_mail_open"):
                 st.switch_page(PAGINA["communicatie"])
-            elif voorstel.kind in ("betaling", "inkomsten"):
-                st.info("Gebruik de bestaande financiële module voor verificatie en registratie.")
+            elif voorstel.kind == "betaling":
+                st.caption("Bereid een betaalverzoek voor in Pay-in-Chat; er wordt niet automatisch betaald.")
+                if st.button("Open Pay-in-Chat", key="intent_betaling_open"):
+                    st.session_state["toon_pay_in_chat"] = True
+                    st.session_state["pay_chat_opdracht"] = snelle_opdracht
+                    st.switch_page(PAGINA["communicatie"])
+            elif voorstel.kind == "inkomsten":
+                if "budget" in PAGINA:
+                    if st.button("Open budget", key="intent_inkomsten_open"):
+                        st.switch_page(PAGINA["budget"])
+                else:
+                    st.info("Budget is momenteel niet beschikbaar.")
         elif snelle_opdracht.strip():
             st.caption("Geen eenduidige actie gevonden. Stel je vraag aan de assistent.")
     stemkeuze = stem()
@@ -5298,9 +5512,31 @@ def gesprek() -> None:
         woning.knoppen(st.session_state.get("woning_onder", []), "gesprek")
         feedback_vragen_antwoord()
 
+    # Use the existing payment flow for a payment request from the current chat.
+    laatste_vraag = next((tekst for rol, tekst in reversed(st.session_state.chat) if rol == "user"), "")
+    chat_voorstel = intent_engine.parse_intent(laatste_vraag)
+    if chat_voorstel and chat_voorstel.kind == "betaling" and "communicatie" in PAGINA:
+        st.caption("Een betaling is nog niet uitgevoerd. Controleer het voorstel in Pay-in-Chat.")
+        if st.button("Open Pay-in-Chat", key="assistent_chat_betaal_open"):
+            st.session_state["toon_pay_in_chat"] = True
+            st.session_state["pay_chat_opdracht"] = laatste_vraag
+            st.switch_page(PAGINA["communicatie"])
+
+    if chat_voorstel and chat_voorstel.kind == "agenda" and "agenda" in PAGINA:
+        st.caption("Deze afspraak is nog niet ingepland. Open de agenda om de gegevens in te vullen.")
+        if st.button("Open agenda", key="assistent_chat_agenda_open"):
+            st.switch_page(PAGINA["agenda"])
+
+    azure_opname = azure_ui.recording()
+    if azure_opname:
+        st.session_state.vooraf_vraag = azure_opname
+        st.session_state.ingesproken = True
     vraag = st.session_state.pop("vooraf_vraag", None)
     if not vraag:
         vraag = st.chat_input("Stel je vraag aan de assistent...", key="assistent_chat_input")
+    # Optional Rive UI: nothing is rendered until the approved .riv is supplied.
+    # The request state is driven by actual chat input, not simulated responses.
+    rive_chat_state.render_for_event("request_started" if vraag else "ready", height=150)
     if not vraag:
         if st.session_state.chat and st.button("Nieuw gesprek"):
             st.session_state.chat = []
@@ -5383,7 +5619,15 @@ def gesprek() -> None:
     # Voorlezen gebeurt na de rerun door de spraakknop, één keer per antwoord.
     if ingesproken or stemkeuze["voorlezen"]:
         st.session_state.voorlezen_id = f"antwoord-{len(st.session_state.chat)}"
-        if sleutel and stemkeuze.get("natuurlijk") and (stem_sleutel := opslag.instellingen().get("elevenlabs_sleutel")):
+        if sleutel and opslag.instellingen().get("azure_spraak_aan", False):
+            try:
+                st.session_state.voorlezen_geluid = azure_services.speech_audio(
+                    spraak.voor_voorlezen(spraak.zonder_labels(ruw))[:2500],
+                    language=spraak.REGIO.get(stemkeuze["regio"], "nl-NL"),
+                    gender=stemkeuze["geslacht"], speed=stemkeuze["snelheid"])
+            except azure_services.AzureError as fout:
+                st.session_state.stem_melding = str(fout) + " Ik gebruik de stem van je apparaat."
+        elif sleutel and stemkeuze.get("natuurlijk") and (stem_sleutel := opslag.instellingen().get("elevenlabs_sleutel")):
             with st.spinner("Stem maken..."):
                 try:
                     st.session_state.voorlezen_geluid = spraak.natuurlijk_voorlezen(ruw, gevoel, stemkeuze, stem_sleutel)
@@ -5395,7 +5639,7 @@ def gesprek() -> None:
 
 
 def feedback_vragen_antwoord() -> None:
-    """👍/👎 onder het laatste antwoord. De assistent leert hiervan (zie agent.context)."""
+    """Duim omhoog of omlaag onder het laatste antwoord. De assistent leert hiervan (zie agent.context)."""
     nummer = len(st.session_state.chat)
     sleutel = f"oordeel_{nummer}"
 
@@ -5415,7 +5659,7 @@ def feedback_vragen_antwoord() -> None:
                 opslag.feedback_geven(False, st.session_state.get("laatste_vraag", ""), st.session_state.chat[-1][1],
                                       opmerking.strip(), antwoord_id=f"antwoord-{nummer}")
                 st.session_state[f"opmerking_klaar_{nummer}"] = True
-                st.toast("Dank je, dat onthoud ik.", icon="🧠")
+                st.toast("Dank je, dat onthoud ik.", icon=":material/psychology:")
                 st.rerun()
 
 
@@ -5570,16 +5814,16 @@ def terug_van_stripe() -> None:
     if betaald or stripe_terug:
         st.session_state.ga_naar = "bestellingen" if betaald else "verkopen"
     if betaald and betaald != "0":
-        st.toast("Betaling gelukt. Het geld staat veilig tot je bevestigt dat alles goed is ontvangen.", icon="💳")
+        st.toast("Betaling gelukt. Het geld staat veilig tot je bevestigt dat alles goed is ontvangen.", icon=":material/credit_card:")
     elif betaald == "0":
-        st.toast("Betaling afgebroken. Je kunt het opnieuw proberen.", icon="ℹ️")
+        st.toast("Betaling afgebroken. Je kunt het opnieuw proberen.", icon=":material/info:")
     if stripe_terug == "klaar":
         try:
             klaar = samen.verkoper_status()
         except samen.Fout:
             klaar = False
         st.toast("Je kunt nu betalingen via de app ontvangen." if klaar
-                 else "Stripe is nog bezig met je aanmelding.", icon="✅" if klaar else "ℹ️")
+                 else "Stripe is nog bezig met je aanmelding.", icon=":material/check_circle:" if klaar else ":material/info:")
 
 
 def kooplijst() -> None:
@@ -5762,7 +6006,7 @@ def communicatie_hub() -> None:
     for naam, route, icoon in [("Reviews", "winkels", ":material/rate_review:"), ("Cursussen", "cursussen", ":material/school:"), ("Leren", "leren", ":material/menu_book:")]:
         if route in PAGINA and st.button(naam, icon=icoon, key=f"community_extra_{route}", width="stretch"):
             ga_naar(route)
-    with st.expander("Slimme opdracht", icon=":material/auto_awesome:"):
+    with st.expander("Slimme opdracht", icon=":material/auto_awesome:", expanded=bool(st.session_state.get("toon_pay_in_chat"))):
         integraties_voorbereiding.intent_parser_pagina()
     st.markdown("#### Pay-in-Chat")
     st.caption("Maak een betaalverzoek als concept. Zonder betaalprovider wordt geen betaling gestart of bevestigd.")
@@ -6142,11 +6386,21 @@ def assistent_invoer() -> None:
             st.session_state.ga_naar = "assistent"
 
 
+# Adreswaarden die de nieuwe app zelf afhandelt.
+NIEUWE_APP_ADRES = {"nieuw", "zeg", "ochtend", "deel", "betaald", "boek", "boeking"}
+
+
 def main() -> None:
     taal_bepalen()
     schil.actief()  # onthoudt of de app in de web-app op het beginscherm draait
     if not opslag.online():
         st.caption("Lokale testmodus: gegevens staan in data/gegevens.json.")
+    if "oud" not in st.query_params and nieuwe_app.beschikbaar() and (
+            "nieuw" in st.query_params or not set(st.query_params) - NIEUWE_APP_ADRES):
+        # De nieuwe app (web/) is de app; hij heeft zijn eigen inloggen. Alleen links die nog niet in de nieuwe app
+        # werken (zoals ?winkel= of terug van een bank) komen hier nog in de oude app terecht.
+        nieuwe_app.toon()
+        return
     # Siri (app Opdrachten) opent de app met ?zeg=wat je zei. Dat bewaren we tot je ingelogd bent.
     if zin := st.query_params.get("zeg", "").strip():
         st.session_state.siri_zeg = zin[:500]
@@ -6197,7 +6451,7 @@ def main() -> None:
         if not st.session_state.get("wachtwoord"):
             webshop_bezoek(adres)
             return
-        # Ingelogd: de winkel opent gewoon in de app, bij 🏬 Winkels.
+        # Ingelogd: de winkel opent gewoon in de app, bij Winkels.
         del st.query_params["winkel"]
         st.session_state.open_winkel = adres
         st.session_state.ga_naar = "winkels"
@@ -6276,6 +6530,11 @@ def main() -> None:
         raise
     except Exception:
         pass
+    # Samen leren (alleen als je dat aanzette): eens per dag je anonieme bijdrage bijwerken, op de achtergrond.
+    try:
+        samen_leren.vanzelf()
+    except Exception:
+        pass
     # Elke paar uur vanzelf je mail nakijken op taken en afspraken (op de achtergrond, de app wacht er niet op).
     if "Mail" not in onderdelen_uit():
         try:
@@ -6302,7 +6561,7 @@ def main() -> None:
     if mislukt := st.session_state.pop("mislukt_melding", 0):
         st.warning(f"Sinds je vorige keer is {mislukt} keer geprobeerd in te loggen met een fout wachtwoord of code. "
                    "Was jij dat niet? Kies een nieuw wachtwoord en zet tweestapsverificatie aan bij "
-                   "Instellingen › Account › Beveiliging.", icon="⚠️")
+                   "Instellingen › Account › Beveiliging.", icon=":material/warning:")
     if st.session_state.pop("welkom", False):
         welkom_voorkeuren()
     elif st.session_state.get("koppelen_vraag") or (not opslag.instellingen().get("koppelen_gezien")
@@ -6330,7 +6589,7 @@ def main() -> None:
 
     snel_melding()
     if melding := st.session_state.pop("bezoek_melding", None):
-        (st.success if melding[0] == "ok" else st.error)(melding[1], icon="⭐" if melding[0] == "ok" else None)
+        (st.success if melding[0] == "ok" else st.error)(melding[1], icon=":material/star:" if melding[0] == "ok" else None)
     strava_terugkomst()
     strava_bijwerken()
     st.session_state._pagina = nu_open.url_path

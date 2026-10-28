@@ -58,11 +58,11 @@ def boeken(adres: str, soort: int, start: datetime, naam: str, email: str, telef
     notitie = notitie.strip()
     if not 2 <= len(naam) <= 60:
         raise samen.Fout("Vul een naam in van minimaal twee tekens.")
-    if not re.fullmatch(r"[^\\s@]+@[^\\s@]+\\.[^\\s@]+", email) or len(email) > 120:
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email) or len(email) > 120:
         raise samen.Fout("Vul een geldig e-mailadres in.")
     if len(telefoon) > 30 or len(notitie) > 500:
         raise samen.Fout("De ingevoerde gegevens zijn te lang.")
-    if not isinstance(soort, int) or soort < 0 or not isinstance(start, datetime) or start.tzinfo is None:
+    if type(soort) is not int or soort < 0 or not isinstance(start, datetime) or start.tzinfo is None:
         raise samen.Fout("Kies een geldig tijdstip.")
     if start <= datetime.now(start.tzinfo):
         raise samen.Fout("Dit tijdstip is verstreken. Kies een nieuw moment.")
