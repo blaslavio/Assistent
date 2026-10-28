@@ -7,6 +7,7 @@ Vandaag, de assistent en Instellingen staan altijd bovenaan; de rest kies je zel
 import re
 
 import beroep
+import gereedschappen
 import opslag
 
 VOORPAGINA = {"ochtend": "Ochtendoverzicht ('s ochtends, met voorlezen)", "weer": "Weer naast de datum", "startpunt": "Snel aan de slag (verkopen, dienst aanbieden, leren, winkels)",
@@ -41,43 +42,47 @@ def onderdelen_uit() -> list[str]:
     inst = opslag.instellingen()
     uit = inst.get("onderdelen_uit", inst.get("tabbladen_uit", []))
     # Oudere instellingen bewaarden de namen met een emoji ervoor ("🏪 Marktplaats").
-    uit = [re.sub(r"^[^\w]+", "", o) for o in uit]
+    uit = [re.sub(r"^[^\w]+", "", o) for o in _lijst(uit)]
     uit += [o for o in NIEUW_UIT if o not in inst.get("onderdelen_bekend", []) and o not in uit]
     return ["Leren" if o == "Leren en schrijven" else o for o in uit]
 
 
 # Alle pagina's die je kunt vastzetten, op url. Dezelfde namen als in het menu.
-PAGINAS = {"agenda": "Agenda", "chat": "Chat", "winkelen": "Winkelen", "zakelijk": "Zakelijk", "boekingen": "Boekingen",
-           "prikken": "Datum prikken", "mail": "Mail", "documenten": "Documenten", "bestanden": "Bestanden", "leren": "Leren",
-           "samen": "Samen", "budget": "Budget", "beleggen": "Beleggen", "zoeken": "Marktplaats",
-           "winkels": "Winkels", "verkopen": "Verkopen", "bestellingen": "Bestellingen", "berichten": "Berichten",
-           "webshop": "Mijn webshop", "verkoopoverzicht": "Verkoopoverzicht", "lijstjes": "Lijstjes",
-           "hulpmiddelen": "Hulpmiddelen", "ruimtes": "VR en games",
-           "buurt": "In de buurt", "inzamelen": "Inzamelen", "browser": "Browser",
-           "sport": "Sport"}
-GROEPEN = ["Kopen en verkopen", "Afspreken", "Leren en werk", "Geld", "Zakelijk", "Sport en gezondheid", "Thuis en handig"]
+PAGINAS = gereedschappen.paginanamen()
+GROEPEN = list(gereedschappen.GROEPEN)
+KORT_BOVENAAN = {"gereedschappen": "Tools", "werkzoeken": "Zoeken", "planning-backup": "Back-up",
+                 "bestandsgereedschap": "Bestandtools", "gegevenscontrole": "Controle", "werkbronnen": "Bronnen",
+                 "taakplanning": "Taken", "activiteitenoverzicht": "Activiteiten"}
 STANDAARD_BOVENAAN = ["agenda", "chat", "winkelen"]
 MAX_BOVENAAN = 4
 MAX_FAVORIETEN = 8
 
 
+def _lijst(waarde):
+    return list(dict.fromkeys(x for x in waarde if isinstance(x, str))) if isinstance(waarde, (list, tuple)) else []
+
+
 def huidig() -> dict:
     i = opslag.instellingen().get("indeling") or {}
-    groepen = [g for g in i.get("groepen", []) if g in GROEPEN]
+    if not isinstance(i, dict):
+        i = {}
+    groepen = [g for g in _lijst(i.get("groepen", [])) if g in GROEPEN]
     if not groepen and beroep.huidig()["soort"]:
-        # Met een beroep komen je zaak en je afspraken eerst.
         groepen = ["Zakelijk", "Afspreken"]
-    bovenaan = list(i.get("bovenaan", STANDAARD_BOVENAAN))
+    bovenaan = _lijst(i.get("bovenaan", STANDAARD_BOVENAAN))
     if "winkelen" not in bovenaan and not i.get("winkelen_gezien"):
-        bovenaan.append("winkelen")  # nieuw: staat er ook bij wie zijn indeling al eerder koos, tot hij het weghaalt
+        bovenaan.append("winkelen")
     return {"bovenaan": [u for u in bovenaan if u in PAGINAS][:MAX_BOVENAAN],
-            "favorieten": [u for u in i.get("favorieten", []) if u in PAGINAS][:MAX_FAVORIETEN],
+            "favorieten": [u for u in _lijst(i.get("favorieten", [])) if u in PAGINAS][:MAX_FAVORIETEN],
             "groepen": groepen + [g for g in GROEPEN if g not in groepen]}
 
 
 def url_van(naam: str) -> str | None:
     """'Mail', 'mail' of 'Mijn webshop' → url, of None."""
-    n = (naam or "").strip().lower()
+    n = naam.strip().lower() if isinstance(naam, str) else ""
+    for url, kort in KORT_BOVENAAN.items():
+        if n and n == kort.lower():
+            return url
     for url, titel in PAGINAS.items():
         if n in (url, titel.lower()):
             return url
@@ -88,7 +93,7 @@ def url_van(naam: str) -> str | None:
 
 
 def groep_van(naam: str) -> str | None:
-    n = (naam or "").strip().lower()
+    n = naam.strip().lower() if isinstance(naam, str) else ""
     return next((g for g in GROEPEN if g.lower() == n), None) or next((g for g in GROEPEN if n and n in g.lower()), None)
 
 
@@ -96,6 +101,7 @@ def bijwerken(bovenaan: list[str] | None = None, favorieten: list[str] | None = 
               groepen: list[str] | None = None) -> list[str]:
     """Past de indeling aan; namen of urls mogen. Geeft wat niet herkend werd."""
     nu = opslag.instellingen().get("indeling") or {}
+    nu = dict(nu) if isinstance(nu, dict) else {}
     onbekend: list[str] = []
 
     def urls(namen: list[str], maximaal: int) -> list[str]:

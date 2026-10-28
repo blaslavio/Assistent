@@ -149,7 +149,9 @@ def lees(invoer: str, nu: datetime | None = None) -> dict:
     titel = re.sub(r"(\s,)+", ",", titel)
     titel = re.sub(r"^[\s,;:-]+|[\s,;:-]+$", "", titel).strip()
     titel = re.sub(r"^(?:herinner me (?:aan |eraan )?|niet vergeten:? |taak:? |afspraak:? |om )", "", titel,
-                   flags=re.I).strip() or invoer.strip()
+                   flags=re.I).strip()
+    titel_herkend = bool(titel)
+    titel = titel or invoer.strip()
     titel = titel[:1].upper() + titel[1:]
 
     soort = ""
@@ -161,7 +163,9 @@ def lees(invoer: str, nu: datetime | None = None) -> dict:
     if re.search(r"herinner|niet vergeten", invoer, re.I):
         soort = "herinnering"
 
-    resultaat = {"titel": titel, "soort_agenda": soort, "locatie": locatie, "herhaal": herhaal}
+    resultaat = {"titel": titel, "soort_agenda": soort, "locatie": locatie, "herhaal": herhaal,
+                 "datum_herkend": dag is not None, "tijd_herkend": begin_tijd is not None,
+                 "titel_herkend": titel_herkend}
     if soort == "verjaardag" and dag and not begin_tijd:
         # "Sanne jarig 12 mei": een hele dag, elk jaar.
         resultaat |= {"wat": "afspraak", "start": dag.isoformat(), "einde": None, "herhaal": herhaal or "jaar"}

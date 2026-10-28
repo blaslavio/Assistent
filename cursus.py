@@ -7,6 +7,7 @@ inbegrepen bij een abonnement op de community. Betalen gaat via Stripe naar de e
 import re
 
 import opslag
+import geldwaarden
 import samen
 from samen import Fout
 
@@ -36,7 +37,7 @@ def lezen(cursus: int) -> dict:
 
 def opslaan(community: int | None, cursus: int | None, titel: str, omschrijving: str, soort_: str, prijs_euro: float,
             gepubliceerd: bool) -> int:
-    cent = round(float(prijs_euro or 0) * 100) if soort_ == "koop" else 0
+    cent = geldwaarden.centen(0 if prijs_euro is None else prijs_euro, negatief=False) if soort_ == "koop" else 0
     return samen._ok(opslag._rpc_ik("cursus_opslaan", p_community=community, p_cursus=cursus, p_titel=titel,
                                     p_omschrijving=omschrijving, p_prijs_cent=cent,
                                     p_voor_abonnees=soort_ == "abonnement", p_gepubliceerd=gepubliceerd))["id"]
@@ -62,7 +63,7 @@ def les_klaar(les: int, klaar: bool = True) -> None:
 def plan_opslaan(community: int | None, plan: int | None, naam: str, prijs_euro: float, voordelen: str,
                  actief: bool = True) -> int:
     return samen._ok(opslag._rpc_ik("plan_opslaan", p_community=community, p_plan=plan, p_titel=naam,
-                                    p_prijs_cent=round(float(prijs_euro or 0) * 100), p_voordelen=voordelen,
+                                    p_prijs_cent=geldwaarden.centen(0 if prijs_euro is None else prijs_euro, negatief=False), p_voordelen=voordelen,
                                     p_actief=actief))["id"]
 
 

@@ -114,11 +114,44 @@ import boven
 import wereld
 import ontwerp
 import browser  # niet in de herlaadlijst: bevat onderdelen (components)
+import universal_os
+import communicatie
+import communicatie_scherm
+import intenties
+import agendacontrole
+import dagplan
+import dagplan_scherm
+import herplanning
+import actielinks
+import actielinks_scherm
+import actieoverzicht
+import actieoverzicht_scherm
+import sjablonen
+import sjablonen_scherm
+import taakvolgorde
+import capaciteit
+import taakplanning_scherm
+import planning_backup
+import planning_backup_scherm
+import werkbronnen
+import werkbronnen_scherm
+import gegevenscontrole
+import werkzoeken
+import werkcontrole_scherm
+import focusplan
+import geldwaarden
+import tekstcontrole
+import werkcontext
+import herstel
+import werkcontext_scherm
+import gereedschappen
+import gereedschappen_scherm
+import bestandsgereedschap
+import bestandsgereedschap_scherm
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
-for _module in (symbool, opslag, agendas, budget, samen_leren, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
-                mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, azure_services, azure_search_ready, azure_documents, azure_ui, toegang, bestanden, bestanden_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, wereld, ontwerp, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, cursus, cursus_scherm, gezondheid, sport_scherm):
+for _module in (communicatie, communicatie_scherm, herstel, werkcontext, werkcontext_scherm, tekstcontrole, geldwaarden, gereedschappen, gereedschappen_scherm, gegevenscontrole, werkzoeken, werkcontrole_scherm, focusplan, planning_backup, planning_backup_scherm, werkbronnen, werkbronnen_scherm, taakvolgorde, capaciteit, taakplanning_scherm, sjablonen, sjablonen_scherm, actieoverzicht, actieoverzicht_scherm, opslag, actielinks, actielinks_scherm, intenties, agendacontrole, dagplan, herplanning, dagplan_scherm, bestandsgereedschap, bestandsgereedschap_scherm, universal_os, agendas, budget, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap, mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, toegang, bestanden, bestanden_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, wereld, ontwerp, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, cursus, cursus_scherm, gezondheid, sport_scherm, symbool, samen_leren, azure_services, azure_search_ready, azure_documents, azure_ui):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
         _gewijzigd = max(_gewijzigd, os.path.getmtime(os.path.join(os.path.dirname(chat.__file__), "chat_js.js")))
@@ -1174,6 +1207,8 @@ def afspraak_kaart(regel: dict, afspraak: dict) -> None:
                     if st.button("Ja, verwijderen", key=f"verwijder_{afspraak['id']}", type="primary"):
                         opslag.afspraak_verwijderen(afspraak["id"])
                         st.rerun()
+        if st.button("Bekijk werkdossier", key=f"afspraak_dossier_{afspraak['id']}"):
+            werkcontext_scherm.openen("afspraak", afspraak["id"])
         herinneringen(afspraak)
 
 
@@ -1634,6 +1669,10 @@ def taak_rij(t: dict, gepland: str | None) -> None:
     delen = []
     if t.get("deadline"):
         delen.append(("te laat: " if t["deadline"] < date.today().isoformat() else "vóór ") + _wanneer(t["deadline"]))
+    if t.get("afhankelijk_van"):
+        blokkades = taakvolgorde.blokkades(t, opslag.laden()["taken"])
+        if blokkades:
+            delen.append("wacht op: " + ", ".join(b["titel"] for b in blokkades))
     if gepland:
         delen.append(f"ingepland {_wanneer(gepland[:10])} {gepland[11:16]}")
     if t.get("minuten"):
@@ -1646,7 +1685,7 @@ def taak_rij(t: dict, gepland: str | None) -> None:
         opslag.taak_afronden(t["id"])
         st.toast(f"Goed gedaan: {t['titel']}", icon=":material/celebration:")
         st.rerun()
-    with rij.popover("", icon=":material/more_horiz:"):
+    with rij.popover("Taakopties", icon=":material/more_horiz:"):
         with st.form(f"taak_wijzig_{t['id']}", border=False):
             titel_nieuw = st.text_input("Taak", value=t["titel"])
             deadline = st.date_input("Deadline", value=date.fromisoformat(t["deadline"]) if t.get("deadline") else None,
@@ -1667,6 +1706,8 @@ def taak_rij(t: dict, gepland: str | None) -> None:
             if st.button("Open de mail", key=f"taak_mail_{t['id']}", icon=":material/mail:"):
                 st.session_state.mail_open = bron["uid"]
                 ga_naar("mail")
+        if st.button("Bekijk werkdossier", key=f"taak_dossier_{t['id']}"):
+            werkcontext_scherm.openen("taak", t["id"])
         if st.button("Verwijderen", key=f"taak_weg_{t['id']}", icon=":material/delete:"):
             opslag.taak_verwijderen(t["id"])
             st.rerun()
@@ -2128,6 +2169,8 @@ def snel_melding() -> None:
 def taken_inplannen(context: str = "taken") -> None:
     """Open taken automatisch in vrije tijd zetten: eerst een voorstel, pas na akkoord in de agenda."""
     uren = inplannen.planuren()
+    with st.expander("Capaciteit en blokkades bekijken"):
+        taakplanning_scherm.capaciteit_paneel()
     st.markdown("**Plan mijn taken in**")
     st.caption(f"In je vrije tijd tussen {uren['van']} en {uren['tot']}"
                f"{' (ook in het weekend)' if uren['weekend'] else ' op werkdagen'}, vroegste deadline eerst.")
@@ -2159,7 +2202,11 @@ def taken_inplannen(context: str = "taken") -> None:
     kol1, kol2 = st.columns(2)
     if kol1.button("Zet in mijn agenda", key=f"plan_vastleggen_{context}", type="primary", width="stretch",
                    disabled=not any(r["blokken"] for r in plan)):
-        aantal = inplannen.vastleggen(plan)
+        try:
+            aantal = inplannen.vastleggen(plan)
+        except ValueError as fout:
+            st.error(str(fout))
+            return
         st.session_state.pop("planvoorstel")
         st.toast(f"{aantal} {'blok' if aantal == 1 else 'blokken'} ingepland. Vink de taak af als hij klaar is.", icon=":material/target:")
         st.rerun()
@@ -4101,6 +4148,11 @@ def voorpagina_instellingen() -> None:
 
 def indeling_instellingen() -> None:
     """Wat er bovenaan staat, je favorieten en de volgorde van de groepen. Per account bewaard."""
+    account = (st.session_state.get("naam", ""), st.session_state.get("wachtwoord", ""))
+    if st.session_state.get("_indeling_account") != account:
+        for key in ("indeling_bovenaan", "indeling_favorieten", "indeling_groepen"):
+            st.session_state.pop(key, None)
+        st.session_state._indeling_account = account
     huidig = indeling.huidig()
     keuzes = [u for u in indeling.PAGINAS if u in PAGINA]
     naam = lambda u: indeling.PAGINAS.get(u, u)  # noqa: E731
@@ -4542,6 +4594,7 @@ def instellingen_tabblad() -> None:
     }
     </style>
     """)
+    st.page_link(PAGINA["gereedschappen"], label="Zoek tools in alle mappen", icon=":material/manage_search:")
     st.markdown("## Instellingen")
     st.caption("Persoonlijk overzicht")
     naam = gebruiker.get("weergavenaam") or gebruiker.get("naam") or "Mijn profiel"
@@ -4619,6 +4672,7 @@ def idee_of_probleem() -> None:
 
 
 def instellingen_assistent() -> None:
+    st.page_link(PAGINA["communicatie"], label="Communicatie en privé-schrijfhulp", icon=":material/edit_note:")
     with st.expander("Azure-diensten"):
         azure_ui.settings()
     with st.expander(f"Naam en uiterlijk ({mijn_avatar()['naam']})"):
@@ -5044,6 +5098,7 @@ def instellingen_koppelingen() -> None:
 
 
 def instellingen_account() -> None:
+    st.page_link(PAGINA["communicatie"], label="Privécommunicatie en profielvoorkeuren", icon=":material/manage_accounts:")
     if st.session_state.pop("account_overzicht", False):
         st.markdown("**Mijn communities en abonnementen**")
     with st.container(border=True):
@@ -5397,6 +5452,18 @@ def assistent_financieel_samenvatting() -> str:
 
 
 def gesprek() -> None:
+    """Eén gesprek voor vaste opdrachten, vervolgvragen en vrije AI-vragen."""
+    universal_os.bewaak_account()
+    if vraag := st.session_state.get("vooraf_vraag"):
+        if universal_os.ontvang(vraag):
+            st.session_state.pop("vooraf_vraag", None)
+            st.session_state.pop("vooraf_label", None)
+            st.session_state.pop("ingesproken", None)
+    gesprek_ai()
+    universal_os.paneel()
+
+
+def gesprek_ai() -> None:
     """Het gesprek met de assistent; antwoorden verschijnen woord voor woord."""
     st.session_state.setdefault("chat", [])
     # Twee lijsten: wat de gebruiker ziet, en de volledige geschiedenis voor Claude.
@@ -5486,7 +5553,7 @@ def gesprek() -> None:
     gezicht = avatar.plaatje(mijn_avatar())
     for rol, tekst in st.session_state.chat:
         st.chat_message(rol, avatar=gezicht if rol == "assistant" else None).markdown(tekst)
-    if st.session_state.chat and st.session_state.chat[-1][0] == "assistant":
+    if st.session_state.chat and st.session_state.chat[-1][0] == "assistant" and not st.session_state.get("_os_lokale_laatste"):
         spraak.knop(stemkeuze, laatste, voorlezen, automatisch=bool(voorlezen),
                     gevoel=st.session_state.get("laatste_gevoel", "neutraal"),
                     geluid=st.session_state.get("voorlezen_geluid"))
@@ -5517,6 +5584,7 @@ def gesprek() -> None:
         if st.session_state.chat and st.button("Nieuw gesprek"):
             st.session_state.chat = []
             st.session_state.berichten = []
+            universal_os.nieuw_gesprek()
             st.rerun()
         return
     st.session_state.assistent_leerpatronen = assistant_privacy.learn_scoped(
@@ -5589,6 +5657,7 @@ def gesprek() -> None:
         tekst = spraak.zonder_labels(tekst) or "Klaar."
         st.markdown(tekst)
     st.session_state.chat.append(("assistant", tekst))
+    st.session_state._os_lokale_laatste = False
     st.session_state.laatste_vraag = zichtbaar
     st.session_state.laatste_gevoel = gevoel
     st.session_state.voorlezen_geluid = None
@@ -5876,6 +5945,10 @@ def paginas() -> list:
     pagina(dating_pagina, "Dating en singles", ":material/favorite:", "dating")
     pagina(agenda_tabblad, "Agenda", ":material/calendar_month:", "agenda")
     pagina(gesprek, mijn_avatar()["naam"], ":material/chat_bubble:", "assistent")
+    # Bestaande verwijzingen naar de voormalige opdrachtchat blijven bruikbaar.
+    def oude_opdrachtchat():
+        st.switch_page(PAGINA["assistent"])
+    pagina(oude_opdrachtchat, "Universal OS", ":material/terminal:", "universal-os")
     if online and "Chat" not in uit:
         pagina(chat_met_profiel, "Chat", ":material/forum:", "chat")
     if online and "Marktplaats" not in uit:
@@ -5886,47 +5959,17 @@ def paginas() -> list:
     def als(aan: bool, *args, **kwargs) -> str | None:
         return pagina(*args, **kwargs).url_path if aan else None
 
-    groep("Kopen en verkopen",
-          als(online and "Marktplaats" not in uit, samen_scherm.markt_zoeken, "Marktplaats", ":material/search:", "zoeken"),
-          als(online and "Marktplaats" not in uit, samen_scherm.winkelstraat, "Winkels", ":material/storefront:", "winkels"),
-          als(online and "Marktplaats" not in uit, samen_scherm.aanbieden, "Verkopen", ":material/sell:", "verkopen"),
-          als(online and "Marktplaats" not in uit, samen_scherm.markt_bestellingen, "Bestellingen", ":material/receipt_long:",
-              "bestellingen", nieuw.get("bestellingen", 0)),
-          als(online and "Marktplaats" not in uit, samen_scherm.berichten, "Berichten", ":material/inbox:", "berichten",
-              nieuw.get("berichten", 0)),
-          als(online and "Marktplaats" not in uit and ik().get("niveau") in ("verkoper", "ondernemer"),
-              samen_scherm.mijn_webshop, "Mijn webshop", ":material/inventory_2:", "webshop"),
-          als(online and "Marktplaats" not in uit and ik().get("niveau") in ("verkoper", "ondernemer"),
-              samen_scherm.verkoopoverzicht, "Verkoopoverzicht", ":material/bar_chart:", "verkoopoverzicht"))
-    groep("Afspreken",
-          als(True, plannen_scherm.buurt_pagina, "In de buurt", ":material/near_me:", "buurt"),
-          als(online, pot_scherm.pagina, "Inzamelen", ":material/savings:", "inzamelen"),
-          als(online, plannen_scherm.boekingen_pagina, "Boekingen", ":material/event_available:", "boekingen",
-              boekingen_wachten() if online else 0),
-          als(online, plannen_scherm.prikken_pagina, "Datum prikken", ":material/how_to_vote:", "prikken"))
-    groep("Leren en werk",
-          als(online and "Documenten" not in uit, documenten_scherm.pagina, "Documenten", ":material/description:",
-              "documenten"),
-          als(online and "Bestanden" not in uit, bestanden_scherm.pagina, "Bestanden", ":material/folder:", "bestanden"),
-          als("Leren" not in uit, leren_tabblad, "Leren", ":material/school:", "leren"),
-          als(online and "Chat" not in uit, cursus_scherm.pagina, "Cursussen", ":material/cast_for_education:",
-              "cursussen"),
-          als("Mail" not in uit, mail_tabblad, "Mail", ":material/mail:", "mail"),
-          als(online and "Samen" not in uit, samen_scherm.samen_tabblad, "Samen", ":material/group:", "samen",
-              nieuw.get("gedeeld", 0)),
-          als(online and "VR-ruimtes" not in uit, ruimte_scherm.pagina, "VR en games", ":material/view_in_ar:", "ruimtes"))
-    groep("Geld",
-          als(online and "Budget" not in uit, geld_scherm.budget_pagina, "Budget", ":material/account_balance_wallet:",
-              "budget"),
-          als("Beleggen" not in uit, geld_scherm.beleggen_pagina, "Beleggen", ":material/trending_up:", "beleggen"))
-    groep("Zakelijk",
-          als(online and "Zakelijk" not in uit, zaak_scherm.pagina, "Zakelijk", ":material/business_center:", "zakelijk"))
-    groep("Sport en gezondheid",
-          als(True, sport_pagina, "Sport", ":material/directions_run:", "sport"))
-    groep("Thuis en handig",
-          als(bool(lijstjes_delen()), lijstjes, "Lijstjes", ":material/shopping_cart:", "lijstjes"),
-          als(bool(handig_delen()), handig, "Hulpmiddelen", ":material/build:", "hulpmiddelen"),
-          als(True, browser.pagina, "Browser", ":material/language:", "browser"))
+    # Dezelfde catalogus voedt de navigatie, favorieten en het tooloverzicht.
+    for tool in gereedschappen.catalogus(online, uit, ik().get("niveau", "particulier")):
+        GROEPEN.setdefault(tool["groep"], [])
+        if not tool["beschikbaar"]:
+            continue
+        module, punt, attribuut = tool["functie"].partition(".")
+        functie = getattr(globals()[module], attribuut) if punt else globals()[module]
+        aantal = (boekingen_wachten() if online else 0) if tool["url"] == "boekingen" else nieuw.get(
+            {"samen": "gedeeld"}.get(tool["url"], tool["url"]), 0)
+        pagina(functie, tool["titel"], tool["icoon"], tool["url"], aantal)
+        GROEPEN[tool["groep"]].append(tool["url"])
     # Groepen in jouw volgorde (Instellingen › Weergave › Indeling).
     volgorde = indeling.huidig()["groepen"]
     for naam in sorted(GROEPEN, key=lambda g: volgorde.index(g) if g in volgorde else len(volgorde)):
@@ -6166,18 +6209,22 @@ def kopbalk() -> None:
             "button[data-variant=segmented_control]{flex:1 0 auto;white-space:nowrap}"
             "button[data-variant=pills]{border-radius:8px!important}"
             "button[data-variant=segmented_control] p{white-space:nowrap}"
+            # Stapel icoon en titel: ook lange woorden passen op smalle tegels.
+            "[class*=st-key-tegels_] a[data-testid=stPageLink-NavLink]{flex-direction:column;align-items:center;"
+            "justify-content:center;min-height:88px;gap:4px;text-align:center}"
+            "[class*=st-key-tegels_] a p{word-break:normal!important;overflow-wrap:normal!important}"
             # Lange namen op tegels mogen naar een tweede regel in plaats van afgekapt te worden.
             "[class*=st-key-tegels_] a *{white-space:normal!important;text-overflow:clip!important;overflow:visible!important}"
             # Een regel met tekst en knoppen: de tekst krimpt mee, de knoppen blijven heel en binnen beeld.
             "[class*=st-key-gezin_item_]{flex-wrap:nowrap}"
             "[class*=st-key-gezin_item_] > div:first-child{min-width:0;flex:1 1 0}"
             "[class*=st-key-gezin_item_] > div:not(:first-child){flex:0 0 auto}"
-            "@media (max-width:640px){button[data-variant=segmented_control]{padding-left:9px;padding-right:9px;"
+            "@media (max-width:640px){.st-key-kopbalk{flex-wrap:wrap;overflow-x:visible}button[data-variant=segmented_control]{padding-left:9px;padding-right:9px;"
             "min-height:36px}button[data-variant=segmented_control] p{font-size:14px}}"
             # Alles op één lijn, ook het tandwiel (dat heeft geen tekst en was daardoor lager en kleiner).
             ".st-key-kopbalk{align-items:center;padding:3px 0}"
-            ".st-key-kopbalk a{height:32px;display:inline-flex;align-items:center;box-sizing:border-box}"
-            ".st-key-kopbalk > div:last-child a{width:36px;justify-content:center;padding:0}"
+            ".st-key-kopbalk a{min-height:44px;display:inline-flex;align-items:center;box-sizing:border-box}"
+            ".st-key-kopbalk > div:last-child a{min-width:44px;justify-content:center;padding:0}"
             ".st-key-kopbalk > div:last-child a [data-testid=stIconMaterial]{font-size:22px;margin:0}"
             ".st-key-kopbalk > div:last-child [data-testid=stMarkdownContainer]:empty{display:none}</style>")
     with st.container(horizontal=True, gap="small", key="kopbalk"):
@@ -6191,9 +6238,10 @@ def kopbalk() -> None:
             if url == "chat":
                 st.page_link(PAGINA["chat"], label=f"Chat ({n})" if (n := chat.ongelezen()) else "Chat", width="content")
             else:
-                st.page_link(PAGINA[url], width="content")
-        st.page_link(PAGINA["assistent"], label="Assistent", width="content")
-        st.page_link(PAGINA["instellingen"], label=f"{totaal}" if totaal else " ", icon=":material/settings:",
+                st.page_link(PAGINA[url], label=indeling.KORT_BOVENAAN.get(url, PAGINA[url].title), width="content")
+        st.page_link(PAGINA["assistent"], label=mijn_avatar()["naam"], width="content")
+        # Instellingen als icoon, zodat alles ook op een telefoon op één regel past.
+        st.page_link(PAGINA["instellingen"], label=f"Instellingen ({totaal})" if totaal else "Instellingen", icon=":material/settings:",
                      width="content", help="Instellingen")
 
 
@@ -6249,6 +6297,10 @@ def te_doen_blok() -> None:
 def taken_openen() -> None:
     st.session_state.agenda_deel = "Taken"
     st.session_state.ga_naar = "agenda"
+
+
+def gereedschappen_overzicht() -> None:
+    gereedschappen_scherm.pagina(PAGINA, samen.beschikbaar(), onderdelen_uit(), ik().get("niveau", "particulier"))
 
 
 def onderdelen_tegels() -> None:
@@ -6315,6 +6367,11 @@ def onderdelen_tegels() -> None:
     for index, (naam, urls) in enumerate(groepen.items()):
         beschikbaar = [url for url in urls if url in PAGINA]
         if not beschikbaar:
+            st.markdown("**" + naam + "**")
+            st.caption("De eigen tools in deze map vereisen een online account of staan uit bij Weergave.")
+            for url in gereedschappen.GEDEELD.get(naam, []):
+                if url in PAGINA:
+                    st.page_link(PAGINA[url], label="Gedeeld hulpmiddel: " + PAGINA[url].title)
             continue
         st.markdown("**" + naam + "**")
         with st.container(key=f"onderdelen_lijst_{index}"):
@@ -6338,28 +6395,27 @@ def webshop_bezoek(adres: str) -> None:
     wachtwoord_ok()
 
 
+def assistent_opdracht(vraag: str, ingesproken: bool = False) -> None:
+    """Dezelfde router voor typen, microfoon en Siri."""
+    universal_os.bewaak_account()
+    if not actielinks.herkent(vraag) and not any(st.session_state.get(k) for k in ("_os_voorstel", "_os_vervolg", "_os_dagplan", "_al_voorstel")) and snel_uitgave(vraag):
+        return
+    st.session_state.ga_naar = "assistent"
+    if not universal_os.ontvang(vraag):
+        st.session_state.vooraf_vraag = vraag
+        st.session_state.ingesproken = ingesproken
+
+
 def assistent_invoer() -> None:
-    """Het invoerveld onderaan, met de microfoon erin."""
+    """Eén invoerveld voor vragen, opdrachten en antwoorden op vervolgvragen."""
+    universal_os.bewaak_account()
     with st.container(key="microfoon_houder"):
         gezegd = spraak.microfoon(stem())
     st.html("<style>.st-key-microfoon_houder{display:none}</style>")
     if gezegd:
-        if snel_uitgave(gezegd):
-            pass
-        elif snelinvoer.lijkt_invoer(gezegd):
-            snel_toevoegen(gezegd)
-        else:
-            st.session_state.vooraf_vraag = gezegd
-            st.session_state.ingesproken = True
-            st.session_state.ga_naar = "assistent"
-    if vraag := st.chat_input(f"Vraag {avatar.aanspreken(mijn_avatar())} iets..."):
-        if snel_uitgave(vraag):
-            pass
-        elif snelinvoer.lijkt_invoer(vraag):
-            snel_toevoegen(vraag)
-        else:
-            st.session_state.vooraf_vraag = vraag
-            st.session_state.ga_naar = "assistent"
+        assistent_opdracht(gezegd, ingesproken=True)
+    if vraag := st.chat_input("Vraag iets of geef een opdracht…", disabled=any(st.session_state.get(k) for k in ("_os_voorstel", "_os_dagplan", "_al_voorstel"))):
+        assistent_opdracht(vraag)
 
 
 # Adreswaarden die de nieuwe app zelf afhandelt.
@@ -6456,6 +6512,12 @@ def main() -> None:
     toegankelijkheid_css()
     if opslag.online() and privacy_scherm.op_slot():
         return
+    if code := st.query_params.get("actie"):
+        # Conceptlinks zijn uitsluitend na inloggen, binnen het eigen account te openen.
+        universal_os.bewaak_account()
+        st.session_state.al_open = code
+        st.session_state.ga_naar = "actielinks"
+        del st.query_params["actie"]
     # De eigenaar legt het adres van de app vast, zodat de web-app op het beginscherm weet wat hij moet openen.
     if ik().get("id") == 1 and not st.session_state.get("_adres_gemeld"):
         st.session_state._adres_gemeld = True
@@ -6518,13 +6580,7 @@ def main() -> None:
         except Exception:
             pass
     if zin := st.session_state.pop("siri_zeg", None):
-        if snel_uitgave(zin):
-            pass
-        elif snelinvoer.lijkt_invoer(zin):
-            snel_toevoegen(zin)
-        else:
-            st.session_state.vooraf_vraag = zin
-            st.session_state.ga_naar = "assistent"
+        assistent_opdracht(zin, ingesproken=True)
     terug_van_stripe()
     nu_open = st.navigation(paginas(), position="hidden")
     # Bewaar de gekozen instellingengroep wanneer iemand tijdelijk een tool
@@ -6549,8 +6605,7 @@ def main() -> None:
         st.session_state.rl_later = True  # niet bij elke klik opnieuw; na sluiten pas volgende keer
         rondleiding()
 
-    # Het invoerveld onderaan: "morgen 9u tandarts" komt meteen in de agenda (ook zonder Claude),
-    # al het andere gaat naar het gesprek met de assistent.
+    # Eén invoerveld: opdrachten krijgen een voorstel, vrije vragen gaan naar de assistent.
     # De microfoon zit in het invoerveld (naast het pijltje); wat je zegt, gaat dezelfde weg als wat je typt.
     # Niet op de chatpagina: daar heeft de chat zijn eigen invoerveld.
     # Chatinvoer is uitsluitend beschikbaar op de afzonderlijke assistentpagina.
@@ -6576,6 +6631,12 @@ def main() -> None:
 
 try:
     main()
+except opslag.OpslagBeschadigd as fout:
+    st.error(str(fout))
+except opslag.OpslagConflict:
+    st.warning("Je gegevens zijn op een ander apparaat gewijzigd. Ververs de pagina en probeer je wijziging opnieuw.")
+except opslag.OpslagNietIngericht:
+    st.error("De database-update voor veilige opslag ontbreekt. Laat de beheerder sql/veilige_opslag.sql uitvoeren.")
 except opslag.GeenToegang:
     st.session_state.pop("wachtwoord", None)
     st.session_state.pop("ik", None)

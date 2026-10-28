@@ -8,6 +8,11 @@ hoogstens twee uur verdeeld. Er wordt niets opgeslagen tot de gebruiker het voor
 from datetime import date, datetime, time, timedelta
 
 import opslag
+import hashlib
+import json
+from zoneinfo import ZoneInfo
+import agendacontrole
+import taakvolgorde
 
 STANDAARD_MINUTEN = 30
 MAX_BLOK = 120
@@ -16,7 +21,8 @@ STANDAARD_UREN = {"van": "09:00", "tot": "18:00", "weekend": False}
 
 
 def planuren() -> dict:
-    return {**STANDAARD_UREN, **opslag.instellingen().get("planuren", {})}
+    import dagplan
+    return dagplan._uren(opslag.laden(vers=True))
 
 
 def _tijdstip(waarde: str) -> datetime | None:
@@ -30,9 +36,10 @@ def _bezet(van: date, tot: date) -> list[tuple[datetime, datetime]]:
     """Tijden waarop al iets in de agenda staat, met een korte pauze ervoor en erna."""
     bezet = []
     for a in opslag.afspraken_tussen(van.isoformat(), tot.isoformat()):
-        if start := _tijdstip(a["start"]):
-            einde = _tijdstip(a.get("einde") or "") or start + timedelta(hours=1)
-            bezet.append((start - PAUZE, einde + PAUZE))
+        b, e = agendacontrole.interval(a)
+        begin = b.astimezone(ZoneInfo("Europe/Amsterdam")).replace(tzinfo=None)
+        einde = e.astimezone(ZoneInfo("Europe/Amsterdam")).replace(tzinfo=None)
+        bezet.append((begin - PAUZE, einde + PAUZE))
     return sorted(bezet)
 
 
@@ -56,23 +63,28 @@ def _gat(dag: date, minuten: int, bezet: list, uren: dict, niet_voor: datetime) 
 
 def voorstel(dagen: int = 7, nu: datetime | None = None) -> list[dict]:
     """Per open taak de blokken waarin hij past. Taken die al ingepland zijn, blijven buiten beschouwing."""
-    nu = nu or datetime.now()
-    uren = planuren()
+    nu = nu or datetime.now(ZoneInfo("Europe/Amsterdam")).replace(tzinfo=None)
+    import dagplan
+    gegevens = opslag.laden(vers=True)
+    uren = dagplan._uren(gegevens)
     eerste, laatste = nu.date(), nu.date() + timedelta(days=dagen - 1)
-    al_gepland = {a["taak_id"] for a in opslag.afspraken_tussen(eerste.isoformat(), "9999-12-31")
-                  if a.get("taak_id") and a["start"] >= nu.isoformat(timespec="minutes")}
+    al_gepland = dagplan._gepland(gegevens, nu)
     bezet = _bezet(eerste, laatste)
     resultaat = []
     # open_taken staat al op deadline; belangrijke taken zonder deadline gaan voor de rest zonder deadline.
-    for taak in opslag.open_taken():
+    alle_taken = gegevens["taken"]
+    open_taken = sorted((t for t in alle_taken if not t.get("klaar")),
+                        key=lambda t: (t.get("deadline") or "9999", t.get("prioriteit") != "hoog", t["id"]))
+    for taak in open_taken:
         if taak["id"] in al_gepland:
             continue
-        minuten = int(taak.get("minuten") or STANDAARD_MINUTEN)
+        blokkades = taakvolgorde.blokkades(taak, alle_taken)
+        minuten = dagplan._minuten(taak)
         uiterlijk = laatste
         if taak.get("deadline") and eerste <= date.fromisoformat(taak["deadline"]) < laatste:
             uiterlijk = date.fromisoformat(taak["deadline"])
         blokken, rest = [], minuten
-        while rest > 0:
+        while rest > 0 and not blokkades:
             blok = min(rest, MAX_BLOK)
             dag, start = eerste, None
             while dag <= uiterlijk and not start:
@@ -87,7 +99,9 @@ def voorstel(dagen: int = 7, nu: datetime | None = None) -> list[dict]:
             rest -= blok
         regel = {"taak_id": taak["id"], "titel": taak["titel"], "deadline": taak.get("deadline"),
                  "minuten": minuten, "blokken": sorted(blokken, key=lambda b: b["start"])}
-        if rest > 0:
+        if blokkades:
+            regel["past_niet"] = "Wacht op: " + ", ".join(b["titel"] for b in blokkades)
+        elif rest > 0:
             regel["past_niet"] = (f"Er is te weinig vrije tijd vóór de deadline ({taak['deadline']})."
                                   if uiterlijk < laatste else f"Er is te weinig vrije tijd in de komende {dagen} dagen.")
         if taak.get("deadline") and date.fromisoformat(taak["deadline"]) < eerste:
@@ -98,10 +112,6 @@ def voorstel(dagen: int = 7, nu: datetime | None = None) -> list[dict]:
 
 def vastleggen(plan: list[dict]) -> int:
     """Zet de blokken uit een voorstel als focusblokken in de agenda. Geeft het aantal blokken."""
-    aantal = 0
-    for regel in plan:
-        for blok in regel["blokken"]:
-            opslag.afspraak_toevoegen(regel["titel"], blok["start"], blok["einde"], soort="focus",
-                                      notitie="Ingepland door je assistent.", taak_id=regel["taak_id"])
-            aantal += 1
-    return aantal
+    opdracht_id = "focus-" + hashlib.sha256(json.dumps(plan, sort_keys=True, ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+    ontvangst = opslag.focusplan_bevestigen(opdracht_id, plan)
+    return 0 if ontvangst.get("ongedaan") else len(ontvangst["items"])

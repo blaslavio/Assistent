@@ -1,0 +1,99 @@
+{
+  "formaat": "assistent-browsercontrole",
+  "tijd": "2026-10-28T10:14:46.823716+00:00",
+  "scenarios": [
+    {
+      "scenario": "desktop-instellingen",
+      "breedte": 1440,
+      "hoogte": 1000,
+      "geslaagd": true,
+      "pagina_fouten": 0,
+      "horizontale_overloop": false,
+      "kopbalk_links": 6,
+      "onbenoemde_links": 0,
+      "kleine_aanraakdoelen": 0,
+      "alle_mappen": true
+    },
+    {
+      "scenario": "mobiel-instellingen",
+      "breedte": 390,
+      "hoogte": 844,
+      "geslaagd": true,
+      "pagina_fouten": 0,
+      "horizontale_overloop": false,
+      "kopbalk_links": 6,
+      "onbenoemde_links": 0,
+      "kleine_aanraakdoelen": 0,
+      "alle_mappen": true
+    },
+    {
+      "scenario": "mobiel-gereedschappen",
+      "breedte": 390,
+      "hoogte": 844,
+      "geslaagd": true,
+      "pagina_fouten": 0,
+      "horizontale_overloop": false,
+      "kopbalk_links": 6,
+      "onbenoemde_links": 0,
+      "kleine_aanraakdoelen": 0,
+      "alle_mappen": true
+    },
+    {
+      "scenario": "mobiel-werkstroom",
+      "breedte": 390,
+      "hoogte": 844,
+      "geslaagd": true,
+      "pagina_fouten": 0,
+      "horizontale_overloop": false,
+      "kopbalk_links": 6,
+      "onbenoemde_links": 0,
+      "kleine_aanraakdoelen": 0,
+      "alle_mappen": false
+    },
+    {
+      "scenario": "mobiel-communicatie",
+      "breedte": 390,
+      "hoogte": 844,
+      "geslaagd": true,
+      "pagina_fouten": 0,
+      "horizontale_overloop": false,
+      "kopbalk_links": 6,
+      "onbenoemde_links": 0,
+      "kleine_aanraakdoelen": 0,
+      "alle_mappen": false
+    },
+    {
+      "scenario": "mobiel-communicatieprivacy",
+      "breedte": 390,
+      "hoogte": 844,
+      "geslaagd": true,
+      "pagina_fouten": 0,
+      "horizontale_overloop": false,
+      "kopbalk_links": 6,
+      "onbenoemde_links": 0,
+      "kleine_aanraakdoelen": 0,
+      "alle_mappen": false
+    }
+  ],
+  "bronnen": {
+    "communicatie.py": "e422a7913e055bb60f6888a66416c1897f6c5f32d03ab5482412d48857003c2d",
+    "communicatie_scherm.py": "6de8a069b5460707e3a42c80805b83f1c25cd0ef9e9f8a581e7a16eda507fcb1",
+    "slim.py": "ba1d59abb56f01097dc40b706cf355893ecfe4fae63123d9f2c27f03b9f26526",
+    "universal_os.py": "acfab69f85aa7bacd3b0a276718f3d4f9c7f6acc7f85af6acff00a578ddc7b78",
+    "app.py": "cf5e79147aef356d56ca6a469a8aecbd1f02b35e0538c80a6c88daabedbaf56e",
+    "gereedschappen.py": "472b752b3ffa938a6b1459a77149d8ffcc6812667322d4f222246475894b8fc2",
+    "gereedschappen_scherm.py": "07f5094b89bc52f15881bac1811deef799f154cf68aa532ae1fb1364314a3679",
+    "indeling.py": "ccb888b449100f3b4c3f0e308f0879942eff0e59bff9ba376b5157f394d5d4eb",
+    "tools/interface_lokaal.py": "0ff4fff6b9158e0c0528c2b7ea338b76486dbe072bae7a44542dca0f1d2e4b48",
+    "tools/interface_browser_controle.py": "7bc65cf47bb45c09b228d22cf777c81a63f1ad29645d6cd3b9ecfcb134a747d4",
+    "werkcontext.py": "4698de93b8cdc685ca5d5ab098f850afdaac470973d619446a6cadd480fc6d88",
+    "werkcontext_scherm.py": "d6bd15a7a21888a1ff7fc005e7cf86b1a2ea335c24f357dc5b8bf46312dd1b55",
+    "werkcontrole_scherm.py": "f5af3b9857bb632af1abd9f7408982f5034a798f094d60f30b94211708d39743",
+    "werkzoeken.py": "82833c4a48e9d2dc505fa556d88fcd83104593b33d9777402e41ab88da491925",
+    "werkbronnen.py": "ef63646027be1f7eb0eda67825e93cfff14630ef9aa546462161d8193fcabbff",
+    "tekstcontrole.py": "7efaac754530615cdbeb83ffb34d65fcefaf0f790361a64481ec74f0b3cad68a",
+    "opslag.py": "c5c63732bb9b4fb85bc1776a0695b5e38933544fb3cb0d0c40f875b85978caac"
+  },
+  "broncode_actueel": true,
+  "scope": "Echte navigatiefuncties en lokale tools in een geïsoleerde preview. Geen externe pagina-inhoud, login of schermlezer-audit. Chromium, geen Safari of Android-apparaat."
+}
