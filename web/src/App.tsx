@@ -55,6 +55,7 @@ export default function App() {
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [teKopen, setTeKopen] = useState<Product | null>(null);
   const [fout, setFout] = useState("");
+  const [werkGesprek, setWerkGesprek] = useState<{ id: number; ronde: number; gebruiker: number } | null>(null);
 
   const setTab = (t: Tab) => {
     if (t === "instellingen") setVorige(tab === "instellingen" ? vorige : tab);
@@ -102,9 +103,10 @@ export default function App() {
   if (!staat || !huidigeSessie()) return <Inloggen opIngelogd={laden} />;
 
   const scherm = {
-    vandaag: <Vandaag staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} />,
+    vandaag: <Vandaag key={staat.gebruiker.id} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
+      naarAssistent={() => setTab("assistent")} vernieuw={laden} />,
     agenda: <Agenda staat={staat} setStaat={setStaat} />,
-    chat: <Chat staat={staat} naarInstellingen={() => setTab("instellingen")}
+    chat: <Chat key={staat.gebruiker.id} werkGesprek={werkGesprek} staat={staat} naarInstellingen={() => setTab("instellingen")}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
     assistent: <Suspense fallback={null}><Assistent staat={staat} vernieuw={laden} teKopen={teKopen}
       gekocht={() => setTeKopen(null)} vooraf={vooraf} voorafGebruikt={() => setVooraf("")}
@@ -117,7 +119,7 @@ export default function App() {
     <div className="mx-auto flex h-full max-w-xl flex-col">
       {fout && <p role="alert" className="bg-vlak px-6 py-3 text-sm text-rustig">{fout}</p>}
       <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}>{scherm}</Vangnet></div>
-      <Vangnet naam="bellen" klein><BelLaag /></Vangnet>
+      <Vangnet naam="bellen" klein><BelLaag naarProject={(gesprek) => { setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat"); }} /></Vangnet>
       <nav aria-label="Hoofdmenu"
         className="flex shrink-0 justify-around border-t border-lijn pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)]">
         {TABS.map(({ id, naam, Icoon }) => {

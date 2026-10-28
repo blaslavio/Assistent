@@ -1,3 +1,4 @@
+import ProjectWerkruimte from "./ProjectWerkruimte";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Ballon, Bewerk, Dubbelvink, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
 import { JouwAanbod } from "./Delen";
@@ -34,9 +35,9 @@ function bewaardDeel(): Deel {
   return "chats";
 }
 
-type Props = { staat: Staat; naarInstellingen: () => void; bestel: (p: Product) => void };
+type Props = { staat: Staat; naarInstellingen: () => void; bestel: (p: Product) => void; werkGesprek?: { id: number; ronde: number; gebruiker: number } | null };
 
-export default function Chat({ staat, naarInstellingen, bestel }: Props) {
+export default function Chat({ staat, naarInstellingen, bestel, werkGesprek }: Props) {
   const [ik, setIk] = useState<number | null>(null);
   const [lijst, setLijst] = useState<Gesprek[]>([]);
   const [groepen, setGroepen] = useState<Community[]>([]);
@@ -53,6 +54,8 @@ export default function Chat({ staat, naarInstellingen, bestel }: Props) {
     setDeelRuw(d);
     try { localStorage.setItem("assistent.chatdeel", d); } catch { /* geen opslag */ }
   }
+
+  useEffect(() => { if (werkGesprek?.gebruiker === staat.gebruiker.id) setOpen(werkGesprek.id); }, [werkGesprek, staat.gebruiker.id]);
 
   const laden = useCallback(async () => {
     const o = await overzicht();
@@ -79,7 +82,7 @@ export default function Chat({ staat, naarInstellingen, bestel }: Props) {
 
   if (open !== null && ik !== null) {
     const g = lijst.find((x) => x.id === open);
-    return <Gesprekscherm id={open} ik={ik} begin={g} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
+    return <Gesprekscherm key={open} id={open} ik={ik} begin={g} projectOpen={werkGesprek?.id === open} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
   }
   if (openGast !== null) return <GastGesprekScherm boeking={openGast} terug={() => { setOpenGast(null); laden().catch(() => {}); }} />;
   if (openCommunity !== null && ik !== null) {
@@ -706,7 +709,7 @@ function NieuwVeld({ sluit, gestart }: { sluit: () => void; gestart: (id: number
   );
 }
 
-function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin?: Gesprek; terug: () => void }) {
+function Gesprekscherm({ id, ik, begin, terug, projectOpen }: { id: number; ik: number; begin?: Gesprek; terug: () => void; projectOpen?: boolean }) {
   const [g, setG] = useState<Gesprek | undefined>(begin);
   const [regels, setRegels] = useState<Regel[]>([]);
   const [invoer, setInvoer] = useState("");
@@ -820,10 +823,11 @@ function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin
         </div>
       )}
 
+      {g?.status === "lid" && <ProjectWerkruimte beginOpen={projectOpen} gesprek={id} regels={regels} schrijven={magSchrijven} verdwijnend={!!g.verdwijnen} />}
       <main className="flex flex-1 flex-col gap-1 px-4 py-4" aria-live="polite">
-        {regels.map((r, i) => {
+        {regels.filter(r => r.bericht?.t !== "project").map((r, i, zichtbaar) => {
           const mijn = r.afzender === ik;
-          const vorige = regels[i - 1];
+          const vorige = zichtbaar[i - 1];
           const nieuweDag = !vorige || datumTekst(new Date(vorige.tijd)) !== datumTekst(new Date(r.tijd));
           const zelfde = !nieuweDag && vorige?.afzender === r.afzender;
           const lid = g?.leden.find((l) => l.id === r.afzender);

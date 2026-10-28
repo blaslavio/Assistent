@@ -265,6 +265,7 @@ export function kortTekst(m?: Bericht) {
   const t = (s: unknown) => (typeof s === "string" ? s : "");
   switch (m.t) {
     case "tekst": return t(m.tekst).slice(0, 100);
+    case "project": return "Project: " + t(m.titel).slice(0, 80);
     case "foto": return "Foto";
     case "afspraak": return `Afspraak: ${t(m.titel)}`;
     case "peiling": return `Peiling: ${t(m.vraag)}`;
@@ -336,9 +337,13 @@ export async function berichten(gesprek: number, na: number) {
 
 export async function versturen(gesprek: number, bericht: Bericht) {
   if (!ik) throw new Error("De chat is nog niet gestart.");
+  const apparaat = ik;
+  const sessie = huidigeSessie();
   const { apparaten } = await rpc<{ apparaten: Apparaat[] }>("chat_sleutels", { p_gesprek: gesprek });
-  const p = await versleutel(ik, gesprek, apparaten, bericht);
-  return rpc<{ id: number }>("chat_versturen", { p_gesprek: gesprek, p_apparaat: ik.apparaat, p_inhoud: p.inhoud,
+  if (ik !== apparaat || huidigeSessie() !== sessie) throw new Error("Het account is intussen gewijzigd.");
+  const p = await versleutel(apparaat, gesprek, apparaten, bericht);
+  if (ik !== apparaat || huidigeSessie() !== sessie) throw new Error("Het account is intussen gewijzigd.");
+  return rpc<{ id: number }>("chat_versturen", { p_gesprek: gesprek, p_apparaat: apparaat.apparaat, p_inhoud: p.inhoud,
     p_iv: p.iv, p_epk: p.epk, p_sleutels: p.sleutels, p_handtekening: p.handtekening });
 }
 

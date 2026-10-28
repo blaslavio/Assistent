@@ -10,6 +10,9 @@ Er zijn geen productiegegevens, echte betalingen of gebruikersberichten gewijzig
 
 ## In deze release
 
+- Projectwerkruimte in de chat: samen `.txt`/`.md` bewerken met Yjs via de bestaande versleutelde chat en een compacte belweergave. Zie `PROJECTWERKRUIMTE.md` voor grenzen en praktijktests.
+- Vandaag vraagt bevestiging vóór taakacties en dagvoorstellen; mislukte opslag toont geen voltooiing en wist geen invoer. Afronden behoudt afspraken.
+
 - Geteste werkdossiers, bronnen, planning, herstel, communicatieconcepten en privévoorkeuren uit deze sessie.
 - Het actuele ontwerp van de repository, inclusief de nieuw gebouwde React-bundels in `docs/app/` en `nieuwe_app/`.
 - In de nieuwe webinterface staan bij Instellingen ingangen naar privéconcepten, alle werktools en planningherstel. Die openen de bestaande beveiligde Streamlit-werkruimte; de tools zijn niet opnieuw in React geschreven.
@@ -33,4 +36,4 @@ Pauzeer de app als de controle faalt. Zet een bekende apprelease terug en beoord
 
 ## Lokale bewijzen
 
-De samengevoegde versie slaagde voor 1248 Python-tests zonder skips, inclusief 25 PostgreSQL-tests. Daarnaast slaagden de bestaande 138 pytest-tests (met 21 subtests) en 19 expliciete regressietests uit de actuele repository. De negen Vitest-webtests controleren ook de nieuwe opslag- en accountgrenzen. `npm run build` bouwde beide productievarianten. Zes lokale Chromium-scenario’s en 1000 navigatieconfiguraties slaagden. Bandit rapporteerde op het bestaande CI-niveau (`-ll -ii`) geen open signalen; de twee vertrouwde AST-testuitvoeringen en twee veilige tijdelijke-mapcontroles hebben een gerichte, toegelichte uitzondering. Dit is geen volledige beveiligingscertificering. Deze uitkomsten bewijzen geen uitgevoerde productie-uitrol. De aparte releasecontrolebestanden en pull-requestchecks tonen de definitieve stand.
+De samengevoegde versie slaagde voor 1248 Python-tests zonder skips, inclusief 25 PostgreSQL-tests. Daarnaast slaagden de bestaande 138 pytest-tests (met 21 subtests) en 19 expliciete regressietests uit de actuele repository. De huidige 35 Vitest-webtests controleren webopslag, accountgrenzen, gelijktijdige projectbewerking, belbediening en bevestigde dagelijkse acties. `npm run build` bouwde beide productievarianten. Zes lokale Chromium-scenario’s en 1000 navigatieconfiguraties slaagden. Bandit rapporteerde op het bestaande CI-niveau (`-ll -ii`) geen open signalen; de twee vertrouwde AST-testuitvoeringen en twee veilige tijdelijke-mapcontroles hebben een gerichte, toegelichte uitzondering. Dit is geen volledige beveiligingscertificering. Deze uitkomsten bewijzen geen uitgevoerde productie-uitrol. De aparte releasecontrolebestanden en pull-requestchecks tonen de definitieve stand.

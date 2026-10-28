@@ -29,8 +29,10 @@ function Knop({ label, kleur, onClick, children }: { label: string; kleur: strin
   );
 }
 
-export default function BelLaag() {
+export default function BelLaag({ naarProject }: { naarProject?: (gesprek: number) => void } = {}) {
   const { bel, binnen, melding } = useBellen();
+  const [compact, setCompact] = useState(false);
+  useEffect(() => { setCompact(false); }, [bel?.id]);
   const [, tik] = useState(0);
   useEffect(() => {
     if (bel?.fase !== "verbonden") return;
@@ -65,6 +67,20 @@ export default function BelLaag() {
     const status = bel.fase === "verbonden" && bel.begin ? belDuur(Math.round((Date.now() - bel.begin) / 1000))
       : bel.fase === "bellen" ? "Gaat over" : "Verbinden";
     const beeld = bel.video && bel.ander_beeld;
+    if (compact) return <aside aria-label="Gesprek tijdens samenwerken"
+      className="fixed right-3 top-3 z-50 w-56 max-w-[85vw] overflow-hidden rounded-2xl bg-[#101014] text-white shadow-xl">
+      {bel.ander_beeld && <Beeld stroom={bel.ander_beeld} className={beeld ? "h-32 w-full object-cover" : "hidden"} />}
+      <div className="p-3">
+        <p className="truncate text-sm font-medium">{bel.naam}</p>
+        <p className="text-xs text-white/70">{status}</p>
+        <div className="mt-2 flex flex-wrap gap-1">
+          <button onClick={dempen} className="min-h-11 px-2 text-xs">{bel.stil ? "Geluid aan" : "Dempen"}</button>
+          {bel.video && <button onClick={beeldUit} className="min-h-11 px-2 text-xs">{bel.geenBeeld ? "Camera aan" : "Camera uit"}</button>}
+          <button onClick={() => setCompact(false)} className="min-h-11 px-2 text-xs">Groot beeld</button>
+          <button onClick={() => ophangen()} className="min-h-11 px-2 text-xs text-red-300">Ophangen</button>
+        </div>
+      </div>
+    </aside>;
     return (
       <div role="dialog" aria-label="Gesprek" className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-[#101014] px-8 pt-24 pb-[max(env(safe-area-inset-bottom),40px)] text-white">
         {bel.ander_beeld && <Beeld stroom={bel.ander_beeld}
@@ -77,7 +93,11 @@ export default function BelLaag() {
           <p className="text-2xl font-semibold">{bel.naam}</p>
           <p className="text-white/70" aria-live="polite">{status}</p>
         </div>
-        <div className="relative flex w-full justify-around">
+        <div className="relative flex w-full flex-col gap-4">
+          {naarProject && <button className="min-h-11 rounded-full bg-white/20 px-4 text-sm" onClick={() => {
+            setCompact(true); naarProject(bel.gesprek);
+          }}>Samen aan project werken</button>}
+        <div className="flex w-full justify-around">
           <Knop label={bel.stil ? "Geluid aan" : "Dempen"} kleur={bel.stil ? "bg-white text-black" : "bg-white/15"} onClick={dempen}>
             {bel.stil ? <MicUit className="size-7" /> : <Microfoon className="size-7" />}
           </Knop>
@@ -86,6 +106,7 @@ export default function BelLaag() {
               onClick={beeldUit}><Video className="size-7" /></Knop>
           )}
           <Knop label="Ophangen" kleur="bg-red-500" onClick={() => ophangen()}><Telefoon className="size-7 rotate-[135deg]" /></Knop>
+        </div>
         </div>
       </div>
     );
