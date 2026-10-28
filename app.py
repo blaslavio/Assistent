@@ -35,6 +35,7 @@ import multistream_core
 import multistream_store
 import resource_booking_core
 import video_project_core
+import video_trim
 import avatar
 import rive_chat_state
 import bank
@@ -2756,6 +2757,28 @@ def master_hub_pagina() -> None:
             if cut_intent:
                 st.write("Montageconcept: " + cut_intent["type"])
                 st.caption("Niet uitgevoerd. Voor verwerking is een video-upload en renderdienst nodig.")
+            with st.expander("Video knippen", expanded=False):
+                st.caption("Kies het begin en eventueel het einde. Upload maximaal 50 MB.")
+                video_upload = st.file_uploader("Video kiezen", type=["mp4", "mov"], key="video_trim_upload")
+                video_start = st.number_input("Begin (seconden)", min_value=0, value=0, step=1, key="video_trim_start_seconds")
+                video_tot_einde = st.checkbox("Tot het einde van de video", value=True, key="video_trim_to_end")
+                video_einde = None if video_tot_einde else st.number_input("Einde (seconden)", min_value=1, value=10, step=1, key="video_trim_end_seconds")
+                if st.button("Maak fragment", key="video_trim_start", disabled=video_upload is None):
+                    st.session_state.pop("video_trim_result", None)
+                    try:
+                        with st.spinner("Video verwerken..."):
+                            fragment = video_trim.trim_video(video_upload.getvalue(), int(video_start), None if video_einde is None else int(video_einde))
+                        st.session_state["video_trim_result"] = fragment
+                        st.success("Fragment is klaar.")
+                    except (ValueError, RuntimeError) as err:
+                        st.error(str(err))
+                if st.session_state.get("video_trim_result"):
+                    st.video(st.session_state["video_trim_result"])
+                    st.download_button("Download fragment", data=st.session_state["video_trim_result"],
+                                       file_name="fragment.mp4", mime="video/mp4", key="video_trim_download")
+                    if st.button("Fragment verwijderen", key="video_trim_clear"):
+                        st.session_state.pop("video_trim_result", None)
+                        st.rerun()
             with st.form("video_project_create", clear_on_submit=True):
                 projectnaam = st.text_input("Projectnaam", max_chars=120)
                 projectmaken = st.form_submit_button("Nieuw videoproject")
@@ -2801,7 +2824,7 @@ def master_hub_pagina() -> None:
                     for note in sorted(video.get("notes", []), key=lambda n: n.get("seconds", 0)):
                         minute, second = divmod(note.get("seconds", 0), 60)
                         st.write(f"{minute:02d}:{second:02d} — {note.get('text', '')}")
-            st.caption("Projectbeheer en reviewnotities; geen realtime montage, gedeelde toegang of rendering.")
+            st.caption("Projectbeheer en reviewnotities. Video knippen werkt afzonderlijk per sessie.")
     route = st.session_state.get("master_hub_route")
     if route:
         st.caption(route.description)
