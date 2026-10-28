@@ -319,7 +319,7 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
       if (!lijst.length) return { resultaat: "Niets gevonden in de winkels en op de marktplaats in de app." };
       return { producten: lijst, resultaat: JSON.stringify(lijst.map((p) => ({ sleutel: p.sleutel, titel: p.titel,
         prijs: euro(p.prijs), bron: p.bron, verkoper: p.verkoper, plaats: p.plaats, levering: p.levering,
-        betaalwijzen: p.betaalwijzen, voorraad: p.voorraad, omschrijving: p.omschrijving }))) };
+        betaalwijzen: p.betaalwijzen, voorraad: p.voorraad, omschrijving: p.omschrijving.slice(0, 200) }))) };
     }
     case "bestelling_klaarzetten": {
       const k = klaarzetten(s("sleutel"), v.aantal as number, s("levering"), s("betaalwijze"));

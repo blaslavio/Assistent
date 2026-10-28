@@ -526,15 +526,32 @@ def aanbieden() -> None:
     if mijn:
         online = sum(a["actief"] for a in mijn)
         st.markdown(f"**Mijn aanbod** · :gray[{online} van {ik().get('max_aanbod') or 10} online]")
+    fotos = samen.mijn_productfotos() if mijn else set()
     for aanbod in mijn:
         with st.container(border=True):
             st.markdown(f"**{aanbod['titel']}** · {samen.prijs_tekst(aanbod)}")
+            if aanbod["soort"] == "product":
+                productfoto(aanbod["id"], aanbod["id"] in fotos)
             actief = st.toggle("Zichtbaar op de marktplaats", value=aanbod["actief"], key=f"actief_{aanbod['id']}")
             if actief != aanbod["actief"]:
                 samen.aanbod_actief(aanbod["id"], actief)
                 st.rerun()
             if aanbod["soort"] in ("training", "les", "dienst"):
                 tijden_beheren(aanbod)
+
+
+def productfoto(aanbod_id: int, heeft: bool) -> None:
+    """Eén knop om een foto bij een product te zetten, te wisselen of weg te halen."""
+    with st.popover("Foto wijzigen" if heeft else "Foto toevoegen", icon=":material/photo_camera:"):
+        bestand = st.file_uploader("Foto", type=["jpg", "jpeg", "png", "webp"], key=f"pf_{aanbod_id}",
+                                   label_visibility="collapsed")
+        if bestand and st.button("Opslaan", type="primary", key=f"pf_ok_{aanbod_id}"):
+            if _fout(samen.productfoto_zetten, aanbod_id, bestand.getvalue()) is not None:
+                st.toast("Foto opgeslagen.", icon=":material/check_circle:")
+                st.rerun()
+        if heeft and st.button("Foto weghalen", key=f"pf_weg_{aanbod_id}"):
+            if _fout(samen.productfoto_zetten, aanbod_id, None) is not None:
+                st.rerun()
 
 
 def tijden_beheren(aanbod: dict) -> None:
@@ -1134,9 +1151,11 @@ def winkel_producten_beheren(m: dict) -> None:
     producten = [p for p in m["producten"] if not p["geblokkeerd"] and (p["actief"] or p["voorraad"] is not None)]
     if not producten:
         st.caption("Nog geen producten.")
+    fotos = samen.mijn_productfotos() if producten else set()
     for p in producten:
         with st.container(border=True):
             st.markdown(f"**{p['titel']}** · {samen.euro(p['prijs'])}" + (" · in de winkel" if p["in_winkel"] else ""))
+            productfoto(p["id"], p["id"] in fotos)
             with st.form(f"wp_{p['id']}", border=False):
                 k1, k2, k3 = st.columns([2, 2, 1], vertical_alignment="bottom")
                 in_winkel = k1.toggle("In de winkel", value=p["in_winkel"])

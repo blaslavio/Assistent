@@ -36,3 +36,9 @@ export const Prullenbak = (p: P) => (
 export const Camera = (p: P) => (
   <svg {...basis} {...p}><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13.5" r="3.5" /></svg>
 );
+export const Tas = (p: P) => (
+  <svg {...basis} {...p}><path d="M5 8h14l-1 12H6z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>
+);
+export const Beeld = (p: P) => (
+  <svg {...basis} {...p}><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="9" cy="10" r="1.5" /><path d="M21 16l-5-5-9 9" /></svg>
+);
