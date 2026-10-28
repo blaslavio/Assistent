@@ -41,6 +41,10 @@ export function oproepen(): Oproep[] {
     return [];
   }
 }
+export function oproepenWissen() {
+  try { localStorage.removeItem(logSleutel()); } catch { /* niets te wissen */ }
+  ververs();
+}
 function loggen(o: Oproep) {
   try {
     const lijst = [o, ...oproepen().filter((x) => x.id !== o.id)].slice(0, 100);
@@ -49,6 +53,40 @@ function loggen(o: Oproep) {
     /* geen opslag: dan zonder logboek */
   }
   ververs();
+}
+
+// --- Voorkeuren op dit apparaat ----------------------------------------------------------------------------------
+// Hoe dit toestel overgaat hoort bij het toestel zelf (je laptop mag stil, je telefoon niet), dus niet in je account.
+
+export type BelVoorkeur = { geluid: "aan" | "trillen" | "stil"; stilAan: boolean; stilVan: string; stilTot: string;
+  micUit: boolean; cameraUit: boolean; favorieten: number[] };
+const STANDAARD: BelVoorkeur = { geluid: "aan", stilAan: false, stilVan: "22:00", stilTot: "07:00", micUit: false,
+  cameraUit: false, favorieten: [] };
+const voorkeurSleutel = () => `assistent.bellen.voorkeur.${ikId}`;
+
+export function belVoorkeur(): BelVoorkeur {
+  try {
+    return { ...STANDAARD, ...JSON.parse(localStorage.getItem(voorkeurSleutel()) ?? "{}") };
+  } catch {
+    return { ...STANDAARD };
+  }
+}
+export function belVoorkeurZetten(deel: Partial<BelVoorkeur>) {
+  try {
+    localStorage.setItem(voorkeurSleutel(), JSON.stringify({ ...belVoorkeur(), ...deel }));
+  } catch {
+    /* geen opslag: dan blijft het zoals het was */
+  }
+  ververs();
+}
+
+/** Valt dit moment in je stille uren? Ook als die over middernacht lopen (22:00 tot 07:00). */
+export function stilNu(v: BelVoorkeur = belVoorkeur(), nu = new Date()) {
+  if (!v.stilAan) return false;
+  const min = (t: string) => { const [u, m] = t.split(":").map(Number); return (u || 0) * 60 + (m || 0); };
+  const n = nu.getHours() * 60 + nu.getMinutes();
+  const van = min(v.stilVan), tot = min(v.stilTot);
+  return van <= tot ? n >= van && n < tot : n >= van || n < tot;
 }
 
 // --- Signalen ----------------------------------------------------------------------------------------------------
@@ -142,6 +180,10 @@ export async function opnemen() {
     await iceKlaar(pc);
     await stuur(i.gesprek, { t: "bel", fase: "antwoord", id: i.id, aan: i.van, sdp: pc.localDescription!.sdp });
     snel(i.gesprek);
+    // Opnemen met microfoon of camera uit, als je dat zo hebt ingesteld.
+    const v = belVoorkeur();
+    if (v.micUit) dempen();
+    if (v.cameraUit && i.video) beeldUit();
   } catch (e) {
     ophangen("mislukt");
     zet({ melding: foutTekst(e) });
@@ -309,9 +351,12 @@ let audio: AudioContext | null = null;
 function belgeluid(aan: boolean) {
   clearInterval(geluid);
   if (!aan) return;
+  const v = belVoorkeur();
+  if (v.geluid === "stil" || stilNu(v)) return; // de oproep staat wel in beeld, alleen zonder geluid
   const toon = () => {
     try {
       navigator.vibrate?.([300, 200, 300]);
+      if (v.geluid === "trillen") return;
       audio ??= new AudioContext();
       for (const [start, hz] of [[0, 660], [0.25, 880]] as const) {
         const o = audio.createOscillator();

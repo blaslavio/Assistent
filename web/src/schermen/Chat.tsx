@@ -7,10 +7,11 @@ import { gesprekken as gastGesprekken, type GastGesprek } from "../lib/gasten";
 import { feedInstelling } from "../lib/feed";
 import Bestellingen from "./Bestellingen";
 import { isGevraagd, lijst as bestellingenLijst, openGevraagd, wachtOpMij } from "../lib/bestellingen";
-import { VERDWIJNEN, verdwijnenInstellen, antwoorden, belDuur, berichten, community, communityAntwoorden, communityDeelnemen,
+import { VERDWIJNEN, verdwijnenInstellen, antwoorden, berichten, community, communityAntwoorden, communityDeelnemen,
   communityMaken, communityUitnodigen, contacten, gesprekNaam, kortTekst, nieuwGesprek, overzicht, starten, versturen,
   voorbeeld, type Community, type Contact, type Deelnemer, type Gesprek, type Regel } from "../lib/chat";
-import { bellen, kan as kanBellen, luisteren, oproepen, type Oproep } from "../lib/bellen";
+import { bellen, kan as kanBellen, luisteren } from "../lib/bellen";
+import { Oproepen } from "./Oproepen";
 import { useBellen } from "./Bellen";
 import { Rondje } from "../rondje";
 import { StoryRij } from "./Stories";
@@ -36,10 +37,12 @@ function bewaardDeel(): Deel {
   return "chats";
 }
 
-type Props = { staat: Staat; naarInstellingen: () => void; bestel: (p: Product) => void };
+type Props = { staat: Staat; setStaat?: React.Dispatch<React.SetStateAction<Staat | null>>; naarInstellingen: () => void;
+  bestel: (p: Product) => void };
 
-export default function Chat({ staat, naarInstellingen, bestel }: Props) {
+export default function Chat({ staat, setStaat, naarInstellingen, bestel }: Props) {
   const [ik, setIk] = useState<number | null>(null);
+  const [belInst, setBelInst] = useState(false);
   const [balkWeg, setBalkWeg] = useState(() => { try { return localStorage.getItem("assistent.chatbalk") === "weg"; } catch { return false; } });
   const veegStart = useRef(0);
   const balkZetten = (weg: boolean) => {
@@ -100,6 +103,7 @@ export default function Chat({ staat, naarInstellingen, bestel }: Props) {
   const ongelezenGroepen = groepen.reduce((n, c) => n + (c.status === "uitgenodigd" ? 1
     : c.kanalen.reduce((m, k) => m + k.ongelezen, 0) > 0 ? 1 : 0), 0);
   const actie = deel === "chats" && !nieuw ? { label: "Nieuw gesprek", icoon: <Bewerk className="size-5" />, doe: () => setNieuw(true) }
+    : deel === "oproepen" ? { label: "Belinstellingen", icoon: <Tandwiel className="size-5" />, doe: () => setBelInst(true) }
     : null;
 
   return (
@@ -125,7 +129,8 @@ export default function Chat({ staat, naarInstellingen, bestel }: Props) {
         <Communitys lijst={groepen} open={setOpenCommunity} vernieuw={laden} staat={staat} />
       )}
       {deel === "winkel" && <WinkelDeel bestel={bestel} />}
-      {deel === "oproepen" && ik !== null && <Oproepen ik={ik} lijst={lijst} />}
+      {deel === "oproepen" && ik !== null && <Oproepen ik={ik} lijst={lijst} instellingen={belInst}
+        sluitInstellingen={() => setBelInst(false)} zoekIemand={() => { setDeel("chats"); setNieuw(true); }} bewaard={(data) => setStaat?.((s) => (s ? { ...s, data } : s))} />}
       {deel === "jij" && <Jij staat={staat} naarInstellingen={naarInstellingen} />}
       {/* Zoals WhatsApp: de onderdelen van de chat onderin. Naar beneden vegen of op het streepje tikken klapt hem in. */}
       <div className="sticky bottom-0 z-10 mt-auto">
@@ -625,74 +630,6 @@ function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
       <p className="text-[13px] text-zacht">Je kunt ook de assistent vragen iets te zoeken. Er gaat pas iets weg als jij zelf op Bestellen tikt.</p>
       <Bladen stapel={stapel} zet={setStapel} bestel={(p) => { setStapel([]); bestel(p); }} />
       {verkopen && <Verkopen sluit={() => setVerkopen(false)} geplaatst={() => { setVerkopen(false); setBijgewerkt((n) => n + 1); }} />}
-    </div>
-  );
-}
-
-const OPROEP_STATUS: Record<Oproep["status"], string> = { klaar: "", gemist: "Gemist", geweigerd: "Geweigerd",
-  geen: "Niet opgenomen", mislukt: "Mislukt" };
-
-function Oproepen({ ik, lijst }: { ik: number; lijst: Gesprek[] }) {
-  useBellen();
-  const log = oproepen();
-  const mensen = lijst.filter((g) => g.soort === "twee" && g.status === "lid");
-  const bel = (g: Gesprek, video: boolean) =>
-    bellen(g.id, gesprekNaam(g, ik), g.leden.find((l) => l.id !== ik)?.id ?? 0, video);
-  if (!kanBellen()) return <Leeg icoon={<Telefoon />} titel="Bellen kan hier niet" uitleg="Deze browser ondersteunt geen bellen. Probeer Safari of Chrome." />;
-  return (
-    <div className="flex flex-col gap-5 pb-8">
-      {log.length > 0 && (
-        <section>
-          <h2 className="px-6 pb-1 text-sm font-medium text-rustig">Recent</h2>
-          <ul className="flex flex-col px-3">
-            {log.slice(0, 30).map((o) => {
-              const g = mensen.find((x) => x.id === o.gesprek);
-              const rood = o.status === "gemist";
-              return (
-                <li key={o.id} className="flex items-center gap-3 rounded-2xl px-3 py-2">
-                  <Rondje naam={o.naam} id={o.ander} />
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className={`truncate font-medium ${rood ? "text-red-600 dark:text-red-400" : ""}`}>{o.naam}</span>
-                    <span className="truncate text-[13px] text-rustig">
-                      {[o.uit ? "Uitgaand" : "Inkomend", o.video ? "video" : "", OPROEP_STATUS[o.status] || (o.duur ? belDuur(o.duur) : ""),
-                        tijdje(o.tijd)].filter(Boolean).join(" · ")}
-                    </span>
-                  </span>
-                  {g && (
-                    <button onClick={() => bel(g, o.video)} aria-label={`${o.naam} bellen`}
-                      className="flex size-10 items-center justify-center rounded-full text-accent hover:bg-vlak">
-                      {o.video ? <Video className="size-5" /> : <Telefoon className="size-5" />}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-      <section>
-        <h2 className="px-6 pb-1 text-sm font-medium text-rustig">Bellen met</h2>
-        {mensen.length === 0 ? (
-          <p className="px-6 text-sm text-rustig">Begin eerst een gesprek onder Chats. Daarna kun je die persoon hier bellen.</p>
-        ) : (
-          <ul className="flex flex-col px-3">
-            {mensen.map((g) => {
-              const naam = gesprekNaam(g, ik);
-              return (
-                <li key={g.id} className="flex items-center gap-3 rounded-2xl px-3 py-2">
-                  <Rondje naam={naam} id={g.leden.find((l) => l.id !== ik)?.id ?? g.id} />
-                  <span className="min-w-0 flex-1 truncate font-medium">{naam}</span>
-                  <button onClick={() => bel(g, false)} aria-label={`${naam} bellen`}
-                    className="flex size-10 items-center justify-center rounded-full text-accent hover:bg-vlak"><Telefoon className="size-5" /></button>
-                  <button onClick={() => bel(g, true)} aria-label={`${naam} videobellen`}
-                    className="flex size-10 items-center justify-center rounded-full text-accent hover:bg-vlak"><Video className="size-5" /></button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-      <p className="flex items-center gap-1.5 px-6 text-[13px] text-zacht"><Slot className="size-3.5" /> Gesprekken gaan versleuteld rechtstreeks tussen jullie toestellen.</p>
     </div>
   );
 }

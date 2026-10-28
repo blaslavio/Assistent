@@ -104,7 +104,7 @@ export default function App() {
   const scherm = {
     vandaag: <Vandaag staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} />,
     agenda: <Agenda staat={staat} setStaat={setStaat} />,
-    chat: <Chat staat={staat} naarInstellingen={() => setTab("instellingen")}
+    chat: <Chat staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
     assistent: <Suspense fallback={null}><Assistent staat={staat} vernieuw={laden} teKopen={teKopen}
       gekocht={() => setTeKopen(null)} vooraf={vooraf} voorafGebruikt={() => setVooraf("")}
