@@ -1,7 +1,8 @@
 // De onderdelen uit de vorige app: boodschappen, kooplijst, wenslijst, notities, documenten en budget.
 // Lijstjes staan in je gegevens (dezelfde plek als in de vorige app); documenten en uitgaven hebben eigen tabellen.
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { alsIk, bijwerken, type Gegevens } from "../api";
+import { alsIk, bijwerken, instellingenBijwerken, type Gegevens } from "../api";
+import { AfschriftFout, afschriftLezen, categorieRaden, decoderen, metSleutels } from "../lib/afschrift";
 import type { Staat } from "../App";
 import { Bestand, Bewerk, Hart, Kruis, Lijstje, Plus, Prullenbak, Tas, Terug } from "../iconen";
 import { kop } from "./instellingen-ui";
@@ -357,7 +358,39 @@ function Budget({ staat }: { staat: Staat }) {
   const [wat, setWat] = useState("");
   const [cat, setCat] = useState("Overig");
   const [fout, setFout] = useState("");
-  const budgetten = ((staat.data.instellingen?.budget as { budgetten?: Record<string, number> } | undefined)?.budgetten) ?? {};
+  const b = (staat.data.instellingen?.budget ?? {}) as { budgetten?: Record<string, number>; regels?: Record<string, string>; gebruikt?: boolean };
+  const budgetten = b.budgetten ?? {};
+  const [inlezen, setInlezen] = useState("");
+
+  // Een afschrift van je bank inlezen: het bestand wordt op je toestel gelezen, alleen de regels gaan naar je account.
+  async function afschrift(bestand: File) {
+    setFout("");
+    setInlezen("Inlezen…");
+    try {
+      const regels = await metSleutels(afschriftLezen(decoderen(await bestand.arrayBuffer())));
+      let nieuw = 0;
+      for (let i = 0; i < regels.length; i += 1000) {
+        const stuk = regels.slice(i, i + 1000).map((r) => ({ ...r, bron: "import",
+          categorie: categorieRaden(r.tegenpartij, r.omschrijving, r.bedrag, b.regels ?? {}) }));
+        const r = await alsIk<{ nieuw?: number; fout?: string }>("transacties_toevoegen", { p_regels: stuk });
+        if (r.fout) throw new AfschriftFout(r.fout);
+        nieuw += r.nieuw ?? 0;
+      }
+      if (!b.gebruikt) await instellingenBijwerken((i) => { i.budget = { ...((i.budget as object) ?? {}), gebruikt: true }; });
+      const datums = regels.map((r) => r.datum).sort();
+      setInlezen(`${regels.length} regels gelezen, ${nieuw} nieuw (${datums[0]} tot ${datums[datums.length - 1]}).`);
+      setMaand(datums[datums.length - 1].slice(0, 7));
+      laden();
+    } catch (e) {
+      setInlezen("");
+      setFout(e instanceof AfschriftFout ? e.message : foutVan(e));
+    }
+  }
+
+  async function categorie(r: Regel, cat: string) {
+    try { await alsIk("transactie_bijwerken", { p_id: r.id, p_categorie: cat, p_omschrijving: null }); laden(); }
+    catch (e) { setFout(foutVan(e)); }
+  }
 
   const laden = useCallback(() => {
     const [j, m] = maand.split("-").map(Number);
@@ -451,7 +484,11 @@ function Budget({ staat }: { staat: Staat }) {
             <li key={r.id} className="flex items-center gap-3 px-4 py-3">
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate">{r.omschrijving || r.tegenpartij || "Zonder omschrijving"}</span>
-                <span className="text-[13px] text-rustig">{new Date(`${r.datum}T12:00:00`).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })} · {r.categorie || "Overig"}</span>
+                <span className="flex items-center gap-1 text-[13px] text-rustig">{new Date(`${r.datum}T12:00:00`).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })} ·
+                  <select value={r.categorie || "Overig"} onChange={(e) => categorie(r, e.target.value)} aria-label="Categorie wijzigen"
+                    className="min-w-0 appearance-none bg-transparent text-[13px] text-rustig underline decoration-dotted outline-none">
+                    {[...CATEGORIEEN, "Inkomen"].map((c) => <option key={c}>{c}</option>)}
+                  </select></span>
               </span>
               <span className={`shrink-0 ${r.bedrag > 0 ? "text-emerald-600 dark:text-emerald-400" : ""}`}>{r.bedrag > 0 ? "+" : "−"} € {euro(Math.abs(r.bedrag))}</span>
               <button aria-label="Weghalen" onClick={() => weg(r.id)} className="flex size-8 items-center justify-center text-zacht"><Kruis className="size-4" /></button>
@@ -460,7 +497,15 @@ function Budget({ staat }: { staat: Staat }) {
         </ul>
       )}
     </section>
-    <p className="px-1 text-sm text-rustig">Een bankafschrift inlezen of je bank koppelen komt hier ook weer terug.</p>
+    <section className="flex flex-col gap-2">
+      <h2 className={kop}>Bankafschrift</h2>
+      <label className="flex h-12 cursor-pointer items-center justify-center rounded-2xl bg-vlak font-medium">
+        Afschrift inlezen
+        <input type="file" accept=".csv,.txt,text/csv,text/plain" className="sr-only"
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) afschrift(f); }} />
+      </label>
+      <p aria-live="polite" className="px-1 text-sm text-rustig">{inlezen || "Download bij je bank een CSV-bestand (ABN AMRO: TXT). Twee keer inlezen zet niets dubbel."}</p>
+    </section>
     {fout && <p className="text-sm text-red-600 dark:text-red-400">{fout}</p>}
   </>;
 }
