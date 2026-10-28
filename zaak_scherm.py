@@ -6,6 +6,8 @@ from datetime import date, datetime, time, timedelta
 import streamlit as st
 
 import beroep
+import gemini_service
+import json
 import boekpagina
 import opslag
 import plannen_scherm
@@ -146,51 +148,65 @@ def beroep_instellingen() -> None:
         st.markdown("**Bestellingen:** bekijk verkopen en leveringen.")
         st.markdown("**Werkrooster:** plan lessen, diensten en werktijden.")
         st.markdown("**Omzet:** bekijk financiële overzichten en boekhouding.")
-    st.markdown("#### Vakgerichte hulpmiddelen")
-    st.caption("Elk hulpmiddel heeft een eigen uitleg en opent rechtstreeks. Geen overbodige stappen.")
-    hulpmiddelen = [
-        ("Werkrooster en planning", ":material/calendar_month:", "zakelijk", "werkrooster",
-         "Plan je werkuren, lessen en beschikbaarheid in het rooster."),
-        ("Webshop bouwen", ":material/storefront:", "webshop", "webshop",
-         "Stel je winkel in, beheer je producten en publiceer je assortiment."),
-        ("Bestaande webshop koppelen", ":material/link:", "instellingen", "integraties",
-         "Bekijk beschikbare koppelingen. Google en Microsoft volgen pas bij de bèta."),
-        ("Omzet en verkoopresultaten", ":material/monitoring:", "zakelijk", "omzet",
-         "Bekijk je verkoopresultaten en de financiële overzichten."),
-        ("Klanten en saldo", ":material/groups:", "zakelijk", "klanten",
-         "Beheer klanten en hun gegevens. Een afzonderlijk klantsaldo is nog niet beschikbaar."),
-        ("Boekhouding en btw", ":material/receipt_long:", "zakelijk", "boekhouding",
-         "Open de boekhouding voor inkomsten en uitgaven; controleer btw zelf vóór aangifte."),
-    ]
-    st.html("""
-    <style>
-    .st-key-vakgerichte_hulpmiddelen [data-testid="stHorizontalBlock"] {
-        align-items:center; gap: .5rem;
-    }
-    .st-key-vakgerichte_hulpmiddelen [data-testid="stMarkdownContainer"] p {
-        text-align:left!important; overflow-wrap:break-word;
-    }
-    .st-key-vakgerichte_hulpmiddelen [data-testid="stButton"] button {
-        min-width:0; white-space:nowrap;
-    }
-    </style>
-    """)
-    with st.container(key="vakgerichte_hulpmiddelen"):
-        for index, (naam, icoon, url, tool, uitleg) in enumerate(hulpmiddelen):
-            with st.container(border=True):
-                kol_naam, kol_uitleg, kol_open = st.columns([3, 1.6, 1.5], gap="small",
-                                                              vertical_alignment="center")
-                with kol_naam:
-                    st.markdown(f"**{naam}**")
-                with kol_uitleg:
-                    with st.popover("Uitleg", icon=":material/help_outline:"):
-                        st.write(uitleg)
-                        st.caption("Open dit hulpmiddel om de beschikbare functies te gebruiken.")
-                with kol_open:
-                    if st.button("Openen", key=f"vaktool_{index}", width="stretch",
-                                 help=f"Open {naam}"):
-                        _openen(url, tool)
-                        st.rerun()
+    with st.expander("AI Co-Pilot voor mijn onderneming"):
+        st.caption("Stel vragen over de basisinstellingen van jouw onderneming. "
+                   "Klantgegevens, omzet en roosters worden niet doorgestuurd.")
+        if not st.session_state.get("ik"):
+            st.info("Log in om de zakelijke Co-Pilot te gebruiken.")
+        else:
+            vraag = st.text_area("Vraag aan Gemini", key="zaak_gemini_vraag",
+                                 placeholder="Hoe kan ik mijn onderneming beter organiseren?")
+            if st.button("Vraag aan Gemini", key="zaak_gemini_verstuur"):
+                if not vraag.strip():
+                    st.warning("Vul eerst een vraag in.")
+                else:
+                    # Only account-owned settings are used; no cross-tenant data queries.
+                    profiel = zaak.instellingen()
+                    context = json.dumps({
+                        "naam": str(profiel.get("naam", ""))[:120],
+                        "soort": str(profiel.get("soort", ""))[:40],
+                        "groepslessen": bool(profiel.get("groepslessen", False)),
+                        "afspraken": bool(profiel.get("afspraken", False)),
+                    }, ensure_ascii=False)
+                    with st.spinner("Gemini denkt na..."):
+                        antwoord = gemini_service.get_gemini_response(vraag, context)
+                    st.markdown(antwoord)
+    st.caption("De Co-Pilot gebruikt uitsluitend de hierboven beschreven basisinstellingen; "
+               "geen fictieve voorraad, roosters of documentgegevens.")
+    st.markdown("**Webshop en verkoop**")
+    st.caption("Je winkel, bestellingen en diensten.")
+    with st.container(key="onderneming_snel"):
+        if st.button("Mijn webshop", icon=":material/storefront:", width="stretch", type="tertiary", key="bedrijf_shop"):
+            _openen("webshop", "webshop")
+            st.rerun()
+        if st.button("Bestellingen", icon=":material/local_shipping:", width="stretch", type="tertiary", key="bedrijf_orders"):
+            _openen("webshop", "verzenden")
+            st.rerun()
+        if st.button("Afspraken en diensten", icon=":material/event_available:", width="stretch", type="tertiary", key="bedrijf_book"):
+            _openen("boekingen", "boekingen")
+            st.rerun()
+    st.markdown("**Bedrijfsvoering en planning**")
+    with st.container(key="onderneming_planning"):
+        if st.button("Werkrooster en planning", icon=":material/calendar_month:", width="stretch", key="bedrijf_rooster"):
+            _openen("zakelijk", "werkrooster")
+            st.rerun()
+        if st.button("Webshop ontwerpen", icon=":material/design_services:", width="stretch", key="bedrijf_ontwerpen"):
+            _openen("webshop", "webshop")
+            st.rerun()
+        if st.button("Bestaande winkel koppelen", icon=":material/link:", width="stretch", key="bedrijf_integratie"):
+            _openen("instellingen", "integraties")
+            st.rerun()
+        if st.button("Omzet en bedrijfsresultaten", icon=":material/monitoring:", width="stretch", key="bedrijf_omzet"):
+            _openen("zakelijk", "omzet")
+            st.rerun()
+        if st.button("Klanten", icon=":material/groups:", width="stretch", key="bedrijf_klanten",
+                     help="Beheer klanten en hun gegevens. Een afzonderlijk klantsaldo is nog niet beschikbaar."):
+            _openen("zakelijk", "klanten")
+            st.rerun()
+        if st.button("Boekhouding en btw", icon=":material/receipt_long:", width="stretch", key="bedrijf_boekhouding",
+                     help="Inkomsten en uitgaven bijhouden; controleer de btw zelf vóór je aangifte."):
+            _openen("zakelijk", "boekhouding")
+            st.rerun()
     st.caption("De assistent kan adviseren over je winkelindeling en verkoopresultaten op basis van beschikbare bedrijfsgegevens.")
     st.markdown("**Vakgebied en specialisatie**")
     st.caption("Selecteer jouw vakgebied. Je kunt ook een eigen specialisatie invoeren.")

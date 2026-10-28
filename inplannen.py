@@ -97,7 +97,7 @@ def voorstel(dagen: int = 7, nu: datetime | None = None) -> list[dict]:
 
 
 def vastleggen(plan: list[dict]) -> int:
-    """Zet de blokken uit een voorstel als 🎯 focusblokken in de agenda. Geeft het aantal blokken."""
+    """Zet de blokken uit een voorstel als focusblokken in de agenda. Geeft het aantal blokken."""
     aantal = 0
     for regel in plan:
         for blok in regel["blokken"]:

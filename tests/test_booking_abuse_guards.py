@@ -24,5 +24,20 @@ class BookingGuardTests(unittest.TestCase):
         self.assertIn('if wachttijd > 0:', src)
         self.assertIn('st.session_state["_boek_laatste_poging"]', src)
 
+    def test_normal_email_addresses_are_accepted(self):
+        # Regressie: een te dubbel geëscapete regex weigerde elk adres met een s of een punt.
+        from datetime import datetime, timedelta, timezone
+        from unittest import mock
+        import boekpagina
+        import samen
+        later = datetime.now(timezone.utc) + timedelta(days=1)
+        with mock.patch.object(boekpagina.opslag, "_rpc", return_value={"ok": True}) as rpc:
+            for email in ("lisa@x.nl", "sanne.de.vries@gmail.com", "Jan@Example.ORG"):
+                boekpagina.boeken("zaak", 0, later, "Lisa", email)
+            self.assertEqual(rpc.call_count, 3)
+        for fout in ("lisa", "lisa@x", "li sa@x.nl", "a@b@c.nl"):
+            with self.assertRaises(samen.Fout):
+                boekpagina.boeken("zaak", 0, later, "Lisa", fout)
+
 if __name__ == "__main__":
     unittest.main()
