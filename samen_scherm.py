@@ -986,6 +986,8 @@ def mijn_webshop(inkopen=None) -> None:
         if deel == "Producten":
             st.markdown("#### Producten en voorraad")
             st.caption("Kies welke producten in je webshop staan en beheer de voorraad.")
+            webshop_product_toevoegen(w)
+            st.divider()
             winkel_producten_beheren(m)
             return
         if deel == "Bestellingen":
@@ -1055,6 +1057,24 @@ def mijn_webshop(inkopen=None) -> None:
         c2.metric("Commissie betaald", samen.euro(v["commissie"]))
 
     st.markdown("### Winkelbouwer")
+    st.caption("Bouw je winkel stap voor stap: basisgegevens, producten, bezorging, promotie en publicatie.")
+    if w:
+        st.markdown("**Winkelgereedschap**")
+        acties = [
+            ("Product toevoegen", "Producten", ":material/add_box:"),
+            ("Voorraad beheren", "Producten", ":material/inventory_2:"),
+            ("Kortingen en promoties", "Marketing", ":material/local_offer:"),
+            ("Bestellingen beheren", "Bestellingen", ":material/receipt_long:"),
+            ("Afspraken en reserveringen", "Reserveren", ":material/event_available:"),
+        ]
+        for tekst, bestemming, icoon in acties:
+            if st.button(tekst, key=f"bouwer_naar_{tekst}", icon=icoon, width="stretch"):
+                st.session_state["_webshop_volgende_deel"] = bestemming
+                st.rerun()
+    else:
+        st.info("Stap 1: geef je winkel een naam en sla deze als concept op. "
+                "Daarna kun je producten, voorraad, promoties en bestellingen beheren.")
+
     st.caption("Kies wat je wilt aanpassen. Je hoeft niet steeds door alle instellingen te scrollen.")
     gereedschap = {
         "Identiteit": (":material/badge:", "Naam, introductie en herkenbaarheid van je winkel."),
@@ -1068,6 +1088,20 @@ def mijn_webshop(inkopen=None) -> None:
     with st.popover("Wat kan ik hiermee?", icon=":material/help_outline:"):
         st.write(gereedschap[onderdeel][1])
         st.caption("Je wijzigingen worden pas bewaard wanneer je op Opslaan klikt.")
+    with st.expander("Voorbeeld van je winkelpagina", icon=":material/visibility:"):
+        import html
+        st.caption("Dit is een voorbeeld op basis van de laatst opgeslagen gegevens. "
+                   "Een andere stijl of accentkleur is pas zichtbaar na opslaan.")
+        st.markdown(
+            f'<section style="border:1px solid #d6d9df;border-top:5px solid '
+            f'{html.escape(w.get("kleur") or "#2563eb", quote=True)};'
+            f'padding:20px;border-radius:12px">'
+            f'<h3>{html.escape(w.get("naam") or "Naam van je winkel")}</h3>'
+            f'<p>{html.escape(w.get("omschrijving") or "Hier komt je winkelomschrijving.")}</p>'
+            f'</section>', unsafe_allow_html=True)
+        for product in (m.get("producten") or [])[:6]:
+            if product.get("in_winkel") and product.get("actief"):
+                st.write(f"{product.get('titel', 'Product')} — {samen.euro(product.get('prijs') or 0)}")
     with st.container(key="winkelbouwer_editor"):
         with st.form(f"winkel_{onderdeel}", border=False):
             naam = w.get("naam", "")
@@ -1143,6 +1177,43 @@ def mijn_webshop(inkopen=None) -> None:
 
     bezorgen_instellen(w, m["niveau"])
 
+
+
+def webshop_product_toevoegen(w: dict) -> None:
+    """Maak een echt product aan via de bestaande marktplaats- en winkelbackend."""
+    st.markdown("#### Nieuw product")
+    st.caption("Maak een artikel aan. Daarna kun je het in je webshop opnemen en de voorraad beheren.")
+    with st.form("webshop_product_nieuw", clear_on_submit=True, border=False):
+        titel = st.text_input("Productnaam", max_chars=100, placeholder="Bijvoorbeeld sportshirt")
+        omschrijving = st.text_area("Productomschrijving", max_chars=2000,
+                                    placeholder="Materiaal, afmetingen, gebruik en bijzonderheden")
+        prijs = st.number_input("Verkoopprijs (€)", min_value=0.01, value=19.95, step=1.0)
+        voorraad = st.number_input("Aantal op voorraad", min_value=0, max_value=100000, value=1)
+        plaats = st.text_input("Verzendplaats (optioneel)", max_chars=100)
+        status = _fout(samen.betalen_status) or {}
+        wijzen = [m for m in samen.BETAALWIJZEN if m != "app" or status.get("ik_kan_ontvangen")]
+        betaal = st.multiselect("Betaalmethoden", wijzen, default=["app"] if "app" in wijzen else ["contant"],
+                                format_func=samen.BETAALWIJZEN.get)
+        levering = st.multiselect("Leveringsmogelijkheden", list(samen.LEVERING),
+                                  default=["ophalen"], format_func=samen.LEVERING.get)
+        if st.form_submit_button("Product aanmaken en in winkel zetten", type="primary", width="stretch"):
+            if not w:
+                st.error("Maak eerst een winkel aan bij Winkel ontwerpen.")
+            elif not titel.strip() or not omschrijving.strip():
+                st.error("Vul een productnaam en omschrijving in.")
+            elif not betaal or not levering:
+                st.error("Kies minstens één betaal- en leveringsmethode.")
+            else:
+                try:
+                    product_id = samen.aanbod_plaatsen("product", titel.strip(), omschrijving.strip(),
+                                                      prijs, "per stuk", plaats.strip(), "",
+                                                      betaal, levering)
+                    samen.winkel_product(product_id, True, voorraad)
+                except samen.Fout as fout:
+                    st.error(f"Product niet volledig toegevoegd: {fout}. Controleer Mijn aanbod.")
+                else:
+                    st.success("Product aangemaakt en toegevoegd aan je webshop.")
+                    st.rerun()
 
 
 def winkel_producten_beheren(m: dict) -> None:
