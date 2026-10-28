@@ -29,6 +29,7 @@ import agent
 import assistant_learning
 import assistant_privacy
 import universal_workspace
+import os_navigation_ui
 import intent_engine
 import azure_search_ready
 import azure_services
@@ -233,6 +234,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 taal.installeren()
+# Compact navigation discovery; existing route handlers remain unchanged.
+os_navigation_ui.render_os_navigation()
+
 # Donker is de standaard; gebruikers kunnen hun voorkeur in Instellingen wijzigen.
 def superapp_thema() -> str:
     try:
