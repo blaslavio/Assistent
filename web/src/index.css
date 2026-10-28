@@ -23,7 +23,12 @@
 :root { --reeks-1: #2a78d6; --reeks-2: #eb6834; --reeks-3: #1baf7a; }
 
 @layer base {
-  html, body, #root { height: 100%; }
+  /* Het scherm staat vast: de pagina zelf scrollt of verschuift nooit, alleen de lijsten in de app. */
+  html, body { position: fixed; inset: 0; overflow: hidden; overscroll-behavior: none; height: 100%; }
+  #root { height: 100%; }
+  /* Kleiner dan 16 px laat Safari inzoomen bij het typen, en dan schuift alles. */
+  input, textarea, select, [contenteditable=true] { font-size: max(16px, 1em); }
+  .overflow-y-auto, .overflow-auto, .overflow-x-auto { overscroll-behavior: none; }
   body {
     margin: 0;
     background: #ffffff;
@@ -57,7 +62,7 @@
     }
   :root[data-thema=donker] body { background: #0b0b0e; }
   /* Tekstgrootte uit Instellingen › Algemeen: de hele app schaalt mee. */
-  #root { zoom: var(--zoom, 1); height: calc(100% / var(--zoom, 1)); }
+  #root { zoom: var(--zoom, 1); height: calc(var(--app-hoogte, 100%) / var(--zoom, 1)); }
   .contrast { --color-rustig: #45454d; --color-zacht: #5c5c66; --color-lijn: #c9c9d1; }
   .contrast a { text-decoration: underline; }
   @media (prefers-color-scheme: dark) {
@@ -129,3 +134,6 @@
   60% { transform: translateY(0) scale(1.04, 0.96); } 100% { transform: translateY(0) scale(1, 1); } }
 @media (prefers-reduced-motion: reduce) { .mascotte, .mascotte-lijf, .mascotte-ogen { animation: none !important; } }
 .minder-beweging .mascotte, .minder-beweging .mascotte-lijf, .minder-beweging .mascotte-ogen { animation: none !important; }
+
+/* Toetsenbord open: de balken onderin maken plaats, zoals in WhatsApp. */
+.toetsenbord-open nav[aria-label=Hoofdmenu], .toetsenbord-open nav[aria-label=Chat] { display: none !important; }
