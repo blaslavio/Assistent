@@ -69,8 +69,7 @@ begin
   end if;
   return new;
 end; $$;
-drop trigger if exists gast_na_boeken on private.boekingen;
-create trigger gast_na_boeken after insert on private.boekingen for each row execute function private.gast_na_boeken();
+create or replace trigger gast_na_boeken after insert on private.boekingen for each row execute function private.gast_na_boeken();
 
 -- Bevestigd of afgewezen: de gast hoort het per mail.
 create or replace function private.gast_na_wijzigen()
@@ -87,8 +86,7 @@ begin
   end if;
   return new;
 end; $$;
-drop trigger if exists gast_na_wijzigen on private.boekingen;
-create trigger gast_na_wijzigen after update of status on private.boekingen for each row
+create or replace trigger gast_na_wijzigen after update of status on private.boekingen for each row
   execute function private.gast_na_wijzigen();
 
 -- Wat de gast ziet: de afspraak en het gesprek. Geen gegevens van de eigenaar behalve de weergavenaam.
