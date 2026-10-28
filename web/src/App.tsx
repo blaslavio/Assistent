@@ -14,9 +14,14 @@ import { startenAlsBekend } from "./lib/chat";
 import type { Product } from "./lib/winkelen";
 import { deelCode } from "./lib/delen";
 import { GedeeldScherm } from "./schermen/Delen";
+import { BoekScherm, GastScherm } from "./schermen/Gasten";
+import { boekAdres, boekingCode, verwerken } from "./lib/gasten";
 
 // Een gedeelde link (?deel=...) opent een pagina die je zonder inloggen kunt zien.
 const GEDEELD = deelCode();
+// Afspraak maken zonder account (?boek=linknaam) en de eigen pagina van de gast (?boeking=code).
+const BOEK = boekAdres();
+const BOEKING = boekingCode();
 
 // Terug van betalen bij Stripe (?betaald=...): meteen naar je bestellingen.
 const BETAALD = adresWaarde("betaald");
@@ -77,7 +82,15 @@ export default function App() {
     startenAlsBekend().then((id) => id && luisteren(id)).catch(() => {});
   }, [ingelogd]);
 
+  // Nieuwe boekingen van gasten in je agenda zetten, als je een boekingspagina hebt.
+  const boekpagina = !!staat?.data.instellingen?.boekpagina;
+  useEffect(() => {
+    if (boekpagina) verwerken().catch(() => {});
+  }, [boekpagina]);
+
   if (GEDEELD) return <GedeeldScherm code={GEDEELD} />;
+  if (BOEKING) return <GastScherm code={BOEKING} />;
+  if (BOEK) return <BoekScherm adres={BOEK} />;
   if (!klaar) return <div className="h-full" />;
   if (!staat || !huidigeSessie()) return <Inloggen opIngelogd={laden} />;
 

@@ -1,18 +1,19 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { bijwerken, instellingenBijwerken, uitloggen, weergavenaamWijzigen } from "../api";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { alsIk, bijwerken, instellingenBijwerken, uitloggen, weergavenaamWijzigen } from "../api";
 import { gekoppeld } from "../lib/mail";
 import { betaalStatus, platformInstellen, verkoperAanmelden, type BetaalStatus } from "../lib/bestellingen";
 import { MailKoppelen } from "./AgendaPanelen";
+import { BoekpaginaInstellen, MailVersturen } from "./Gasten";
 import type { Staat } from "../App";
 import { Terug, Vonk } from "../iconen";
 
 type Props = { staat: Staat; vernieuw: () => Promise<void>; terug: () => void; opUitgelogd: () => void;
   setStaat: (s: Staat) => void };
-type Pagina = null | "profiel" | "assistent" | "privacy" | "thuis" | "mail" | "betalingen";
+type Pagina = null | "profiel" | "assistent" | "privacy" | "thuis" | "mail" | "betalingen" | "afspraken";
 
 type Stijl = Record<string, string | undefined>;
 type Inst = { stijl?: Stijl; avatar?: { naam?: string }; geheugen_uit?: boolean; thuisadres?: string;
-  anthropic_sleutel?: string };
+  anthropic_sleutel?: string; boekpagina?: boolean };
 type Feit = { id: number; feit: string; onderwerp?: string };
 
 // Dezelfde keuzes en standaarden als in de huidige app, zodat beide apps hetzelfde laten zien.
@@ -83,6 +84,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
       ))}
       <Sleutel ingesteld={Boolean(inst.anthropic_sleutel)}
         bewaar={(v) => bewaar((i) => { i.anthropic_sleutel = v.trim(); }, v ? "Sleutel bewaard" : "Sleutel verwijderd")} />
+      {g.id === 1 && <PlatformSleutel />}
     </>);
   }
 
@@ -120,6 +122,11 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
       className="h-12 rounded-2xl bg-vlak font-medium text-red-600 dark:text-red-400">Ontkoppelen</button>
   </> : <MailKoppelen staat={staat} setStaat={setStaat} />);
 
+  if (pagina === "afspraken") return scherm("Afspraken met gasten", <>
+    <BoekpaginaInstellen naam={naam} />
+    {g.id === 1 && <MailVersturen />}
+  </>);
+
   if (pagina === "betalingen") return scherm("Betalingen", <Betalingen eigenaar={g.id === 1} />);
 
   if (pagina === "thuis") return scherm("Thuis", <>
@@ -153,6 +160,8 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
       <ul className="mt-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
         <Rij titel="Mail" uitleg={gekoppeld(staat.data) ? "Gekoppeld" : "Koppel je mailbox"} open={() => setPagina("mail")} />
         <Rij titel="Betalingen" uitleg="Betalen en ontvangen via de app" open={() => setPagina("betalingen")} />
+        <Rij titel="Afspraken met gasten" uitleg={inst.boekpagina ? "Je boekingspagina staat aan" : "Laat mensen zonder account een afspraak inplannen"}
+          open={() => setPagina("afspraken")} />
       </ul>
 
       <button
@@ -263,6 +272,50 @@ function Sleutel({ ingesteld, bewaar }: { ingesteld: boolean; bewaar: (v: string
 }
 
 /** Betalen via de app (Stripe). Iedereen kan zich als verkoper aanmelden; alleen de eigenaar zet de sleutels. */
+/** Alleen de eigenaar: één Anthropic-sleutel voor iedereen zonder eigen sleutel. Hij staat alleen op de server en
+ * wordt nooit teruggegeven; de app ziet alleen of hij er is. */
+function PlatformSleutel() {
+  const [st, setSt] = useState<{ ai_platform?: boolean; ai_gratis_euro?: number } | null>(null);
+  const [v, setV] = useState("");
+  const [euro, setEuro] = useState("");
+  const [melding, setMelding] = useState("");
+  const laden = () => alsIk<{ ai_platform?: boolean; ai_gratis_euro?: number }>("toegang_status").then((s) => {
+    setSt(s);
+    setEuro((e) => e || String(s.ai_gratis_euro ?? 2));
+  }).catch(() => setMelding("Laden lukte niet."));
+  useEffect(() => { laden(); }, []);
+  async function bewaar(e: FormEvent) {
+    e.preventDefault();
+    setMelding("");
+    const a = await alsIk<{ fout?: string }>("toegang_instellen",
+      { p_anthropic_sleutel: v.trim(), p_ai_gratis_euro: Number(euro.replace(",", ".")) || 0, p_gratis_gb: null }).catch(() => ({ fout: "Bewaren lukte niet." }));
+    if (a.fout) return setMelding(a.fout);
+    setV("");
+    setMelding("Bewaard");
+    laden();
+  }
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className={kop}>Sleutel voor iedereen (alleen jij)</h2>
+      <p className="px-1 text-[15px] text-rustig">{st?.ai_platform
+        ? "Staat aan. Wie geen eigen sleutel heeft, gebruikt deze, tot het bedrag per maand op is."
+        : "Staat nog uit. Plak hier je Anthropic-sleutel; hij blijft op de server en niemand kan hem terugzien."}</p>
+      <form onSubmit={bewaar} className="flex flex-col gap-2">
+        <input type="password" value={v} onChange={(e) => setV(e.target.value)} placeholder={st?.ai_platform ? "Nieuwe sleutel (leeg laat de oude staan)" : "sk-ant-…"}
+          autoComplete="off" aria-label="Anthropic-sleutel voor iedereen" className="h-12 rounded-2xl bg-vlak px-4 outline-none placeholder:text-zacht" />
+        <label className="flex items-center gap-3 rounded-2xl bg-vlak px-4">
+          <span className="flex-1 text-[15px]">Gratis per persoon per maand (€)</span>
+          <input value={euro} onChange={(e) => setEuro(e.target.value)} inputMode="decimal" aria-label="Bedrag per persoon per maand"
+            className="h-12 w-20 bg-transparent text-right outline-none" />
+        </label>
+        <button disabled={!st || (!st.ai_platform && !v.startsWith("sk-ant-"))}
+          className="h-12 rounded-2xl bg-accent font-medium text-white disabled:opacity-30">Bewaar</button>
+      </form>
+      {melding && <p role="status" className="px-1 text-sm text-rustig">{melding}</p>}
+    </section>
+  );
+}
+
 function Betalingen({ eigenaar }: { eigenaar: boolean }) {
   const [st, setSt] = useState<BetaalStatus | null>(null);
   const [sleutel, setSleutel] = useState("");
