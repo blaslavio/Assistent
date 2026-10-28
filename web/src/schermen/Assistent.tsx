@@ -6,7 +6,8 @@ import { antwoord, gebruikerBeurt, gesprekLeeg, notitie, ongedaanMaken, verbindi
   type Keuze } from "../lib/assistent";
 import { KeuzeKaart } from "../keuzekaart";
 import { Opmaak } from "../lib/opmaak";
-import { BETAALWIJZE, LEVERING, bestellen, euro, type Bestelling, type Product } from "../lib/winkelen";
+import { BETAALWIJZE, LEVERING, bestellen, euro, onthouden, type Bestelling, type Product } from "../lib/winkelen";
+import { Bladen, ProductRij, type Blad } from "./Winkelen";
 
 type Bestelkaart = { b: Bestelling; status: "klaar" | "bezig" | "besteld"; fout?: string; bedrag?: number };
 type Beurt = { wie: "jij" | "assistent"; tekst: string; acties: Actie[]; fout?: boolean; keuze?: Keuze; gekozen?: number;
@@ -33,6 +34,7 @@ export default function Assistent({ staat, vernieuw }: Props) {
   const [invoer, setInvoer] = useState("");
   const [bezig, setBezig] = useState<string | null>(null);
   const [luistert, setLuistert] = useState(false);
+  const [bladen, setBladen] = useState<Blad[]>([]);
   const onder = useRef<HTMLDivElement>(null);
   const veld = useRef<HTMLTextAreaElement>(null);
   const stoppen = useRef<AbortController | null>(null);
@@ -55,6 +57,17 @@ export default function Assistent({ staat, vernieuw }: Props) {
     setInvoer("");
     if (veld.current) veld.current.style.height = "auto";
     praat(vraag);
+  }
+
+  /** Bestellen vanuit een productblad: de assistent zet de kaart klaar, jij tikt daarna zelf op Bestellen. */
+  function koop(p: Product) {
+    if (bezig) return;
+    setBladen([]);
+    onthouden(p);
+    notitie(`De gebruiker tikte in het productblad op ${p.bron === "winkel" ? "Bestellen" : "Kopen"} bij sleutel ${p.sleutel} `
+      + `(${p.titel}, ${euro(p.prijs)}, ${p.verkoper}; levering ${p.levering.join("/") || "onbekend"}; `
+      + `betaalwijzen ${p.betaalwijzen.join("/") || "onbekend"}). Vraag alleen wat nog ontbreekt en zet het dan klaar.`);
+    praat(`Ik wil ${p.titel} ${p.bron === "winkel" ? "bestellen" : "kopen"}.`);
   }
 
   /** Een tik op een optie van een keuzekaart. */
@@ -222,7 +235,7 @@ export default function Assistent({ staat, vernieuw }: Props) {
                     {b.acties.map((a, j) => <Kaartje key={j} actie={a} terug={() => terugdraaien(i, j)} />)}
                   </ul>
                 )}
-                {b.producten && <ProductRij producten={b.producten} />}
+                {b.producten && <ProductRij producten={b.producten} open={(p) => setBladen([{ soort: "product", p }])} />}
                 {b.bestellingen?.map((k, j) => <BestelKaart key={j} kaart={k} bestel={() => bestel(i, j)} />)}
                 {b.keuze && (
                   <KeuzeKaart keuze={b.keuze} gekozen={b.gekozen} kies={(j) => kies(i, j)}
@@ -239,6 +252,8 @@ export default function Assistent({ staat, vernieuw }: Props) {
           <div ref={onder} />
         </main>
       )}
+
+      <Bladen stapel={bladen} zet={setBladen} bestel={koop} />
 
       <form onSubmit={verstuur} className="sticky bottom-0 bg-white px-4 pb-3 pt-2 dark:bg-[#0b0b0e]">
         <div className={`flex items-end gap-2 rounded-[26px] bg-vlak py-1.5 pr-1.5 pl-5 ${luistert ? "ring-2 ring-accent" : ""}`}>
@@ -316,20 +331,6 @@ function Kaartje({ actie, terug }: { actie: Actie; terug: () => void }) {
 
 
 /** Wat de assistent vond, als rij kaartjes om langs te vegen. */
-function ProductRij({ producten }: { producten: Product[] }) {
-  return (
-    <ul aria-label="Gevonden producten" className="-mx-1 flex snap-x gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
-      {producten.map((p) => (
-        <li key={p.sleutel} className="flex w-44 shrink-0 snap-start flex-col gap-1 rounded-2xl border border-lijn p-3">
-          <span className="line-clamp-2 text-[15px] font-medium leading-snug">{p.titel}</span>
-          <span className="mt-auto text-lg font-semibold">{euro(p.prijs)}</span>
-          <span className="truncate text-[13px] text-rustig">{p.bron === "winkel" ? p.verkoper : `${p.verkoper} · marktplaats`}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function BestelKaart({ kaart, bestel }: { kaart: Bestelkaart; bestel: () => void }) {
   const { b } = kaart;
   const totaal = kaart.bedrag ?? b.product.prijs * b.aantal;

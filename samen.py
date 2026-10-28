@@ -346,6 +346,37 @@ def aanbod_actief(aanbod_id: int, actief: bool) -> None:
     opslag._rpc_ik("aanbod_bijwerken", p_id=aanbod_id, p_actief=actief)
 
 
+def productfoto_maken(data: bytes) -> str:
+    """Maakt van een geüploade foto een nette productfoto (jpg, hooguit 1080 px) als data-adres."""
+    import base64
+    import io
+
+    from PIL import Image, ImageOps
+
+    try:
+        beeld = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB")
+    except Exception:
+        raise Fout("Deze foto kan ik niet openen. Kies een jpg of png.")
+    beeld.thumbnail((1080, 1080))
+    for kwaliteit in (82, 70, 58, 45):
+        uit = io.BytesIO()
+        beeld.save(uit, "JPEG", quality=kwaliteit, optimize=True)
+        tekst = "data:image/jpeg;base64," + base64.b64encode(uit.getvalue()).decode()
+        if len(tekst) <= 400_000:
+            return tekst
+        beeld.thumbnail((800, 800))
+    raise Fout("Deze foto is te groot.")
+
+
+def productfoto_zetten(aanbod_id: int, data: bytes | None) -> None:
+    """Zet een foto bij je product, of haalt hem weg (data None)."""
+    _ok(opslag._rpc_ik("aanbod_foto_zetten", p_aanbod=aanbod_id, p_foto=productfoto_maken(data) if data else ""))
+
+
+def mijn_productfotos() -> set[int]:
+    return set(opslag._rpc_ik("mijn_productfotos").get("ids") or [])
+
+
 def tijd_toevoegen(aanbod_id: int, start: datetime, minuten: int) -> None:
     _ok(opslag._rpc_ik("tijdslot_toevoegen", p_aanbod=aanbod_id, p_start=start.astimezone().isoformat(),
                        p_minuten=minuten))
