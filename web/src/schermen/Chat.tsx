@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Bewerk, Dubbelvink, Pijl, Slot, Terug, Vinkje } from "../iconen";
-import { antwoorden, berichten, contacten, gesprekken, gesprekNaam, kortTekst, nieuwGesprek, starten, versturen,
+import { VERDWIJNEN, verdwijnenInstellen, antwoorden, berichten, contacten, gesprekken, gesprekNaam, kortTekst, nieuwGesprek, starten, versturen,
   voorbeeld, type Contact, type Gesprek, type Regel } from "../lib/chat";
 import { dagTitel, datumTekst, plusDagen } from "../lib/tijd";
 
@@ -163,6 +163,7 @@ function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin
   const [regels, setRegels] = useState<Regel[]>([]);
   const [invoer, setInvoer] = useState("");
   const [fout, setFout] = useState("");
+  const [timer, setTimer] = useState(false);
   const tot = useRef(0);
   const onder = useRef<HTMLDivElement>(null);
   const bezig = useRef(false);
@@ -228,11 +229,36 @@ function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin
           <Terug />
         </button>
         {g && <Rondje naam={naam} id={groep ? -id : anderen[0]?.id ?? id} />}
-        <span className="flex min-w-0 flex-col">
+        <button onClick={() => setTimer((t) => !t)} aria-expanded={timer} className="flex min-w-0 flex-col text-left">
           <span className="truncate font-semibold">{naam}</span>
-          <span className="flex items-center gap-1 text-xs text-zacht"><Slot className="size-3" /> Versleuteld</span>
-        </span>
+          <span className="flex items-center gap-1 text-xs text-zacht">
+            <Slot className="size-3" /> Versleuteld
+            {g?.verdwijnen ? ` · verdwijnt na ${VERDWIJNEN.find(([s]) => s === g.verdwijnen)?.[1] ?? "een tijd"}` : ""}
+          </span>
+        </button>
       </header>
+      {timer && g && (
+        <div className="border-b border-lijn px-4 py-3">
+          <p className="mb-2 text-sm text-rustig">Berichten verdwijnen na</p>
+          <div className="flex flex-wrap gap-2">
+            {VERDWIJNEN.map(([s, tekst]) => (
+              <button key={s} aria-pressed={(g.verdwijnen ?? 0) === s}
+                onClick={async () => {
+                  try {
+                    await verdwijnenInstellen(id, s);
+                    await bijwerken();
+                    setTimer(false);
+                  } catch (er) {
+                    setFout(er instanceof Error ? er.message : "Dat lukte niet.");
+                  }
+                }}
+                className={`h-9 rounded-full px-4 text-sm ${(g.verdwijnen ?? 0) === s ? "bg-accent text-white" : "bg-vlak"}`}>
+                {tekst}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <main className="flex flex-1 flex-col gap-1 px-4 py-4" aria-live="polite">
         {regels.map((r, i) => {
