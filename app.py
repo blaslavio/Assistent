@@ -85,6 +85,7 @@ import werk_scherm
 import weer
 import wetenschap
 import inplannen
+import nieuwe_app
 import onthouden
 import snelinvoer
 import woning
@@ -4587,6 +4588,12 @@ def instellingen_tabblad() -> None:
     with st.expander("Alle apponderdelen", icon=":material/apps:"):
         onderdelen_tegels()
 
+    if nieuwe_app.beschikbaar():
+        # De nieuwe app op dit adres (zie nieuwe_app.py). Een gewone link, zodat hij het hele venster krijgt.
+        st.html('<a href="?nieuw=1" target="_top" style="display:block;margin-top:12px;padding:12px 16px;'
+                'border-radius:12px;background:rgba(79,70,229,.08);color:#4f46e5;text-decoration:none;'
+                'font-weight:500">Nieuwe app openen</a>')
+
 
 def idee_of_probleem() -> None:
     """Meldingen gaan naar de vaste verbeterronde; wat ermee gebeurd is, staat eronder."""
@@ -6360,6 +6367,10 @@ def main() -> None:
     schil.actief()  # onthoudt of de app in de web-app op het beginscherm draait
     if not opslag.online():
         st.caption("Lokale testmodus: gegevens staan in data/gegevens.json.")
+    if "nieuw" in st.query_params:
+        # De nieuwe app (web/) op dit adres; hij heeft zijn eigen inloggen.
+        nieuwe_app.toon()
+        return
     # Siri (app Opdrachten) opent de app met ?zeg=wat je zei. Dat bewaren we tot je ingelogd bent.
     if zin := st.query_params.get("zeg", "").strip():
         st.session_state.siri_zeg = zin[:500]

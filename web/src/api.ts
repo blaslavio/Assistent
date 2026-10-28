@@ -3,6 +3,9 @@
 export const SUPABASE = import.meta.env.VITE_SUPABASE ?? "https://lnjsekmlpjyiwdlzcowa.supabase.co";
 export const SLEUTEL = "sb_publishable_Bq-K3J6yt0-B-mHWYj-tnQ_DWD0c9KX";
 const APPARAAT_SLEUTEL = "assistent.apparaat";
+// Waar de huidige app staat: naast de nieuwe op GitHub Pages, of het adres van de Streamlit-app als de nieuwe app daar
+// in een pagina draait.
+export const OUDE_APP = (globalThis as { OUDE_APP?: string }).OUDE_APP ?? "../";
 
 export class GeenToegang extends Error {}
 
