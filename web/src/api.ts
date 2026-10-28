@@ -177,3 +177,10 @@ export function adresOpruimen(...namen: string[]) {
     }
   }
 }
+
+/** Na "overal uitloggen" krijgt dit apparaat een nieuwe sleutel, zodat je hier ingelogd blijft. */
+export async function ditApparaatOnthouden() {
+  if (!lees(APPARAAT_SLEUTEL)) return;
+  const r = await alsIk<{ token?: string }>("apparaat_onthouden", { p_apparaat: apparaatNaam() });
+  if (r.token) schrijf(APPARAAT_SLEUTEL, r.token);
+}

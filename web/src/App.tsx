@@ -2,11 +2,12 @@ import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { GeenToegang, adresOpruimen, adresWaarde, gegevensLaden, huidigeSessie, terugkomen, type Gebruiker,
   type Gegevens } from "./api";
 import { openVragen } from "./lib/bestellingen";
-import { Ballon, Kalender, Vonk, Zon } from "./iconen";
+import { Ballon, Kalender, Tandwiel, Vonk, Zon } from "./iconen";
 import Inloggen from "./schermen/Inloggen";
 import Vandaag from "./schermen/Vandaag";
 import Agenda from "./schermen/Agenda";
 import Instellingen from "./schermen/Instellingen";
+import { weergaveToepassen, type Weergave } from "./schermen/Algemeen";
 import Chat from "./schermen/Chat";
 import BelLaag from "./schermen/Bellen";
 import { luisteren } from "./lib/bellen";
@@ -41,6 +42,7 @@ const TABS: { id: Tab; naam: string; Icoon: typeof Zon }[] = [
   { id: "agenda", naam: "Agenda", Icoon: Kalender },
   { id: "chat", naam: "Chat", Icoon: Ballon },
   { id: "assistent", naam: "Assistent", Icoon: Vonk },
+  { id: "instellingen", naam: "Instellingen", Icoon: Tandwiel },
 ];
 
 export type Staat = { gebruiker: Gebruiker; data: Gegevens };
@@ -89,6 +91,10 @@ export default function App() {
     if (boekpagina) verwerken().catch(() => {});
   }, [boekpagina]);
 
+  // Kleur, tekstgrootte en toegankelijkheid uit je instellingen op de hele app.
+  const weergave = staat?.data.instellingen;
+  useEffect(() => { weergaveToepassen((weergave ?? {}) as Weergave); }, [weergave]);
+
   if (GEDEELD) return <GedeeldScherm code={GEDEELD} />;
   if (BOEKING) return <GastScherm code={BOEKING} />;
   if (BOEK) return <BoekScherm adres={BOEK} />;
@@ -118,7 +124,7 @@ export default function App() {
           const actief = tab === id;
           return (
             <button key={id} onClick={() => setTab(id)} aria-current={actief ? "page" : undefined}
-              className={`flex min-w-16 flex-col items-center gap-1 text-[11px] ${actief ? "font-semibold text-inkt" : "text-zacht"}`}>
+              className={`flex min-w-14 flex-col items-center gap-1 text-[11px] ${actief ? "font-semibold text-inkt" : "text-zacht"}`}>
               <Icoon />
               {naam}
             </button>

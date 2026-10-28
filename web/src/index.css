@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Donker volgt het toestel, tenzij je in Instellingen › Algemeen zelf Licht of Donker kiest. */
+@custom-variant dark {
+  &:where([data-thema=donker], [data-thema=donker] *) { @slot; }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-thema]), :root:not([data-thema]) *) { @slot; }
+  }
+}
+
 @theme {
   --font-sans: Inter, system-ui, -apple-system, sans-serif;
   --color-accent: #4f46e5;
@@ -25,7 +33,7 @@
     -webkit-tap-highlight-color: transparent;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-thema=licht]) {
       --color-inkt: #f4f4f6;
       --color-rustig: #a1a1ab;
       --color-zacht: #7c7c87;
@@ -35,7 +43,29 @@
       --color-accent-donker: #a5b4fc;
       --reeks-1: #3987e5; --reeks-2: #d95926; --reeks-3: #199e70;
     }
-    body { background: #0b0b0e; }
+    :root:not([data-thema=licht]) body { background: #0b0b0e; }
+  }
+  :root[data-thema=donker] {
+      --color-inkt: #f4f4f6;
+      --color-rustig: #a1a1ab;
+      --color-zacht: #7c7c87;
+      --color-vlak: #1c1c21;
+      --color-lijn: #26262c;
+      --color-accent: #6366f1;
+      --color-accent-donker: #a5b4fc;
+      --reeks-1: #3987e5; --reeks-2: #d95926; --reeks-3: #199e70;
+    }
+  :root[data-thema=donker] body { background: #0b0b0e; }
+  /* Tekstgrootte uit Instellingen › Algemeen: de hele app schaalt mee. */
+  #root { zoom: var(--zoom, 1); height: calc(100% / var(--zoom, 1)); }
+  .contrast { --color-rustig: #45454d; --color-zacht: #5c5c66; --color-lijn: #c9c9d1; }
+  .contrast a { text-decoration: underline; }
+  @media (prefers-color-scheme: dark) {
+    :root.contrast:not([data-thema=licht]) { --color-rustig: #d0d0d6; --color-zacht: #b4b4bc; --color-lijn: #4a4a52; }
+  }
+  :root.contrast[data-thema=donker] { --color-rustig: #d0d0d6; --color-zacht: #b4b4bc; --color-lijn: #4a4a52; }
+  .minder-beweging *, .minder-beweging *::before, .minder-beweging *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
   }
   button, input { font: inherit; color: inherit; }
 }

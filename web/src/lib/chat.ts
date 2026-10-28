@@ -240,6 +240,20 @@ export const communityUitnodigen = (id: number, wie: string) =>
 export const communityAntwoorden = (id: number, antwoord: "ja" | "nee" | "verlaten") =>
   rpc("chat_community_antwoorden", { p_community: id, p_antwoord: antwoord });
 
+// Beheer van een community: alleen eigenaar en beheerders. De server controleert dat zelf.
+export const communityInstellen = (id: number, p: { titel?: string; omschrijving?: string; code_aan?: boolean;
+  nieuwe_code?: boolean; opheffen?: boolean }) =>
+  rpc("chat_community_instellen", { p_community: id, p_titel: p.titel ?? null, p_omschrijving: p.omschrijving ?? null,
+    p_code_aan: p.code_aan ?? null, p_nieuwe_code: p.nieuwe_code ?? false, p_opheffen: p.opheffen ?? false });
+export type LidActie = "beheerder" | "lid" | "eigenaar" | "verwijderen" | "weren";
+export const communityLid = (id: number, wie: number, actie: LidActie) =>
+  rpc("chat_community_lid", { p_community: id, p_wie: wie, p_actie: actie });
+export const kanaalMaken = (id: number, naam: string, alleenBeheer: boolean) =>
+  rpc<{ id: number }>("chat_kanaal_maken", { p_community: id, p_kanaal: naam, p_alleen_beheer: alleenBeheer });
+export const kanaalInstellen = (kanaal: number, p: { titel?: string; alleen_beheer?: boolean; weg?: boolean }) =>
+  rpc("chat_kanaal_instellen", { p_kanaal: kanaal, p_titel: p.titel ?? null, p_alleen_beheer: p.alleen_beheer ?? null,
+    p_weg: p.weg ?? false });
+
 export function gesprekNaam(g: Gesprek, mijnId: number) {
   if (g.soort === "groep") return g.naam || "Groep";
   return g.leden.find((l) => l.id !== mijnId)?.naam || "Gesprek";
