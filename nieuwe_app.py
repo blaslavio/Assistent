@@ -17,7 +17,7 @@ export default function (component) {
   if (!data || !data.html || window.__nieuweApp) return;
   const venster = document.createElement("iframe");
   venster.title = "Assistent";
-  venster.setAttribute("allow", "microphone; camera; autoplay; clipboard-read; clipboard-write; fullscreen; geolocation");
+  venster.setAttribute("allow", "microphone; camera; autoplay; clipboard-read; clipboard-write; fullscreen; geolocation; web-share");
   venster.style.cssText = "position:fixed;inset:0;width:100vw;height:100dvh;border:0;z-index:2147483000;"
     + "background:" + (matchMedia("(prefers-color-scheme: dark)").matches ? "#0b0b0e" : "#ffffff");
   venster.srcdoc = data.html.replace("__OUDE_APP__", JSON.stringify(location.origin + "/"));

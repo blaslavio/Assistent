@@ -10,6 +10,11 @@ import BelLaag from "./schermen/Bellen";
 import { luisteren } from "./lib/bellen";
 import { startenAlsBekend } from "./lib/chat";
 import type { Product } from "./lib/winkelen";
+import { deelCode } from "./lib/delen";
+import { GedeeldScherm } from "./schermen/Delen";
+
+// Een gedeelde link (?deel=...) opent een pagina die je zonder inloggen kunt zien.
+const GEDEELD = deelCode();
 // Claude laden we pas als je de assistent opent; zo start de app sneller.
 const Assistent = lazy(() => import("./schermen/Assistent"));
 
@@ -61,6 +66,7 @@ export default function App() {
     startenAlsBekend().then((id) => id && luisteren(id)).catch(() => {});
   }, [ingelogd]);
 
+  if (GEDEELD) return <GedeeldScherm code={GEDEELD} />;
   if (!klaar) return <div className="h-full" />;
   if (!staat || !huidigeSessie()) return <Inloggen opIngelogd={laden} />;
 
