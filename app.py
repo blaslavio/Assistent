@@ -5433,6 +5433,11 @@ def gesprek() -> None:
         if voorstel:
             st.write(voorstel.description)
             st.caption("Er is nog niets opgeslagen, betaald of verzonden.")
+            if voorstel.kind == "actielink":
+                st.caption("Gebruik de bestaande winkel of boekingspagina voor publicatie en de echte deellink. Dit voorstel stelt geen vervaltijd of betaling in.")
+                for label, route in (("Open winkels", "winkels"), ("Open agenda en boekingspagina", "agenda")):
+                    if route in PAGINA and st.button(label, key="intent_link_" + route):
+                        st.switch_page(PAGINA[route])
             if voorstel.kind == "taak" and st.button("Open taken om toe te voegen", key="intent_taak_open"):
                 if "planning" in PAGINA:
                     st.switch_page(PAGINA["planning"])
