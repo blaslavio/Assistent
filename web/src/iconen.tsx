@@ -76,3 +76,12 @@ export const Bijlage = (p: P) => (
 export const Bestand = (p: P) => (
   <svg {...basis} {...p}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></svg>
 );
+export const Hart = ({ vol, ...p }: P & { vol?: boolean }) => (
+  <svg {...basis} {...p} fill={vol ? "currentColor" : "none"}><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" /></svg>
+);
+export const Meer = (p: P) => (
+  <svg {...basis} {...p}><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg>
+);
+export const Wereld = (p: P) => (
+  <svg {...basis} {...p}><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>
+);

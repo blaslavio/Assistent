@@ -1,6 +1,8 @@
-import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Ballon, Bewerk, Dubbelvink, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
 import { JouwAanbod } from "./Delen";
+import { Berichten, Feed, Schrijven } from "./Feed";
+import { feedInstelling, openbaarZetten } from "../lib/feed";
 import Bestellingen from "./Bestellingen";
 import { isGevraagd, lijst as bestellingenLijst, openGevraagd, wachtOpMij } from "../lib/bestellingen";
 import { VERDWIJNEN, verdwijnenInstellen, antwoorden, belDuur, berichten, community, communityAntwoorden, communityDeelnemen,
@@ -118,7 +120,7 @@ export default function Chat({ staat, naarInstellingen, bestel }: Props) {
         <Chats ik={ik} lijst={lijst} voorbeelden={voorbeelden} open={setOpen} nieuw={() => setNieuw(true)} fout={fout} zoekt={nieuw} />
       )}
       {deel === "communitys" && ik !== null && (
-        <Communitys lijst={groepen} open={setOpenCommunity} vernieuw={laden} />
+        <Communitys lijst={groepen} open={setOpenCommunity} vernieuw={laden} staat={staat} />
       )}
       {deel === "winkel" && <WinkelDeel bestel={bestel} />}
       {deel === "oproepen" && ik !== null && <Oproepen ik={ik} lijst={lijst} />}
@@ -182,7 +184,36 @@ function Chats({ ik, lijst, voorbeelden, open, nieuw, fout, zoekt }: { ik: numbe
 
 const foutVan = (e: unknown) => (e instanceof Error ? e.message : "Dat lukte niet.");
 
-function Communitys({ lijst, open, vernieuw }: { lijst: Community[]; open: (id: number) => void; vernieuw: () => Promise<void> }) {
+function bewaardWeergave(): "feed" | "groepen" {
+  try { return localStorage.getItem("assistent.communitydeel") === "groepen" ? "groepen" : "feed"; } catch { return "feed"; }
+}
+
+function Communitys({ lijst, open, vernieuw, staat }: { lijst: Community[]; open: (id: number) => void;
+  vernieuw: () => Promise<void>; staat: Staat }) {
+  const [weergave, setWeergaveRuw] = useState(bewaardWeergave);
+  const [begin] = useState(() => feedInstelling(staat.data.instellingen));
+  function setWeergave(w: "feed" | "groepen") {
+    setWeergaveRuw(w);
+    try { localStorage.setItem("assistent.communitydeel", w); } catch { /* geen opslag */ }
+  }
+  const keuze = (
+    <div className="mx-6 mb-3 grid grid-cols-2 gap-1 rounded-full bg-vlak p-1">
+      {([["feed", "Feed"], ["groepen", "Groepen"]] as const).map(([k, t]) => (
+        <button key={k} onClick={() => setWeergave(k)} aria-pressed={weergave === k}
+          className={`h-9 rounded-full text-sm font-medium ${weergave === k ? "bg-white shadow-sm dark:bg-[#2a2a30]" : "text-rustig"}`}>{t}</button>
+      ))}
+    </div>
+  );
+  if (weergave === "feed") return (
+    <>
+      {keuze}
+      <Feed mijn={lijst.filter((c) => c.status === "lid")} begin={begin} open={open} vernieuw={vernieuw} />
+    </>
+  );
+  return <>{keuze}<Groepen lijst={lijst} open={open} vernieuw={vernieuw} /></>;
+}
+
+function Groepen({ lijst, open, vernieuw }: { lijst: Community[]; open: (id: number) => void; vernieuw: () => Promise<void> }) {
   const [blad, setBlad] = useState(false);
   const [fout, setFout] = useState("");
   async function antwoord(id: number, a: "ja" | "nee") {
@@ -320,6 +351,14 @@ function CommunityBlad({ sluit, klaar }: { sluit: () => void; klaar: (id: number
 function CommunityScherm({ c, openKanaal, vernieuw, terug }: { c: Community; openKanaal: (id: number) => void;
   vernieuw: () => Promise<void>; terug: () => void }) {
   const [leden, setLeden] = useState(false);
+  const [openbaar, setOpenbaar] = useState(!!c.openbaar);
+  const [opnieuw, setOpnieuw] = useState(0);
+  const beheer = c.rol === "eigenaar" || c.rol === "beheerder";
+  const keuze = useMemo(() => ({ bron: "alles" as const, verborgen: [], _: opnieuw }), [opnieuw]);
+  async function zetOpenbaar(aan: boolean) {
+    setOpenbaar(aan);
+    try { await openbaarZetten(c.id, aan); vernieuw().catch(() => {}); } catch { setOpenbaar(!aan); }
+  }
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex items-center gap-2 px-3 pt-12 pb-2">
@@ -333,8 +372,18 @@ function CommunityScherm({ c, openKanaal, vernieuw, terug }: { c: Community; ope
         <Rondje naam={c.naam} id={-1000 - c.id} groot />
         <h1 className="text-2xl font-bold tracking-tight">{c.naam}</h1>
         {c.omschrijving && <p className="text-[15px] text-rustig">{c.omschrijving}</p>}
-        <p className="text-sm text-zacht">{c.leden} {c.leden === 1 ? "lid" : "leden"}</p>
+        <p className="text-sm text-zacht">{c.leden} {c.leden === 1 ? "lid" : "leden"}{openbaar ? " · openbaar" : ""}</p>
       </div>
+      {beheer && (
+        <label className="mx-6 mb-4 flex items-center gap-3 rounded-2xl bg-vlak px-4 py-3">
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="font-medium">Openbaar</span>
+            <span className="text-[13px] text-rustig">Iedereen in de app ziet de feed en kan meedoen. Kanalen blijven alleen voor leden.</span>
+          </span>
+          <input type="checkbox" checked={openbaar} onChange={(e) => zetOpenbaar(e.target.checked)}
+            className="size-5 shrink-0 accent-[var(--color-accent)]" aria-label="Openbaar" />
+        </label>
+      )}
       <h2 className="px-6 pb-1 text-sm font-medium text-rustig">Kanalen</h2>
       <ul className="flex flex-col px-3">
         {c.kanalen.map((k) => (
@@ -352,6 +401,11 @@ function CommunityScherm({ c, openKanaal, vernieuw, terug }: { c: Community; ope
           </li>
         ))}
       </ul>
+      <h2 className="px-6 pt-5 pb-2 text-sm font-medium text-rustig">Feed</h2>
+      <div className="flex flex-col gap-4 pb-8">
+        <Schrijven mijn={[c]} vast={c.id} geplaatst={() => setOpnieuw((n) => n + 1)} />
+        <Berichten keuze={keuze} community={c.id} leeg="Nog geen berichten. Schrijf als eerste iets." />
+      </div>
       {leden && <LedenBlad c={c} sluit={() => setLeden(false)} weg={async () => { setLeden(false); await vernieuw(); terug(); }} />}
     </div>
   );
