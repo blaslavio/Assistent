@@ -1,0 +1,16 @@
+{
+  "formaat": "assistent-omgeving",
+  "versie": 1,
+  "python": "3.12.14",
+  "pakketten": {
+    "streamlit": "1.66.1",
+    "anthropic": "2.3.0",
+    "httpx": "0.28.1",
+    "pillow": "13.0.0",
+    "pypdf": "6.21.2"
+  },
+  "pakketconflicten": [],
+  "ffmpeg_beschikbaar": true,
+  "ffprobe_beschikbaar": true,
+  "beperking": "Alleen lokale installatieconsistentie. Geen CVE-database, netwerk, accounts, tokens of externe diensten gecontroleerd."
+}

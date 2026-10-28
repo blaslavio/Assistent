@@ -17,9 +17,12 @@ import json
 import os
 import secrets
 import threading
+import tempfile
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+
+import actieoverzicht
 
 import httpx
 
@@ -48,6 +51,27 @@ CODE_GELDIG_SECONDEN = 300
 
 class GeenToegang(Exception):
     """Naam of wachtwoord klopt niet (of er waren te veel foute pogingen)."""
+
+
+class OpslagBeschadigd(Exception):
+    """Lokale gegevens zijn onleesbaar; overschrijf ze niet automatisch."""
+
+
+class OpslagConflict(Exception):
+    """Een andere sessie heeft de gegevens gewijzigd; niets is overschreven."""
+
+
+class OpslagNietIngericht(Exception):
+    """De migratie voor veilige accountopslag ontbreekt."""
+
+
+class _Gegevens(dict):
+    """Koppel de schrijfvoorwaarde aan déze kopie, ook bij tussentijds opnieuw laden."""
+
+    def __init__(self, inhoud: dict, account: tuple):
+        super().__init__(copy.deepcopy(inhoud))
+        self.basis = copy.deepcopy(inhoud)
+        self.account = account
 
 
 def gebruik_account(naam: str, wachtwoord: str) -> None:
@@ -104,39 +128,62 @@ _MAAKT_CODES_ONGELDIG = {"uitloggen", "overal_uitloggen", "profiel_bijwerken", "
 
 def _lokaal_laden() -> dict:
     if not DATA_BESTAND.exists():
-        return json.loads(json.dumps(LEEG))
-    with DATA_BESTAND.open(encoding="utf-8") as f:
-        return json.load(f)
+        return copy.deepcopy(LEEG)
+    try:
+        def uniek(paren):
+            r = {}
+            for k, v in paren:
+                if k in r:
+                    raise ValueError("Dubbel veld")
+                r[k] = v
+            return r
+        def eindig(_):
+            raise ValueError("Niet-eindig getal")
+        with DATA_BESTAND.open(encoding="utf-8") as f:
+            gegevens = json.load(f, object_pairs_hook=uniek, parse_constant=eindig)
+        if not isinstance(gegevens, dict) or any(not isinstance(gegevens.get(k, []), list) for k in ("taken", "afspraken")):
+            raise ValueError("Ongeldige lokale structuur")
+        return {**copy.deepcopy(LEEG), **gegevens}
+    except (ValueError, UnicodeError, RecursionError) as fout:
+        raise OpslagBeschadigd("Het lokale gegevensbestand is onleesbaar. Bewaar het bestand en herstel een geldige back-up; er is niets overschreven.") from fout
 
 
 def _lokaal_opslaan(gegevens: dict) -> None:
+    inhoud = json.dumps(gegevens, ensure_ascii=False, indent=2, allow_nan=False)
     DATA_BESTAND.parent.mkdir(parents=True, exist_ok=True)
-    tijdelijk = DATA_BESTAND.with_suffix(".tmp")
-    with tijdelijk.open("w", encoding="utf-8") as f:
-        json.dump(gegevens, f, ensure_ascii=False, indent=2)
-    tijdelijk.replace(DATA_BESTAND)
+    tijdelijk = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=DATA_BESTAND.parent, prefix=".gegevens-", suffix=".tmp", delete=False) as f:
+            tijdelijk = Path(f.name)
+            f.write(inhoud)
+            f.flush()
+            os.fsync(f.fileno())
+        tijdelijk.replace(DATA_BESTAND)
+    finally:
+        if tijdelijk is not None:
+            tijdelijk.unlink(missing_ok=True)
 
 
 def _lokale_hash(wachtwoord: str, zout: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", wachtwoord.encode(), bytes.fromhex(zout), 200_000).hex()
 
 
-def laden() -> dict:
+def laden(vers: bool = False) -> dict:
     if not online():
         return _lokaal_laden()
     sleutel, nu = (_naam.get(), _wachtwoord.get()), time.time()
     with _gedeeld_slot:
         goedgekeurd, gebruiker = _codes.get(sleutel, (0, None))
         bewaard = _gedeeld.get(gebruiker) if nu - goedgekeurd < CODE_GELDIG_SECONDEN else None
-        if bewaard and nu - bewaard[0] < ONTHOUD_SECONDEN:
-            return copy.deepcopy(bewaard[1])
+        if not vers and bewaard and nu - bewaard[0] < ONTHOUD_SECONDEN:
+            return _Gegevens(bewaard[1], sleutel)
     antwoord = _rpc_ik("mijn_gegevens")
     gegevens = {**json.loads(json.dumps(LEEG)), **(antwoord.get("data") or {})}
     if gebruiker_id := (antwoord.get("gebruiker") or {}).get("id"):
         with _gedeeld_slot:
             _codes[sleutel] = (nu, gebruiker_id)
             _gedeeld[gebruiker_id] = (nu, copy.deepcopy(gegevens))
-    return gegevens
+    return _Gegevens(gegevens, sleutel)
 
 
 def vergeet_gegevens() -> None:
@@ -149,16 +196,28 @@ def vergeet_gegevens() -> None:
 def opslaan(gegevens: dict) -> None:
     if not online():
         _lokaal_opslaan(gegevens)
-    elif not _rpc_ik("mijn_gegevens_bewaren", p_data=gegevens):
-        with _gedeeld_slot:
-            _codes.pop((_naam.get(), _wachtwoord.get()), None)
-        raise GeenToegang
+        return
     else:
+        sleutel = (_naam.get(), _wachtwoord.get())
+        if not isinstance(gegevens, _Gegevens) or gegevens.account != sleutel:
+            raise OpslagConflict("Haal de gegevens opnieuw op voordat je opslaat.")
+        try:
+            antwoord = _rpc_ik("mijn_gegevens_veilig_bewaren", p_basis=gegevens.basis, p_data=gegevens)
+        except httpx.HTTPStatusError as fout:
+            if fout.response.status_code == 404:
+                raise OpslagNietIngericht("Voer sql/veilige_opslag.sql uit voordat je deze appversie gebruikt.") from fout
+            raise
+        if antwoord.get("conflict"):
+            vergeet_gegevens()
+            raise OpslagConflict("De gegevens zijn elders gewijzigd. Probeer opnieuw.")
+        if antwoord.get("ok") is not True:
+            raise ValueError("De database heeft opslaan niet bevestigd.")
+        gegevens.basis = copy.deepcopy(dict(gegevens))
         with _gedeeld_slot:
             _goedgekeurd, gebruiker = _codes.get((_naam.get(), _wachtwoord.get()), (0, None))
             if gebruiker is not None:
                 _codes[(_naam.get(), _wachtwoord.get())] = (time.time(), gebruiker)
-                _gedeeld[gebruiker] = (time.time(), copy.deepcopy(gegevens))
+                _gedeeld[gebruiker] = (time.time(), copy.deepcopy(dict(gegevens)))
 
 
 # --- Wachtwoord ------------------------------------------------------------
@@ -390,6 +449,35 @@ def taak_bijwerken(taak_id: int, **velden) -> dict | None:
     return None
 
 
+def taak_afhankelijkheden(taak_id: int, afhankelijk_van: list[int], verwacht: list[int]) -> dict:
+    import taakvolgorde
+    import agendacontrole
+    import dagplan
+    for poging in range(3):
+        try:
+            with _slot:
+                g = laden(vers=True)
+                gekozen = taakvolgorde.valideer(g["taken"], taak_id, afhankelijk_van)
+                taak = next(t for t in g["taken"] if t["id"] == taak_id)
+                huidig = taak.get("afhankelijk_van", [])
+                if huidig == gekozen:
+                    return copy.deepcopy(taak)
+                if huidig != verwacht:
+                    raise ValueError("De afhankelijkheden zijn intussen gewijzigd. Ververs eerst het overzicht.")
+                nieuw = {**taak, "afhankelijk_van": gekozen}
+                if taakvolgorde.blokkades(nieuw, g["taken"]):
+                    moment = dagplan.nu()
+                    if any(a.get("taak_id") == taak_id and agendacontrole.interval(a)[1].astimezone(dagplan.NL).replace(tzinfo=None) > moment
+                           for a in g["afspraken"]):
+                        raise ValueError("Deze taak heeft nog lopende of toekomstige blokken. Verwijder die eerst via Agenda voordat je haar blokkeert.")
+                taak["afhankelijk_van"] = gekozen
+                opslaan(g)
+                return copy.deepcopy(taak)
+        except OpslagConflict:
+            if poging == 2:
+                raise
+
+
 def taak_verwijderen(taak_id: int) -> bool:
     with _slot:
         g = laden()
@@ -445,7 +533,10 @@ def afspraak_toevoegen(
     taak_id: int | None = None,
 ) -> dict:
     with _slot:
-        g = laden()
+        g = laden(vers=True)
+        if taak_id is not None:
+            import taakvolgorde
+            taakvolgorde.eis_startbaar(taak_id, g["taken"])
         afspraak = {
             "id": _nieuw_id(g),
             "titel": titel,
@@ -1111,6 +1202,443 @@ def herhalingen_vandaag() -> list[dict]:
 
 
 # --- Instellingen ----------------------------------------------------------
+def intentie_berichten() -> list[dict]:
+    """De laatste chatberichten van Universal OS, binnen het huidige account."""
+    return laden(vers=True).get("intentie_berichten", [])[-100:]
+
+
+def intentie_bericht(rol: str, tekst: str) -> None:
+    if rol not in {"user", "assistant"}:
+        raise ValueError("Onbekende berichtrol")
+    for poging in range(3):
+        with _slot:
+            g = laden(vers=True)
+            g["intentie_berichten"] = (g.get("intentie_berichten", []) + [
+                {"rol": rol, "tekst": tekst, "tijd": datetime.now().isoformat(timespec="seconds")}
+            ])[-100:]
+            try:
+                opslaan(g)
+                return
+            except OpslagConflict:
+                if poging == 2:
+                    raise
+
+
+def intentie_bevestigen(opdracht_id: str, voorstel: dict) -> dict:
+    """Bewaar item en ontvangstbewijs atomair, met herhaling bij een schrijfconflict."""
+    import intenties
+    voorstel = intenties.valideer(voorstel)
+    for poging in range(3):
+        try:
+            return _intentie_bevestigen(opdracht_id, voorstel)
+        except OpslagConflict:
+            if poging == 2:
+                raise
+
+
+def dagvoorstel() -> dict:
+    import dagplan
+    return dagplan.voorstel(laden(vers=True))
+
+
+def werkbron_opslaan(opdracht_id: str, doel_soort: str, doel_id: int, bron: dict) -> dict:
+    import werkbronnen
+    from datetime import timezone
+    waarde = werkbronnen.valideer(bron)
+    if not isinstance(opdracht_id, str) or not 1 <= len(opdracht_id) <= 80:
+        raise ValueError("Ongeldig bron-ID.")
+    werkbronnen.controleer_cloud(waarde)
+    payload = {**waarde, "doel_soort": doel_soort, "doel_id": doel_id}
+    for poging in range(3):
+        try:
+            with _slot:
+                g = laden(vers=True)
+                werkbronnen.doel(g, doel_soort, doel_id)
+                bronnen = g.setdefault("werkbronnen", {})
+                opdrachten = g.setdefault("werkbron_opdrachten", {})
+                digest = hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+                if opdracht_id in opdrachten:
+                    r = opdrachten[opdracht_id]
+                    if r["inhoud"] != digest:
+                        raise ValueError("Deze bronopdracht is al met andere inhoud verwerkt.")
+                    if r["bron_id"] not in bronnen:
+                        raise ValueError("Deze koppeling is inmiddels verwijderd en wordt niet opnieuw aangemaakt.")
+                    return copy.deepcopy(bronnen[r["bron_id"]])
+                if opdracht_id in bronnen:
+                    bewaard = bronnen[opdracht_id]
+                    if {k: v for k, v in bewaard.items() if k != "aangemaakt"} != payload:
+                        raise ValueError("Deze bronopdracht is al met andere inhoud verwerkt.")
+                    return copy.deepcopy(bewaard)
+                for sleutel, b in bronnen.items():
+                    if {k: v for k, v in b.items() if k != "aangemaakt"} == payload:
+                        opdrachten[opdracht_id] = {"bron_id": sleutel, "inhoud": digest}
+                        opslaan(g)
+                        return copy.deepcopy(b)
+                if len(bronnen) >= 1000 or sum(b["doel_soort"] == doel_soort and b["doel_id"] == doel_id for b in bronnen.values()) >= 100:
+                    raise ValueError("Maximaal 100 bronnen per taak of afspraak en 1000 per account.")
+                waarde_nieuw = {**payload, "aangemaakt": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+                bronnen[opdracht_id] = waarde_nieuw
+                opdrachten[opdracht_id] = {"bron_id": opdracht_id, "inhoud": digest}
+                opslaan(g)
+                return copy.deepcopy(waarde_nieuw)
+        except OpslagConflict:
+            if poging == 2:
+                raise
+
+
+def werkbron_verwijderen(bron_id: str, verwacht: dict) -> None:
+    for poging in range(3):
+        try:
+            with _slot:
+                g = laden(vers=True)
+                bronnen = g.get("werkbronnen", {})
+                if bron_id not in bronnen:
+                    return
+                if bronnen[bron_id] != verwacht:
+                    raise ValueError("De bron is intussen gewijzigd. Ververs het overzicht.")
+                del bronnen[bron_id]
+                opslaan(g)
+                return
+        except OpslagConflict:
+            if poging == 2:
+                raise
+
+
+def planning_herstellen(opdracht_id: str, data: bytes, verwacht: str) -> dict:
+    """Importeer uitsluitend planning, atomair en herhaalbaar; bestaande data blijft staan."""
+    import planning_backup
+    backup = planning_backup.lees(data)
+    if not isinstance(opdracht_id, str) or not 1 <= len(opdracht_id) <= 80:
+        raise ValueError("Ongeldige herstelopdracht.")
+    for poging in range(3):
+        try:
+            with _slot:
+                g = laden(vers=True)
+                ontvangsten = g.get("planning_herstel", {})
+                if opdracht_id in ontvangsten:
+                    r = ontvangsten[opdracht_id]
+                    if r["inhoud"] != backup["sha256"]:
+                        raise ValueError("Deze herstelopdracht is al met een andere back-up verwerkt.")
+                    return copy.deepcopy(r)
+                if planning_backup.vingerafdruk(g) != verwacht:
+                    raise ValueError("Je gegevens zijn sinds het voorbeeld gewijzigd. Maak eerst een nieuw herstelvoorbeeld.")
+                nieuw = backup["gegevens"]
+                import herstel
+                wijziging = herstel.maak(g, backup)
+                toevoegingen = wijziging["toevoegingen"]
+                for key in ("taken", "afspraken"):
+                    g[key].extend(toevoegingen[key])
+                for key in ("sjablonen", "werkbronnen"):
+                    if toevoegingen.get(key):
+                        g.setdefault(key, {}).update(toevoegingen[key])
+                g["volgend_id"] = wijziging["volgend_id"]
+                r = {"inhoud": backup["sha256"], "toegevoegd": {k: len(v) for k, v in nieuw.items()},
+                     "tijd": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                     "ids": {k: [i["id"] for i in toevoegingen[k]] for k in ("taken", "afspraken")}}
+                g.setdefault("planning_herstel", {})[opdracht_id] = r
+                opslaan(g)
+                return copy.deepcopy(r)
+        except OpslagConflict:
+            # Nieuw ophalen mag een veranderd herstelvoorbeeld niet stilzwijgend accepteren.
+            if poging == 2:
+                raise
+
+
+def sjabloon_opslaan(sjabloon_id: str, gegevens: dict) -> dict:
+    """Zelfde ID en inhoud blijven herhaalbaar bij een verloren antwoord."""
+    import sjablonen
+    waarde = sjablonen.valideer(gegevens)
+    if not isinstance(sjabloon_id, str) or not 1 <= len(sjabloon_id) <= 80:
+        raise ValueError("Ongeldig sjabloon-ID.")
+    for poging in range(3):
+        try:
+            with _slot:
+                g = laden(vers=True)
+                lijst = g.setdefault("sjablonen", {})
+                if sjabloon_id not in lijst and len(lijst) >= 100:
+                    raise ValueError("Je kunt maximaal 100 sjablonen bewaren.")
+                if lijst.get(sjabloon_id) == waarde:
+                    return copy.deepcopy(waarde)
+                lijst[sjabloon_id] = waarde
+                opslaan(g)
+                return copy.deepcopy(waarde)
+        except OpslagConflict:
+            if poging == 2:
+                raise
+
+
+def sjabloon_verwijderen(sjabloon_id: str, verwacht: dict) -> None:
+    """Verwijder alleen de versie die de gebruiker heeft bekeken."""
+    for poging in range(3):
+        try:
+            with _slot:
+                g = laden(vers=True)
+                lijst = g.get("sjablonen", {})
+                if sjabloon_id not in lijst:
+                    return
+                if lijst[sjabloon_id] != verwacht:
+                    raise ValueError("Dit sjabloon is intussen gewijzigd. Ververs eerst de pagina.")
+                del lijst[sjabloon_id]
+                opslaan(g)
+                return
+        except OpslagConflict:
+            if poging == 2:
+                raise
+
+
+def actielink_opslaan(opdracht_id: str, voorstel: dict) -> dict:
+    import actielinks
+    voorstel = actielinks.valideer(voorstel)
+    if not opdracht_id:
+        raise actielinks.Fout("Opdracht-ID ontbreekt.")
+    for poging in range(3):
+        try:
+            with _slot:
+                g = laden(vers=True)
+                opdrachten = g.setdefault("actielink_opdrachten", {})
+                links = g.setdefault("actielinks", {})
+                if opdracht_id in opdrachten:
+                    return copy.deepcopy(links[opdrachten[opdracht_id]])
+                code = secrets.token_urlsafe(24)
+                while code in links:
+                    code = secrets.token_urlsafe(24)
+                link = actielinks.maak(voorstel, code)
+                links[code], opdrachten[opdracht_id] = link, code
+                opslaan(g)
+                return copy.deepcopy(link)
+        except OpslagConflict:
+            if poging == 2:
+                raise
+
+
+def actielink_openen(code: str) -> dict:
+    import actielinks
+    actielinks.verwijzing(code)
+    link = laden(vers=True).get("actielinks", {}).get(code)
+    if link is None:
+        raise actielinks.Fout("Dit concept bestaat niet binnen je huidige account.")
+    toestand = actielinks.status(link)
+    if toestand != "actief concept":
+        raise actielinks.Fout(f"Dit concept is {toestand} en kan niet meer worden geopend.")
+    return copy.deepcopy(link)
+
+
+def actielink_intrekken(code: str) -> None:
+    import actielinks
+    actielinks.verwijzing(code)
+    for poging in range(3):
+        try:
+            with _slot:
+                g = laden(vers=True)
+                link = g.get("actielinks", {}).get(code)
+                if link is None:
+                    raise actielinks.Fout("Dit concept bestaat niet binnen je huidige account.")
+                if link.get("ingetrokken"):
+                    return
+                link["ingetrokken"] = True
+                opslaan(g)
+                return
+        except OpslagConflict:
+            if poging == 2:
+                raise
+
+
+def herplanvoorstel(keuzes: dict | None = None, afspraak_id=None, uitloop: int = 0) -> dict:
+    import herplanning
+    return herplanning.voorstel(laden(vers=True), keuzes, afspraak_id, uitloop)
+
+
+def focusplan_bevestigen(opdracht_id: str, plan: list[dict]) -> dict:
+    import focusplan
+    if not isinstance(opdracht_id, str) or not 1 <= len(opdracht_id) <= 80:
+        raise ValueError("Ongeldige planningsopdracht.")
+    for poging in range(3):
+        try:
+            with _slot:
+                g = laden(vers=True)
+                ontvangsten = g.setdefault("intentie_ontvangst", {})
+                inhoud = hashlib.sha256(json.dumps(plan, sort_keys=True, ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+                if opdracht_id in ontvangsten:
+                    if ontvangsten[opdracht_id].get("wat") != "focusplan" or ontvangsten[opdracht_id].get("inhoud") != inhoud:
+                        raise ValueError("Deze focusopdracht is al met een ander voorstel verwerkt.")
+                    return copy.deepcopy(ontvangsten[opdracht_id])
+                bron = actieoverzicht.herkomst(g, "focusplan")
+                items = focusplan.valideer(plan, g)
+                for item in items:
+                    item["id"] = _nieuw_id(g)
+                g["afspraken"].extend(items)
+                r = {"wat": "focusplan", "inhoud": inhoud, "items": copy.deepcopy(items), "ongedaan": False,
+                     "herkomst": bron, "tekst": f"{len(items)} focusblokken opgeslagen. Je taken blijven open."}
+                ontvangsten[opdracht_id] = r
+                opslaan(g)
+                return copy.deepcopy(r)
+        except OpslagConflict:
+            if poging == 2:
+                raise
+
+
+def dagplan_bevestigen(opdracht_id: str, plan: dict) -> dict:
+    """Bewaar alle gekozen focusblokken plus ontvangstbewijs in één schrijfactie."""
+    import dagplan
+    if not opdracht_id:
+        raise ValueError("Opdracht-ID ontbreekt")
+    for poging in range(3):
+        try:
+            with _slot:
+                g = laden(vers=True)
+                ontvangst = g.setdefault("intentie_ontvangst", {})
+                if opdracht_id in ontvangst:
+                    return ontvangst[opdracht_id]
+                bron = actieoverzicht.herkomst(g, "herplan" if plan.get("modus") == "herplan" else "dagplan")
+                wijziging = None
+                if plan.get("modus") == "herplan":
+                    import herplanning
+                    wijziging = herplanning.valideer(plan, g)
+                    items = wijziging["items"]
+                    ids = {a["id"] for a in wijziging["vervangt"]}
+                    g["afspraken"] = [a for a in g["afspraken"] if a["id"] not in ids]
+                    if wijziging["verlenging"]:
+                        na = wijziging["verlenging"]["na"]
+                        g["afspraken"] = [na if a["id"] == na["id"] else a for a in g["afspraken"]]
+                    taken = {w["na"]["id"]: w["na"] for w in wijziging["taakwijzigingen"]}
+                    g["taken"] = [taken.get(t["id"], t) for t in g["taken"]]
+                else:
+                    items = dagplan.valideer(plan, g)
+                for item in items:
+                    item["id"] = _nieuw_id(g)
+                g["afspraken"].extend(items)
+                antwoord = {"wat": "dagplan", "items": copy.deepcopy(items), "ongedaan": False,
+                            "tekst": f"{len(items)} focusblokken opgeslagen voor vandaag. Je taken blijven open tot je ze afvinkt."}
+                if wijziging:
+                    antwoord.update(wat="herplan", vervangt=copy.deepcopy(wijziging["vervangt"]),
+                                    taakwijzigingen=copy.deepcopy(wijziging["taakwijzigingen"]), verlenging=copy.deepcopy(wijziging["verlenging"]),
+                                    tekst=f"Herplanning opgeslagen: {len(wijziging['vervangt'])} oude focusblokken vervangen door {len(items)} nieuwe. Resterende minuten bijgewerkt; taken blijven open.")
+                antwoord["herkomst"] = bron
+                ontvangst[opdracht_id] = antwoord
+                g["intentie_berichten"] = (g.get("intentie_berichten", []) + [
+                    {"rol": "assistant", "tekst": antwoord["tekst"], "tijd": datetime.now().isoformat(timespec="seconds")}
+                ])[-100:]
+                opslaan(g)
+                return antwoord
+        except OpslagConflict:
+            if poging == 2:
+                raise
+
+
+def intentie_agendacontrole(voorstel: dict, opdracht_id: str | None = None) -> dict:
+    """Controleer een voorstel tegen verse appgegevens, zonder iets op te slaan."""
+    import agendacontrole
+    g = laden(vers=True)
+    if opdracht_id and opdracht_id in g.get("intentie_ontvangst", {}):
+        return {"conflicten": [], "alternatieven": [], "al_verwerkt": True}
+    return agendacontrole.controleer(voorstel, g["afspraken"], (g.get("instellingen") or {}).get("planuren"))
+
+
+def _intentie_bevestigen(opdracht_id: str, voorstel: dict) -> dict:
+    if not opdracht_id or voorstel.get("wat") not in {"afspraak", "taak"} or not voorstel.get("titel", "").strip():
+        raise ValueError("Ongeldig voorstel")
+    with _slot:
+        g = laden(vers=True)
+        ontvangst = g.setdefault("intentie_ontvangst", {})
+        if opdracht_id in ontvangst:
+            return ontvangst[opdracht_id]
+        if voorstel["wat"] == "afspraak":
+            import agendacontrole
+            controle = agendacontrole.controleer(voorstel, g["afspraken"], (g.get("instellingen") or {}).get("planuren"))
+            if controle["conflicten"]:
+                raise agendacontrole.Overlap(controle)
+        bron = actieoverzicht.herkomst(g, voorstel["wat"])
+        item = {"id": _nieuw_id(g), "titel": voorstel["titel"]}
+        if voorstel["wat"] == "afspraak":
+            datetime.fromisoformat(voorstel["start"])
+            item.update(start=voorstel["start"], einde=voorstel.get("einde"),
+                        locatie=voorstel.get("locatie", ""), notitie="", contact_id=None,
+                        soort=voorstel.get("soort_agenda", ""))
+            g["afspraken"].append(item)
+        else:
+            if voorstel.get("deadline"):
+                date.fromisoformat(voorstel["deadline"])
+            item.update(deadline=voorstel.get("deadline"), klaar=False)
+            if voorstel.get("minuten"):
+                item["minuten"] = voorstel["minuten"]
+            g["taken"].append(item)
+        antwoord = {"id": item["id"], "tekst": f"Opgeslagen als {voorstel['wat']}: {item['titel']}.",
+                    "wat": voorstel["wat"], "item": copy.deepcopy(item), "ongedaan": False}
+        antwoord["herkomst"] = bron
+        ontvangst[opdracht_id] = antwoord
+        g["intentie_berichten"] = (g.get("intentie_berichten", []) + [
+            {"rol": "assistant", "tekst": antwoord["tekst"], "tijd": datetime.now().isoformat(timespec="seconds")}
+        ])[-100:]
+        opslaan(g)
+        return antwoord
+
+
+def intentie_ongedaan(opdracht_id: str) -> dict:
+    """Verwijder uitsluitend het ongewijzigde item van deze opdracht, herhaalbaar bij netwerkfouten."""
+    for poging in range(3):
+        try:
+            with _slot:
+                g = laden(vers=True)
+                ontvangst = g.get("intentie_ontvangst", {}).get(opdracht_id)
+                if ontvangst and ontvangst.get("wat") == "herplan":
+                    import dagplan
+                    tekst = "Herplanning ongedaan gemaakt. Het vorige dagschema en de resterende minuten zijn hersteld."
+                    if ontvangst.get("ongedaan"):
+                        return {"status": "ongedaan", "tekst": tekst}
+                    import herplanning
+                    try:
+                        herplanning.ongedaan(g, ontvangst)
+                    except dagplan.PlanOngeldig as fout:
+                        return {"status": "gewijzigd", "tekst": str(fout)}
+                    ontvangst["ongedaan"] = True
+                    g["intentie_berichten"] = (g.get("intentie_berichten", []) + [
+                        {"rol": "assistant", "tekst": tekst, "tijd": datetime.now().isoformat(timespec="seconds")}
+                    ])[-100:]
+                    opslaan(g)
+                    return {"status": "ongedaan", "tekst": tekst}
+                if ontvangst and ontvangst.get("wat") in {"dagplan", "focusplan"}:
+                    plan_undo_tekst = ("Planningsvoorstel ongedaan gemaakt. Je taken zijn behouden." if ontvangst["wat"] == "focusplan"
+                                       else "Dagvoorstel ongedaan gemaakt. Je taken zijn behouden.")
+                    if ontvangst.get("ongedaan"):
+                        return {"status": "ongedaan", "tekst": plan_undo_tekst}
+                    items = ontvangst["items"]
+                    huidig = {a["id"]: a for a in g["afspraken"]}
+                    if any(huidig.get(a["id"]) != a for a in items):
+                        return {"status": "gewijzigd", "tekst": "Een focusblok is aangepast of verwijderd. Beheer het dagschema via Agenda; er is niets teruggedraaid."}
+                    ids = {a["id"] for a in items}
+                    g["afspraken"] = [a for a in g["afspraken"] if a["id"] not in ids]
+                    ontvangst["ongedaan"] = True
+                    tekst = plan_undo_tekst
+                    g["intentie_berichten"] = (g.get("intentie_berichten", []) + [
+                        {"rol": "assistant", "tekst": tekst, "tijd": datetime.now().isoformat(timespec="seconds")}
+                    ])[-100:]
+                    opslaan(g)
+                    return {"status": "ongedaan", "tekst": tekst}
+                if not ontvangst or ontvangst.get("wat") not in {"taak", "afspraak"} or "item" not in ontvangst:
+                    raise ValueError("Deze opdracht kan niet automatisch worden teruggedraaid.")
+                tekst = f"Ongedaan gemaakt: {ontvangst['item']['titel']}."
+                if ontvangst.get("ongedaan"):
+                    return {"status": "ongedaan", "tekst": tekst}
+                lijst = g["afspraken" if ontvangst["wat"] == "afspraak" else "taken"]
+                item = next((i for i in lijst if i["id"] == ontvangst["id"]), None)
+                if item is None:
+                    return {"status": "afwezig", "tekst": "Dit item is al verwijderd."}
+                if item != ontvangst["item"]:
+                    return {"status": "gewijzigd", "tekst": "Dit item is intussen aangepast. Verwijder het zo nodig zelf in Agenda of Taken."}
+                if ontvangst["wat"] == "taak" and any(a.get("taak_id") == item["id"] for a in g["afspraken"]):
+                    return {"status": "gewijzigd", "tekst": "Deze taak is intussen ingepland. Beheer de taak en bijbehorende afspraken via Agenda."}
+                lijst.remove(item)
+                ontvangst["ongedaan"] = True
+                g["intentie_berichten"] = (g.get("intentie_berichten", []) + [
+                    {"rol": "assistant", "tekst": tekst, "tijd": datetime.now().isoformat(timespec="seconds")}
+                ])[-100:]
+                opslaan(g)
+                return {"status": "ongedaan", "tekst": tekst}
+        except OpslagConflict:
+            if poging == 2:
+                raise
+
+
 # De Anthropic-sleutel, ingevuld in de app zelf.
 
 def instellingen() -> dict:

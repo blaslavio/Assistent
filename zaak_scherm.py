@@ -402,7 +402,12 @@ def betaling_formulier(saldi: list[dict]) -> None:
                 st.error("Kies of vul een klant in.")
                 return
             _account()
-            if _fout(zaak.post, "betaling", zaak.centen(bedrag), oms.strip(), (k or {}).get("klant") or nieuw.strip(),
+            try:
+                bedrag_cent = zaak.centen(bedrag)
+            except ValueError as fout:
+                st.error(str(fout))
+                return
+            if _fout(zaak.post, "betaling", bedrag_cent, oms.strip(), (k or {}).get("klant") or nieuw.strip(),
                      (k or {}).get("klant_id")) is not None:
                 _klaar("Betaling geboekt.")
 
@@ -459,6 +464,11 @@ def kosten_formulier() -> None:
         datum = st.date_input("Datum", value=date.today(), format="DD-MM-YYYY")
         if st.form_submit_button("Opslaan", type="primary", width="stretch"):
             _account()
-            if _fout(zaak.post, "kosten", zaak.centen(bedrag), oms.strip(), btw_pct=btw, categorie=categorie,
+            try:
+                bedrag_cent = zaak.centen(bedrag)
+            except ValueError as fout:
+                st.error(str(fout))
+                return
+            if _fout(zaak.post, "kosten", bedrag_cent, oms.strip(), btw_pct=btw, categorie=categorie,
                      datum=datum) is not None:
                 _klaar("Kosten opgeslagen.")

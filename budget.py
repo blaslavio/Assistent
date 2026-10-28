@@ -9,6 +9,8 @@ De app herkent zelf welke bank het is. Twee keer hetzelfde afschrift inlezen gee
 """
 
 import calendar
+import math
+import geldwaarden
 import csv
 import hashlib
 import io
@@ -174,8 +176,9 @@ def _bedrag(tekst: str) -> float | None:
     else:
         t = t.replace(",", "")
     try:
-        return float(t)
-    except ValueError:
+        waarde = float(t)
+        return waarde if math.isfinite(waarde) else None
+    except (ValueError, OverflowError):
         return None
 
 
@@ -324,7 +327,11 @@ def importeren(naam: str, inhoud: bytes) -> dict:
 def toevoegen(bedrag: float, omschrijving: str, categorie: str = "", datum: str | None = None,
               uitgave: bool = True, bron: str = "hand") -> dict:
     """Eén uitgave (of inkomsten met uitgave=False) met de hand of via de assistent."""
-    bedrag = -abs(float(bedrag)) if uitgave else abs(float(bedrag))
+    try:
+        cent = abs(geldwaarden.centen(bedrag))
+    except ValueError as fout:
+        raise Fout(str(fout)) from fout
+    bedrag = (-cent if uitgave else cent) / 100
     regel = {"datum": datum or date.today().isoformat(), "bedrag": round(bedrag, 2), "omschrijving": omschrijving.strip(),
              "tegenpartij": "", "rekening": "", "bron": bron,
              "categorie": categorie if categorie in CATEGORIEEN else categorie_raden("", omschrijving, bedrag),
