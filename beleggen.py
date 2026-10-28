@@ -124,14 +124,22 @@ def _ophalen(symbool: str) -> dict | None:
     except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
         return None
     meta = resultaat.get("meta", {})
-    slot = [k for k in (resultaat.get("indicators", {}).get("quote", [{}])[0].get("close") or []) if k is not None]
+    paren = [(t, k) for t, k in zip(resultaat.get("timestamp") or [],
+                                    resultaat.get("indicators", {}).get("quote", [{}])[0].get("close") or [])
+             if k is not None]
+    slot = [k for _, k in paren]
     prijs = meta.get("regularMarketPrice") or (slot[-1] if slot else None)
     if prijs is None:
         return None
-    vorige = slot[-2] if len(slot) >= 2 else meta.get("previousClose") or meta.get("chartPreviousClose")
+    # Tijdens de handel is het slot van vandaag nog leeg: dan is het laatste slot dat van gisteren.
+    vandaag = (meta.get("regularMarketTime") or 0) + (meta.get("gmtoffset") or 0)
+    eerder = [k for t, k in paren if (t + (meta.get("gmtoffset") or 0)) // 86400 < vandaag // 86400]
+    vorige = eerder[-1] if eerder and vandaag else meta.get("previousClose") or meta.get("chartPreviousClose")
+    pct = meta.get("regularMarketChangePercent")
     maand_begin = slot[0] if slot else None
     return {"symbool": symbool, "prijs": float(prijs), "valuta": meta.get("currency") or "EUR",
-            "vandaag_pct": round((prijs / vorige - 1) * 100, 2) if vorige else None,
+            "vandaag_pct": round(float(pct), 2) if isinstance(pct, (int, float))
+            else round((prijs / vorige - 1) * 100, 2) if vorige else None,
             "maand_pct": round((prijs / maand_begin - 1) * 100, 2) if maand_begin else None,
             "verloop": [round(float(k), 4) for k in slot][-22:], "soort": meta.get("instrumentType", ""),
             "naam": meta.get("longName") or meta.get("shortName") or symbool, "tijd": meta.get("regularMarketTime")}
