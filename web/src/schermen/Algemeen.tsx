@@ -2,10 +2,11 @@
 import { useEffect, useState } from "react";
 import { alsIk } from "../api";
 import { Schakelaar, kop } from "./instellingen-ui";
+import { LANDEN, REGIO_S, REGIO_UITLEG, type FeestInstellingen } from "../lib/feestdagen";
 
 export type Weergave = { thema?: "auto" | "licht" | "donker";
   toegankelijk?: { tekst?: string; contrast?: boolean; minder_beweging?: boolean };
-  voorpagina?: Record<string, boolean>; voorbeeldvragen?: boolean };
+  voorpagina?: Record<string, boolean>; voorbeeldvragen?: boolean; feestdagen?: Partial<FeestInstellingen> };
 
 // Dezelfde namen als in de oude app, zodat een eerder gekozen tekstgrootte blijft staan.
 export const TEKSTGROOTTE: Record<string, number> = { Klein: 0.92, Normaal: 1, Groot: 1.12, "Extra groot": 1.25 };
@@ -43,6 +44,7 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
       <Schakelaar label="Minder beweging" uitleg="Geen draaiende of wisselende dingen." aan={!!t.minder_beweging}
         zet={(aan) => toegankelijk({ minder_beweging: aan })} />
     </div>
+    <Feestdagen inst={inst} bewaar={bewaar} />
     <section className="flex flex-col gap-2">
       <h2 className={kop}>Op Vandaag</h2>
       {VANDAAG.map(([k, label, uitleg]) => (
@@ -56,6 +58,25 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
         zet={(aan) => bewaar((i) => { i.voorbeeldvragen = aan; })} />
     </section>
   </>;
+}
+
+/** Feestdagen en schoolvakanties in de agenda. Standaard Nederland met de leuke dagen erbij. */
+function Feestdagen({ inst, bewaar }: { inst: Weergave; bewaar: (aanpassen: (i: Record<string, unknown>) => void) => void }) {
+  const f = { land: "NL", extra: true, regio: "", ...(inst.feestdagen ?? {}) } as FeestInstellingen;
+  const zet = (stuk: Partial<FeestInstellingen>) => bewaar((i) => { i.feestdagen = { ...f, ...stuk }; });
+  return (
+    <section className="flex flex-col gap-3">
+      <Keuzes label="Feestdagen in je agenda" opties={LANDEN} waarde={f.land} kies={(land) => zet({ land })} />
+      {f.land && (
+        <Schakelaar label="Ook Moederdag, Vaderdag, Sinterklaas en Oudejaar" uitleg="Geen vrije dagen, wel handig om niet te vergeten."
+          aan={f.extra} zet={(extra) => zet({ extra })} />
+      )}
+      {f.land === "NL" && <>
+        <Keuzes label="Schoolvakanties" opties={REGIO_S} waarde={f.regio} kies={(regio) => zet({ regio })} />
+        <a href={REGIO_UITLEG} target="_blank" rel="noopener noreferrer" className="px-1 text-sm text-accent">Welke regio is mijn gemeente?</a>
+      </>}
+    </section>
+  );
 }
 
 function Keuzes<T extends string>({ label, opties, waarde, kies }: { label: string; opties: [T, string][]; waarde: string;
