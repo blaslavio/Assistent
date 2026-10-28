@@ -2,7 +2,7 @@
 
 1000 configuratiescenario’s: 2 modi × 4 accounttypen × 25 keuzes van uitgeschakelde onderdelen × 5 voorkeuren. Controleert de echte navigatiefunctie met afgeschermde paginacallbacks, niet alle backendinhoud. Geen 1000 gevonden fouten of 1000 nieuwe fixes.
 
-Testuitvoering: 2026-10-28T10:14:49.977019+00:00
+Testuitvoering: 2026-10-28T12:37:05.876028+00:00
 
 Uitkomsten: geslaagd: 1000
 

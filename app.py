@@ -4672,7 +4672,7 @@ def idee_of_probleem() -> None:
 
 
 def instellingen_assistent() -> None:
-    st.page_link(PAGINA["communicatie"], label="Communicatie en privé-schrijfhulp", icon=":material/edit_note:")
+    st.page_link(PAGINA["communicatiecentrum"], label="Communicatie en privé-schrijfhulp", icon=":material/edit_note:")
     with st.expander("Azure-diensten"):
         azure_ui.settings()
     with st.expander(f"Naam en uiterlijk ({mijn_avatar()['naam']})"):
@@ -5098,7 +5098,7 @@ def instellingen_koppelingen() -> None:
 
 
 def instellingen_account() -> None:
-    st.page_link(PAGINA["communicatie"], label="Privécommunicatie en profielvoorkeuren", icon=":material/manage_accounts:")
+    st.page_link(PAGINA["communicatiecentrum"], label="Privécommunicatie en profielvoorkeuren", icon=":material/manage_accounts:")
     if st.session_state.pop("account_overzicht", False):
         st.markdown("**Mijn communities en abonnementen**")
     with st.container(border=True):
@@ -5576,7 +5576,9 @@ def gesprek_ai() -> None:
         st.session_state.ingesproken = True
     vraag = st.session_state.pop("vooraf_vraag", None)
     if not vraag:
-        vraag = st.chat_input("Stel je vraag aan de assistent...", key="assistent_chat_input")
+        vraag = st.chat_input("Stel je vraag aan de assistent...", key="assistent_chat_input", disabled=any(st.session_state.get(k) for k in ("_os_voorstel", "_os_dagplan", "_al_voorstel")))
+        if vraag and universal_os.ontvang(vraag):
+            st.rerun()
     # Optional Rive UI: nothing is rendered until the approved .riv is supplied.
     # The request state is driven by actual chat input, not simulated responses.
     rive_chat_state.render_for_event("request_started" if vraag else "ready", height=150)
@@ -6512,6 +6514,11 @@ def main() -> None:
     toegankelijkheid_css()
     if opslag.online() and privacy_scherm.op_slot():
         return
+    if gereedschap := st.query_params.get("gereedschap"):
+        toegestaan = {t["url"] for t in gereedschappen.catalogus(samen.beschikbaar(), onderdelen_uit(), ik().get("niveau", "particulier")) if t["beschikbaar"]}
+        if gereedschap in toegestaan:
+            st.session_state.ga_naar = gereedschap
+        del st.query_params["gereedschap"]
     if code := st.query_params.get("actie"):
         # Conceptlinks zijn uitsluitend na inloggen, binnen het eigen account te openen.
         universal_os.bewaak_account()

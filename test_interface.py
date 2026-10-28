@@ -53,7 +53,7 @@ def context(online, uit, niveau, voorkeur):
            "mijn_avatar": lambda: {"naam": "Assistent"}, "gereedschappen": gereedschappen,
            "indeling": indeling, "st": SimpleNamespace(Page=maak, session_state=SimpleNamespace(), switch_page=lambda _: None)}
     dummy = lambda: None
-    for name in ("vandaag_overzicht", "agenda_tabblad", "gesprek", "instellingen_tabblad"):
+    for name in ("werkruimte_pagina", "master_hub_pagina", "universele_zoekhub", "dating_pagina", "communicatie_hub", "chat_met_profiel", "vandaag_overzicht", "agenda_tabblad", "gesprek", "instellingen_tabblad"):
         env[name] = dummy
     for name in ("chat", "winkelen_scherm"):
         env[name] = SimpleNamespace(pagina=dummy)
@@ -74,7 +74,7 @@ def context(online, uit, niveau, voorkeur):
 
 def verwacht(online, uit, niveau):
     uit = set(uit)
-    routes = {"vandaag", "agenda", "assistent", "instellingen", "universal-os", "gereedschappen", "werkdossier", "communicatie", "actielinks",
+    routes = {"vandaag", "agenda", "assistent", "instellingen", "universal-os", "gereedschappen", "werkdossier", "werkruimte", "masterhub", "zoekhub", "dating", "communicatie", "communicatiecentrum", "actielinks",
               "buurt", "werkzoeken", "werkbronnen", "taakplanning", "sport", "gegevenscontrole", "planning-backup",
               "sjablonen", "activiteitenoverzicht", "bestandsgereedschap", "browser"}
     for module, route in (("Leren", "leren"), ("Mail", "mail"), ("Beleggen", "beleggen")):

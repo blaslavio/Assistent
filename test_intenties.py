@@ -260,7 +260,6 @@ boom.body.pop()
 exec(compile(boom, "app.py", "exec"), globals())
 opslag.DATA_BESTAND = Path(os.environ["ASSISTENT_TEST_DATA_FILE"])
 persoonlijke_suggesties = lambda: {}
-assistent_invoer()
 gesprek()
 '''
         with patch.dict(os.environ, ASSISTENT_TEST_DATA_FILE=str(self.pad)):

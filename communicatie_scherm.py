@@ -35,7 +35,7 @@ def ontvang_opdracht(waarde):
         st.session_state.cm_deel = "Concepten"
     else:
         return False
-    st.session_state.ga_naar = "communicatie"
+    st.session_state.ga_naar = "communicatiecentrum"
     return True
 
 

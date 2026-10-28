@@ -330,7 +330,7 @@ TOOLS = ({'url': 'actielinks',
   'modules': [],
   'rollen': [],
   'een_van': []})
-TOOLS += ({"url": "communicatie", "titel": "Communicatie", "icoon": ":material/mark_chat_unread:",
+TOOLS += ({"url": "communicatiecentrum", "titel": "Communicatie en privéconcepten", "icoon": ":material/mark_chat_unread:",
            "groep": "Thuis en handig", "functie": "communicatie_scherm.pagina",
            "online": False, "modules": [], "rollen": [], "een_van": []},)
 GEDEELD = {
@@ -343,6 +343,8 @@ GEDEELD = {
     "Thuis en handig": ["gegevenscontrole", "planning-backup"],
 }
 KERN = {"agenda": "Agenda", "chat": "Chat", "winkelen": "Winkelen"}
+KERN.update({"werkruimte": "Mijn werkruimte", "masterhub": "Universal Master Hub",
+             "zoekhub": "Zoeken en navigeren", "dating": "Dating en singles", "communicatie": "Mail & Chat"})
 
 
 def _norm(tekst):

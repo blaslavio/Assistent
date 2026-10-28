@@ -1,0 +1,68 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { alsIk, bijwerken, gereedschapAdres, inloggen, uitloggen } from "./api";
+
+const reactie = (data: unknown) => new Response(JSON.stringify(data), { status: 200 });
+
+afterEach(async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(reactie(true)));
+  await uitloggen();
+  vi.unstubAllGlobals();
+});
+
+describe("veilige gedeelde opslag", () => {
+  it("bewaart een ongewijzigde basis en schrijft alleen via versiecontrole", async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(reactie({ token: "sessie", naam: "alice" }))
+      .mockResolvedValueOnce(reactie({ data: { volgend_id: 2, taken: [{ id: 1, titel: "Vooraf", klaar: false }] } }))
+      .mockResolvedValueOnce(reactie({ ok: true }));
+    vi.stubGlobal("fetch", fetcher);
+    await inloggen("alice", "test-only", "", false);
+    await bijwerken(g => { g.taken.push({ id: 2, titel: "Nieuw", klaar: false }); });
+    const [url, verzoek] = fetcher.mock.calls[2];
+    const inhoud = JSON.parse(verzoek.body);
+    expect(url).toContain("mijn_gegevens_veilig_bewaren");
+    expect(inhoud.p_basis.taken).toHaveLength(1);
+    expect(inhoud.p_data.taken).toHaveLength(2);
+    expect(inhoud.p_basis.contacten).toEqual([]);
+  });
+
+  it("herhaalt een wijziging niet na een conflict", async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(reactie({ token: "sessie" }))
+      .mockResolvedValueOnce(reactie({ data: {} })).mockResolvedValueOnce(reactie({ conflict: true }));
+    vi.stubGlobal("fetch", fetcher);
+    await inloggen("alice", "test-only", "", false);
+    await expect(bijwerken(g => { g.volgend_id++; })).rejects.toThrow("elders gewijzigd");
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it("laat parameters de accountidentiteit niet vervangen", async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(reactie({ token: "sessie", naam: "alice" }))
+      .mockResolvedValueOnce(reactie({ ok: true }));
+    vi.stubGlobal("fetch", fetcher);
+    await inloggen("alice", "test-only", "", false);
+    await alsIk("mijn_gegevens", { p_naam: "bob", p_wachtwoord: "anders" });
+    const inhoud = JSON.parse(fetcher.mock.calls[1][1].body);
+    expect(inhoud.p_naam).toBe("alice");
+    expect(inhoud.p_wachtwoord).toBe("sessie");
+  });
+
+  it("verwerpt een laat antwoord nadat het account is gewisseld", async () => {
+    let afronden!: (r: Response) => void;
+    const fetcher = vi.fn().mockResolvedValueOnce(reactie({ token: "alice" }))
+      .mockImplementationOnce(() => new Promise<Response>(resolve => { afronden = resolve; }))
+      .mockResolvedValueOnce(reactie({ token: "bob" }));
+    vi.stubGlobal("fetch", fetcher);
+    await inloggen("alice", "test-only", "", false);
+    const wachtend = bijwerken(g => { g.volgend_id++; });
+    await inloggen("bob", "test-only", "", false);
+    afronden(reactie({ data: {} }));
+    await expect(wachtend).rejects.toThrow("account is intussen gewijzigd");
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it("opent alleen bekende tools via de beveiligde bestaande app", () => {
+    const url = new URL(gereedschapAdres("communicatiecentrum"));
+    expect(url.searchParams.get("oud")).toBe("1");
+    expect(url.searchParams.get("gereedschap")).toBe("communicatiecentrum");
+    expect(() => gereedschapAdres("https://voorbeeld.invalid")).toThrow("Onbekend");
+  });
+});

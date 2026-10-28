@@ -139,7 +139,7 @@ communicatie_scherm.pagina()
         app.run()
         self.assertFalse(app.exception)
         self.assertEqual(app.text_area(key="cm_tekst").value, "Goedemorgen")
-        self.assertEqual(app.session_state["ga_naar"], "communicatie")
+        self.assertEqual(app.session_state["ga_naar"], "communicatiecentrum")
         self.assertFalse(cm.lezen()["concepten"])
         app.session_state["naam"] = "ander-account"
         app.run()

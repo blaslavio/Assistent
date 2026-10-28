@@ -79,7 +79,7 @@ for t in gereedschappen.TOOLS:
             setattr(env[module], attr, afgeschermd(t["titel"]))
     else:
         env[module] = afgeschermd(t["titel"])
-for naam, titel in (("vandaag_overzicht", "Vandaag"), ("agenda_tabblad", "Agenda"), ("gesprek", "Assistent")):
+for naam, titel in (("werkruimte_pagina", "Mijn werkruimte"), ("master_hub_pagina", "Universal Master Hub"), ("universele_zoekhub", "Zoeken en navigeren"), ("dating_pagina", "Dating en singles"), ("communicatie_hub", "Mail & Chat"), ("chat_met_profiel", "Chat"), ("vandaag_overzicht", "Vandaag"), ("agenda_tabblad", "Agenda"), ("gesprek", "Assistent")):
     env[naam] = afgeschermd(titel)
 env["winkelen_scherm"] = SimpleNamespace(pagina=afgeschermd("Winkelen"))
 setattr(env["chat"], "pagina", afgeschermd("Chat"))

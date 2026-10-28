@@ -2,7 +2,7 @@
 
 Lokale werk-, planning-, bestands- en herstelonderdelen plus benoemde open controles. Geen certificering van de volledige app of externe diensten. 100 controlepunten betekent niet 100 nieuwe fixes.
 
-Testuitvoering: 2026-10-28T10:14:49.977019+00:00
+Testuitvoering: 2026-10-28T12:37:05.876028+00:00
 
 Uitkomsten: geslaagd: 90, open: 10
 

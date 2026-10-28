@@ -87,8 +87,8 @@ async def controle(args):
                 ("mobiel-instellingen", 390, 844, "instellingen", "Zoek tools in alle mappen"),
                 ("mobiel-gereedschappen", 390, 844, "gereedschappen", "Zoek een gereedschap"),
                 ("mobiel-werkstroom", 390, 844, "werkzoeken", "Zoek op titel of inhoud"),
-                ("mobiel-communicatie", 390, 844, "communicatie", "Bewaar als privéconcept"),
-                ("mobiel-communicatieprivacy", 390, 844, "communicatie", "Bewaar als privéconcept")):
+                ("mobiel-communicatie", 390, 844, "communicatiecentrum", "Bewaar als privéconcept"),
+                ("mobiel-communicatieprivacy", 390, 844, "communicatiecentrum", "Bewaar als privéconcept")):
             await cdp.roep("Emulation.setDeviceMetricsOverride", {"width": breedte, "height": hoogte, "deviceScaleFactor": 1, "mobile": breedte < 600})
             await cdp.open(f"http://127.0.0.1:{args.app_poort}/{route}", verwacht)
             if naam == "mobiel-communicatieprivacy":
