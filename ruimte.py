@@ -10,8 +10,8 @@ import json
 
 import opslag
 
-THEMAS = {"galerie": "🖼️ Galerie (licht)", "museum": "🏛️ Museum (donker, spotjes)", "natuur": "🌳 Buiten",
-          "studio": "🎨 Studio"}
+THEMAS = {"galerie": "Galerie (licht)", "museum": "Museum (donker, spotjes)", "natuur": "Buiten",
+          "studio": "Studio"}
 AFRAME = "https://cdn.jsdelivr.net/npm/aframe@1.7.1/dist/aframe-v1.7.1.min.js"
 
 

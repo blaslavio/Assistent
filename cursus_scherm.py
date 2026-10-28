@@ -416,7 +416,7 @@ def _overhoren(o: dict) -> None:
     st.progress(goed / len(vragen), text=f"{goed} van {len(vragen)} goed")
     for i, (v, k) in enumerate(zip(vragen, o["keuzes"])):
         juist = k == v["juist"]
-        st.markdown(f"{'✅' if juist else '❌'} **{i + 1}.** {v['vraag']}  \n"
+        st.markdown(f"{':material/check_circle:' if juist else ':material/cancel:'} **{i + 1}.** {v['vraag']}  \n"
                     + ("" if juist else f"Goed: **{v['opties'][v['juist']]}**  \n") + f":gray[{v['uitleg']}]")
 
 

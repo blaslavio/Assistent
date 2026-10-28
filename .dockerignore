@@ -1,0 +1,11 @@
+.git
+.venv
+venv
+__pycache__
+.pytest_cache
+data
+.streamlit/secrets.toml
+*.env
+.env*
+tests
+azure-check

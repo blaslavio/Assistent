@@ -1,0 +1,55 @@
+{
+ "ing": "\"Datum\";\"Naam / Omschrijving\";\"Rekening\";\"Tegenrekening\";\"Code\";\"Af Bij\";\"Bedrag (EUR)\";\"Mutatiesoort\";\"Mededelingen\"\n\"20261020\";\"Albert Heijn 1234\";\"NL00INGB0001234567\";\"\";\"BA\";\"Af\";\"23,45\";\"Betaalautomaat\";\"Pasvolgnr: 001\"\n\"20261021\";\"Werkgever BV\";\"NL00INGB0001234567\";\"NL11RABO0123456789\";\"OV\";\"Bij\";\"2.150,00\";\"Overschrijving\";\"Salaris oktober\"\n\"20261021\";\"Albert Heijn 1234\";\"NL00INGB0001234567\";\"\";\"BA\";\"Af\";\"23,45\";\"Betaalautomaat\";\"Pasvolgnr: 001\"\n",
+ "abn": "123456789\tEUR\t20261020\t100,00\t90,00\t20261020\t-10,00\t/TRTP/SEPA OVERBOEKING/IBAN/NL11/BIC/X/NAME/Jan Jansen/REMI/Huur/\n123456789\tEUR\t20261021\t90,00\t85,00\t20261021\t-5,00\tBEA, Betaalpas                   Jumbo Ede,PAS123  \n",
+ "verwacht": {
+  "ing": [
+   {
+    "datum": "2026-10-20",
+    "bedrag": -23.45,
+    "tegenpartij": "Albert Heijn 1234",
+    "omschrijving": "Pasvolgnr: 001",
+    "rekening": "NL00INGB0001234567",
+    "sleutel": "imp:78b77ceb7b57c90c02ce0445b13fa839",
+    "categorie": "Boodschappen"
+   },
+   {
+    "datum": "2026-10-21",
+    "bedrag": 2150.0,
+    "tegenpartij": "Werkgever BV",
+    "omschrijving": "Salaris oktober",
+    "rekening": "NL00INGB0001234567",
+    "sleutel": "imp:1aecd85e25e3cf3cd3259061868ed3a9",
+    "categorie": "Inkomen"
+   },
+   {
+    "datum": "2026-10-21",
+    "bedrag": -23.45,
+    "tegenpartij": "Albert Heijn 1234",
+    "omschrijving": "Pasvolgnr: 001",
+    "rekening": "NL00INGB0001234567",
+    "sleutel": "imp:7c6d02d8396c778551ff1da3a593f243",
+    "categorie": "Boodschappen"
+   }
+  ],
+  "abn": [
+   {
+    "datum": "2026-10-20",
+    "bedrag": -10.0,
+    "tegenpartij": "Jan Jansen",
+    "omschrijving": "Huur",
+    "rekening": "123456789",
+    "sleutel": "imp:c60f7a8dc474a8131e80226a17b620d2",
+    "categorie": "Wonen"
+   },
+   {
+    "datum": "2026-10-21",
+    "bedrag": -5.0,
+    "tegenpartij": "Jumbo Ede",
+    "omschrijving": "BEA, Betaalpas Jumbo Ede,PAS123",
+    "rekening": "123456789",
+    "sleutel": "imp:285bfe5b98d551f201d2abdbbf4f7165",
+    "categorie": "Boodschappen"
+   }
+  ]
+ }
+}
