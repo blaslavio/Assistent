@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Inter, system-ui, -apple-system, sans-serif;
+  --color-accent: #4f46e5;
+  --color-accent-donker: #3730a3;
+  --color-inkt: #111114;
+  --color-rustig: #6b6b76;
+  --color-zacht: #8e8e99;
+  --color-vlak: #f2f2f5;
+  --color-lijn: #eeeef2;
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: var(--color-inkt);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-inkt: #f4f4f6;
+      --color-rustig: #a1a1ab;
+      --color-zacht: #7c7c87;
+      --color-vlak: #1c1c21;
+      --color-lijn: #26262c;
+      --color-accent: #6366f1;
+      --color-accent-donker: #a5b4fc;
+    }
+    body { background: #0b0b0e; }
+  }
+  button, input { font: inherit; color: inherit; }
+}
+
+/* De bol van de assistent: zacht verloop dat langzaam draait, en ademt als hij bezig is. */
+.bol {
+  background: conic-gradient(from var(--hoek, 0deg), #818cf8, #4f46e5, #a78bfa, #38bdf8, #818cf8);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25);
+  animation: draai 12s linear infinite;
+}
+.bol-actief { animation: draai 3s linear infinite, adem 1.6s ease-in-out infinite; }
+@property --hoek { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes draai { to { --hoek: 360deg; } }
+@keyframes adem { 50% { transform: scale(0.86); opacity: 0.8; } }
+
+.bezig-tekst {
+  background: linear-gradient(90deg, var(--color-zacht) 30%, var(--color-inkt) 50%, var(--color-zacht) 70%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: glans 1.8s linear infinite;
+}
+@keyframes glans { from { background-position: 100% 0; } to { background-position: 0 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bol, .bol-actief, .bezig-tekst { animation: none; }
+}
