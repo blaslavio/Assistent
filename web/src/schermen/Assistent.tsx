@@ -7,6 +7,7 @@ import { ACCEPTEER, BijlageFout, MAX_SAMEN, lezen, type Bijlage as Bijlagebestan
 import { antwoord, gebruikerBeurt, gesprekLeeg, notitie, ongedaanMaken, verbinding, zonderLabels, type Actie,
   type Keuze } from "../lib/assistent";
 import { KeuzeKaart } from "../keuzekaart";
+import { Mascotte } from "../mascotte";
 import { Opmaak } from "../lib/opmaak";
 import { BETAALWIJZE, LEVERING, bestellen, euro, onthouden, type Bestelling, type Product } from "../lib/winkelen";
 import { Bladen, ProductRij, type Blad } from "./Winkelen";
@@ -276,7 +277,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
 
       {leeg ? (
         <main className="flex flex-1 flex-col items-center justify-center gap-8 px-6 pb-10 text-center">
-          <Bol groot />
+          <Mascotte className="h-28 w-auto" />
           <h2 className="text-2xl font-semibold tracking-tight">Waarmee kan ik helpen?</h2>
           <div className="flex flex-wrap justify-center gap-2">
             {VOORBEELDEN.map((v) => (

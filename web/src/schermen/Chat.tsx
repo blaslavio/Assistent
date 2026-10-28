@@ -104,20 +104,6 @@ export default function Chat({ staat, naarInstellingen, bestel }: Props) {
               className="flex size-10 items-center justify-center rounded-full bg-vlak">{actie.icoon}</button>
           )}
         </div>
-        <nav aria-label="Chat" className="mx-4 mb-2 grid grid-cols-5 rounded-2xl bg-vlak p-1">
-          {DELEN.map(([k, naam, Icoon]) => {
-            const telt = k === "chats" ? ongelezenChats : k === "communitys" ? ongelezenGroepen : 0;
-            return (
-              <button key={k} onClick={() => setDeel(k)} aria-pressed={deel === k} aria-label={naam}
-                className={`relative flex h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] ${deel === k
-                  ? "bg-white font-semibold text-inkt shadow-sm dark:bg-[#2a2a30]" : "text-rustig"}`}>
-                <Icoon className="size-5" />
-                {naam}
-                {telt > 0 && <span className="absolute top-1 right-[calc(50%-20px)] flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">{telt}</span>}
-              </button>
-            );
-          })}
-        </nav>
       </header>
       {fout && <p className="px-6 text-rustig">{fout}</p>}
       {deel === "chats" && nieuw && (
@@ -133,6 +119,23 @@ export default function Chat({ staat, naarInstellingen, bestel }: Props) {
       {deel === "winkel" && <WinkelDeel bestel={bestel} />}
       {deel === "oproepen" && ik !== null && <Oproepen ik={ik} lijst={lijst} />}
       {deel === "jij" && <Jij staat={staat} naarInstellingen={naarInstellingen} />}
+      {/* Zoals WhatsApp: de onderdelen van de chat onderin, met een icoon en een naam. */}
+      <nav aria-label="Chat" className="sticky bottom-0 z-10 mt-auto grid grid-cols-5 border-t border-lijn bg-white/95 px-1 pt-1.5 pb-1 backdrop-blur dark:bg-[#0b0b0e]/95">
+        {DELEN.map(([k, naam, Icoon]) => {
+          const telt = k === "chats" ? ongelezenChats : k === "communitys" ? ongelezenGroepen : 0;
+          const actief = deel === k;
+          return (
+            <button key={k} onClick={() => setDeel(k)} aria-pressed={actief} aria-label={naam}
+              className={`relative flex flex-col items-center gap-1 text-[11px] ${actief ? "font-semibold text-inkt" : "text-rustig"}`}>
+              <span className={`flex h-8 w-14 items-center justify-center rounded-full ${actief ? "bg-accent/15 text-accent dark:text-accent-donker" : ""}`}>
+                <Icoon className="size-5" />
+              </span>
+              {naam}
+              {telt > 0 && <span className="absolute -top-0.5 left-[calc(50%+6px)] flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">{telt}</span>}
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

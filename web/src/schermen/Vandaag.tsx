@@ -3,6 +3,7 @@ import { bijwerken, type Afspraak } from "../api";
 import type { Staat } from "../App";
 import { Persoon, Plus } from "../iconen";
 import { KeuzeKaart } from "../keuzekaart";
+import { MascotteMetTip } from "../mascotte";
 import { afhandelen, voorstel } from "../lib/voorstellen";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
 import { weerNu, type Weer } from "../lib/weer";
@@ -91,6 +92,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
       </header>
 
       <main className="flex flex-1 flex-col gap-7 px-6 py-4">
+        <MascotteMetTip />
         {v && (
           <KeuzeKaart keuze={v} open={!gekozen} kies={kiesVoorstel} compact
             gekozen={gekozen?.sleutel === v.sleutel ? gekozen.optie : undefined} />
