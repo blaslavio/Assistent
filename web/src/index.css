@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Donker volgt het toestel, tenzij je in Instellingen › Algemeen zelf Licht of Donker kiest. */
+@custom-variant dark {
+  &:where([data-thema=donker], [data-thema=donker] *) { @slot; }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-thema]), :root:not([data-thema]) *) { @slot; }
+  }
+}
+
 @theme {
   --font-sans: Inter, system-ui, -apple-system, sans-serif;
   --color-accent: #4f46e5;
@@ -25,7 +33,7 @@
     -webkit-tap-highlight-color: transparent;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-thema=licht]) {
       --color-inkt: #f4f4f6;
       --color-rustig: #a1a1ab;
       --color-zacht: #7c7c87;
@@ -35,7 +43,29 @@
       --color-accent-donker: #a5b4fc;
       --reeks-1: #3987e5; --reeks-2: #d95926; --reeks-3: #199e70;
     }
-    body { background: #0b0b0e; }
+    :root:not([data-thema=licht]) body { background: #0b0b0e; }
+  }
+  :root[data-thema=donker] {
+      --color-inkt: #f4f4f6;
+      --color-rustig: #a1a1ab;
+      --color-zacht: #7c7c87;
+      --color-vlak: #1c1c21;
+      --color-lijn: #26262c;
+      --color-accent: #6366f1;
+      --color-accent-donker: #a5b4fc;
+      --reeks-1: #3987e5; --reeks-2: #d95926; --reeks-3: #199e70;
+    }
+  :root[data-thema=donker] body { background: #0b0b0e; }
+  /* Tekstgrootte uit Instellingen › Algemeen: de hele app schaalt mee. */
+  #root { zoom: var(--zoom, 1); height: calc(100% / var(--zoom, 1)); }
+  .contrast { --color-rustig: #45454d; --color-zacht: #5c5c66; --color-lijn: #c9c9d1; }
+  .contrast a { text-decoration: underline; }
+  @media (prefers-color-scheme: dark) {
+    :root.contrast:not([data-thema=licht]) { --color-rustig: #d0d0d6; --color-zacht: #b4b4bc; --color-lijn: #4a4a52; }
+  }
+  :root.contrast[data-thema=donker] { --color-rustig: #d0d0d6; --color-zacht: #b4b4bc; --color-lijn: #4a4a52; }
+  .minder-beweging *, .minder-beweging *::before, .minder-beweging *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
   }
   button, input { font: inherit; color: inherit; }
 }
@@ -70,3 +100,19 @@
 @media (prefers-reduced-motion: reduce) {
   .bol, .bol-actief, .bezig-tekst, .opkomen, .wegstrepen { animation: none; }
 }
+
+/* Een iPhone zoomt in bij invulvelden met kleinere letters dan 16 pixels, en dan verschuift het scherm. */
+@media (pointer: coarse) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select { font-size: max(16px, 1em); }
+}
+
+/* Opmaak binnen een document. */
+.document h1 { font-size: 1.6em; font-weight: 700; margin: 0.6em 0 0.3em; }
+.document h2 { font-size: 1.3em; font-weight: 650; margin: 0.6em 0 0.3em; }
+.document h3 { font-size: 1.1em; font-weight: 600; margin: 0.5em 0 0.2em; }
+.document p { margin: 0 0 0.6em; }
+.document ul { list-style: disc; padding-left: 1.4em; margin: 0 0 0.6em; }
+.document ol { list-style: decimal; padding-left: 1.4em; margin: 0 0 0.6em; }
+.document blockquote { border-left: 3px solid var(--color-lijn); padding-left: 0.8em; color: var(--color-rustig); }
+.document a { color: var(--color-accent); text-decoration: underline; }
+.document img { max-width: 100%; border-radius: 12px; }

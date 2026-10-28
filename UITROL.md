@@ -1,6 +1,6 @@
 # Release: werkstromen, communicatie en ontwerp
 
-Doel: de lokale verbeteringen uit deze sessie toevoegen aan de actuele `main`, inclusief het bestaande nieuwe React-ontwerp. De release is opgebouwd op `c5738e0`; de 215 latere commits uit de repository zijn behouden.
+Doel: de lokale verbeteringen uit deze sessie toevoegen aan de actuele `main`, inclusief het bestaande nieuwe React-ontwerp. De release is samengevoegd met `2758fb4`; de 218 latere commits uit de repository zijn behouden, inclusief de nieuwste instellingen-, beveiligings- en onderdelenpagina’s.
 
 ## Status
 
