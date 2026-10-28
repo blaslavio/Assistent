@@ -35,3 +35,28 @@
   }
   button, input { font: inherit; color: inherit; }
 }
+
+/* De bol van de assistent: zacht verloop dat langzaam draait, en ademt als hij bezig is. */
+.bol {
+  background: conic-gradient(from var(--hoek, 0deg), #818cf8, #4f46e5, #a78bfa, #38bdf8, #818cf8);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25);
+  animation: draai 12s linear infinite;
+}
+.bol-actief { animation: draai 3s linear infinite, adem 1.6s ease-in-out infinite; }
+@property --hoek { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes draai { to { --hoek: 360deg; } }
+@keyframes adem { 50% { transform: scale(0.86); opacity: 0.8; } }
+
+.bezig-tekst {
+  background: linear-gradient(90deg, var(--color-zacht) 30%, var(--color-inkt) 50%, var(--color-zacht) 70%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: glans 1.8s linear infinite;
+}
+@keyframes glans { from { background-position: 100% 0; } to { background-position: 0 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bol, .bol-actief, .bezig-tekst { animation: none; }
+}

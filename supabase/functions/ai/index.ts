@@ -129,4 +129,30 @@ export async function verwerk(verzoek: Request): Promise<Response> {
   }
 }
 
-Deno.serve(verwerk);
+// De nieuwe app (GitHub Pages) praat vanuit de browser met deze functie. Alleen die herkomst mag dat; wie je bent,
+// blijft gewoon in x-api-key staan.
+const HERKOMSTEN = new Set(["https://blaslavio.github.io"]);
+
+export function corsKoppen(verzoek: Request): Record<string, string> {
+  const herkomst = verzoek.headers.get("origin") ?? "";
+  if (!HERKOMSTEN.has(herkomst) && !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(herkomst)) return {};
+  return {
+    "Access-Control-Allow-Origin": herkomst,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": verzoek.headers.get("access-control-request-headers") ?? "content-type, x-api-key",
+    "Access-Control-Max-Age": "600",
+    "Vary": "Origin",
+  };
+}
+
+export async function metCors(verzoek: Request): Promise<Response> {
+  const koppen = corsKoppen(verzoek);
+  if (verzoek.method === "OPTIONS") return new Response(null, { status: koppen["Access-Control-Allow-Origin"] ? 204 : 403, headers: koppen });
+  const antwoord = await verwerk(verzoek);
+  if (!koppen["Access-Control-Allow-Origin"]) return antwoord;
+  const h = new Headers(antwoord.headers);
+  for (const [k, v] of Object.entries(koppen)) h.set(k, v);
+  return new Response(antwoord.body, { status: antwoord.status, headers: h });
+}
+
+Deno.serve(metCors);

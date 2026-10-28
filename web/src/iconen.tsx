@@ -22,3 +22,4 @@ export const Microfoon = (p: P) => (
 export const Pijl = (p: P) => <svg {...basis} {...p}><path d="M12 19V5M5 12l7-7 7 7" /></svg>;
 export const Terug = (p: P) => <svg {...basis} {...p}><path d="M15 18l-6-6 6-6" /></svg>;
 export const Vinkje = (p: P) => <svg {...basis} {...p}><path d="M5 12l5 5L20 7" /></svg>;
+export const Herstel = (p: P) => <svg {...basis} {...p}><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>;

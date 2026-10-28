@@ -1,7 +1,7 @@
 // Praat met dezelfde database als de oude app (Supabase). Alles gaat via databasefuncties die zelf controleren
 // wie je bent; de publieke sleutel hieronder geeft verder nergens toegang toe.
 export const SUPABASE = import.meta.env.VITE_SUPABASE ?? "https://lnjsekmlpjyiwdlzcowa.supabase.co";
-const SLEUTEL = "sb_publishable_Bq-K3J6yt0-B-mHWYj-tnQ_DWD0c9KX";
+export const SLEUTEL = "sb_publishable_Bq-K3J6yt0-B-mHWYj-tnQ_DWD0c9KX";
 const APPARAAT_SLEUTEL = "assistent.apparaat";
 
 export class GeenToegang extends Error {}
