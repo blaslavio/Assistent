@@ -48,7 +48,7 @@ export default function App() {
 
   const scherm = {
     vandaag: <Vandaag staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} />,
-    agenda: <Agenda staat={staat} />,
+    agenda: <Agenda staat={staat} setStaat={setStaat} />,
     chat: <Chat />,
     assistent: <Suspense fallback={null}><Assistent staat={staat} vernieuw={laden} /></Suspense>,
     instellingen: <Instellingen staat={staat} vernieuw={laden} terug={() => setTab("vandaag")} opUitgelogd={() => setStaat(null)} />,
