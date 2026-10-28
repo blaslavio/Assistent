@@ -300,4 +300,5 @@ export async function metCors(verzoek: Request): Promise<Response> {
   return new Response(antwoord.body, { status: antwoord.status, headers: h });
 }
 
-if (import.meta.main) Deno.serve(metCors);
+// In de tests (MAIL_TEST=1) starten we geen server.
+if (!Deno.env.get("MAIL_TEST")) Deno.serve(metCors);

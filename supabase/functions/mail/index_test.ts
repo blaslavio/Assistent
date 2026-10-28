@@ -1,4 +1,4 @@
-// deno test --allow-net --allow-read --allow-env supabase/functions/mail/index_test.ts
+// MAIL_TEST=1 deno test --allow-net --allow-read --allow-env supabase/functions/mail/index_test.ts
 // Met een kleine nep-mailserver (TLS) die alleen doet wat de functie nodig heeft. Certificaat: MAIL_TEST_CERT/KEY.
 import { bericht, inloggen, kopTekst, lijst } from "./index.ts";
 
