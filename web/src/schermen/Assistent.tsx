@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Staat } from "../App";
+import { OUDE_APP } from "../api";
 import { Herstel, Kalender, Microfoon, Pijl, Plus, Vinkje, Vonk } from "../iconen";
 import { antwoord, gebruikerBeurt, gesprekLeeg, notitie, ongedaanMaken, verbinding, zonderLabels, type Actie,
   type Keuze } from "../lib/assistent";
@@ -350,7 +351,7 @@ function BestelKaart({ kaart, bestel }: { kaart: Bestelkaart; bestel: () => void
         <p className="flex items-start gap-2 text-[15px]">
           <Vinkje className="mt-0.5 size-5 shrink-0 text-accent" />
           <span>{winkel ? "Besteld. Afrekenen doe je bij Bestellingen in de huidige app." : "Verzoek verstuurd. De verkoper laat weten of het doorgaat."}
-            {" "}<a href="../" className="font-medium text-accent">Naar Bestellingen</a></span>
+            {" "}<a href={OUDE_APP} target="_top" className="font-medium text-accent">Naar Bestellingen</a></span>
         </p>
       ) : (
         <>

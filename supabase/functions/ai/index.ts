@@ -129,9 +129,9 @@ export async function verwerk(verzoek: Request): Promise<Response> {
   }
 }
 
-// De nieuwe app (GitHub Pages) praat vanuit de browser met deze functie. Alleen die herkomst mag dat; wie je bent,
-// blijft gewoon in x-api-key staan.
-const HERKOMSTEN = new Set(["https://blaslavio.github.io"]);
+// De nieuwe app (GitHub Pages, of /?nieuw=1 op de Streamlit-app) praat vanuit de browser met deze functie. Alleen
+// die herkomsten mogen dat; wie je bent, blijft gewoon in x-api-key staan.
+const HERKOMSTEN = new Set(["https://blaslavio.github.io", "https://eisreyyrtvlgtjpqiyhpm2.streamlit.app"]);
 
 export function corsKoppen(verzoek: Request): Record<string, string> {
   const herkomst = verzoek.headers.get("origin") ?? "";

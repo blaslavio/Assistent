@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { bijwerken, instellingenBijwerken, uitloggen, weergavenaamWijzigen } from "../api";
+import { OUDE_APP, bijwerken, instellingenBijwerken, uitloggen, weergavenaamWijzigen } from "../api";
 import type { Staat } from "../App";
 import { Terug, Vonk } from "../iconen";
 
@@ -140,7 +140,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd }: Pr
         <Rij titel="Thuis" uitleg={inst.thuisadres || "Adres voor het weer en reistijden"} open={() => setPagina("thuis")} />
       </ul>
 
-      <a href="../" className="mt-6 flex items-center justify-between rounded-[20px] bg-vlak px-4 py-3.5">
+      <a href={OUDE_APP} target="_top" className="mt-6 flex items-center justify-between rounded-[20px] bg-vlak px-4 py-3.5">
         <span className="flex flex-col">
           <span className="font-medium">Meer in de huidige app</span>
           <span className="text-sm text-rustig">Mail, budget, koppelingen en de rest</span>
