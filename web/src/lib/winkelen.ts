@@ -36,18 +36,26 @@ const uitAanbod = (a: AanbodRij): Product => ({ sleutel: `m${a.id}`, bron: "mark
   levering: a.levering ?? [], betaalwijzen: a.betaalwijzen ?? [], voorraad: null, plaats: a.plaats || undefined,
   foto: !!a.heeft_foto, verkoperId: a.aanbieder_id });
 
-export async function zoeken(zoek: string): Promise<Product[]> {
+export type Filter = { bron?: "alles" | "marktplaats" | "winkels" | "diensten"; bezorgen?: boolean; max?: number };
+
+export async function zoeken(zoek: string, f: Filter = {}): Promise<Product[]> {
   const term = zoek.trim().slice(0, 80);
+  const bron = f.bron ?? "alles";
+  const geen = { producten: [] as WinkelRij[], aanbod: [] as AanbodRij[] };
   const [winkels, markt] = await Promise.all([
-    alsIk<{ producten?: WinkelRij[] }>("winkelen_producten", { p_zoek: term, p_lat: null, p_lon: null, p_inkopen: false })
-      .catch(() => ({ producten: [] as WinkelRij[] })),
-    alsIk<{ aanbod?: AanbodRij[] }>("aanbod_zoeken", { p_zoekterm: term, p_soort: "product" })
-      .catch(() => ({ aanbod: [] as AanbodRij[] })),
+    bron === "alles" || bron === "winkels"
+      ? alsIk<{ producten?: WinkelRij[] }>("winkelen_producten", { p_zoek: term, p_lat: null, p_lon: null, p_inkopen: false })
+        .catch(() => geen) : geen,
+    bron === "alles" || bron === "marktplaats" || bron === "diensten"
+      ? alsIk<{ aanbod?: AanbodRij[] }>("aanbod_zoeken", { p_zoekterm: term, p_soort: bron === "diensten" ? "dienst" : "product" })
+        .catch(() => geen) : geen,
   ]);
-  const lijst: Product[] = [
+  let lijst: Product[] = [
     ...(winkels.producten ?? []).map((p) => uitWinkel(p)),
     ...(markt.aanbod ?? []).filter((a) => !a.van_mij && !a.in_winkel && a.prijs !== null).map(uitAanbod),
-  ].sort((a, b) => a.prijs - b.prijs).slice(0, 12);
+  ];
+  if (f.bezorgen) lijst = lijst.filter((p) => p.levering.includes("verzenden"));
+  lijst = lijst.sort((a, b) => a.prijs - b.prijs).slice(0, f.max ?? 12);
   lijst.forEach(onthouden);
   return lijst;
 }

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Ballon, Bewerk, Dubbelvink, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
+import { Bal, Ballon, Bewerk, Boek, Dubbelvink, Fiets, Gereedschap, Huis, Kind, Penseel, Raster as RasterIcoon, Scherm, Shirt, Truck, Winkelpand, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
 import { JouwAanbod } from "./Delen";
 import { Berichten, Feed, Schrijven } from "./Feed";
 import { GastGesprekScherm, GastenLijst } from "./Gasten";
@@ -14,10 +14,12 @@ import { bellen, kan as kanBellen, luisteren, oproepen, type Oproep } from "../l
 import { useBellen } from "./Bellen";
 import { Rondje } from "../rondje";
 import { StoryRij } from "./Stories";
+import { Verkopen } from "./Verkopen";
+import { useEigenFoto } from "./Profiel";
 import { CommunityBeheer } from "./CommunityBeheer";
 import { Bladen, Raster, type Blad } from "./Winkelen";
 import { rpc } from "../api";
-import { zoeken, type Product } from "../lib/winkelen";
+import { zoeken, type Filter, type Product } from "../lib/winkelen";
 import { dagTitel, datumTekst, tijdje } from "../lib/tijd";
 import type { Staat } from "../App";
 
@@ -38,6 +40,12 @@ type Props = { staat: Staat; naarInstellingen: () => void; bestel: (p: Product) 
 
 export default function Chat({ staat, naarInstellingen, bestel }: Props) {
   const [ik, setIk] = useState<number | null>(null);
+  const [balkWeg, setBalkWeg] = useState(() => { try { return localStorage.getItem("assistent.chatbalk") === "weg"; } catch { return false; } });
+  const veegStart = useRef(0);
+  const balkZetten = (weg: boolean) => {
+    setBalkWeg(weg);
+    try { localStorage.setItem("assistent.chatbalk", weg ? "weg" : "aan"); } catch { /* geen opslag */ }
+  };
   const [lijst, setLijst] = useState<Gesprek[]>([]);
   const [groepen, setGroepen] = useState<Community[]>([]);
   const [voorbeelden, setVoorbeelden] = useState<Record<number, string>>({});
@@ -119,23 +127,42 @@ export default function Chat({ staat, naarInstellingen, bestel }: Props) {
       {deel === "winkel" && <WinkelDeel bestel={bestel} />}
       {deel === "oproepen" && ik !== null && <Oproepen ik={ik} lijst={lijst} />}
       {deel === "jij" && <Jij staat={staat} naarInstellingen={naarInstellingen} />}
-      {/* Zoals WhatsApp: de onderdelen van de chat onderin, met een icoon en een naam. */}
-      <nav aria-label="Chat" className="sticky bottom-0 z-10 mt-auto grid grid-cols-5 border-t border-lijn bg-white/95 px-1 pt-1.5 pb-1 backdrop-blur dark:bg-[#0b0b0e]/95">
-        {DELEN.map(([k, naam, Icoon]) => {
-          const telt = k === "chats" ? ongelezenChats : k === "communitys" ? ongelezenGroepen : 0;
-          const actief = deel === k;
-          return (
-            <button key={k} onClick={() => setDeel(k)} aria-pressed={actief} aria-label={naam}
-              className={`relative flex flex-col items-center gap-1 text-[11px] ${actief ? "font-semibold text-inkt" : "text-rustig"}`}>
-              <span className={`flex h-8 w-14 items-center justify-center rounded-full ${actief ? "bg-accent/15 text-accent dark:text-accent-donker" : ""}`}>
-                <Icoon className="size-5" />
-              </span>
-              {naam}
-              {telt > 0 && <span className="absolute -top-0.5 left-[calc(50%+6px)] flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">{telt}</span>}
-            </button>
-          );
-        })}
-      </nav>
+      {/* Zoals WhatsApp: de onderdelen van de chat onderin. Naar beneden vegen of op het streepje tikken klapt hem in. */}
+      <div className="sticky bottom-0 z-10 mt-auto">
+        <button onClick={() => balkZetten(false)} aria-label="Menu tonen" aria-hidden={!balkWeg} tabIndex={balkWeg ? 0 : -1}
+          className={`absolute right-4 bottom-3 flex h-10 items-center gap-1.5 rounded-full bg-white/95 px-4 text-sm font-medium shadow-lg ring-1 ring-lijn backdrop-blur transition-all duration-300 dark:bg-[#1c1c22]/95 ${balkWeg ? "opacity-100" : "pointer-events-none translate-y-4 opacity-0"}`}>
+          <Terug className="size-4 rotate-90" /> Menu
+          {ongelezenChats + ongelezenGroepen > 0 && <span className="size-2 rounded-full bg-accent" />}
+        </button>
+        <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${balkWeg ? "grid-rows-[0fr]" : "grid-rows-[1fr]"}`}>
+          <div className="overflow-hidden">
+            <nav aria-label="Chat" aria-hidden={balkWeg}
+              onTouchStart={(e) => { veegStart.current = e.touches[0].clientY; }}
+              onTouchEnd={(e) => { if (e.changedTouches[0].clientY - veegStart.current > 30) balkZetten(true); }}
+              className="border-t border-lijn bg-white/95 px-1 pb-1 backdrop-blur dark:bg-[#0b0b0e]/95">
+              <button onClick={() => balkZetten(true)} aria-label="Menu inklappen" className="flex h-4 w-full items-center justify-center">
+                <span className="h-1 w-9 rounded-full bg-zacht/40" />
+              </button>
+              <div className="grid grid-cols-5">
+          {DELEN.map(([k, naam, Icoon]) => {
+            const telt = k === "chats" ? ongelezenChats : k === "communitys" ? ongelezenGroepen : 0;
+            const actief = deel === k;
+            return (
+              <button key={k} onClick={() => setDeel(k)} aria-pressed={actief} aria-label={naam}
+                className={`relative flex flex-col items-center gap-1 text-[11px] ${actief ? "font-semibold text-inkt" : "text-rustig"}`}>
+                <span className={`flex h-8 w-14 items-center justify-center rounded-full ${actief ? "bg-accent/15 text-accent dark:text-accent-donker" : ""}`}>
+                  <Icoon className="size-5" />
+                </span>
+                {naam}
+                {telt > 0 && <span className="absolute -top-0.5 left-[calc(50%+6px)] flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">{telt}</span>}
+              </button>
+            );
+          })}
+              </div>
+            </nav>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -485,35 +512,86 @@ function LedenBlad({ c, sluit, weg }: { c: Community; sluit: () => void; weg: ()
 
 type WinkelKaart = { adres: string; naam: string; omschrijving?: string; producten?: number };
 
+type Ic = (p: { className?: string }) => ReactNode;
+const BRONNEN: [NonNullable<Filter["bron"]>, string, Ic][] = [["alles", "Alles", RasterIcoon], ["marktplaats", "Marktplaats", Mensen],
+  ["winkels", "Winkels", Winkelpand], ["diensten", "Diensten", Gereedschap]];
+const CATEGORIEEN: [string, Ic][] = [["Kleding", Shirt], ["Elektronica", Scherm], ["Huis en tuin", Huis], ["Fietsen", Fiets],
+  ["Sport", Bal], ["Boeken", Boek], ["Kinderen", Kind], ["Hobby", Penseel]];
+const chip = (aan: boolean) => `flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm ${aan ? "bg-accent font-medium text-white" : "bg-vlak text-rustig"}`;
+
 function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
   const [bestellingen, setBestellingen] = useState<{ melding?: string } | null>(openGevraagd);
+  const [verkopen, setVerkopen] = useState(false);
   const [wacht, setWacht] = useState(0);
   const [zoek, setZoek] = useState("");
+  const [term, setTerm] = useState("");
+  const [bron, setBron] = useState<NonNullable<Filter["bron"]>>("alles");
+  const [bezorgen, setBezorgen] = useState(false);
   const [producten, setProducten] = useState<Product[] | null>(null);
   const [winkels, setWinkels] = useState<WinkelKaart[]>([]);
   const [stapel, setStapel] = useState<Blad[]>([]);
   const [fout, setFout] = useState("");
+  const [bijgewerkt, setBijgewerkt] = useState(0);
 
-  const halen = useCallback((term: string) => {
+  useEffect(() => {
     setFout("");
-    zoeken(term).then(setProducten).catch((e) => { setProducten([]); setFout(foutVan(e)); });
-    rpc<WinkelKaart[]>("winkels_zoeken", { p_zoekterm: term }).then((w) => setWinkels(Array.isArray(w) ? w : [])).catch(() => {});
-  }, []);
-  useEffect(() => { halen(""); }, [halen]);
+    setProducten(null);
+    zoeken(term, { bron, bezorgen, max: 40 }).then(setProducten).catch((e) => { setProducten([]); setFout(foutVan(e)); });
+    if (bron === "alles" || bron === "winkels")
+      rpc<WinkelKaart[]>("winkels_zoeken", { p_zoekterm: term }).then((w) => setWinkels(Array.isArray(w) ? w : [])).catch(() => {});
+  }, [term, bron, bezorgen, bijgewerkt]);
   useEffect(() => {
     if (!bestellingen) bestellingenLijst().then((l) => setWacht(l.filter(wachtOpMij).length)).catch(() => {});
   }, [bestellingen]);
 
   if (bestellingen) return <Bestellingen melding={bestellingen.melding} terug={() => setBestellingen(null)} />;
 
+  const zoekt = term.trim() !== "";
   return (
     <div className="flex flex-col gap-5 px-6 pb-8">
-      <form onSubmit={(e) => { e.preventDefault(); halen(zoek); }} className="flex items-center gap-2 rounded-2xl bg-vlak px-4">
+      <form onSubmit={(e) => { e.preventDefault(); setTerm(zoek); }} className="flex items-center gap-2 rounded-2xl bg-vlak px-4">
         <Zoek className="size-5 shrink-0 text-zacht" />
-        <input value={zoek} onChange={(e) => setZoek(e.target.value)} placeholder="Zoek in winkels en marktplaats" aria-label="Zoeken"
+        <input value={zoek} onChange={(e) => { setZoek(e.target.value); if (!e.target.value) setTerm(""); }}
+          placeholder="Zoek in winkels en marktplaats" aria-label="Zoeken"
           enterKeyHint="search" className="h-12 flex-1 bg-transparent outline-none placeholder:text-zacht" />
       </form>
-      {winkels.length > 0 && (
+      <div className="-mx-6 flex gap-2 overflow-x-auto px-6 [scrollbar-width:none]">
+        {BRONNEN.map(([k, naam, Icoon]) => (
+          <button key={k} aria-pressed={bron === k} onClick={() => setBron(k)} className={chip(bron === k)}>
+            <Icoon className="size-4" />{naam}
+          </button>
+        ))}
+        <button aria-pressed={bezorgen} onClick={() => setBezorgen((b) => !b)} className={chip(bezorgen)}>
+          <Truck className="size-4" />Bezorgen
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={() => setVerkopen(true)} className="flex flex-col items-start gap-1 rounded-2xl bg-accent/10 p-4 text-left">
+          <Plus className="size-5 text-accent" />
+          <span className="font-medium">Verkopen</span>
+          <span className="text-[13px] text-rustig">Product of dienst</span>
+        </button>
+        <button onClick={() => setBestellingen({})} className="relative flex flex-col items-start gap-1 rounded-2xl bg-vlak p-4 text-left">
+          <Tas className="size-5 text-rustig" />
+          <span className="font-medium">Bestellingen</span>
+          <span className="text-[13px] text-rustig">{wacht > 0 ? `${wacht} wacht${wacht === 1 ? "" : "en"} op jou` : "Volg je status"}</span>
+          {wacht > 0 && <span className="absolute top-3 right-3 rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white">{wacht}</span>}
+        </button>
+      </div>
+      {!zoekt && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-rustig">Categorieën</h2>
+          <div className="grid grid-cols-4 gap-2">
+            {CATEGORIEEN.map(([c, Icoon]) => (
+              <button key={c} onClick={() => { setZoek(c); setTerm(c); }}
+                className="flex flex-col items-center gap-1.5 rounded-2xl bg-vlak px-1 py-3 text-[12px] leading-tight">
+                <Icoon className="size-6 text-accent dark:text-accent-donker" />{c}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      {(bron === "alles" || bron === "winkels") && winkels.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="text-sm font-medium text-rustig">Winkels</h2>
           <ul className="-mx-6 flex gap-2.5 overflow-x-auto px-6 [scrollbar-width:none]">
@@ -530,23 +608,23 @@ function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
           </ul>
         </section>
       )}
-      <button onClick={() => setBestellingen({})}
-        className="flex items-center justify-between rounded-2xl bg-vlak px-4 py-3.5 text-left">
-        <span className="font-medium">Bestellingen</span>
-        <span className="flex items-center gap-2">
-          {wacht > 0 && <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white">{wacht}</span>}
-          <Terug className="size-5 rotate-180 text-zacht" />
-        </span>
-      </button>
-      {!zoek.trim() && <JouwAanbod />}
+      {!zoekt && <JouwAanbod />}
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-rustig">{zoek.trim() ? "Gevonden" : "Te koop"}</h2>
+        <h2 className="text-sm font-medium text-rustig">{zoekt ? `Gevonden voor "${term}"` : bron === "diensten" ? "Diensten" : "Te koop"}</h2>
         {fout && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{fout}</p>}
         {producten === null ? <p className="bezig-tekst py-6 text-[15px] text-rustig">Laden</p>
-          : <Raster producten={producten} open={(p) => setStapel([{ soort: "product", p }])} />}
+          : producten.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl bg-vlak px-6 py-8 text-center">
+              <Tas className="size-8 text-zacht" />
+              <p className="font-medium">{zoekt ? "Niets gevonden" : "Hier staat nog niets"}</p>
+              <p className="text-sm text-rustig">{bezorgen ? "Zet Bezorgen uit om ook ophalen te zien, of " : ""}zet zelf als eerste iets te koop.</p>
+              <button onClick={() => setVerkopen(true)} className="h-10 rounded-full bg-accent px-5 text-sm font-medium text-white">Verkopen</button>
+            </div>
+          ) : <Raster producten={producten} open={(p) => setStapel([{ soort: "product", p }])} />}
       </section>
-      <p className="text-[13px] text-zacht">Bestellen gaat via de assistent. Er gaat pas iets weg als jij zelf op Bestellen tikt.</p>
+      <p className="text-[13px] text-zacht">Je kunt ook de assistent vragen iets te zoeken. Er gaat pas iets weg als jij zelf op Bestellen tikt.</p>
       <Bladen stapel={stapel} zet={setStapel} bestel={(p) => { setStapel([]); bestel(p); }} />
+      {verkopen && <Verkopen sluit={() => setVerkopen(false)} geplaatst={() => { setVerkopen(false); setBijgewerkt((n) => n + 1); }} />}
     </div>
   );
 }
@@ -623,13 +701,15 @@ function Jij({ staat, naarInstellingen }: { staat: Staat; naarInstellingen: () =
   const g = staat.gebruiker;
   const naam = g.weergavenaam || g.naam || "Jij";
   const [gekopieerd, setGekopieerd] = useState(false);
+  const [foto] = useEigenFoto(g);
   return (
     <div className="flex flex-col gap-5 px-6 pb-8">
       <div className="flex flex-col items-center gap-2 pt-2 text-center">
         <span className="flex size-20 items-center justify-center overflow-hidden rounded-full bg-vlak text-3xl font-semibold">
-          {g.foto ? <img src={g.foto} alt="" className="size-full object-cover" /> : <Persoon className="size-9 text-rustig" />}
+          {foto ? <img src={foto} alt="" className="size-full object-cover" /> : <Persoon className="size-9 text-rustig" />}
         </span>
         <p className="text-xl font-semibold">{naam}</p>
+        {g.over && <p className="max-w-xs text-[15px] text-rustig">{g.over}</p>}
         {g.naam && (
           <button onClick={() => navigator.clipboard?.writeText(`@${g.naam}`).then(() => setGekopieerd(true), () => {})}
             className="text-sm text-rustig">

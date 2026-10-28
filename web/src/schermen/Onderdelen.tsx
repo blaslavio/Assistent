@@ -18,22 +18,6 @@ export const ONDERDELEN: [OnderdeelNaam, string, typeof Tas][] = [
   ["budget", "Budget", Lijstje],
 ];
 
-export function OnderdelenTegels({ open }: { open: (o: OnderdeelNaam) => void }) {
-  return (
-    <section className="mt-6">
-      <h2 className={kop}>Onderdelen</h2>
-      <div className="grid grid-cols-3 gap-2">
-        {ONDERDELEN.map(([id, naam, Icoon]) => (
-          <button key={id} onClick={() => open(id)}
-            className="flex flex-col items-center gap-2 rounded-[20px] bg-vlak px-2 py-4 text-[14px] font-medium">
-            <Icoon className="size-6 text-accent dark:text-accent-donker" />{naam}
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 const foutVan = (e: unknown) => (e instanceof Error && e.message ? e.message : "Dat lukte niet. Probeer het opnieuw.");
 const veld = "h-12 min-w-0 flex-1 rounded-2xl bg-vlak px-4 outline-none placeholder:text-zacht";
 const knop = "flex h-12 shrink-0 items-center justify-center rounded-2xl bg-accent px-4 font-medium text-white disabled:opacity-30";

@@ -118,7 +118,8 @@ export type Gegevens = {
   taken: Taak[]; afspraken: Afspraak[]; volgend_id: number;
   instellingen?: { thuisadres?: string; avatar?: { naam?: string; foto?: string } } & Record<string, unknown>;
 } & Record<string, unknown>;
-export type Gebruiker = { id: number; naam: string | null; weergavenaam?: string; email?: string; foto?: string };
+export type Gebruiker = { id: number; naam: string | null; weergavenaam?: string; email?: string; foto?: string;
+  heeft_foto?: boolean; foto_zichtbaar?: string; over?: string };
 
 export async function gegevensLaden(): Promise<{ gebruiker: Gebruiker; data: Gegevens }> {
   const a = await alsIk<{ gebruiker: Gebruiker; data: Partial<Gegevens> }>("mijn_gegevens");

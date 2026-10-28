@@ -85,3 +85,48 @@ export const Meer = (p: P) => (
 export const Wereld = (p: P) => (
   <svg {...basis} {...p}><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>
 );
+export const Euro = (p: P) => (
+  <svg {...basis} {...p}><path d="M17 6.5A6.5 6.5 0 1 0 17 17.5" /><path d="M4 10h9M4 14h9" /></svg>
+);
+export const Huis = (p: P) => (
+  <svg {...basis} {...p}><path d="M4 11l8-7 8 7v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" /><path d="M10 21v-6h4v6" /></svg>
+);
+export const Schuiven = (p: P) => (
+  <svg {...basis} {...p}><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg>
+);
+export const Vraag = (p: P) => (
+  <svg {...basis} {...p}><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01" /></svg>
+);
+export const Shirt = (p: P) => (
+  <svg {...basis} {...p}><path d="M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z" /></svg>
+);
+export const Scherm = (p: P) => (
+  <svg {...basis} {...p}><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M2 20h20" /></svg>
+);
+export const Fiets = (p: P) => (
+  <svg {...basis} {...p}><circle cx="6" cy="16" r="4" /><circle cx="18" cy="16" r="4" /><path d="M6 16l4-8h5l3 8M10 8l2 8h-6M14 5h2" /></svg>
+);
+export const Bal = (p: P) => (
+  <svg {...basis} {...p}><circle cx="12" cy="12" r="9" /><path d="M3.5 9.5c5 1 12 1 17 0M3.5 14.5c5-1 12-1 17 0M12 3c-3 5-3 13 0 18M12 3c3 5 3 13 0 18" /></svg>
+);
+export const Boek = (p: P) => (
+  <svg {...basis} {...p}><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M4 21V5M8 7h7" /></svg>
+);
+export const Kind = (p: P) => (
+  <svg {...basis} {...p}><circle cx="12" cy="6" r="3" /><path d="M7 21v-6l-2-3 4-2h6l4 2-2 3v6M12 13v8" /></svg>
+);
+export const Penseel = (p: P) => (
+  <svg {...basis} {...p}><path d="M18 3l3 3-9 9-3-3z" /><path d="M9 12c-3 0-5 2-5 5 0 1.5-1 3-2 4 3 0 9-.5 9-6" /></svg>
+);
+export const Truck = (p: P) => (
+  <svg {...basis} {...p}><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></svg>
+);
+export const Gereedschap = (p: P) => (
+  <svg {...basis} {...p}><path d="M14.5 6.5a4 4 0 0 0 5 5L21 13l-8 8-3-3 8-8-1.5-1.5a4 4 0 0 0-5-5L9 6l3 3" /><path d="M3 21l6-6" /></svg>
+);
+export const Winkelpand = (p: P) => (
+  <svg {...basis} {...p}><path d="M4 10v10h16V10M3 6l2-3h14l2 3v1a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z" /><path d="M10 20v-5h4v5" /></svg>
+);
+export const Raster = (p: P) => (
+  <svg {...basis} {...p}><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></svg>
+);
