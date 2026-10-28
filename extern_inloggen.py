@@ -81,7 +81,7 @@ def start(aanbieder: str, terug_adres: str) -> str:
     terug = urlunsplit((redirect.scheme, redirect.netloc, redirect.path, urlencode({"extern": staat}), ""))
     return f"{_url()}/auth/v1/authorize?" + urlencode({"provider": aanbieder, "redirect_to": terug,
                                                          "code_challenge": uitdaging,
-                                                         "code_challenge_method": "s256",
+                                                         "code_challenge_method": "S256",
                                                          **({"scopes": "email"} if aanbieder == "azure" else {})})
 
 

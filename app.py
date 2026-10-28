@@ -3,6 +3,9 @@
 import life_swarm_core
 import event_swarm_core
 import neural_video_core
+import service_intake_core
+import service_intake_ui
+import ecosystem_ui
 
 import calendar
 import html
@@ -2649,7 +2652,8 @@ def groet(nu: datetime) -> str:
 def master_hub_pagina() -> None:
     """Account-scoped Multi-Stream drafts; never publish or send automatically."""
     st.title("Universal Master Hub")
-    st.caption("Verkoop, chat, projecten en community in één overzicht.")
+    st.caption("Diensten, winkels, sport, projecten en community in één overzicht.")
+    ecosystem_ui.render_command_stream(st)
     profile = st.segmented_control("Privacyprofiel", list(multistream_store.PROFILES),
                                    default="Privé", key="master_privacy_profile")
     st.caption("Profielwissel toont uitsluitend concepten van het gekozen profiel.")
@@ -2657,13 +2661,13 @@ def master_hub_pagina() -> None:
                                 default="Alles", key="master_stream_lens")
     with st.form("master_stream_form", clear_on_submit=True):
         opdracht = st.text_input("Bericht of opdracht", max_chars=500,
-                                placeholder="Bijv. verkoop mijn fiets")
+                                placeholder="Schrijf een bericht of opdracht")
         verzenden = st.form_submit_button("Concept bewaren")
     if verzenden:
         try:
             item = multistream_store.add_draft(opdracht, profile)
             st.session_state["master_hub_route"] = master_hub_core.classify(opdracht)
-            st.success("Privéconcept bewaard onder " + item["category"] + ".")
+            st.success("Concept bewaard in profiel " + profile + " onder " + item["category"] + ".")
         except ValueError as fout:
             st.warning(str(fout))
         except Exception:
@@ -2677,14 +2681,17 @@ def master_hub_pagina() -> None:
         if not concepten:
             st.caption("Geen concepten in deze categorie.")
         for item in concepten[:30]:
-            st.write(item.get("text", ""))
-            st.caption(str(item.get("category", "Chat")) + " - privéconcept")
+            st.text(item.get("text", ""))
+            st.caption(str(item.get("category", "Chat")) + " - concept in profiel " + profile)
             if st.button("Verwijder concept", key="master_del_" + str(item.get("id"))):
                 try:
                     if multistream_store.delete_draft(str(item.get("id")), profile):
                         st.rerun()
                 except Exception:
                     st.error("Verwijderen is niet gelukt.")
+    with st.expander("Dienstverlening - intake", expanded=False):
+        service_intake_ui.render_preparation(st)
+
     with st.expander("Life Swarm - persoonlijk", expanded=False):
         st.caption("Persoonlijke notities blijven privé. Geen automatische publicatie, locatiebepaling of agenda-actie.")
         with st.form("life_swarm_private_form", clear_on_submit=True):
