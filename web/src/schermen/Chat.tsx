@@ -2,28 +2,9 @@ import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } fr
 import { Bewerk, Dubbelvink, Pijl, Slot, Terug, Vinkje } from "../iconen";
 import { VERDWIJNEN, verdwijnenInstellen, antwoorden, berichten, contacten, gesprekken, gesprekNaam, kortTekst, nieuwGesprek, starten, versturen,
   voorbeeld, type Contact, type Gesprek, type Regel } from "../lib/chat";
-import { dagTitel, datumTekst, plusDagen } from "../lib/tijd";
-
-// Zachte, vaste kleur per persoon: altijd dezelfde, zonder dat er een foto nodig is.
-const TINTEN = ["#6366f1", "#0ea5e9", "#14b8a6", "#f59e0b", "#ec4899", "#8b5cf6", "#22c55e", "#ef4444"];
-function Rondje({ naam, id, groot = false }: { naam: string; id: number; groot?: boolean }) {
-  const kleur = TINTEN[Math.abs(id) % TINTEN.length];
-  return (
-    <span aria-hidden style={{ background: `${kleur}1f`, color: kleur }}
-      className={`flex shrink-0 items-center justify-center rounded-full font-semibold ${groot ? "size-12 text-lg" : "size-9 text-sm"}`}>
-      {(naam.trim()[0] ?? "?").toUpperCase()}
-    </span>
-  );
-}
-
-function tijdje(iso?: string) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const vandaag = datumTekst(new Date());
-  if (datumTekst(d) === vandaag) return d.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
-  if (datumTekst(d) === datumTekst(plusDagen(new Date(), -1))) return "gisteren";
-  return d.toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
-}
+import { Rondje } from "../rondje";
+import { StoryRij } from "./Stories";
+import { dagTitel, datumTekst, plusDagen, tijdje } from "../lib/tijd";
 
 export default function Chat() {
   const [ik, setIk] = useState<number | null>(null);
@@ -65,6 +46,7 @@ export default function Chat() {
         <button onClick={() => setNieuw(true)} aria-label="Nieuw gesprek"
           className="flex size-10 items-center justify-center rounded-full bg-vlak"><Bewerk className="size-5" /></button>
       </header>
+      {ik !== null && <StoryRij ik={ik} />}
       {fout && <p className="px-6 text-rustig">{fout}</p>}
       {ik !== null && lijst.length === 0 && !fout && (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-10 pb-16 text-center">

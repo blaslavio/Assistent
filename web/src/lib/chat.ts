@@ -78,13 +78,13 @@ async function inpakSleutel(gedeeld: ArrayBuffer, iv: Uint8Array, apparaatId: nu
     basis, { name: "AES-GCM", length: 256 }, false, [gebruik]);
 }
 
-const ondertekenTekst = (gesprek: number, apparaat: number, iv: string, inhoud: string, epk: Jwk) =>
+const ondertekenTekst = (gesprek: number | string, apparaat: number, iv: string, inhoud: string, epk: Jwk) =>
   enc.encode(`${gesprek}|${apparaat}|${iv}|${inhoud}|${epk.x}|${epk.y}`);
 
 type Sleutels = { ecdh: CryptoKeyPair; teken: CryptoKeyPair };
 type Apparaat = { id: number; gebruiker: number; ecdh: Jwk; vingerafdruk: string };
 
-async function versleutel(ik: Ik, gesprek: number, apparaten: Apparaat[], bericht: Bericht) {
+async function versleutel(ik: Ik, gesprek: number | string, apparaten: Apparaat[], bericht: Bericht) {
   const sleutel = rnd(32);
   const iv = rnd(12);
   const aes = await crypto.subtle.importKey("raw", sleutel, "AES-GCM", false, ["encrypt"]);
@@ -113,7 +113,7 @@ async function versleutel(ik: Ik, gesprek: number, apparaten: Apparaat[], berich
 }
 
 const controleSleutels = new Map<number, CryptoKey>();
-async function ontsleutel(ik: Ik, gesprek: number, b: RuwBericht): Promise<{ bericht?: Bericht; fout?: string }> {
+async function ontsleutel(ik: Ik, gesprek: number | string, b: RuwBericht): Promise<{ bericht?: Bericht; fout?: string }> {
   const controle = controleSleutels.get(b.apparaat) ?? await crypto.subtle.importKey("jwk", b.teken, ECDSA, false, ["verify"]);
   controleSleutels.set(b.apparaat, controle);
   const echt = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, controle, unb64(b.handtekening),
@@ -288,3 +288,56 @@ export const VERDWIJNEN: [number, string][] = [[0, "Uit"], [3600, "1 uur"], [864
 /** Hoe lang berichten in dit gesprek blijven staan (0 = altijd). Geldt voor iedereen in het gesprek. */
 export const verdwijnenInstellen = (gesprek: number, seconden: number) =>
   rpc("chat_instellen", { p_gesprek: gesprek, p_verdwijnen: seconden, p_stil: null, p_groepsnaam: null });
+
+// --- Stories ------------------------------------------------------------------------------------------------------
+// Een foto of korte tekst die 24 uur blijft staan en alleen je contacten zien. Versleuteld zoals een bericht, met
+// "story" in plaats van een gespreksnummer, zodat een story nooit als chatbericht kan worden hergebruikt.
+
+export type StoryInhoud = { t: "tekst"; tekst: string; kleur: string } | { t: "foto"; foto: string; tekst?: string };
+type RuweStory = RuwBericht & { maker: number; naam: string; verloopt: string; gezien: boolean;
+  kijkers?: { naam: string; gezien: string }[] | null };
+export type Story = { id: number; maker: number; naam: string; tijd: string; verloopt: string; gezien: boolean;
+  kijkers?: { naam: string; gezien: string }[] | null; inhoud?: StoryInhoud };
+
+export const STORY_KLEUREN = ["#4f46e5", "#0f766e", "#be185d", "#b45309", "#1f2937"];
+
+export async function stories(): Promise<Story[]> {
+  if (!ik) throw new Error("De chat is nog niet gestart.");
+  const r = await rpc<{ stories: RuweStory[] }>("chat_stories", { p_apparaat: ik.apparaat });
+  const uit: Story[] = [];
+  for (const s of r.stories) {
+    const story: Story = { id: s.id, maker: s.maker, naam: s.naam, tijd: s.aangemaakt, verloopt: s.verloopt,
+      gezien: s.gezien, kijkers: s.kijkers };
+    try {
+      const o = await ontsleutel(ik, "story", s);
+      const b = o.bericht as unknown as StoryInhoud | undefined;
+      if (b && (b.t === "tekst" || (b.t === "foto" && /^data:image\/(jpeg|png|webp);base64,/.test(b.foto)))) story.inhoud = b;
+    } catch {
+      /* niet te lezen op dit apparaat: overslaan */
+    }
+    if (story.inhoud) uit.push(story);
+  }
+  return uit;
+}
+
+export async function storyPlaatsen(inhoud: StoryInhoud) {
+  if (!ik) throw new Error("De chat is nog niet gestart.");
+  const { apparaten } = await rpc<{ apparaten: Apparaat[] }>("chat_story_sleutels");
+  const p = await versleutel(ik, "story", apparaten, inhoud as unknown as Bericht);
+  return rpc<{ id: number }>("chat_story_plaatsen", { p_apparaat: ik.apparaat, p_inhoud: p.inhoud, p_iv: p.iv,
+    p_epk: p.epk, p_sleutels: p.sleutels, p_handtekening: p.handtekening });
+}
+
+export const storyGezien = (id: number) => rpc("chat_story_gezien", { p_story: id }).catch(() => {});
+export const storyWeg = (id: number) => rpc("chat_story_weg", { p_story: id });
+
+/** Maakt een foto kleiner (hoogstens 1080 pixels breed of hoog) en geeft hem als JPEG. */
+export async function fotoVerkleinen(bestand: File) {
+  const beeld = await createImageBitmap(bestand);
+  const schaal = Math.min(1, 1080 / Math.max(beeld.width, beeld.height));
+  const doek = document.createElement("canvas");
+  doek.width = Math.round(beeld.width * schaal);
+  doek.height = Math.round(beeld.height * schaal);
+  doek.getContext("2d")!.drawImage(beeld, 0, 0, doek.width, doek.height);
+  return doek.toDataURL("image/jpeg", 0.82);
+}

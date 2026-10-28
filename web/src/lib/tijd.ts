@@ -58,3 +58,13 @@ export function plusDagen(d: Date, n: number) {
 export function nuTekst(d = new Date()) {
   return `${datumTekst(d)}T${twee(d.getHours())}:${twee(d.getMinutes())}`;
 }
+
+/** Kort tijdstip voor lijsten: 14:05, gisteren of 3 okt. */
+export function tijdje(iso?: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const vandaag = datumTekst(new Date());
+  if (datumTekst(d) === vandaag) return d.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+  if (datumTekst(d) === datumTekst(plusDagen(new Date(), -1))) return "gisteren";
+  return d.toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
+}
