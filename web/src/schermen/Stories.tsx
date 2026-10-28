@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Kruis, Oog, Plus, Prullenbak } from "../iconen";
 import { STORY_KLEUREN, fotoVerkleinen, stories, storyGezien, storyPlaatsen, storyWeg, type Story, type StoryInhoud } from "../lib/chat";
+import { MAX_SECONDEN, duurVan, videoKlaarmaken } from "../lib/video";
 import { tijdje } from "../lib/tijd";
 import { Rondje } from "../rondje";
 
@@ -83,11 +84,14 @@ function Kijker({ reeks, begin, ik, sluit }: { reeks: Persoon[]; begin: number; 
   const [zeker, setZeker] = useState(false);
   const [weg, setWeg] = useState<number[]>([]);
   const ingedrukt = useRef(0);
+  const film = useRef<HTMLVideoElement>(null);
+  const [zonderGeluid, setZonderGeluid] = useState(false);
 
   const p = reeks[persoon];
   const lijst = p.lijst.filter((s) => !weg.includes(s.id));
   const s = lijst[Math.min(nr, lijst.length - 1)];
   const eigen = p.maker === ik;
+  const duur = s?.inhoud?.t === "video" ? Math.min(MAX_SECONDEN, s.inhoud.duur) * 1000 : DUUR;
 
   const volgende = useCallback(() => {
     setVerstreken(0);
@@ -118,19 +122,33 @@ function Kijker({ reeks, begin, ik, sluit }: { reeks: Persoon[]; begin: number; 
   }, [s, eigen]);
 
   const stil = pauze || kijkers || zeker;
+
+  // Een filmpje speelt mee met de balk: stilzetten als je vasthoudt, verder als je loslaat.
+  useEffect(() => {
+    const v = film.current;
+    if (!v) return;
+    if (stil) return v.pause();
+    v.play().catch(() => {
+      v.muted = true;
+      setZonderGeluid(true);
+      v.play().catch(() => {});
+    });
+  }, [stil, s?.id]);
+
   useEffect(() => {
     if (stil || !s) return;
     const start = performance.now() - verstreken;
     let stap = 0;
     const tik = () => {
-      const t = performance.now() - start;
-      if (t >= DUUR) return volgende();
+      const v = film.current;
+      const t = v ? v.currentTime * 1000 : performance.now() - start;
+      if (t >= duur || v?.ended) return volgende();
       setVerstreken(t);
       stap = requestAnimationFrame(tik);
     };
     stap = requestAnimationFrame(tik);
     return () => cancelAnimationFrame(stap);
-  }, [stil, s?.id, volgende]);
+  }, [stil, s?.id, volgende, duur]);
 
   useEffect(() => {
     const toets = (e: KeyboardEvent) => {
@@ -165,7 +183,7 @@ function Kijker({ reeks, begin, ik, sluit }: { reeks: Persoon[]; begin: number; 
           {lijst.map((x, i) => (
             <span key={x.id} className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/30">
               <span className="block h-full bg-white"
-                style={{ width: `${i < nr ? 100 : i > nr ? 0 : Math.min(100, (verstreken / DUUR) * 100)}%` }} />
+                style={{ width: `${i < nr ? 100 : i > nr ? 0 : Math.min(100, (verstreken / duur) * 100)}%` }} />
             </span>
           ))}
         </div>
@@ -193,6 +211,19 @@ function Kijker({ reeks, begin, ik, sluit }: { reeks: Persoon[]; begin: number; 
           <div className="flex size-full items-center justify-center px-8" style={{ background: inhoud.kleur }}>
             <p className="max-w-md text-center text-[28px] leading-snug font-semibold break-words whitespace-pre-wrap">{inhoud.tekst}</p>
           </div>
+        ) : inhoud.t === "video" ? (
+          <>
+            <video key={s.id} ref={film} src={inhoud.video} playsInline preload="auto" aria-label={inhoud.tekst || "Filmpje"}
+              className="max-h-full max-w-full object-contain" />
+            {zonderGeluid && (
+              <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}
+                onClick={() => { if (film.current) film.current.muted = false; setZonderGeluid(false); }}
+                className="absolute top-28 right-4 rounded-full bg-black/50 px-4 py-2 text-sm">Geluid aan</button>
+            )}
+            {inhoud.tekst && (
+              <p className="absolute inset-x-0 bottom-6 mx-auto w-fit max-w-[90%] rounded-2xl bg-black/50 px-4 py-2 text-center">{inhoud.tekst}</p>
+            )}
+          </>
         ) : (
           <>
             <img src={inhoud.foto} alt={inhoud.tekst || "Foto"} draggable={false} className="max-h-full max-w-full object-contain" />
@@ -245,53 +276,98 @@ function Maken({ sluit, geplaatst }: { sluit: () => void; geplaatst: () => void 
   const [tekst, setTekst] = useState("");
   const [kleur, setKleur] = useState(STORY_KLEUREN[0]);
   const [foto, setFoto] = useState("");
+  const [video, setVideo] = useState<{ bestand: File; url: string; lengte: number } | null>(null);
+  const [start, setStart] = useState(0);
+  const [voortgang, setVoortgang] = useState<number | null>(null);
+  const voorbeeld = useRef<HTMLVideoElement>(null);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState("");
   const kiezer = useRef<HTMLInputElement>(null);
 
+  useEffect(() => () => { if (video) URL.revokeObjectURL(video.url); }, [video]);
+
   async function kies(bestand?: File) {
     if (!bestand) return;
     setFout("");
+    if (bestand.type.startsWith("video/")) {
+      try {
+        const lengte = await duurVan(bestand);
+        setFoto("");
+        setStart(0);
+        setVideo({ bestand, url: URL.createObjectURL(bestand), lengte });
+      } catch {
+        setFout("Dit filmpje kan ik niet openen.");
+      }
+      return;
+    }
     try {
+      setVideo(null);
       setFoto(await fotoVerkleinen(bestand));
     } catch {
       setFout("Deze foto kan ik niet openen.");
     }
   }
 
+  // Het voorbeeld speelt steeds het gekozen stuk.
+  function stukAfspelen() {
+    const v = voorbeeld.current;
+    if (v && (v.currentTime < start || v.currentTime > start + MAX_SECONDEN)) v.currentTime = start;
+  }
+
   async function plaatsen() {
     setBezig(true);
     setFout("");
-    const inhoud: StoryInhoud = foto ? { t: "foto", foto, tekst: tekst.trim() || undefined } : { t: "tekst", tekst: tekst.trim(), kleur };
     try {
+      let inhoud: StoryInhoud;
+      if (video) {
+        voorbeeld.current?.pause();
+        setVoortgang(0);
+        const knip = await videoKlaarmaken(video.bestand, start, Math.min(MAX_SECONDEN, video.lengte - start), setVoortgang);
+        inhoud = { t: "video", video: knip.video, duur: knip.duur, tekst: tekst.trim() || undefined };
+      } else inhoud = foto ? { t: "foto", foto, tekst: tekst.trim() || undefined } : { t: "tekst", tekst: tekst.trim(), kleur };
       await storyPlaatsen(inhoud);
       geplaatst();
     } catch (e) {
       setFout(e instanceof Error ? e.message : "Plaatsen lukte niet.");
+      setVoortgang(null);
       setBezig(false);
     }
   }
 
-  const klaar = foto || tekst.trim();
+  const klaar = foto || video || tekst.trim();
+  const beeld = foto || video;
   return (
     <div role="dialog" aria-label="Nieuwe story" className="fixed inset-0 z-40 flex flex-col bg-black text-white"
-      style={foto ? undefined : { background: kleur }}>
+      style={beeld ? undefined : { background: kleur }}>
       <div className="flex items-center justify-between px-3 pt-[max(env(safe-area-inset-top),12px)]">
         <button onClick={sluit} aria-label="Sluiten" className="flex size-11 items-center justify-center rounded-full">
           <Kruis className="size-6" />
         </button>
         <button onClick={plaatsen} disabled={!klaar || bezig}
           className="h-10 rounded-full bg-white px-5 font-medium text-black disabled:opacity-40">
-          {bezig ? "Bezig…" : "Plaatsen"}
+          {voortgang !== null ? `Klaarmaken ${Math.round(voortgang * 100)}%` : bezig ? "Bezig…" : "Plaatsen"}
         </button>
       </div>
 
       <div className="relative flex flex-1 flex-col items-center justify-center gap-4 overflow-hidden px-6">
-        {foto ? (
+        {beeld ? (
           <>
-            <img src={foto} alt="Gekozen foto" className="max-h-[70%] max-w-full rounded-2xl object-contain" />
+            {video ? (
+              <video ref={voorbeeld} src={video.url} muted playsInline autoPlay loop onTimeUpdate={stukAfspelen}
+                aria-label="Gekozen filmpje" className="max-h-[60%] max-w-full rounded-2xl object-contain" />
+            ) : <img src={foto} alt="Gekozen foto" className="max-h-[70%] max-w-full rounded-2xl object-contain" />}
+            {video && video.lengte > MAX_SECONDEN && (
+              <label className="flex w-full max-w-md flex-col gap-1 text-center text-sm text-white/80">
+                Kies welke minuut ({Math.floor(start)}–{Math.floor(start + MAX_SECONDEN)} s)
+                <input type="range" min={0} max={Math.max(0, video.lengte - MAX_SECONDEN)} step={0.1} value={start}
+                  disabled={bezig} onChange={(e) => {
+                    setStart(Number(e.target.value));
+                    if (voorbeeld.current) voorbeeld.current.currentTime = Number(e.target.value);
+                  }} className="w-full accent-white" />
+              </label>
+            )}
             <input value={tekst} onChange={(e) => setTekst(e.target.value.slice(0, 200))} placeholder="Schrijf erbij (mag leeg)"
-              aria-label="Tekst bij de foto" className="h-11 w-full max-w-md rounded-full bg-white/15 px-4 text-center outline-none placeholder:text-white/60" />
+              aria-label={video ? "Tekst bij het filmpje" : "Tekst bij de foto"} className="h-11 w-full max-w-md rounded-full bg-white/15 px-4 text-center outline-none placeholder:text-white/60" />
           </>
         ) : (
           <textarea autoFocus value={tekst} onChange={(e) => setTekst(e.target.value.slice(0, 300))} rows={4}
@@ -303,21 +379,22 @@ function Maken({ sluit, geplaatst }: { sluit: () => void; geplaatst: () => void 
       <div className="flex flex-col items-center gap-3 px-6 pb-[max(env(safe-area-inset-bottom),20px)]">
         {fout && <p role="alert" className="rounded-full bg-black/40 px-4 py-1.5 text-sm">{fout}</p>}
         <div className="flex items-center gap-3">
-          {foto ? (
-            <button onClick={() => setFoto("")} className="h-10 rounded-full bg-white/15 px-4 text-sm">Alleen tekst</button>
+          {beeld ? (
+            <button onClick={() => { setFoto(""); setVideo(null); }} disabled={bezig}
+              className="h-10 rounded-full bg-white/15 px-4 text-sm">Alleen tekst</button>
           ) : (
             <>
               {STORY_KLEUREN.map((k) => (
                 <button key={k} onClick={() => setKleur(k)} aria-label="Kleur kiezen" aria-pressed={k === kleur}
                   style={{ background: k }} className={`size-8 rounded-full border-2 ${k === kleur ? "border-white" : "border-white/30"}`} />
               ))}
-              <button onClick={() => kiezer.current?.click()} aria-label="Foto kiezen"
+              <button onClick={() => kiezer.current?.click()} aria-label="Foto of filmpje kiezen"
                 className="ml-1 flex size-10 items-center justify-center rounded-full bg-white/15"><Camera className="size-5" /></button>
             </>
           )}
         </div>
         <p className="text-xs text-white/70">Alleen je contacten zien dit, 24 uur lang.</p>
-        <input ref={kiezer} type="file" accept="image/*" hidden onChange={(e) => kies(e.target.files?.[0])} />
+        <input ref={kiezer} type="file" accept="image/*,video/*" hidden onChange={(e) => kies(e.target.files?.[0])} />
       </div>
     </div>
   );
