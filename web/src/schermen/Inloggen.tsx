@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { inloggen } from "../api";
+import { MascotteMetTip } from "../mascotte";
 
 const veld = "h-13 w-full rounded-2xl bg-vlak px-4 text-base outline-none focus:ring-2 focus:ring-accent";
 
@@ -30,6 +31,7 @@ export default function Inloggen({ opIngelogd }: { opIngelogd: () => Promise<voi
 
   return (
     <main className="mx-auto flex h-full max-w-sm flex-col justify-center gap-8 px-6">
+      <MascotteMetTip />
       <h1 className="text-[32px] font-bold tracking-tight">Welkom</h1>
       <form onSubmit={versturen} className="flex flex-col gap-3">
         {!codeNodig ? (
