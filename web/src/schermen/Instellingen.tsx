@@ -8,6 +8,7 @@ import type { Staat } from "../App";
 import { Terug, Vonk } from "../iconen";
 import { Schakelaar, kop } from "./instellingen-ui";
 import { Account, Beveiliging, Techniek } from "./Beveiliging";
+import { Onderdeel, OnderdelenTegels, type OnderdeelNaam } from "./Onderdelen";
 import { AlgemeenScherm, IdeeScherm, type Weergave } from "./Algemeen";
 
 type Props = { staat: Staat; vernieuw: () => Promise<void>; terug: () => void; opUitgelogd: () => void;
@@ -32,6 +33,7 @@ const KEUZES: { sleutel: string; label: string; opties: string[]; standaard: str
 
 export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setStaat }: Props) {
   const [pagina, setPagina] = useState<Pagina>(null);
+  const [onderdeel, setOnderdeel] = useState<OnderdeelNaam | null>(null);
   const [bezig, setBezig] = useState(false);
   const [melding, setMelding] = useState("");
   const g = staat.gebruiker;
@@ -137,6 +139,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
 
   if (pagina === "betalingen") return scherm("Betalingen", <Betalingen eigenaar={g.id === 1} />);
 
+  if (onderdeel) return <Onderdeel naam={onderdeel} staat={staat} vernieuw={vernieuw} terug={() => setOnderdeel(null)} />;
   if (pagina === "algemeen") return scherm("Algemeen", <AlgemeenScherm inst={inst as Weergave} bewaar={(a) => bewaar(a)} />);
   if (pagina === "idee") return scherm("Idee of probleem", <IdeeScherm />);
   if (pagina === "thuis") return scherm("Thuis", <>
@@ -160,6 +163,8 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
           {g.naam && <span className="text-sm text-rustig">@{g.naam}</span>}
         </span>
       </button>
+
+      <OnderdelenTegels open={setOnderdeel} />
 
       <ul className="mt-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
         <Rij titel="Algemeen" uitleg="Kleur, tekstgrootte, wat er op Vandaag staat" open={() => setPagina("algemeen")} />
