@@ -120,7 +120,12 @@ export type Gebruiker = { id: number; naam: string | null; weergavenaam?: string
 
 export async function gegevensLaden(): Promise<{ gebruiker: Gebruiker; data: Gegevens }> {
   const a = await alsIk<{ gebruiker: Gebruiker; data: Partial<Gegevens> }>("mijn_gegevens");
-  return { gebruiker: a.gebruiker, data: { taken: [], afspraken: [], volgend_id: 1, ...(a.data ?? {}) } as Gegevens };
+  const data = { volgend_id: 1, ...(a.data ?? {}) } as Gegevens;
+  // Oudere gegevens kunnen een lijst missen of iets anders bevatten; dan begint die lijst leeg.
+  if (!Array.isArray(data.taken)) data.taken = [];
+  if (!Array.isArray(data.afspraken)) data.afspraken = [];
+  if (!data.instellingen || typeof data.instellingen !== "object" || Array.isArray(data.instellingen)) data.instellingen = {};
+  return { gebruiker: a.gebruiker ?? { id: 0, naam: null }, data };
 }
 
 /** Haalt eerst de nieuwste gegevens op, past ze aan en bewaart ze: zo gaat er niets verloren van elders. */
