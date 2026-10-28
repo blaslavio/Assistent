@@ -15,6 +15,10 @@ JS = """
 export default function (component) {
   const { data } = component;
   if (!data || !data.html || window.__nieuweApp) return;
+  // Op een iPhone zoomt Safari in als je in een klein invulveld tikt, en dan verschuift het scherm. Dat zetten we uit.
+  let kijk = document.querySelector('meta[name="viewport"]');
+  if (!kijk) { kijk = document.createElement("meta"); kijk.name = "viewport"; document.head.appendChild(kijk); }
+  kijk.content = "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover";
   const venster = document.createElement("iframe");
   venster.title = "Assistent";
   venster.setAttribute("allow", "microphone; camera; autoplay; clipboard-read; clipboard-write; fullscreen; geolocation; web-share");
@@ -37,7 +41,7 @@ def _pagina(_versie: float) -> str:
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <title>Assistent</title>
