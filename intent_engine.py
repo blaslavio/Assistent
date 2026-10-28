@@ -1,5 +1,6 @@
 """Conservative zero-click intent drafts. No money movement or external side effects."""
 import re
+import action_tools
 from dataclasses import dataclass
 
 @dataclass(frozen=True)
@@ -12,7 +13,7 @@ _TASK = re.compile(r"^\s*(?:maak|voeg toe|noteer|herinner me)\s+(?:een\s+)?taak\
 _INCOME = re.compile(r"\b(?:ontvangen|ontving|gekregen)\s+(?:€\s*)?(\d+(?:[.,]\d{1,2})?)\s*(?:euro|€)?\s+(?:fooi|inkomsten)\b", re.I)
 _PAY = re.compile(r"\b(?:betaal|overmaken|overschrijven|afrekenen|betaalverzoek|factuur|fooi|tip|stuur\s+(?:€\s*)?\d+(?:[.,]\d{1,2})?\s+(?:euro\s+)?naar)\b", re.I)
 _SEND = re.compile(r"\b(?:verstuur|verzend|mail\s+naar|stuur\s+een\s+bericht)\b", re.I)
-_APPOINTMENT = re.compile(r"\b(?:plan|inplannen|afspraak|reservering)\b", re.I)
+_APPOINTMENT = re.compile(r"\b(?:plan|inplannen|afspraak|overleg|reservering)\b", re.I)
 
 
 def parse_intent(text: str) -> IntentDraft | None:
@@ -30,6 +31,14 @@ def parse_intent(text: str) -> IntentDraft | None:
             "meervoudig",
             "Deze opdracht bevat meerdere acties. Stel ze aan de assistent of behandel ze één voor één.",
         )
+    try:
+        offer = action_tools.parse_offer(text)
+    except ValueError as err:
+        return IntentDraft("actielink", str(err))
+    if offer:
+        price = f"€ {offer.price:.2f}" if offer.price is not None else "Nog invullen"
+        expiry = f"{offer.hours} uur gewenst" if offer.hours is not None else "Nog invullen"
+        return IntentDraft("actielink", f"Actievoorstel: {offer.title}\n\nPrijs: {price}. Geldigheid: {expiry}. Nog niet gepubliceerd; stel prijs en beschikbaarheid in bij het aanbod.")
     income = _INCOME.search(text)
     if income:
         amount = float(income.group(1).replace(",", "."))
