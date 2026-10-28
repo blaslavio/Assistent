@@ -69,7 +69,8 @@ def intent_naar_concept(tekst: str) -> dict:
     """Herken uitsluitend een eenvoudig betaalverzoek; voer niets uit."""
     import re
     tekst = tekst.strip()
-    patroon = re.search(r"(?:€\s*|(?:van|voor)\s+)(\d+(?:[.,]\d{1,2})?)\s*(?:euro)?|\b(\d+(?:[.,]\d{1,2})?)\s*euro\b", tekst, re.I)
+    patroon = re.search(r"(?:€\s*|(?:van|voor)\s+)(?!-)(\d+(?:[.,]\d{1,2})?)(?![\d.,])\s*(?:euro)?"
+                        r"|(?<![\d.,-])\b(\d+(?:[.,]\d{1,2})?)(?![\d.,])\s*euro\b", tekst, re.I)
     is_betaling = bool(re.search(r"betaalverzoek|betaling vragen|factuur", tekst, re.I))
     if not is_betaling or not patroon:
         return {"type": "onbekend", "tekst": tekst}

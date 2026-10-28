@@ -119,7 +119,7 @@ import browser  # niet in de herlaadlijst: bevat onderdelen (components)
 
 # Na een update haalt Streamlit alleen app.py opnieuw op. Eigen modules die op schijf veranderd zijn,
 # laden we hier opnieuw, anders draait de nieuwe app.py met oude modules. Bij chat telt chat_js.js ook mee.
-for _module in (symbool, opslag, agendas, budget, samen_leren, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
+for _module in (symbool, opslag, agendas, agenda_import, resource_booking_core, integraties_voorbereiding, budget, samen_leren, bank, beleggen, mailtaken, meldingen, reizen, weer, tijd, planning, ics, media, events, activiteiten, feestdagen, gezin, reserveren, prikker, boekpagina, boodschappen, strava, wetenschap,
                 mail, samen, teksten, winkelkaart, inplannen, snelinvoer, woning, documenten, documenten_scherm, azure_services, azure_search_ready, azure_documents, azure_ui, toegang, bestanden, bestanden_scherm, samen_scherm, winkelen, winkelen_scherm, avatar, slim, werk_scherm, ruimte, wereld, ontwerp, ruimte_scherm, geld_scherm, gezin_scherm, plannen_scherm, beroep, indeling, agent, ander_brein, spraak, verbeteren, chat, taal, zaak, zaak_scherm, zoekveld, schil, extern_inloggen, kort, pot, pot_scherm, cursus, cursus_scherm, gezondheid, sport_scherm):
     _gewijzigd = os.path.getmtime(_module.__file__)
     if _module is chat:
