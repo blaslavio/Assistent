@@ -4,8 +4,8 @@ import { Ballon, Kalender, Vonk, Zon } from "./iconen";
 import Inloggen from "./schermen/Inloggen";
 import Vandaag from "./schermen/Vandaag";
 import Agenda from "./schermen/Agenda";
-import Binnenkort from "./schermen/Binnenkort";
 import Instellingen from "./schermen/Instellingen";
+import Chat from "./schermen/Chat";
 // Claude laden we pas als je de assistent opent; zo start de app sneller.
 const Assistent = lazy(() => import("./schermen/Assistent"));
 
@@ -49,7 +49,7 @@ export default function App() {
   const scherm = {
     vandaag: <Vandaag staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} />,
     agenda: <Agenda staat={staat} />,
-    chat: <Binnenkort titel="Chat" />,
+    chat: <Chat />,
     assistent: <Suspense fallback={null}><Assistent staat={staat} vernieuw={laden} /></Suspense>,
     instellingen: <Instellingen staat={staat} terug={() => setTab("vandaag")} opUitgelogd={() => setStaat(null)} />,
   }[tab];

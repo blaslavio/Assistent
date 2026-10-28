@@ -23,3 +23,6 @@ export const Pijl = (p: P) => <svg {...basis} {...p}><path d="M12 19V5M5 12l7-7 
 export const Terug = (p: P) => <svg {...basis} {...p}><path d="M15 18l-6-6 6-6" /></svg>;
 export const Vinkje = (p: P) => <svg {...basis} {...p}><path d="M5 12l5 5L20 7" /></svg>;
 export const Herstel = (p: P) => <svg {...basis} {...p}><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>;
+export const Slot = (p: P) => <svg {...basis} {...p}><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>;
+export const Bewerk = (p: P) => <svg {...basis} {...p}><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg>;
+export const Dubbelvink = (p: P) => <svg {...basis} {...p}><path d="M2 12.5l4.5 4.5L15 8" /><path d="M10 15.5l1.5 1.5L20 8" /></svg>;
