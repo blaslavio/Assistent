@@ -6,10 +6,12 @@ import { MailKoppelen } from "./AgendaPanelen";
 import { BoekpaginaInstellen, MailVersturen } from "./Gasten";
 import type { Staat } from "../App";
 import { Terug, Vonk } from "../iconen";
+import { Schakelaar, kop } from "./instellingen-ui";
+import { Account, Beveiliging, Techniek } from "./Beveiliging";
 
 type Props = { staat: Staat; vernieuw: () => Promise<void>; terug: () => void; opUitgelogd: () => void;
   setStaat: (s: Staat) => void };
-type Pagina = null | "profiel" | "assistent" | "privacy" | "thuis" | "mail" | "betalingen" | "afspraken";
+type Pagina = null | "profiel" | "account" | "assistent" | "privacy" | "thuis" | "mail" | "betalingen" | "afspraken";
 
 type Stijl = Record<string, string | undefined>;
 type Inst = { stijl?: Stijl; avatar?: { naam?: string }; geheugen_uit?: boolean; thuisadres?: string;
@@ -26,7 +28,6 @@ const KEUZES: { sleutel: string; label: string; opties: string[]; standaard: str
   { sleutel: "humor", label: "Humor", opties: ["Geen", "Af en toe", "Veel"], standaard: "Af en toe" },
 ];
 
-const kop = "mb-2 px-1 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig";
 
 export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setStaat }: Props) {
   const [pagina, setPagina] = useState<Pagina>(null);
@@ -90,7 +91,8 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
 
   if (pagina === "privacy") {
     const feiten = ((staat.data.geheugen as Feit[] | undefined) ?? []).slice().reverse();
-    return scherm("Privacy", <>
+    return scherm("Privacy en beveiliging", <>
+      <Beveiliging gebruiker={g} />
       <Schakelaar label="De assistent onthoudt dingen over mij"
         uitleg="Bijvoorbeeld je voorkeuren en gewoontes, zodat hij je beter helpt."
         aan={!inst.geheugen_uit} zet={(aan) => bewaar((i) => { i.geheugen_uit = !aan; })} />
@@ -111,9 +113,14 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
             ))}
           </ul>
         )}
+        <p className="mt-2 px-1 text-sm text-rustig">Wat je de assistent vraagt, gaat naar Anthropic (Claude) om te beantwoorden.
+          Anthropic gebruikt het niet om te trainen.</p>
       </section>
+      <Techniek />
     </>);
   }
+
+  if (pagina === "account") return scherm("Account", <Account gebruiker={g} vernieuw={vernieuw} opUitgelogd={opUitgelogd} />);
 
   if (pagina === "mail") return scherm("Mail", gekoppeld(staat.data) ? <>
     <p className="px-1 text-rustig">Gekoppeld: {(staat.data.instellingen as { mail?: { adres?: string } })?.mail?.adres}.
@@ -153,7 +160,8 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
 
       <ul className="mt-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
         <Rij titel="Assistent" uitleg="Naam, toon en hoe hij antwoordt" open={() => setPagina("assistent")} />
-        <Rij titel="Privacy" uitleg="Wat de assistent over je weet" open={() => setPagina("privacy")} />
+        <Rij titel="Privacy en beveiliging" uitleg="Tweestapsverificatie, apparaten, wat de assistent weet" open={() => setPagina("privacy")} />
+        <Rij titel="Account" uitleg="Mailadres, wachtwoord, je gegevens" open={() => setPagina("account")} />
         <Rij titel="Thuis" uitleg={inst.thuisadres || "Adres voor het weer en reistijden"} open={() => setPagina("thuis")} />
       </ul>
 
@@ -206,20 +214,6 @@ function Keuze({ label, opties, waarde, kies }: { label: string; opties: string[
   );
 }
 
-function Schakelaar({ label, uitleg, aan, zet }: { label: string; uitleg: string; aan: boolean; zet: (aan: boolean) => void }) {
-  return (
-    <label className="flex items-center gap-4 rounded-2xl bg-vlak px-4 py-3.5">
-      <span className="flex flex-1 flex-col">
-        <span className="font-medium">{label}</span>
-        <span className="text-sm text-rustig">{uitleg}</span>
-      </span>
-      <input type="checkbox" role="switch" checked={aan} onChange={(e) => zet(e.target.checked)} className="peer sr-only" />
-      <span aria-hidden className={`relative h-7 w-12 shrink-0 rounded-full transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-accent ${aan ? "bg-accent" : "bg-zacht/40"}`}>
-        <span className={`absolute top-0.5 size-6 rounded-full bg-white shadow transition-all ${aan ? "left-[22px]" : "left-0.5"}`} />
-      </span>
-    </label>
-  );
-}
 
 function TekstVeld({ label, uitleg, waarde, bewaar }: { label: string; uitleg: string; waarde: string; bewaar: (v: string) => void }) {
   const [v, setV] = useState(waarde);

@@ -4,7 +4,7 @@ import { JouwAanbod } from "./Delen";
 import { Berichten, Feed, Schrijven } from "./Feed";
 import { GastGesprekScherm, GastenLijst } from "./Gasten";
 import { gesprekken as gastGesprekken, type GastGesprek } from "../lib/gasten";
-import { feedInstelling, openbaarZetten } from "../lib/feed";
+import { feedInstelling } from "../lib/feed";
 import Bestellingen from "./Bestellingen";
 import { isGevraagd, lijst as bestellingenLijst, openGevraagd, wachtOpMij } from "../lib/bestellingen";
 import { VERDWIJNEN, verdwijnenInstellen, antwoorden, belDuur, berichten, community, communityAntwoorden, communityDeelnemen,
@@ -14,6 +14,7 @@ import { bellen, kan as kanBellen, luisteren, oproepen, type Oproep } from "../l
 import { useBellen } from "./Bellen";
 import { Rondje } from "../rondje";
 import { StoryRij } from "./Stories";
+import { CommunityBeheer } from "./CommunityBeheer";
 import { Bladen, Raster, type Blad } from "./Winkelen";
 import { rpc } from "../api";
 import { zoeken, type Product } from "../lib/winkelen";
@@ -358,14 +359,12 @@ function CommunityBlad({ sluit, klaar }: { sluit: () => void; klaar: (id: number
 function CommunityScherm({ c, openKanaal, vernieuw, terug }: { c: Community; openKanaal: (id: number) => void;
   vernieuw: () => Promise<void>; terug: () => void }) {
   const [leden, setLeden] = useState(false);
-  const [openbaar, setOpenbaar] = useState(!!c.openbaar);
+  const [instellen, setInstellen] = useState(false);
   const [opnieuw, setOpnieuw] = useState(0);
   const beheer = c.rol === "eigenaar" || c.rol === "beheerder";
   const keuze = useMemo(() => ({ bron: "alles" as const, verborgen: [], _: opnieuw }), [opnieuw]);
-  async function zetOpenbaar(aan: boolean) {
-    setOpenbaar(aan);
-    try { await openbaarZetten(c.id, aan); vernieuw().catch(() => {}); } catch { setOpenbaar(!aan); }
-  }
+  if (instellen) return <CommunityBeheer c={c} terug={() => setInstellen(false)} vernieuw={vernieuw}
+    opgeheven={async () => { await vernieuw().catch(() => {}); terug(); }} />;
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex items-center gap-2 px-3 pt-12 pb-2">
@@ -374,23 +373,17 @@ function CommunityScherm({ c, openKanaal, vernieuw, terug }: { c: Community; ope
         </button>
         <span className="flex-1" />
         <button onClick={() => setLeden(true)} className="h-9 rounded-full bg-vlak px-4 text-sm font-medium">Leden</button>
+        {beheer && (
+          <button onClick={() => setInstellen(true)} aria-label="Instellingen van de community"
+            className="flex size-10 items-center justify-center rounded-full text-rustig hover:bg-vlak"><Tandwiel className="size-5" /></button>
+        )}
       </header>
       <div className="flex flex-col items-center gap-2 px-6 pb-5 text-center">
         <Rondje naam={c.naam} id={-1000 - c.id} groot />
         <h1 className="text-2xl font-bold tracking-tight">{c.naam}</h1>
         {c.omschrijving && <p className="text-[15px] text-rustig">{c.omschrijving}</p>}
-        <p className="text-sm text-zacht">{c.leden} {c.leden === 1 ? "lid" : "leden"}{openbaar ? " · openbaar" : ""}</p>
+        <p className="text-sm text-zacht">{c.leden} {c.leden === 1 ? "lid" : "leden"}{c.openbaar ? " · openbaar" : ""}</p>
       </div>
-      {beheer && (
-        <label className="mx-6 mb-4 flex items-center gap-3 rounded-2xl bg-vlak px-4 py-3">
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="font-medium">Openbaar</span>
-            <span className="text-[13px] text-rustig">Iedereen in de app ziet de feed en kan meedoen. Kanalen blijven alleen voor leden.</span>
-          </span>
-          <input type="checkbox" checked={openbaar} onChange={(e) => zetOpenbaar(e.target.checked)}
-            className="size-5 shrink-0 accent-[var(--color-accent)]" aria-label="Openbaar" />
-        </label>
-      )}
       <h2 className="px-6 pb-1 text-sm font-medium text-rustig">Kanalen</h2>
       <ul className="flex flex-col px-3">
         {c.kanalen.map((k) => (
