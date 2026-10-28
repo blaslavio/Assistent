@@ -2758,14 +2758,16 @@ def master_hub_pagina() -> None:
                 st.write("Montageconcept: " + cut_intent["type"])
                 st.caption("Niet uitgevoerd. Voor verwerking is een video-upload en renderdienst nodig.")
             with st.expander("Video knippen", expanded=False):
-                st.caption("Maak een fragment van het begin van je video. Maximaal 50 MB.")
+                st.caption("Kies het begin en eventueel het einde. Upload maximaal 50 MB.")
                 video_upload = st.file_uploader("Video kiezen", type=["mp4", "mov"], key="video_trim_upload")
-                video_duur = st.number_input("Fragment in seconden", min_value=1, max_value=30, value=10, key="video_trim_seconds")
+                video_start = st.number_input("Begin (seconden)", min_value=0, value=0, step=1, key="video_trim_start_seconds")
+                video_tot_einde = st.checkbox("Tot het einde van de video", value=True, key="video_trim_to_end")
+                video_einde = None if video_tot_einde else st.number_input("Einde (seconden)", min_value=1, value=10, step=1, key="video_trim_end_seconds")
                 if st.button("Maak fragment", key="video_trim_start", disabled=video_upload is None):
                     st.session_state.pop("video_trim_result", None)
                     try:
                         with st.spinner("Video verwerken..."):
-                            fragment = video_trim.trim_video(video_upload.getvalue(), int(video_duur))
+                            fragment = video_trim.trim_video(video_upload.getvalue(), int(video_start), None if video_einde is None else int(video_einde))
                         st.session_state["video_trim_result"] = fragment
                         st.success("Fragment is klaar.")
                     except (ValueError, RuntimeError) as err:
