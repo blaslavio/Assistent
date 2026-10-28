@@ -6362,13 +6362,19 @@ def assistent_invoer() -> None:
             st.session_state.ga_naar = "assistent"
 
 
+# Adreswaarden die de nieuwe app zelf afhandelt.
+NIEUWE_APP_ADRES = {"nieuw", "zeg", "ochtend", "deel", "betaald"}
+
+
 def main() -> None:
     taal_bepalen()
     schil.actief()  # onthoudt of de app in de web-app op het beginscherm draait
     if not opslag.online():
         st.caption("Lokale testmodus: gegevens staan in data/gegevens.json.")
-    if "nieuw" in st.query_params:
-        # De nieuwe app (web/) op dit adres; hij heeft zijn eigen inloggen.
+    if "oud" not in st.query_params and nieuwe_app.beschikbaar() and (
+            "nieuw" in st.query_params or not set(st.query_params) - NIEUWE_APP_ADRES):
+        # De nieuwe app (web/) is de app; hij heeft zijn eigen inloggen. Alleen links die nog niet in de nieuwe app
+        # werken (zoals ?winkel=, ?boek= of terug van een bank) komen hier nog in de oude app terecht.
         nieuwe_app.toon()
         return
     # Siri (app Opdrachten) opent de app met ?zeg=wat je zei. Dat bewaren we tot je ingelogd bent.

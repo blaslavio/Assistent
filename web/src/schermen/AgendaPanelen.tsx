@@ -329,7 +329,7 @@ export function MailPaneel({ staat, setStaat }: Props) {
   );
 }
 
-function MailKoppelen({ staat, setStaat }: Props) {
+export function MailKoppelen({ staat, setStaat }: Props) {
   const [aanbieder, setAanbieder] = useState("iCloud");
   const [adres, setAdres] = useState("");
   const [wachtwoord, setWachtwoord] = useState("");

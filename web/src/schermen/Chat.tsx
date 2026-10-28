@@ -1,6 +1,8 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Ballon, Bewerk, Dubbelvink, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
 import { JouwAanbod } from "./Delen";
+import Bestellingen from "./Bestellingen";
+import { isGevraagd, lijst as bestellingenLijst, openGevraagd, wachtOpMij } from "../lib/bestellingen";
 import { VERDWIJNEN, verdwijnenInstellen, antwoorden, belDuur, berichten, community, communityAntwoorden, communityDeelnemen,
   communityMaken, communityUitnodigen, contacten, gesprekNaam, kortTekst, nieuwGesprek, overzicht, starten, versturen,
   voorbeeld, type Community, type Contact, type Deelnemer, type Gesprek, type Regel } from "../lib/chat";
@@ -19,6 +21,7 @@ const DELEN: [Deel, string, typeof Ballon][] = [["chats", "Chats", Ballon], ["co
   ["winkel", "Winkel", Tas], ["oproepen", "Oproepen", Telefoon], ["jij", "Jij", Persoon]];
 
 function bewaardDeel(): Deel {
+  if (isGevraagd()) return "winkel";
   try {
     const d = localStorage.getItem("assistent.chatdeel");
     if (DELEN.some(([k]) => k === d)) return d as Deel;
@@ -426,6 +429,8 @@ function LedenBlad({ c, sluit, weg }: { c: Community; sluit: () => void; weg: ()
 type WinkelKaart = { adres: string; naam: string; omschrijving?: string; producten?: number };
 
 function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
+  const [bestellingen, setBestellingen] = useState<{ melding?: string } | null>(openGevraagd);
+  const [wacht, setWacht] = useState(0);
   const [zoek, setZoek] = useState("");
   const [producten, setProducten] = useState<Product[] | null>(null);
   const [winkels, setWinkels] = useState<WinkelKaart[]>([]);
@@ -438,6 +443,11 @@ function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
     rpc<WinkelKaart[]>("winkels_zoeken", { p_zoekterm: term }).then((w) => setWinkels(Array.isArray(w) ? w : [])).catch(() => {});
   }, []);
   useEffect(() => { halen(""); }, [halen]);
+  useEffect(() => {
+    if (!bestellingen) bestellingenLijst().then((l) => setWacht(l.filter(wachtOpMij).length)).catch(() => {});
+  }, [bestellingen]);
+
+  if (bestellingen) return <Bestellingen melding={bestellingen.melding} terug={() => setBestellingen(null)} />;
 
   return (
     <div className="flex flex-col gap-5 px-6 pb-8">
@@ -463,6 +473,14 @@ function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
           </ul>
         </section>
       )}
+      <button onClick={() => setBestellingen({})}
+        className="flex items-center justify-between rounded-2xl bg-vlak px-4 py-3.5 text-left">
+        <span className="font-medium">Bestellingen</span>
+        <span className="flex items-center gap-2">
+          {wacht > 0 && <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white">{wacht}</span>}
+          <Terug className="size-5 rotate-180 text-zacht" />
+        </span>
+      </button>
       {!zoek.trim() && <JouwAanbod />}
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium text-rustig">{zoek.trim() ? "Gevonden" : "Te koop"}</h2>

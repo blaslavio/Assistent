@@ -1,10 +1,14 @@
-import { useState, type ReactNode } from "react";
-import { OUDE_APP, bijwerken, instellingenBijwerken, uitloggen, weergavenaamWijzigen } from "../api";
+import { useEffect, useState, type ReactNode } from "react";
+import { bijwerken, instellingenBijwerken, uitloggen, weergavenaamWijzigen } from "../api";
+import { gekoppeld } from "../lib/mail";
+import { betaalStatus, platformInstellen, verkoperAanmelden, type BetaalStatus } from "../lib/bestellingen";
+import { MailKoppelen } from "./AgendaPanelen";
 import type { Staat } from "../App";
 import { Terug, Vonk } from "../iconen";
 
-type Props = { staat: Staat; vernieuw: () => Promise<void>; terug: () => void; opUitgelogd: () => void };
-type Pagina = null | "profiel" | "assistent" | "privacy" | "thuis";
+type Props = { staat: Staat; vernieuw: () => Promise<void>; terug: () => void; opUitgelogd: () => void;
+  setStaat: (s: Staat) => void };
+type Pagina = null | "profiel" | "assistent" | "privacy" | "thuis" | "mail" | "betalingen";
 
 type Stijl = Record<string, string | undefined>;
 type Inst = { stijl?: Stijl; avatar?: { naam?: string }; geheugen_uit?: boolean; thuisadres?: string;
@@ -23,7 +27,7 @@ const KEUZES: { sleutel: string; label: string; opties: string[]; standaard: str
 
 const kop = "mb-2 px-1 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig";
 
-export default function Instellingen({ staat, vernieuw, terug, opUitgelogd }: Props) {
+export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setStaat }: Props) {
   const [pagina, setPagina] = useState<Pagina>(null);
   const [bezig, setBezig] = useState(false);
   const [melding, setMelding] = useState("");
@@ -106,11 +110,17 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd }: Pr
           </ul>
         )}
       </section>
-      <p className="px-1 text-sm text-rustig">
-        Tweestapsverificatie, apparaten en je gegevens downloaden regel je voorlopig in de huidige app.
-      </p>
     </>);
   }
+
+  if (pagina === "mail") return scherm("Mail", gekoppeld(staat.data) ? <>
+    <p className="px-1 text-rustig">Gekoppeld: {(staat.data.instellingen as { mail?: { adres?: string } })?.mail?.adres}.
+      Je mail zie je in Agenda, bij het mailicoon. De app leest alleen en verandert niets in je mailbox.</p>
+    <button onClick={() => bewaar((i) => { delete i.mail; }, "Ontkoppeld")}
+      className="h-12 rounded-2xl bg-vlak font-medium text-red-600 dark:text-red-400">Ontkoppelen</button>
+  </> : <MailKoppelen staat={staat} setStaat={setStaat} />);
+
+  if (pagina === "betalingen") return scherm("Betalingen", <Betalingen eigenaar={g.id === 1} />);
 
   if (pagina === "thuis") return scherm("Thuis", <>
     <TekstVeld label="Thuisadres" uitleg="Voor het weer op Vandaag en reistijden. Alleen jij ziet dit."
@@ -140,13 +150,10 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd }: Pr
         <Rij titel="Thuis" uitleg={inst.thuisadres || "Adres voor het weer en reistijden"} open={() => setPagina("thuis")} />
       </ul>
 
-      <a href={OUDE_APP} target="_top" className="mt-6 flex items-center justify-between rounded-[20px] bg-vlak px-4 py-3.5">
-        <span className="flex flex-col">
-          <span className="font-medium">Meer in de huidige app</span>
-          <span className="text-sm text-rustig">Mail, budget, koppelingen en de rest</span>
-        </span>
-        <Terug className="size-5 rotate-180 text-zacht" />
-      </a>
+      <ul className="mt-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
+        <Rij titel="Mail" uitleg={gekoppeld(staat.data) ? "Gekoppeld" : "Koppel je mailbox"} open={() => setPagina("mail")} />
+        <Rij titel="Betalingen" uitleg="Betalen en ontvangen via de app" open={() => setPagina("betalingen")} />
+      </ul>
 
       <button
         onClick={async () => {
@@ -253,4 +260,77 @@ function Sleutel({ ingesteld, bewaar }: { ingesteld: boolean; bewaar: (v: string
       )}
     </section>
   );
+}
+
+/** Betalen via de app (Stripe). Iedereen kan zich als verkoper aanmelden; alleen de eigenaar zet de sleutels. */
+function Betalingen({ eigenaar }: { eigenaar: boolean }) {
+  const [st, setSt] = useState<BetaalStatus | null>(null);
+  const [sleutel, setSleutel] = useState("");
+  const [webhook, setWebhook] = useState("");
+  const [melding, setMelding] = useState("");
+  const [bezig, setBezig] = useState(false);
+  const laden = () => betaalStatus().then(setSt).catch(() => setMelding("Laden lukte niet."));
+  useEffect(() => { laden(); }, []);
+
+  async function doe(werk: () => Promise<void>) {
+    setBezig(true);
+    setMelding("");
+    try {
+      await werk();
+    } catch (e) {
+      setMelding(e instanceof Error ? e.message : "Dat lukte niet.");
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  if (!st) return <p className="bezig-tekst px-1">{melding || "Laden"}</p>;
+  return <>
+    <section className="flex flex-col gap-2">
+      <h2 className={kop}>Status</h2>
+      <p className="rounded-2xl bg-vlak px-4 py-3.5 text-[15px]">
+        {st.aan ? `Betalen via de app staat aan${st.testmodus ? " (testmodus, er gaat geen echt geld)" : ""}.`
+          : "Betalen via de app staat nog uit."}
+      </p>
+    </section>
+    {st.aan && (
+      <section className="flex flex-col gap-2">
+        <h2 className={kop}>Geld ontvangen</h2>
+        {st.ik_kan_ontvangen ? <p className="px-1 text-rustig">Je kunt betalingen ontvangen. Het geld komt op je rekening als de koper bevestigt.</p> : <>
+          <p className="px-1 text-rustig">Om te verkopen met betalen via de app meld je je eenmalig aan bij Stripe, met je identiteit en rekeningnummer.</p>
+          <button disabled={bezig} onClick={() => doe(async () => { (window.top ?? window).location.href = await verkoperAanmelden(); })}
+            className="h-12 rounded-2xl bg-accent font-medium text-white disabled:opacity-50">
+            {st.ik_ben_aangemeld ? "Aanmelden afmaken" : "Aanmelden bij Stripe"}
+          </button>
+        </>}
+      </section>
+    )}
+    {eigenaar && (
+      <section className="flex flex-col gap-2">
+        <h2 className={kop}>Sleutels (alleen jij)</h2>
+        <p className="px-1 text-sm text-rustig">
+          Sleutel: {st.sleutel_ingesteld ? "ingesteld" : "nog niet"} · Webhook: {st.webhook_ingesteld ? "ingesteld" : "nog niet"}.
+          Leeg laten houdt wat er al staat.</p>
+        <form className="flex flex-col gap-2" onSubmit={(e) => {
+          e.preventDefault();
+          doe(async () => {
+            await platformInstellen(sleutel, webhook);
+            setSleutel("");
+            setWebhook("");
+            await laden();
+            setMelding("Bewaard");
+          });
+        }}>
+          <input type="password" value={sleutel} onChange={(e) => setSleutel(e.target.value)} placeholder="Geheime sleutel (sk_test_…)"
+            autoComplete="off" aria-label="Geheime Stripe-sleutel" className="h-12 rounded-2xl bg-vlak px-4 outline-none placeholder:text-zacht" />
+          <input type="password" value={webhook} onChange={(e) => setWebhook(e.target.value)} placeholder="Webhookgeheim (whsec_…)"
+            autoComplete="off" aria-label="Webhookgeheim" className="h-12 rounded-2xl bg-vlak px-4 outline-none placeholder:text-zacht" />
+          <button disabled={bezig || (!sleutel.trim() && !webhook.trim())}
+            className="h-12 rounded-2xl bg-accent font-medium text-white disabled:opacity-30">Bewaar</button>
+        </form>
+        <p className="px-1 text-[13px] text-zacht">Webhook-adres in Stripe: https://lnjsekmlpjyiwdlzcowa.supabase.co/functions/v1/betalen</p>
+      </section>
+    )}
+    {melding && <p role="status" className="px-1 text-sm text-rustig">{melding}</p>}
+  </>;
 }

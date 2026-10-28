@@ -1,7 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Staat } from "../App";
-import { OUDE_APP } from "../api";
 import { Bestand, Bijlage, Herstel, Kalender, Kruis, Microfoon, Pijl, Plus, Vinkje, Vonk } from "../iconen";
 import { GrafiekKaart, type Grafiek } from "../grafiek";
 import { ACCEPTEER, BijlageFout, MAX_SAMEN, lezen, type Bijlage as Bijlagebestand } from "../lib/bijlagen";
@@ -33,9 +32,10 @@ type Herkenning = {
 const Spraak = (window as unknown as { SpeechRecognition?: new () => Herkenning; webkitSpeechRecognition?: new () => Herkenning })
   .SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: new () => Herkenning }).webkitSpeechRecognition;
 
-type Props = { staat: Staat; vernieuw: () => void; teKopen?: Product | null; gekocht?: () => void };
+type Props = { staat: Staat; vernieuw: () => void; teKopen?: Product | null; gekocht?: () => void; vooraf?: string;
+  voorafGebruikt?: () => void; naarBestellingen?: () => void };
 
-export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) {
+export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, voorafGebruikt, naarBestellingen }: Props) {
   const [beurten, setBeurten] = useState<Beurt[]>(gesprek.beurten);
   const [invoer, setInvoer] = useState("");
   const [bezig, setBezig] = useState<string | null>(null);
@@ -117,6 +117,14 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teKopen]);
 
+  // Wat je via Siri zei: als vraag naar de assistent.
+  useEffect(() => {
+    if (!vooraf || bezig) return;
+    voorafGebruikt?.();
+    vraag(vooraf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vooraf]);
+
   /** Een tik op een optie van een keuzekaart. */
   function kies(i: number, j: number) {
     const k = beurten[i].keuze;
@@ -133,8 +141,8 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
       bijlagen: bijlagen.map(({ naam, soort }) => ({ naam, soort })) }] : []),
       { wie: "assistent", tekst: "", acties: [] }]);
     if (!client) {
-      wijzig(plek, (b) => ({ ...b, fout: true, tekst: "De assistent staat nog uit. Zet hem aan in de huidige app bij "
-        + "Instellingen › Assistent, met je eigen sleutel of een abonnement." }));
+      wijzig(plek, (b) => ({ ...b, fout: true, tekst: "De assistent staat nog uit. Zet hem aan bij Instellingen › Assistent, "
+        + "met je eigen sleutel." }));
       return;
     }
     setBezig("Denkt na");
@@ -298,7 +306,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
                 )}
                 {b.grafieken?.map((g, j) => <GrafiekKaart key={j} g={g} />)}
                 {b.producten && <ProductRij producten={b.producten} open={(p) => setBladen([{ soort: "product", p }])} />}
-                {b.bestellingen?.map((k, j) => <BestelKaart key={j} kaart={k} bestel={() => bestel(i, j)} />)}
+                {b.bestellingen?.map((k, j) => <BestelKaart key={j} kaart={k} bestel={() => bestel(i, j)} naarBestellingen={naarBestellingen} />)}
                 {b.keuze && (
                   <KeuzeKaart keuze={b.keuze} gekozen={b.gekozen} kies={(j) => kies(i, j)}
                     open={i === beurten.length - 1 && !bezig && b.gekozen === undefined} />
@@ -424,7 +432,8 @@ function Kaartje({ actie, terug }: { actie: Actie; terug: () => void }) {
 
 
 /** Wat de assistent vond, als rij kaartjes om langs te vegen. */
-function BestelKaart({ kaart, bestel }: { kaart: Bestelkaart; bestel: () => void }) {
+function BestelKaart({ kaart, bestel, naarBestellingen }: { kaart: Bestelkaart; bestel: () => void;
+  naarBestellingen?: () => void }) {
   const { b } = kaart;
   const totaal = kaart.bedrag ?? b.product.prijs * b.aantal;
   const winkel = b.product.bron === "winkel";
@@ -442,8 +451,8 @@ function BestelKaart({ kaart, bestel }: { kaart: Bestelkaart; bestel: () => void
       {kaart.status === "besteld" ? (
         <p className="flex items-start gap-2 text-[15px]">
           <Vinkje className="mt-0.5 size-5 shrink-0 text-accent" />
-          <span>{winkel ? "Besteld. Afrekenen doe je bij Bestellingen in de huidige app." : "Verzoek verstuurd. De verkoper laat weten of het doorgaat."}
-            {" "}<a href={OUDE_APP} target="_top" className="font-medium text-accent">Naar Bestellingen</a></span>
+          <span>{winkel ? "Besteld. Afrekenen doe je bij Bestellingen." : "Verzoek verstuurd. De verkoper laat weten of het doorgaat."}
+            {" "}<button onClick={naarBestellingen} className="font-medium text-accent">Naar Bestellingen</button></span>
         </p>
       ) : (
         <>

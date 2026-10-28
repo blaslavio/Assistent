@@ -413,7 +413,7 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
       const a = await alsIk<{ transacties?: Regel[] }>("transacties_lijst", { p_van: s("van"), p_tot: s("tot") });
       const regels = a.transacties ?? [];
       if (!regels.length) return { resultaat: "Geen bankregels in deze periode. De gebruiker kan een bankafschrift "
-        + "(csv of pdf) hier meesturen, of de bank koppelen bij Budget in de huidige app." };
+        + "(csv of pdf) hier meesturen met de paperclip." };
       return { resultaat: JSON.stringify(uitgavenOverzicht(regels)) };
     }
     case "grafiek_tonen": {
