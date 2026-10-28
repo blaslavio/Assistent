@@ -1,6 +1,7 @@
 """Webinterface van de assistent. Starten met: streamlit run app.py"""
 
 import life_swarm_core
+import event_swarm_core
 
 import calendar
 import html
@@ -2699,6 +2700,32 @@ def master_hub_pagina() -> None:
             except Exception:
                 st.error("Privénotitie kon niet worden opgeslagen.")
         st.caption("Bekijk je privénotities via privacyprofiel Privé en streamfilter Alles.")
+
+    with st.expander("Event Swarm - evenementen", expanded=False):
+        st.caption("Maak een privéconcept. Tickets, wachtlijsten, betalingen en agenda's worden niet automatisch aangepast.")
+        with st.form("event_swarm_draft_form", clear_on_submit=True):
+            event_title = st.text_input("Evenement", max_chars=120)
+            event_capacity = st.number_input("Maximaal aantal deelnemers", min_value=1, max_value=100000, value=10)
+            event_day = st.date_input("Datum evenement", value=date.today())
+            event_time = st.time_input("Begintijd", value=kloktijd(18, 0))
+            event_zone = st.selectbox("Tijdzone", ("Europe/Amsterdam", "Europe/Brussels"))
+            event_save = st.form_submit_button("Eventconcept bewaren")
+        if event_save:
+            try:
+                from datetime import datetime as _event_datetime
+                from zoneinfo import ZoneInfo as _EventZoneInfo
+                start = _event_datetime.combine(event_day, event_time, tzinfo=_EventZoneInfo(event_zone)).isoformat()
+                event = event_swarm_core.create_event_draft(event_title, int(event_capacity), start)
+                multistream_store.add_draft(
+                    "[Eventconcept] " + event.title + " | " + event.starts_at
+                    + " | capaciteit " + str(event.capacity), "Privé"
+                )
+                st.success("Eventconcept privé bewaard. Er zijn geen tickets uitgegeven.")
+            except ValueError as fout:
+                st.warning(str(fout))
+            except Exception:
+                st.error("Eventconcept kon niet worden opgeslagen.")
+        st.caption("Ticketclaims zijn uitgeschakeld totdat reserveringen transactioneel en accountgebonden zijn.")
 
     if profile == "Zakelijk":
         with st.expander("Verhuur en rooster", expanded=False):
