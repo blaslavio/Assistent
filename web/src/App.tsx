@@ -16,6 +16,7 @@ import { deelCode } from "./lib/delen";
 import { GedeeldScherm } from "./schermen/Delen";
 import { BoekScherm, GastScherm } from "./schermen/Gasten";
 import { boekAdres, boekingCode, verwerken } from "./lib/gasten";
+import { Vangnet } from "./vangnet";
 
 // Een gedeelde link (?deel=...) opent een pagina die je zonder inloggen kunt zien.
 const GEDEELD = deelCode();
@@ -109,8 +110,8 @@ export default function App() {
   return (
     <div className="mx-auto flex h-full max-w-xl flex-col">
       {fout && <p role="alert" className="bg-vlak px-6 py-3 text-sm text-rustig">{fout}</p>}
-      <div className="flex-1 overflow-y-auto">{scherm}</div>
-      <BelLaag />
+      <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}>{scherm}</Vangnet></div>
+      <Vangnet naam="bellen" klein><BelLaag /></Vangnet>
       <nav aria-label="Hoofdmenu"
         className="flex shrink-0 justify-around border-t border-lijn pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)]">
         {TABS.map(({ id, naam, Icoon }) => {
