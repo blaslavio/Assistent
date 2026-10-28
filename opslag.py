@@ -1164,7 +1164,7 @@ def feedback() -> list[dict]:
 
 
 def feedback_geven(goed: bool, vraag: str, antwoord: str, opmerking: str = "", antwoord_id: str = "") -> dict:
-    """Bewaart 👍 of 👎 (met een eventuele opmerking) bij een antwoord. Opnieuw geven vervangt het oude oordeel."""
+    """Bewaart duim omhoog of omlaag (met een eventuele opmerking) bij een antwoord. Opnieuw geven vervangt het oude oordeel."""
     with _slot:
         g = laden()
         lijst = [f for f in g.get("feedback", []) if not antwoord_id or f.get("antwoord_id") != antwoord_id]

@@ -63,7 +63,7 @@ def afschrift_inlezen(sleutel: str = "afschrift") -> None:
         van, tot = date.fromisoformat(uitkomst["van"]), date.fromisoformat(uitkomst["tot"])
         st.session_state.budget_maand = uitkomst["tot"][:7]
         st.toast(f"{uitkomst['nieuw']} nieuwe regels ingelezen ({van:%d-%m} tot {tot:%d-%m}). "
-                 f"{uitkomst['gelezen'] - uitkomst['nieuw']} stonden er al.", icon="✅")
+                 f"{uitkomst['gelezen'] - uitkomst['nieuw']} stonden er al.", icon=":material/check_circle:")
         st.rerun()
 
 
@@ -164,7 +164,7 @@ def los_toevoegen() -> None:
             budget.toevoegen(bedrag, omschrijving or ("Uitgave" if soort != "Inkomsten" else "Inkomsten"),
                              "" if categorie == "Vanzelf herkennen" else categorie, datum.isoformat(),
                              uitgave=soort != "Inkomsten")
-            st.toast("Toegevoegd.", icon="✅")
+            st.toast("Toegevoegd.", icon=":material/check_circle:")
             st.rerun()
     st.caption("Sneller: typ onderaan \"€12,50 lunch\".")
 
@@ -285,7 +285,7 @@ def regels_bewerken(maand: str) -> None:
             r = next(r for r in regels if r["id"] == regel_id)
             if r["tegenpartij"]:
                 aantal = budget.regel_onthouden(r["tegenpartij"], nu)
-                st.toast(f"Voortaan valt {r['tegenpartij']} onder {nu.lower()} ({aantal} regels aangepast).", icon="✅")
+                st.toast(f"Voortaan valt {r['tegenpartij']} onder {nu.lower()} ({aantal} regels aangepast).", icon=":material/check_circle:")
             else:
                 budget.bijwerken(int(regel_id), categorie=nu)
             veranderd = True
@@ -312,7 +312,7 @@ def budgetten_instellen() -> None:
             for naam, bedrag in bedragen.items():
                 if bedrag != b.get(naam, 0):
                     budget.budget_instellen(naam, bedrag)
-            st.toast("Budgetten opgeslagen.", icon="✅")
+            st.toast("Budgetten opgeslagen.", icon=":material/check_circle:")
             st.rerun()
 
 
@@ -560,9 +560,9 @@ def _pct(waarde: float | None) -> str:
 
 
 def belegging_zoeken(sleutel: str, volg: bool = False) -> None:
-    bekend = [zoekveld.suggestie(naam, symbool, "📈", waarde=symbool) for naam, symbool in beleggen.MARKT.items()
+    bekend = [zoekveld.suggestie(naam, symbool, "show_chart", waarde=symbool) for naam, symbool in beleggen.MARKT.items()
               if not symbool.startswith("^") and "=" not in symbool]
-    bekend += [zoekveld.suggestie(v["naam"], v["symbool"], "⭐", waarde=v["symbool"]) for v in beleggen.instellingen()["volglijst"]]
+    bekend += [zoekveld.suggestie(v["naam"], v["symbool"], "star", waarde=v["symbool"]) for v in beleggen.instellingen()["volglijst"]]
     zoek = zoekveld.zoekveld(f"{sleutel}_zoek", "Zoek op naam of ticker, bijvoorbeeld Vanguard All-World", bekend)
     gevonden = []
     if zoek.strip():

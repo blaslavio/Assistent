@@ -488,7 +488,7 @@ def reserveer_dialoog(z: dict, gelegenheid: str) -> None:
     st.markdown(f"**{z['naam']}**")
     reviews = samen.reviews_bekijken(z["adres"])
     if reviews.get("aantal"):
-        st.caption(f"★ {str(reviews['sterren']).replace('.', ',')} uit {reviews['aantal']} reviews")
+        st.caption(f":material/star: {str(reviews['sterren']).replace('.', ',')} uit {reviews['aantal']} reviews")
     if z["bericht"]:
         st.caption(z["bericht"])
     k1, k2 = st.columns(2)

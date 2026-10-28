@@ -23,13 +23,13 @@ def link(naam: str) -> str:
 
 def icoon(naam: str) -> str:
     laag = naam.lower()
-    for woorden, teken in ((("licht", "lamp"), "💡"), (("welterusten", "slapen", "nacht"), "🌙"),
-                           (("thuis", "aankom"), "🏡"), (("weg", "vertrek"), "🚪"), (("film", "tv"), "🎬"),
-                           (("verwarming", "warm", "thermostaat"), "🌡️"), (("slot", "deur"), "🔒"),
-                           (("muziek", "speaker"), "🎵"), (("gordijn", "rolluik"), "🪟")):
+    for woorden, teken in ((("licht", "lamp"), "lightbulb"), (("welterusten", "slapen", "nacht"), "bedtime"),
+                           (("thuis", "aankom"), "cottage"), (("weg", "vertrek"), "door_open"), (("film", "tv"), "tv"),
+                           (("verwarming", "warm", "thermostaat"), "thermostat"), (("slot", "deur"), "lock"),
+                           (("muziek", "speaker"), "speaker"), (("gordijn", "rolluik"), "blinds")):
         if any(w in laag for w in woorden):
-            return teken
-    return "🏠"
+            return f":material/{teken}:"
+    return ":material/home:"
 
 
 def knoppen(namen: list[str], key: str) -> None:
@@ -38,7 +38,7 @@ def knoppen(namen: list[str], key: str) -> None:
         return
     kolommen = st.columns(min(len(namen), 3))
     for i, naam in enumerate(namen):
-        kolommen[i % len(kolommen)].link_button(f"{icoon(naam)} {naam}", link(naam), width="stretch")
+        kolommen[i % len(kolommen)].link_button(naam, link(naam), icon=icoon(naam), width="stretch")
 
 
 def zoek(naam: str) -> str | None:

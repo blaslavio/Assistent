@@ -445,13 +445,13 @@ def vertrouwen_tekst(v: dict | None) -> str:
         delen.append(" ".join(filter(None, ["Zakelijk", bedrijf.get("naam") or "",
                                             f"(KvK {bedrijf['kvk']})" if bedrijf.get("kvk") else ""])))
     if v.get("geverifieerd"):
-        delen.append("geverifieerd")
+        delen.append(":material/verified: geverifieerd")
     if v.get("beoordelingen"):
-        delen.append(f"⭐ {str(v['sterren']).replace('.', ',')} ({v['beoordelingen']})")
+        delen.append(f":material/star: {str(v['sterren']).replace('.', ',')} ({v['beoordelingen']})")
     if v.get("verkocht"):
         delen.append(f"{v['verkocht']} keer verkocht")
     if v.get("nieuw"):
-        delen.append("🆕 nieuw account")
+        delen.append("nieuw account")
     elif v.get("lid_sinds"):
         delen.append(f"lid sinds {datetime.fromisoformat(v['lid_sinds']):%m-%Y}")
     return " · ".join(delen)
@@ -781,11 +781,11 @@ def nieuw() -> dict:
         if b["rol"] == "verkoper":
             wacht += b["status"] in ("aangevraagd", "betaald")
             if b["status"] == "aangevraagd":
-                meldingen.append(("bestellingen", f"{b['ander']} wil **{b['titel']}** kopen"))
+                meldingen.append(("bestellingen", f":material/shopping_cart: {b['ander']} wil **{b['titel']}** kopen"))
             elif b["status"] == "betaald":
-                meldingen.append(("bestellingen", f"**{b['titel']}** is betaald, verstuur of overhandig het"))
+                meldingen.append(("bestellingen", f":material/payments: **{b['titel']}** is betaald, verstuur of overhandig het"))
             elif b["status"] == "afgerond" and bijgewerkt >= week:
-                meldingen.append(("bestellingen", f"**{b['titel']}** verkocht voor {euro(b['bedrag'])}"))
+                meldingen.append(("bestellingen", f":material/check_circle: **{b['titel']}** verkocht voor {euro(b['bedrag'])}"))
             if b["status"] == "afgerond" and bijgewerkt[:7] == maand:
                 saldo["verdiend"] += float(b["bedrag"])
                 saldo["verkocht"] += 1
@@ -794,13 +794,13 @@ def nieuw() -> dict:
         else:
             if b["status"] == "geaccepteerd" and b["betaalwijze"] == "app":
                 wacht += 1
-                meldingen.append(("bestellingen", f"**{b['titel']}**: je kunt nu betalen"))
+                meldingen.append(("bestellingen", f":material/credit_card: **{b['titel']}**: je kunt nu betalen"))
             elif b["status"] == "geleverd":
                 wacht += 1
-                meldingen.append(("bestellingen", f"**{b['titel']}** is onderweg, bevestig als het binnen is"))
+                meldingen.append(("bestellingen", f":material/local_shipping: **{b['titel']}** is onderweg, bevestig als het binnen is"))
             elif b["status"] == "afgerond" and not b["beoordeeld"]:
                 wacht += 1
-                meldingen.append(("bestellingen", f"⭐ Geef **{b['titel']}** een beoordeling"))
+                meldingen.append(("bestellingen", f":material/star: Geef **{b['titel']}** een beoordeling"))
             if b["status"] in ("betaald", "geleverd", "afgerond") and bijgewerkt[:7] == maand:
                 saldo["uitgegeven"] += float(b["bedrag"]) + float(b.get("kosten") or 0)
     try:
@@ -812,19 +812,19 @@ def nieuw() -> dict:
     ongelezen = sum(not b["gelezen"] for b in alle_berichten)
     gedeeld = len(met_mij)
     if ongelezen:
-        meldingen.append(("berichten", f"💬 {ongelezen} nieuw bericht" + ("en" if ongelezen > 1 else "")))
+        meldingen.append(("berichten", f":material/chat: {ongelezen} nieuw bericht" + ("en" if ongelezen > 1 else "")))
     if gedeeld:
-        meldingen.append(("samen", f"{gedeeld} nieuw met je gedeeld"))
+        meldingen.append(("samen", f":material/group: {gedeeld} nieuw met je gedeeld"))
     if nieuws:
         for u in nieuws["uitnodigingen"][:3]:
-            meldingen.append(("agenda", f"🗓️ {u['van']} nodigt je uit: **{u['titel']}** · {tijd_kort(u['start'])}"))
+            meldingen.append(("agenda", f":material/event: {u['van']} nodigt je uit: **{u['titel']}** · {tijd_kort(u['start'])}"))
         for u in nieuws["antwoorden"][:3]:
-            meldingen.append(("agenda", f"🗓️ {u['gast']}: {ANTWOORDEN.get(u['antwoord'], u['antwoord']).lower()} · {u['titel']}"))
+            meldingen.append(("agenda", f":material/event: {u['gast']}: {ANTWOORDEN.get(u['antwoord'], u['antwoord']).lower()} · {u['titel']}"))
         for r in nieuws["reacties"][:3]:
-            meldingen.append(("agenda", f"🗓️ {reactie_tekst(r)} · {r.get('titel') or 'afspraak'}"))
+            meldingen.append(("agenda", f":material/event: {reactie_tekst(r)} · {r.get('titel') or 'afspraak'}"))
     for n in (winkelnieuws or {}).get("nieuws", [])[:2]:
         if n["datum"][:10] >= (date.today() - timedelta(days=2)).isoformat():
-            meldingen.append(("winkels", f"📰 **{n['winkel']}**: {n['tekst'][:70]}"))
+            meldingen.append(("winkels", f":material/campaign: **{n['winkel']}**: {n['tekst'][:70]}"))
     return {"gedeeld": gedeeld, "berichten": ongelezen, "bestellingen": wacht, "meldingen": meldingen, "saldo": saldo}
 
 
