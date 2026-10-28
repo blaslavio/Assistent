@@ -89,16 +89,19 @@ export default function ProjectWerkruimte({ gesprek, regels, schrijven, verdwijn
 function BestandEditor({ bestand: b, schrijven, opnieuw }: { bestand: Werkbestand; schrijven: boolean; opnieuw: () => void }) {
   const [, tik] = useState(0);
   const [compositie, setCompositie] = useState<{ tekst: string; basis: Uint8Array } | null>(null);
+  // Een invoerevent hoort bij de tekst uit deze render, niet bij een mogelijk
+  // al ontvangen wijziging die React nog niet op het scherm heeft gezet.
+  const zichtbareBasis = b.invoerBasis();
   useEffect(() => b.volgen(() => tik(n => n + 1)), [b]);
   return <div className="flex flex-col gap-2">
     <label className="font-medium">{b.titel}
       <textarea value={compositie?.tekst ?? b.inhoud} readOnly={!schrijven} maxLength={MAX_TEKST} rows={12}
         className="mt-2 w-full resize-y rounded-xl border border-lijn bg-transparent p-3 font-mono text-sm"
-        onCompositionStart={() => setCompositie({ tekst: b.inhoud, basis: b.invoerBasis() })}
+        onCompositionStart={e => setCompositie({ tekst: e.currentTarget.value, basis: zichtbareBasis })}
         onCompositionEnd={e => { try { b.bewerk(e.currentTarget.value, compositie?.basis); } catch { b.fout = "Deze tekst is te groot of ongeldig."; b.meld(); } setCompositie(null); }}
         onChange={e => {
           if (compositie !== null) { setCompositie({ ...compositie, tekst: e.target.value }); return; }
-          try { b.bewerk(e.target.value); } catch { b.fout = "Deze tekst is te groot of ongeldig."; b.meld(); }
+          try { b.bewerk(e.target.value, zichtbareBasis); } catch { b.fout = "Deze tekst is te groot of ongeldig."; b.meld(); }
         }} />
     </label>
     <p role="status" className="text-sm text-rustig">{b.bezig ? "Versleuteld delen…" : b.wacht ? "Lokale wijzigingen wachten nog op bevestiging." : b.bevestigd ? "Delen bevestigd. Andere deelnemers krijgen de wijzigingen bij het ophalen van de chat." : "Nog niet gedeeld."}</p>

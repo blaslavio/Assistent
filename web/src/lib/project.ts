@@ -49,7 +49,9 @@ export class Werkbestand {
   invoerBasis() { return Y.encodeStateAsUpdate(this.doc); }
   bewerk(nieuw: string, basis?: Uint8Array) {
     if (nieuw.length > MAX_TEKST || ONGELDIGE_TEKST.test(nieuw)) throw new Error("Gebruik maximaal 50.000 geldige teksttekens.");
-    if (basis) {
+    const actueel = basis ? this.invoerBasis() : null;
+    const veranderd = basis && actueel && (basis.length !== actueel.length || basis.some((v, i) => v !== actueel[i]));
+    if (basis && veranderd) {
       // Een IME-concept kan nog op een oudere zichtbare tekst zijn gebaseerd.
       // Bewerk die eigen versie en merge de CRDT-delta; wis geen intussen ontvangen tekst.
       const invoer = new Werkbestand(this.id, this.titel);
