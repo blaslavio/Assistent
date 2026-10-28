@@ -16,6 +16,7 @@ create index if not exists community_posts_community on private.community_posts 
 create table if not exists private.community_post_leuk (
   post bigint not null references private.community_posts(id),
   gebruiker bigint not null references private.gebruikers(id),
+  aan boolean not null default true,
   primary key (post, gebruiker)
 );
 create table if not exists private.community_post_meldingen (
@@ -60,8 +61,8 @@ returns jsonb language sql stable security definer set search_path to '' as $$
     'lid', private.chat_community_rol(p_ik, c.id) is not null,
     'auteur', private.weergave(p.auteur), 'auteur_id', p.auteur, 'tekst', p.tekst, 'heeft_foto', p.foto is not null,
     'aangemaakt', p.aangemaakt,
-    'leuk', (select count(*) from private.community_post_leuk l where l.post = p.id),
-    'ik_leuk', exists (select 1 from private.community_post_leuk l where l.post = p.id and l.gebruiker = p_ik),
+    'leuk', (select count(*) from private.community_post_leuk l where l.post = p.id and l.aan),
+    'ik_leuk', exists (select 1 from private.community_post_leuk l where l.post = p.id and l.gebruiker = p_ik and l.aan),
     'van_mij', p.auteur = p_ik,
     'mag_weg', p.auteur = p_ik or coalesce(private.chat_community_rol(p_ik, c.id) in ('eigenaar', 'beheerder'), false))
   from private.chat_communities c where c.id = p.community
@@ -143,12 +144,9 @@ begin
                  and private.feed_zichtbaar(v_id, p.community)) then
     return jsonb_build_object('fout', 'Dit bericht is er niet meer.');
   end if;
-  if p_aan then
-    insert into private.community_post_leuk (post, gebruiker) values (p_post, v_id) on conflict do nothing;
-  else
-    -- Een leuk-markering is van jou; terugnemen haalt alleen jouw eigen markering weg.
-    delete from private.community_post_leuk where post = p_post and gebruiker = v_id;
-  end if;
+  -- Terugnemen zet alleen jouw eigen markering uit; er wordt niets weggegooid.
+  insert into private.community_post_leuk (post, gebruiker, aan) values (p_post, v_id, coalesce(p_aan, false))
+  on conflict (post, gebruiker) do update set aan = excluded.aan;
   return jsonb_build_object('ok', true);
 end; $$;
 
