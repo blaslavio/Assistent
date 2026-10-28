@@ -148,7 +148,7 @@ export type Lid = { id: number; naam: string; gebruikersnaam?: string; status: s
   ontvangen_tot: number; contact?: boolean };
 export type Gesprek = { id: number; soort: "twee" | "groep"; naam?: string; status: "lid" | "verzoek"; laatst?: string;
   ongelezen: number; laatste_id?: number; leden: Lid[]; community?: number | null; alleen_beheer?: boolean;
-  beheerder?: boolean };
+  beheerder?: boolean; verdwijnen?: number | null };
 export type Bericht = { t: string; tekst?: string; titel?: string; vraag?: string; naam?: string; [k: string]: unknown };
 type RuwBericht = { id: number; afzender: number; apparaat: number; aangemaakt: string; weg: boolean; inhoud?: string;
   iv: string; epk: Jwk; sleutel?: { i: string; w: string }; handtekening: string; teken: Jwk };
@@ -282,3 +282,9 @@ export const antwoorden = (gesprek: number, antwoord: "ja" | "nee") =>
 
 export type Contact = { id: number; naam: string; gebruikersnaam: string; chat: boolean };
 export const contacten = async () => (await rpc<{ contacten: Contact[] }>("chat_contacten")).contacten;
+
+export const VERDWIJNEN: [number, string][] = [[0, "Uit"], [3600, "1 uur"], [86400, "24 uur"], [604800, "7 dagen"], [7776000, "90 dagen"]];
+
+/** Hoe lang berichten in dit gesprek blijven staan (0 = altijd). Geldt voor iedereen in het gesprek. */
+export const verdwijnenInstellen = (gesprek: number, seconden: number) =>
+  rpc("chat_instellen", { p_gesprek: gesprek, p_verdwijnen: seconden, p_stil: null, p_groepsnaam: null });

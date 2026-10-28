@@ -51,7 +51,7 @@ export default function App() {
     agenda: <Agenda staat={staat} />,
     chat: <Chat />,
     assistent: <Suspense fallback={null}><Assistent staat={staat} vernieuw={laden} /></Suspense>,
-    instellingen: <Instellingen staat={staat} terug={() => setTab("vandaag")} opUitgelogd={() => setStaat(null)} />,
+    instellingen: <Instellingen staat={staat} vernieuw={laden} terug={() => setTab("vandaag")} opUitgelogd={() => setStaat(null)} />,
   }[tab];
 
   return (

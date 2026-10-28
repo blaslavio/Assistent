@@ -128,3 +128,18 @@ export async function bijwerken(aanpassen: (g: Gegevens) => void): Promise<Gegev
   if (!ok) throw new GeenToegang();
   return data;
 }
+
+/** Past je instellingen aan (bijvoorbeeld de stijl van de assistent) en bewaart ze meteen. */
+export async function instellingenBijwerken(aanpassen: (inst: Record<string, unknown>) => void) {
+  return bijwerken((g) => {
+    g.instellingen ??= {};
+    aanpassen(g.instellingen as Record<string, unknown>);
+  });
+}
+
+/** Je weergavenaam wijzigen. Geeft een foutmelding, of niets als het lukte. */
+export async function weergavenaamWijzigen(naam: string) {
+  const a = await alsIk<{ fout?: string }>("profiel_bijwerken",
+    { p_nieuwe_naam: null, p_weergavenaam: naam, p_nieuw_wachtwoord: null });
+  return a?.fout ?? "";
+}

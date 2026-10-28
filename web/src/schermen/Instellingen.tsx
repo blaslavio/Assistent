@@ -1,27 +1,153 @@
-import { uitloggen } from "../api";
+import { useState, type ReactNode } from "react";
+import { bijwerken, instellingenBijwerken, uitloggen, weergavenaamWijzigen } from "../api";
 import type { Staat } from "../App";
-import { Terug } from "../iconen";
+import { Terug, Vonk } from "../iconen";
 
-type Props = { staat: Staat; terug: () => void; opUitgelogd: () => void };
+type Props = { staat: Staat; vernieuw: () => Promise<void>; terug: () => void; opUitgelogd: () => void };
+type Pagina = null | "profiel" | "assistent" | "privacy" | "thuis";
 
-export default function Instellingen({ staat, terug, opUitgelogd }: Props) {
+type Stijl = Record<string, string | undefined>;
+type Inst = { stijl?: Stijl; avatar?: { naam?: string }; geheugen_uit?: boolean; thuisadres?: string;
+  anthropic_sleutel?: string };
+type Feit = { id: number; feit: string; onderwerp?: string };
+
+// Dezelfde keuzes en standaarden als in de huidige app, zodat beide apps hetzelfde laten zien.
+const KEUZES: { sleutel: string; label: string; opties: string[]; standaard: string }[] = [
+  { sleutel: "toon", label: "Toon", opties: ["Automatisch", "Informeel", "Zakelijk"], standaard: "Automatisch" },
+  { sleutel: "lengte", label: "Antwoorden", opties: ["Automatisch", "Kort", "Uitgebreid"], standaard: "Automatisch" },
+  { sleutel: "aanspreken", label: "Aanspreken met", opties: ["je", "u"], standaard: "je" },
+  { sleutel: "nadenken", label: "Nadenken", opties: ["Snel", "Normaal", "Grondig"], standaard: "Grondig" },
+  { sleutel: "gevoel", label: "Gevoel", opties: ["Uit", "Rustig", "Normaal", "Sterk"], standaard: "Normaal" },
+  { sleutel: "humor", label: "Humor", opties: ["Geen", "Af en toe", "Veel"], standaard: "Af en toe" },
+];
+
+const kop = "mb-2 px-1 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig";
+
+export default function Instellingen({ staat, vernieuw, terug, opUitgelogd }: Props) {
+  const [pagina, setPagina] = useState<Pagina>(null);
+  const [bezig, setBezig] = useState(false);
+  const [melding, setMelding] = useState("");
   const g = staat.gebruiker;
+  const inst = (staat.data.instellingen ?? {}) as Inst;
   const naam = g.weergavenaam || g.naam || "Jij";
+
+  async function bewaar(aanpassen: (i: Record<string, unknown>) => void, klaar = "Bewaard",
+                        alles?: Parameters<typeof bijwerken>[0]) {
+    setBezig(true);
+    setMelding("");
+    try {
+      await (alles ? bijwerken(alles) : instellingenBijwerken(aanpassen));
+      await vernieuw();
+      setMelding(klaar);
+      setTimeout(() => setMelding(""), 1800);
+    } catch {
+      setMelding("Bewaren lukte niet. Probeer het opnieuw.");
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  const scherm = (titel: string, inhoud: ReactNode) => (
+    <div className="px-6 pt-12 pb-10">
+      <button onClick={() => setPagina(null)} className="-ml-2 flex h-10 items-center gap-1 pr-3 text-rustig">
+        <Terug className="size-5" /> Instellingen
+      </button>
+      <h1 className="mt-4 mb-6 text-[28px] font-bold tracking-tight">{titel}</h1>
+      <div className="flex flex-col gap-7">{inhoud}</div>
+      <p aria-live="polite" className="mt-6 h-5 text-center text-sm text-rustig">{bezig ? "Bewaren…" : melding}</p>
+    </div>
+  );
+
+  if (pagina === "profiel") return scherm("Profiel", <Profiel naam={g.weergavenaam ?? ""} gebruikersnaam={g.naam ?? ""}
+    bewaar={async (nieuw) => {
+      setBezig(true);
+      const fout = await weergavenaamWijzigen(nieuw).catch(() => "Bewaren lukte niet.");
+      await vernieuw();
+      setBezig(false);
+      setMelding(fout || "Bewaard");
+    }} />);
+
+  if (pagina === "assistent") {
+    const stijl = inst.stijl ?? {};
+    return scherm("Assistent", <>
+      <TekstVeld label="Naam van de assistent" uitleg="Leeg laten als je geen naam wilt." waarde={
+        inst.avatar?.naam && !["Assistent", "Sam"].includes(inst.avatar.naam) ? inst.avatar.naam : ""}
+        bewaar={(v) => bewaar((i) => { i.avatar = { ...(i.avatar as object ?? {}), naam: v.trim() || "Assistent" }; })} />
+      {KEUZES.map((k) => (
+        <Keuze key={k.sleutel} label={k.label} opties={k.opties} waarde={stijl[k.sleutel] ?? k.standaard}
+          kies={(v) => bewaar((i) => { i.stijl = { ...(i.stijl as object ?? {}), [k.sleutel]: v }; })} />
+      ))}
+      <Sleutel ingesteld={Boolean(inst.anthropic_sleutel)}
+        bewaar={(v) => bewaar((i) => { i.anthropic_sleutel = v.trim(); }, v ? "Sleutel bewaard" : "Sleutel verwijderd")} />
+    </>);
+  }
+
+  if (pagina === "privacy") {
+    const feiten = ((staat.data.geheugen as Feit[] | undefined) ?? []).slice().reverse();
+    return scherm("Privacy", <>
+      <Schakelaar label="De assistent onthoudt dingen over mij"
+        uitleg="Bijvoorbeeld je voorkeuren en gewoontes, zodat hij je beter helpt."
+        aan={!inst.geheugen_uit} zet={(aan) => bewaar((i) => { i.geheugen_uit = !aan; })} />
+      <section>
+        <h2 className={kop}>Wat de assistent weet</h2>
+        {feiten.length === 0 ? <p className="px-1 text-rustig">Nog niets.</p> : (
+          <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
+            {feiten.map((f) => (
+              <li key={f.id} className="flex items-center gap-3 py-2.5 pr-2 pl-4">
+                <span className="flex-1">{f.feit}</span>
+                <button onClick={() => bewaar(() => {}, "Vergeten", (d) => {
+                  d.geheugen = ((d.geheugen as Feit[] | undefined) ?? []).filter((x) => x.id !== f.id);
+                })}
+                  aria-label={`Vergeet: ${f.feit}`} className="h-9 shrink-0 rounded-full px-3 text-sm text-rustig hover:bg-white/60 dark:hover:bg-black/30">
+                  Vergeet
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <p className="px-1 text-sm text-rustig">
+        Tweestapsverificatie, apparaten en je gegevens downloaden regel je voorlopig in de huidige app.
+      </p>
+    </>);
+  }
+
+  if (pagina === "thuis") return scherm("Thuis", <>
+    <TekstVeld label="Thuisadres" uitleg="Voor het weer op Vandaag en reistijden. Alleen jij ziet dit."
+      waarde={inst.thuisadres ?? ""} bewaar={(v) => bewaar((i) => { i.thuisadres = v.trim(); })} />
+  </>);
+
   return (
-    <div className="px-6 pt-12 pb-8">
+    <div className="px-6 pt-12 pb-10">
       <button onClick={terug} className="-ml-2 flex h-10 items-center gap-1 pr-3 text-rustig">
         <Terug className="size-5" /> Terug
       </button>
-      <div className="mt-6 flex items-center gap-4">
-        <span className="flex size-16 items-center justify-center overflow-hidden rounded-full bg-vlak text-2xl font-semibold">
+      <h1 className="mt-4 mb-6 text-[32px] font-bold tracking-tight">Instellingen</h1>
+
+      <button onClick={() => setPagina("profiel")} className="flex w-full items-center gap-4 rounded-[20px] bg-vlak p-4 text-left">
+        <span className="flex size-14 items-center justify-center overflow-hidden rounded-full bg-white text-xl font-semibold dark:bg-black/40">
           {g.foto ? <img src={g.foto} alt="" className="size-full object-cover" /> : naam[0].toUpperCase()}
         </span>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{naam}</h1>
-          {g.naam && <p className="text-rustig">@{g.naam}</p>}
-        </div>
-      </div>
-      <p className="mt-8 text-rustig">De andere instellingen zet ik nog over naar de nieuwe stijl.</p>
+        <span className="flex flex-col">
+          <span className="text-lg font-semibold">{naam}</span>
+          {g.naam && <span className="text-sm text-rustig">@{g.naam}</span>}
+        </span>
+      </button>
+
+      <ul className="mt-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
+        <Rij titel="Assistent" uitleg="Naam, toon en hoe hij antwoordt" open={() => setPagina("assistent")} />
+        <Rij titel="Privacy" uitleg="Wat de assistent over je weet" open={() => setPagina("privacy")} />
+        <Rij titel="Thuis" uitleg={inst.thuisadres || "Adres voor het weer en reistijden"} open={() => setPagina("thuis")} />
+      </ul>
+
+      <a href="../" className="mt-6 flex items-center justify-between rounded-[20px] bg-vlak px-4 py-3.5">
+        <span className="flex flex-col">
+          <span className="font-medium">Meer in de huidige app</span>
+          <span className="text-sm text-rustig">Mail, budget, koppelingen en de rest</span>
+        </span>
+        <Terug className="size-5 rotate-180 text-zacht" />
+      </a>
+
       <button
         onClick={async () => {
           await uitloggen();
@@ -31,5 +157,100 @@ export default function Instellingen({ staat, terug, opUitgelogd }: Props) {
         Uitloggen
       </button>
     </div>
+  );
+}
+
+function Rij({ titel, uitleg, open }: { titel: string; uitleg: string; open: () => void }) {
+  return (
+    <li>
+      <button onClick={open} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="font-medium">{titel}</span>
+          <span className="truncate text-sm text-rustig">{uitleg}</span>
+        </span>
+        <Terug className="size-5 shrink-0 rotate-180 text-zacht" />
+      </button>
+    </li>
+  );
+}
+
+function Keuze({ label, opties, waarde, kies }: { label: string; opties: string[]; waarde: string; kies: (v: string) => void }) {
+  return (
+    <fieldset>
+      <legend className={kop}>{label}</legend>
+      <div className="flex rounded-2xl bg-vlak p-1">
+        {opties.map((o) => (
+          <button key={o} type="button" aria-pressed={o === waarde} onClick={() => o !== waarde && kies(o)}
+            className={`h-10 flex-1 rounded-xl text-[15px] ${o === waarde ? "bg-white font-semibold shadow-sm dark:bg-[#2a2a31]" : "text-rustig"}`}>
+            {o}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+function Schakelaar({ label, uitleg, aan, zet }: { label: string; uitleg: string; aan: boolean; zet: (aan: boolean) => void }) {
+  return (
+    <label className="flex items-center gap-4 rounded-2xl bg-vlak px-4 py-3.5">
+      <span className="flex flex-1 flex-col">
+        <span className="font-medium">{label}</span>
+        <span className="text-sm text-rustig">{uitleg}</span>
+      </span>
+      <input type="checkbox" role="switch" checked={aan} onChange={(e) => zet(e.target.checked)} className="peer sr-only" />
+      <span aria-hidden className={`relative h-7 w-12 shrink-0 rounded-full transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-accent ${aan ? "bg-accent" : "bg-zacht/40"}`}>
+        <span className={`absolute top-0.5 size-6 rounded-full bg-white shadow transition-all ${aan ? "left-[22px]" : "left-0.5"}`} />
+      </span>
+    </label>
+  );
+}
+
+function TekstVeld({ label, uitleg, waarde, bewaar }: { label: string; uitleg: string; waarde: string; bewaar: (v: string) => void }) {
+  const [v, setV] = useState(waarde);
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); bewaar(v); }} className="flex flex-col gap-2">
+      <label htmlFor={label} className={kop}>{label}</label>
+      <div className="flex gap-2">
+        <input id={label} value={v} onChange={(e) => setV(e.target.value)}
+          className="h-12 min-w-0 flex-1 rounded-2xl bg-vlak px-4 outline-none" />
+        <button disabled={v === waarde} className="h-12 rounded-2xl bg-accent px-5 font-medium text-white disabled:opacity-30">Bewaar</button>
+      </div>
+      <p className="px-1 text-sm text-rustig">{uitleg}</p>
+    </form>
+  );
+}
+
+function Profiel({ naam, gebruikersnaam, bewaar }: { naam: string; gebruikersnaam: string; bewaar: (n: string) => void }) {
+  return <>
+    <TekstVeld label="Naam" uitleg="Zo zien anderen je in de chat." waarde={naam} bewaar={bewaar} />
+    {gebruikersnaam && (
+      <div className="flex flex-col gap-1 px-1">
+        <span className={kop.replace("mb-2 px-1 ", "")}>Gebruikersnaam</span>
+        <span>@{gebruikersnaam}</span>
+        <span className="text-sm text-rustig">Hiermee vinden anderen je om te chatten.</span>
+      </div>
+    )}
+  </>;
+}
+
+/** Je eigen Anthropic-sleutel: we laten nooit zien wat er staat, alleen dát er een staat. */
+function Sleutel({ ingesteld, bewaar }: { ingesteld: boolean; bewaar: (v: string) => void }) {
+  const [v, setV] = useState("");
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className={kop}>Eigen sleutel</h2>
+      <div className="flex items-center gap-3 rounded-2xl bg-vlak px-4 py-3.5">
+        <Vonk className="size-5 shrink-0 text-accent" />
+        <span className="flex-1 text-[15px]">{ingesteld ? "Je gebruikt je eigen Anthropic-sleutel." : "Geen eigen sleutel ingesteld."}</span>
+        {ingesteld && <button onClick={() => bewaar("")} className="text-sm font-medium text-red-600 dark:text-red-400">Verwijder</button>}
+      </div>
+      {!ingesteld && (
+        <form onSubmit={(e) => { e.preventDefault(); bewaar(v); setV(""); }} className="flex gap-2">
+          <input type="password" value={v} onChange={(e) => setV(e.target.value)} placeholder="sk-ant-…" autoComplete="off"
+            aria-label="Anthropic-sleutel" className="h-12 min-w-0 flex-1 rounded-2xl bg-vlak px-4 outline-none placeholder:text-zacht" />
+          <button disabled={!v.startsWith("sk-ant-")} className="h-12 rounded-2xl bg-accent px-5 font-medium text-white disabled:opacity-30">Bewaar</button>
+        </form>
+      )}
+    </section>
   );
 }
