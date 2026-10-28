@@ -2,6 +2,8 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormE
 import { Ballon, Bewerk, Dubbelvink, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
 import { JouwAanbod } from "./Delen";
 import { Berichten, Feed, Schrijven } from "./Feed";
+import { GastGesprekScherm, GastenLijst } from "./Gasten";
+import { gesprekken as gastGesprekken, type GastGesprek } from "../lib/gasten";
 import { feedInstelling, openbaarZetten } from "../lib/feed";
 import Bestellingen from "./Bestellingen";
 import { isGevraagd, lijst as bestellingenLijst, openGevraagd, wachtOpMij } from "../lib/bestellingen";
@@ -40,6 +42,8 @@ export default function Chat({ staat, naarInstellingen, bestel }: Props) {
   const [voorbeelden, setVoorbeelden] = useState<Record<number, string>>({});
   const [open, setOpen] = useState<number | null>(null);
   const [openCommunity, setOpenCommunity] = useState<number | null>(null);
+  const [gasten, setGasten] = useState<GastGesprek[]>([]);
+  const [openGast, setOpenGast] = useState<number | null>(null);
   const [nieuw, setNieuw] = useState(false);
   const [fout, setFout] = useState("");
   const [deel, setDeelRuw] = useState<Deel>(bewaardDeel);
@@ -53,6 +57,7 @@ export default function Chat({ staat, naarInstellingen, bestel }: Props) {
     const o = await overzicht();
     setLijst(o.gesprekken);
     setGroepen(o.communities);
+    gastGesprekken().then((g) => setGasten(g.gesprekken)).catch(() => {});
     for (const x of o.gesprekken.slice(0, 30))
       voorbeeld(x).then((t) => setVoorbeelden((v) => (v[x.id] === t ? v : { ...v, [x.id]: t }))).catch(() => {});
   }, []);
@@ -75,13 +80,14 @@ export default function Chat({ staat, naarInstellingen, bestel }: Props) {
     const g = lijst.find((x) => x.id === open);
     return <Gesprekscherm id={open} ik={ik} begin={g} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
   }
+  if (openGast !== null) return <GastGesprekScherm boeking={openGast} terug={() => { setOpenGast(null); laden().catch(() => {}); }} />;
   if (openCommunity !== null && ik !== null) {
     const c = groepen.find((x) => x.id === openCommunity);
     if (c) return <CommunityScherm c={c} openKanaal={setOpen} vernieuw={laden}
       terug={() => { setOpenCommunity(null); laden().catch(() => {}); }} />;
   }
 
-  const ongelezenChats = lijst.reduce((n, g) => n + (g.ongelezen ? 1 : 0), 0);
+  const ongelezenChats = lijst.reduce((n, g) => n + (g.ongelezen ? 1 : 0), 0) + gasten.filter((g) => g.ongelezen).length;
   const ongelezenGroepen = groepen.reduce((n, c) => n + (c.status === "uitgenodigd" ? 1
     : c.kanalen.reduce((m, k) => m + k.ongelezen, 0) > 0 ? 1 : 0), 0);
   const actie = deel === "chats" && !nieuw ? { label: "Nieuw gesprek", icoon: <Bewerk className="size-5" />, doe: () => setNieuw(true) }
@@ -116,6 +122,7 @@ export default function Chat({ staat, naarInstellingen, bestel }: Props) {
       {deel === "chats" && nieuw && (
         <NieuwVeld sluit={() => setNieuw(false)} gestart={(id) => { setNieuw(false); laden().then(() => setOpen(id)); }} />
       )}
+      {deel === "chats" && !nieuw && <GastenLijst lijst={gasten} open={setOpenGast} />}
       {deel === "chats" && ik !== null && (
         <Chats ik={ik} lijst={lijst} voorbeelden={voorbeelden} open={setOpen} nieuw={() => setNieuw(true)} fout={fout} zoekt={nieuw} />
       )}

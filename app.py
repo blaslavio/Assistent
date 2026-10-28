@@ -6363,7 +6363,7 @@ def assistent_invoer() -> None:
 
 
 # Adreswaarden die de nieuwe app zelf afhandelt.
-NIEUWE_APP_ADRES = {"nieuw", "zeg", "ochtend", "deel", "betaald"}
+NIEUWE_APP_ADRES = {"nieuw", "zeg", "ochtend", "deel", "betaald", "boek", "boeking"}
 
 
 def main() -> None:
@@ -6374,7 +6374,7 @@ def main() -> None:
     if "oud" not in st.query_params and nieuwe_app.beschikbaar() and (
             "nieuw" in st.query_params or not set(st.query_params) - NIEUWE_APP_ADRES):
         # De nieuwe app (web/) is de app; hij heeft zijn eigen inloggen. Alleen links die nog niet in de nieuwe app
-        # werken (zoals ?winkel=, ?boek= of terug van een bank) komen hier nog in de oude app terecht.
+        # werken (zoals ?winkel= of terug van een bank) komen hier nog in de oude app terecht.
         nieuwe_app.toon()
         return
     # Siri (app Opdrachten) opent de app met ?zeg=wat je zei. Dat bewaren we tot je ingelogd bent.
