@@ -29,6 +29,7 @@ import agent
 import assistant_learning
 import assistant_privacy
 import universal_workspace
+import universal_workflow_ui
 import intent_engine
 import azure_search_ready
 import azure_services
@@ -233,6 +234,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 taal.installeren()
+# Preview only: never triggers payment, booking or messaging side effects.
+with st.sidebar:
+    universal_workflow_ui.render_intent_preview()
+
 # Donker is de standaard; gebruikers kunnen hun voorkeur in Instellingen wijzigen.
 def superapp_thema() -> str:
     try:
