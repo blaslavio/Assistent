@@ -20,13 +20,15 @@ CALLBACK = f"https://{PROJECT}.supabase.co/auth/v1/callback"
 TENANT_URL = f"https://login.microsoftonline.com/{TENANT_ID}"
 
 def request(method, url, token, data=None):
+    if not url.startswith("https://"):
+        raise ValueError("Only https URLs are allowed.")
     body = None if data is None else json.dumps(data).encode("utf-8")
     req = urllib.request.Request(
         url, data=body, method=method,
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=25) as response:
+        with urllib.request.urlopen(req, timeout=25) as response:  # nosec B310 - https only, checked above
             return json.load(response)
     except urllib.error.HTTPError as error:
         # Do not print credentials or full server responses.
