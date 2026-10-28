@@ -28,9 +28,9 @@ type Herkenning = {
 const Spraak = (window as unknown as { SpeechRecognition?: new () => Herkenning; webkitSpeechRecognition?: new () => Herkenning })
   .SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: new () => Herkenning }).webkitSpeechRecognition;
 
-type Props = { staat: Staat; vernieuw: () => void };
+type Props = { staat: Staat; vernieuw: () => void; teKopen?: Product | null; gekocht?: () => void };
 
-export default function Assistent({ staat, vernieuw }: Props) {
+export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) {
   const [beurten, setBeurten] = useState<Beurt[]>(gesprek.beurten);
   const [invoer, setInvoer] = useState("");
   const [bezig, setBezig] = useState<string | null>(null);
@@ -70,6 +70,14 @@ export default function Assistent({ staat, vernieuw }: Props) {
       + `betaalwijzen ${p.betaalwijzen.join("/") || "onbekend"}). Vraag alleen wat nog ontbreekt en zet het dan klaar.`);
     praat(`Ik wil ${p.titel} ${p.bron === "winkel" ? "bestellen" : "kopen"}.`);
   }
+
+  // Bestellen vanuit de winkel in de chat: hier verder met dezelfde stap als vanuit een productblad.
+  useEffect(() => {
+    if (!teKopen || bezig) return;
+    gekocht?.();
+    koop(teKopen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teKopen]);
 
   /** Een tik op een optie van een keuzekaart. */
   function kies(i: number, j: number) {

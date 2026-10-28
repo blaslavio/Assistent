@@ -40,7 +40,7 @@ export function ProductRij({ producten, open }: { producten: Product[]; open: (p
   );
 }
 
-function Raster({ producten, open, uitverkocht }: { producten: Product[]; open: (p: Product) => void;
+export function Raster({ producten, open, uitverkocht }: { producten: Product[]; open: (p: Product) => void;
   uitverkocht?: Set<string> }) {
   if (!producten.length) return <p className="text-sm text-rustig">Nu niets te koop.</p>;
   return (

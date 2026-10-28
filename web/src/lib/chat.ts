@@ -148,7 +148,7 @@ export type Lid = { id: number; naam: string; gebruikersnaam?: string; status: s
   ontvangen_tot: number; contact?: boolean };
 export type Gesprek = { id: number; soort: "twee" | "groep"; naam?: string; status: "lid" | "verzoek"; laatst?: string;
   ongelezen: number; laatste_id?: number; leden: Lid[]; community?: number | null; alleen_beheer?: boolean;
-  beheerder?: boolean; verdwijnen?: number | null };
+  beheerder?: boolean; verdwijnen?: number | null; community_naam?: string | null };
 export type Bericht = { t: string; tekst?: string; titel?: string; vraag?: string; naam?: string; [k: string]: unknown };
 type RuwBericht = { id: number; afzender: number; apparaat: number; aangemaakt: string; weg: boolean; inhoud?: string;
   iv: string; epk: Jwk; sleutel?: { i: string; w: string }; handtekening: string; teken: Jwk };
@@ -186,12 +186,59 @@ export async function starten() {
   return ik.gebruiker;
 }
 
-export async function gesprekken() {
-  const r = await rpc<{ gesprekken: Gesprek[] }>("chat_gesprekken");
+/** Of dit apparaat al eens voor de chat is aangemeld. Zo niet, dan maken we hier nog geen sleutels. */
+export async function startenAlsBekend() {
+  if (ik) return ik.gebruiker;
+  const s = huidigeSessie();
+  const opgeslagen = await idbGet("sleutels", `apparaat:${s?.naam || "eigenaar"}`).catch(() => undefined);
+  return opgeslagen ? starten() : null;
+}
+
+export const mijnApparaat = () => ik?.apparaat ?? 0;
+
+export type Kanaal = { id: number; naam: string; alleen_beheer: boolean; laatst?: string; ongelezen: number };
+export type Community = { id: number; naam: string; omschrijving: string; rol: "eigenaar" | "beheerder" | "lid";
+  status: "lid" | "uitgenodigd"; door?: string; leden: number; kanalen: Kanaal[] };
+
+export async function overzicht() {
+  const r = await rpc<{ gesprekken: Gesprek[]; communities?: Community[] }>("chat_gesprekken");
   const hoogste = Math.max(0, ...r.gesprekken.map((g) => g.laatste_id ?? 0));
   if (hoogste) rpc("chat_ontvangen").catch(() => {});
-  return r.gesprekken;
+  return { gesprekken: r.gesprekken, communities: r.communities ?? [] };
 }
+
+export const gesprekken = async () => (await overzicht()).gesprekken;
+
+/** Nieuwe berichten lezen zonder ze als gelezen te markeren (voor oproepen die binnenkomen). */
+export async function stilLezen(gesprek: number, na: number) {
+  if (!ik) return [];
+  const r = await rpc<{ berichten: RuwBericht[] }>("chat_berichten", { p_gesprek: gesprek, p_na: na, p_apparaat: ik.apparaat });
+  const uit: { id: number; afzender: number; apparaat: number; tijd: string; bericht: Bericht }[] = [];
+  for (const b of r.berichten) {
+    if (b.weg || !b.inhoud) continue;
+    try {
+      const o = await ontsleutel(ik, gesprek, b);
+      if (o.bericht) uit.push({ id: b.id, afzender: b.afzender, apparaat: b.apparaat, tijd: b.aangemaakt, bericht: o.bericht });
+    } catch {
+      /* niet te lezen: overslaan */
+    }
+  }
+  return uit;
+}
+
+// --- Community's ---------------------------------------------------------------------------------------------------
+
+export type Deelnemer = { id: number; naam: string; gebruikersnaam: string; rol: string; status: string };
+export const community = (id: number) =>
+  rpc<Community & { code?: string | null; code_aan: boolean; deelnemers: Deelnemer[] }>("chat_community", { p_community: id });
+export const communityMaken = (naam: string, omschrijving: string) =>
+  rpc<{ id: number }>("chat_community_maken", { p_community: naam, p_omschrijving: omschrijving });
+export const communityDeelnemen = (code: string) =>
+  rpc<{ id: number; naam: string }>("chat_community_deelnemen", { p_code: code });
+export const communityUitnodigen = (id: number, wie: string) =>
+  rpc<{ status: string }>("chat_community_uitnodigen", { p_community: id, p_wie: wie });
+export const communityAntwoorden = (id: number, antwoord: "ja" | "nee" | "verlaten") =>
+  rpc("chat_community_antwoorden", { p_community: id, p_antwoord: antwoord });
 
 export function gesprekNaam(g: Gesprek, mijnId: number) {
   if (g.soort === "groep") return g.naam || "Groep";
@@ -214,9 +261,15 @@ export function kortTekst(m?: Bericht) {
     case "diensten": return `Diensten: ${t(m.titel)}`;
     case "winkel": return `Webshop: ${t(m.naam)}`;
     case "boeking": return `Boeking: ${t(m.soort)}`;
-    case "bel": return "Oproep";
+    case "bel": return m.fase === "einde" ? (m.duur ? `${m.video ? "Videogesprek" : "Gesprek"} van ${belDuur(Number(m.duur))}`
+      : "Gemiste oproep") : "Oproep";
   }
   return "";
+}
+
+export function belDuur(sec: number) {
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
 }
 
 /** Soorten die alleen iets bijwerken (een duimpje, een stem) en geen eigen regel in het gesprek krijgen. */
@@ -259,6 +312,7 @@ export async function berichten(gesprek: number, na: number) {
       }
     }
     if (regel.bericht && STIL.has(regel.bericht.t)) continue;
+    if (regel.bericht?.t === "bel" && regel.bericht.fase !== "einde") continue;
     regels.push(regel);
   }
   const hoogste = r.berichten.length ? r.berichten[r.berichten.length - 1].id : 0;
