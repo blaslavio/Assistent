@@ -33,6 +33,13 @@ class IntentPlanningTests(unittest.TestCase):
         self.assertTrue(p.needs_clarification)
         self.assertEqual(p.steps, ())
 
+    def test_invalid_completed_state_rejected(self):
+        p = plan_request("Plan intake en stuur bevestiging", allowed_actions=ALL)
+        with self.assertRaises(ValueError):
+            validate_execution(p, {}, (Action.MESSAGE,))
+        with self.assertRaises(ValueError):
+            validate_execution(p, {}, (Action.PAYMENT,))
+
     def test_no_unapproved_side_effect(self):
         p = plan_request("betaling", allowed_actions=ALL)
         self.assertEqual(validate_execution(p, {}, ()), ())
