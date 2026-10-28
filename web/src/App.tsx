@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
-import { GeenToegang, gegevensLaden, huidigeSessie, terugkomen, type Gebruiker, type Gegevens } from "./api";
+import { GeenToegang, adresOpruimen, adresWaarde, gegevensLaden, huidigeSessie, terugkomen, type Gebruiker,
+  type Gegevens } from "./api";
+import { openVragen } from "./lib/bestellingen";
 import { Ballon, Kalender, Vonk, Zon } from "./iconen";
 import Inloggen from "./schermen/Inloggen";
 import Vandaag from "./schermen/Vandaag";
@@ -15,6 +17,14 @@ import { GedeeldScherm } from "./schermen/Delen";
 
 // Een gedeelde link (?deel=...) opent een pagina die je zonder inloggen kunt zien.
 const GEDEELD = deelCode();
+
+// Terug van betalen bij Stripe (?betaald=...): meteen naar je bestellingen.
+const BETAALD = adresWaarde("betaald");
+// Siri (app Opdrachten) opent de app met ?zeg=wat je zei: dat gaat naar de assistent.
+const ZEG = (adresWaarde("zeg") ?? "").trim().slice(0, 500);
+adresOpruimen("betaald", "zeg", "ochtend");
+if (BETAALD !== null) openVragen(BETAALD === "0" ? "Betalen is afgebroken. Je kunt het opnieuw proberen."
+  : "Gelukt. Je betaling is binnen en het geld staat vast tot je bevestigt dat alles goed is.");
 // Claude laden we pas als je de assistent opent; zo start de app sneller.
 const Assistent = lazy(() => import("./schermen/Assistent"));
 
@@ -32,7 +42,8 @@ export type Staat = { gebruiker: Gebruiker; data: Gegevens };
 export default function App() {
   const [klaar, setKlaar] = useState(false);
   const [staat, setStaat] = useState<Staat | null>(null);
-  const [tab, setTabRuw] = useState<Tab>("vandaag");
+  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null ? "chat" : ZEG ? "assistent" : "vandaag");
+  const [vooraf, setVooraf] = useState(ZEG);
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [teKopen, setTeKopen] = useState<Product | null>(null);
   const [fout, setFout] = useState("");
@@ -76,8 +87,10 @@ export default function App() {
     chat: <Chat staat={staat} naarInstellingen={() => setTab("instellingen")}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
     assistent: <Suspense fallback={null}><Assistent staat={staat} vernieuw={laden} teKopen={teKopen}
-      gekocht={() => setTeKopen(null)} /></Suspense>,
-    instellingen: <Instellingen staat={staat} vernieuw={laden} terug={() => setTab(vorige)} opUitgelogd={() => setStaat(null)} />,
+      gekocht={() => setTeKopen(null)} vooraf={vooraf} voorafGebruikt={() => setVooraf("")}
+      naarBestellingen={() => { openVragen(); setTab("chat"); }} /></Suspense>,
+    instellingen: <Instellingen staat={staat} vernieuw={laden} terug={() => setTab(vorige)} opUitgelogd={() => setStaat(null)}
+      setStaat={setStaat} />,
   }[tab];
 
   return (

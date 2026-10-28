@@ -146,3 +146,29 @@ export async function weergavenaamWijzigen(naam: string) {
     { p_nieuwe_naam: null, p_weergavenaam: naam, p_nieuw_wachtwoord: null });
   return a?.fout ?? "";
 }
+
+/** Een waarde uit het adres (?naam=...). In de Streamlit-app staat het adres op het venster eromheen. */
+export function adresWaarde(naam: string): string | null {
+  for (const w of [window, window.parent]) {
+    try {
+      const v = new URLSearchParams(w.location.search).get(naam);
+      if (v !== null) return v;
+    } catch {
+      /* ander adres */
+    }
+  }
+  return null;
+}
+
+/** Haalt waarden uit het adres weg nadat de app ze gebruikt heeft, zodat herladen ze niet opnieuw uitvoert. */
+export function adresOpruimen(...namen: string[]) {
+  for (const w of [window, window.parent]) {
+    try {
+      const u = new URL(w.location.href);
+      namen.forEach((n) => u.searchParams.delete(n));
+      if (u.toString() !== w.location.href) w.history.replaceState(w.history.state, "", u.toString());
+    } catch {
+      /* ander adres */
+    }
+  }
+}

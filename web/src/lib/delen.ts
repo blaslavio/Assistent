@@ -25,7 +25,7 @@ export function deelCode(): string | null {
 
 /** Het adres om te delen: de app op Streamlit (met ?nieuw=1), of de pagina waar de app nu staat. */
 export function deelAdres(code: string) {
-  if (/^https?:\/\//.test(OUDE_APP)) return `${OUDE_APP}?nieuw=1&deel=${code}`;
+  if (/^https?:\/\//.test(OUDE_APP)) return `${OUDE_APP}?deel=${code}`;
   return `${location.origin}${location.pathname}?deel=${code}`;
 }
 
