@@ -4,6 +4,7 @@ import type { Staat } from "../App";
 import { Persoon, Plus } from "../iconen";
 import { KeuzeKaart } from "../keuzekaart";
 import { MascotteMetTip } from "../mascotte";
+import { opVandaag, type Weergave } from "./Algemeen";
 import { afhandelen, voorstel } from "../lib/voorstellen";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
 import { weerNu, type Weer } from "../lib/weer";
@@ -17,14 +18,17 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
   const [weer, setWeer] = useState<Weer | null>(null);
   const [invoer, setInvoer] = useState("");
   const { data, gebruiker } = staat;
+  const toon = (k: string) => opVandaag((data.instellingen ?? {}) as Weergave, k);
 
   useEffect(() => {
     const t = setInterval(() => setNu(new Date()), 60_000);
     return () => clearInterval(t);
   }, []);
   useEffect(() => {
-    weerNu(data.instellingen?.thuisadres ?? "").then(setWeer);
-  }, [data.instellingen?.thuisadres]);
+    if (toon("weer")) weerNu(data.instellingen?.thuisadres ?? "").then(setWeer);
+    else setWeer(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.instellingen?.thuisadres, data.instellingen?.voorpagina]);
 
   const vandaag = datumTekst(nu);
   const afspraken = useMemo(
@@ -92,12 +96,12 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
       </header>
 
       <main className="flex flex-1 flex-col gap-7 px-6 py-4">
-        <MascotteMetTip />
+        {toon("mascotte") && <MascotteMetTip />}
         {v && (
           <KeuzeKaart keuze={v} open={!gekozen} kies={kiesVoorstel} compact
             gekozen={gekozen?.sleutel === v.sleutel ? gekozen.optie : undefined} />
         )}
-        {straks && (
+        {toon("afspraken") && straks && (
           <section>
             <h2 className={kop}>Straks</h2>
             <div className="flex flex-col gap-1.5 rounded-[20px] bg-accent p-5 text-white">
@@ -110,7 +114,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
           </section>
         )}
 
-        {rest.length > 0 && (
+        {toon("afspraken") && rest.length > 0 && (
           <section>
             <h2 className={kop}>Vandaag</h2>
             <ul>
@@ -124,9 +128,9 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
           </section>
         )}
 
-        {!straks && rest.length === 0 && <p className="text-rustig">Niets meer in je agenda vandaag.</p>}
+        {toon("afspraken") && !straks && rest.length === 0 && <p className="text-rustig">Niets meer in je agenda vandaag.</p>}
 
-        <section>
+        {toon("taken") && <section>
           <h2 className={kop}>Taken</h2>
           {taken.length === 0 ? (
             <p className="text-rustig">Geen open taken.</p>
@@ -143,10 +147,10 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
               ))}
             </ul>
           )}
-        </section>
+        </section>}
       </main>
 
-      <form onSubmit={toevoegen} className="sticky bottom-0 bg-white px-4 pb-3 pt-2 dark:bg-[#0b0b0e]">
+      {toon("taken") && <form onSubmit={toevoegen} className="sticky bottom-0 bg-white px-4 pb-3 pt-2 dark:bg-[#0b0b0e]">
         <label className="flex h-13 items-center gap-2.5 rounded-full bg-vlak pr-2 pl-5">
           <span className="sr-only">Nieuwe taak</span>
           <input value={invoer} onChange={(e) => setInvoer(e.target.value)} placeholder="Nieuwe taak"
@@ -156,7 +160,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
             <Plus className="size-5" />
           </button>
         </label>
-      </form>
+      </form>}
     </div>
   );
 }

@@ -279,12 +279,12 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
         <main className="flex flex-1 flex-col items-center justify-center gap-8 px-6 pb-10 text-center">
           <Mascotte className="h-28 w-auto" />
           <h2 className="text-2xl font-semibold tracking-tight">Waarmee kan ik helpen?</h2>
-          <div className="flex flex-wrap justify-center gap-2">
+          {staat.data.instellingen?.voorbeeldvragen !== false && <div className="flex flex-wrap justify-center gap-2">
             {VOORBEELDEN.map((v) => (
               <button key={v} onClick={() => vraag(v)}
                 className="rounded-full border border-lijn px-4 py-2.5 text-[15px] text-rustig hover:bg-vlak">{v}</button>
             ))}
-          </div>
+          </div>}
         </main>
       ) : (
         <main className="flex flex-1 flex-col gap-6 px-6 pt-2 pb-6" aria-live="polite">

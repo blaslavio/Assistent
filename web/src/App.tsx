@@ -7,6 +7,7 @@ import Inloggen from "./schermen/Inloggen";
 import Vandaag from "./schermen/Vandaag";
 import Agenda from "./schermen/Agenda";
 import Instellingen from "./schermen/Instellingen";
+import { weergaveToepassen, type Weergave } from "./schermen/Algemeen";
 import Chat from "./schermen/Chat";
 import BelLaag from "./schermen/Bellen";
 import { luisteren } from "./lib/bellen";
@@ -89,6 +90,10 @@ export default function App() {
   useEffect(() => {
     if (boekpagina) verwerken().catch(() => {});
   }, [boekpagina]);
+
+  // Kleur, tekstgrootte en toegankelijkheid uit je instellingen op de hele app.
+  const weergave = staat?.data.instellingen;
+  useEffect(() => { weergaveToepassen((weergave ?? {}) as Weergave); }, [weergave]);
 
   if (GEDEELD) return <GedeeldScherm code={GEDEELD} />;
   if (BOEKING) return <GastScherm code={BOEKING} />;

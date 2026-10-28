@@ -8,10 +8,11 @@ import type { Staat } from "../App";
 import { Terug, Vonk } from "../iconen";
 import { Schakelaar, kop } from "./instellingen-ui";
 import { Account, Beveiliging, Techniek } from "./Beveiliging";
+import { AlgemeenScherm, IdeeScherm, type Weergave } from "./Algemeen";
 
 type Props = { staat: Staat; vernieuw: () => Promise<void>; terug: () => void; opUitgelogd: () => void;
   setStaat: (s: Staat) => void };
-type Pagina = null | "profiel" | "account" | "assistent" | "privacy" | "thuis" | "mail" | "betalingen" | "afspraken";
+type Pagina = null | "algemeen" | "idee" | "profiel" | "account" | "assistent" | "privacy" | "thuis" | "mail" | "betalingen" | "afspraken";
 
 type Stijl = Record<string, string | undefined>;
 type Inst = { stijl?: Stijl; avatar?: { naam?: string }; geheugen_uit?: boolean; thuisadres?: string;
@@ -136,6 +137,8 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
 
   if (pagina === "betalingen") return scherm("Betalingen", <Betalingen eigenaar={g.id === 1} />);
 
+  if (pagina === "algemeen") return scherm("Algemeen", <AlgemeenScherm inst={inst as Weergave} bewaar={(a) => bewaar(a)} />);
+  if (pagina === "idee") return scherm("Idee of probleem", <IdeeScherm />);
   if (pagina === "thuis") return scherm("Thuis", <>
     <TekstVeld label="Thuisadres" uitleg="Voor het weer op Vandaag en reistijden. Alleen jij ziet dit."
       waarde={inst.thuisadres ?? ""} bewaar={(v) => bewaar((i) => { i.thuisadres = v.trim(); })} />
@@ -159,6 +162,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
       </button>
 
       <ul className="mt-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
+        <Rij titel="Algemeen" uitleg="Kleur, tekstgrootte, wat er op Vandaag staat" open={() => setPagina("algemeen")} />
         <Rij titel="Assistent" uitleg="Naam, toon en hoe hij antwoordt" open={() => setPagina("assistent")} />
         <Rij titel="Privacy en beveiliging" uitleg="Tweestapsverificatie, apparaten, wat de assistent weet" open={() => setPagina("privacy")} />
         <Rij titel="Account" uitleg="Mailadres, wachtwoord, je gegevens" open={() => setPagina("account")} />
@@ -170,6 +174,10 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
         <Rij titel="Betalingen" uitleg="Betalen en ontvangen via de app" open={() => setPagina("betalingen")} />
         <Rij titel="Afspraken met gasten" uitleg={inst.boekpagina ? "Je boekingspagina staat aan" : "Laat mensen zonder account een afspraak inplannen"}
           open={() => setPagina("afspraken")} />
+      </ul>
+
+      <ul className="mt-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
+        <Rij titel="Idee of probleem" uitleg="Zeg wat beter kan" open={() => setPagina("idee")} />
       </ul>
 
       <button

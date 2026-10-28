@@ -24,7 +24,7 @@ export function Mascotte({ className = "" }: { className?: string }) {
 export function MascotteMetTip({ tips = TIPS }: { tips?: string[] }) {
   const [i, setI] = useState(() => Math.floor(Math.random() * tips.length));
   useEffect(() => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("minder-beweging")) return;
     const t = setInterval(() => setI((x) => (x + 1) % tips.length), 7000);
     return () => clearInterval(t);
   }, [tips.length]);
