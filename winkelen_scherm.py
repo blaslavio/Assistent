@@ -77,25 +77,44 @@ def pagina() -> None:
 
 
 def ontdekken() -> None:
-    """Zakelijk, links uitgelijnd startpunt met herkenbare iconen en duidelijke routes."""
-    st.subheader("Winkelen")
-    st.caption("Ontdek aanbod, bestel eten of koop en verkoop tweedehands artikelen.")
+    """Een rustig, links uitgelijnd winkeloverzicht zonder externe widgets."""
+    st.subheader("Ontdek")
+    st.caption("Wat zoek je vandaag? Kies een onderdeel om direct verder te gaan.")
     opties = [
-        ("Winkels", "winkels", ":material/storefront:", "Bekijk winkels en hun assortiment."),
-        ("Eten bestellen", "eten", ":material/restaurant:", "Zoek restaurants en beschikbare bezorgopties."),
-        ("Tweedehands", "tweedehands", ":material/checkroom:", "Vind kleding en andere artikelen van verkopers."),
-        ("Producten", "producten", ":material/shopping_bag:", "Zoek producten van verschillende winkels."),
-        ("Mandje", "mandje", ":material/shopping_cart:", "Bekijk je artikelen en reken af."),
-        ("Bestellingen", "bestellingen", ":material/receipt_long:", "Volg eerdere en lopende bestellingen."),
+        ("Winkels", "winkels", ":material/storefront:",
+         "Bekijk winkels en hun assortiment."),
+        ("Eten bestellen", "eten", ":material/restaurant:",
+         "Ontdek restaurants en bestel bij aangesloten aanbieders."),
+        ("Tweedehands", "tweedehands", ":material/checkroom:",
+         "Vind kleding en artikelen van particuliere verkopers."),
+        ("Producten", "producten", ":material/shopping_bag:",
+         "Vergelijk producten uit verschillende winkels."),
     ]
-    if verkoper():
-        opties.append(("Mijn winkel", "winkel", ":material/store:", "Beheer je winkel en verkooptools."))
-    for naam, doel, icoon, uitleg in opties:
-        with st.container(border=True):
-            if st.button(naam, icon=icoon, key=f"ontdek_{doel}", width="stretch"):
-                _open_onderdeel(doel)
-                st.rerun()
-            st.caption(uitleg)
+    st.html("""<style>
+    .st-key-winkel_ontdekken button {
+        justify-content: flex-start !important;
+        text-align: left !important;
+        min-height: 3.4rem;
+    }
+    .st-key-winkel_ontdekken button p {text-align: left !important;}
+    </style>""")
+    with st.container(key="winkel_ontdekken"):
+        for naam, doel, icoon, uitleg in opties:
+            with st.container(border=True):
+                st.button(naam, icon=icoon, key=f"ontdek_{doel}",
+                          width="stretch", help=uitleg,
+                          on_click=_open_onderdeel, args=(doel,))
+                st.caption(uitleg)
+    st.divider()
+    st.markdown("**Mijn aankopen**")
+    st.button("Winkelmandje bekijken", icon=":material/shopping_cart:",
+              key="ontdek_mandje", width="stretch",
+              help="Bekijk je producten en reken af.",
+              on_click=_open_onderdeel, args=("mandje",))
+    st.button("Bestellingen bekijken", icon=":material/receipt_long:",
+              key="ontdek_bestellingen", width="stretch",
+              help="Bekijk eerdere aankopen en hun status.",
+              on_click=_open_onderdeel, args=("bestellingen",))
 
 
 def inkopen() -> None:
@@ -132,8 +151,10 @@ def in_de_buurt(categorie: str = "") -> None:
     if soort == "restaurant":
         winkels = sorted(winkels, key=lambda w: not w.get("bezorgt_hier"))
     if not winkels:
-        st.info("Stel eerst je plaats in." if not winkelen.waar()
-                else "Geen aanbieders gevonden. Probeer een andere zoekterm.")
+        st.info("Stel je plaats in om aanbieders in de buurt te vinden."
+                if not winkelen.waar()
+                else "Er zijn hier nog geen aanbieders gevonden. Probeer een andere zoekterm.")
+        return
     for w in winkels[:60]:
         winkel_regel(w)
     if st.button("Kaart met alle winkels", icon=":material/map:", type="tertiary"):
@@ -151,7 +172,7 @@ def winkel_regel(w: dict) -> None:
         if w.get("bezorgt_hier"):
             delen.append(f"bezorgt in {w['bezorg_minuten']} min")
         if v := (w.get("vertrouwen") or {}).get("beoordelingen"):
-            delen.append(f"★ {str(w['vertrouwen']['sterren']).replace('.', ',')} ({v})")
+            delen.append(f":material/star: {str(w['vertrouwen']['sterren']).replace('.', ',')} ({v})")
         st.markdown(f'<span style="color:{w["kleur"]}">●</span> **{w["naam"]}**  \n'
                     f'<span style="color:#6b7280;font-size:14px">{" · ".join(delen)}</span>',
                     unsafe_allow_html=True, width="stretch")
@@ -166,7 +187,17 @@ def producten(inkopen: bool) -> None:
     lat, lon = _waar()
     lijst = _fout(samen.winkelen_producten, zoek.strip(), lat, lon, inkopen) or []
     if not lijst:
-        st.caption("Niets gevonden." if zoek.strip() or not inkopen else "Nog geen groothandels in de app.")
+        if not winkelen.waar():
+            st.info("Stel je plaats in om aanbod in de buurt te ontdekken. "
+                    "Je kunt dit hierboven bij Locatie wijzigen.")
+        elif zoek.strip():
+            st.info("Geen producten gevonden voor deze zoekopdracht. "
+                    "Probeer een andere naam of een bredere zoekterm.")
+        elif inkopen:
+            st.info("Er zijn nog geen groothandels aangesloten.")
+        else:
+            st.info("Er zijn nog geen producten beschikbaar in deze omgeving.")
+        return
     kolommen = st.columns(2)
     for i, p in enumerate(lijst[:60]):
         with kolommen[i % 2].container(border=True):
@@ -270,7 +301,7 @@ def mandje_winkel(adres: str, w: dict | None) -> None:
         st.caption("Deze producten kun je niet samen bestellen. Haal er een weg.")
         return
     with st.form(f"afrekenen_{adres}", border=False):
-        levering = st.radio("Hoe?", opties, horizontal=True, format_func=lambda l: samen.LEVERING[l][2:],
+        levering = st.radio("Hoe?", opties, horizontal=True, format_func=samen.LEVERING.get,
                             label_visibility="collapsed")
         bezorgadres = st.text_input("Bezorgadres", value=opslag.instellingen().get("thuisadres", ""),
                                     placeholder="Bijv. Dorpsstraat 1, Ede")

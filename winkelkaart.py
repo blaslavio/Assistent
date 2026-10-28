@@ -11,34 +11,34 @@ import reizen
 
 # OpenStreetMap-soort winkel: (omschrijving, icoon)
 SOORTEN = {
-    "supermarket": ("Supermarkt", "🛒"), "convenience": ("Buurtwinkel", "🏪"), "bakery": ("Bakker", "🥖"),
-    "pastry": ("Banketbakker", "🍰"), "butcher": ("Slager", "🥩"), "greengrocer": ("Groenteboer", "🥕"),
-    "cheese": ("Kaaswinkel", "🧀"), "seafood": ("Vishandel", "🐟"), "deli": ("Delicatessen", "🫒"),
-    "confectionery": ("Snoepwinkel", "🍬"), "chocolate": ("Chocolaterie", "🍫"), "coffee": ("Koffie", "☕"),
-    "tea": ("Thee", "🍵"), "alcohol": ("Slijterij", "🍷"), "wine": ("Wijnwinkel", "🍷"), "beverages": ("Dranken", "🥤"),
-    "tobacco": ("Tabak", "🚬"), "kiosk": ("Kiosk", "📰"), "newsagent": ("Tijdschriften", "📰"),
-    "clothes": ("Kleding", "👕"), "shoes": ("Schoenen", "👟"), "bag": ("Tassen", "👜"), "boutique": ("Boetiek", "👗"),
-    "jewelry": ("Sieraden", "💍"), "watches": ("Horloges", "⌚"), "fashion_accessories": ("Accessoires", "🧣"),
-    "second_hand": ("Tweedehands", "♻️"), "charity": ("Kringloop", "♻️"), "tailor": ("Kleermaker", "🧵"),
-    "hairdresser": ("Kapper", "💇"), "beauty": ("Schoonheidssalon", "💅"), "cosmetics": ("Cosmetica", "💄"),
-    "chemist": ("Drogist", "🧴"), "optician": ("Opticien", "👓"), "hearing_aids": ("Hoortoestellen", "🦻"),
-    "medical_supply": ("Zorgwinkel", "🩺"), "perfumery": ("Parfumerie", "🌸"),
-    "bicycle": ("Fietsenwinkel", "🚲"), "car": ("Autobedrijf", "🚗"), "car_repair": ("Garage", "🔧"),
-    "car_parts": ("Auto-onderdelen", "🔩"), "motorcycle": ("Motoren", "🏍️"),
-    "electronics": ("Elektronica", "🔌"), "mobile_phone": ("Telefoons", "📱"), "computer": ("Computers", "💻"),
-    "hifi": ("Audio", "🎧"), "appliance": ("Witgoed", "🧺"), "photo": ("Foto", "📷"), "video_games": ("Games", "🎮"),
-    "books": ("Boekwinkel", "📚"), "stationery": ("Kantoorartikelen", "✏️"), "gift": ("Cadeauwinkel", "🎁"),
-    "toys": ("Speelgoed", "🧸"), "games": ("Spellen", "🎲"), "music": ("Muziek", "🎵"), "musical_instrument": ("Instrumenten", "🎸"),
-    "art": ("Kunst", "🖼️"), "craft": ("Hobbywinkel", "🧶"), "fabric": ("Stoffen", "🧵"), "frame": ("Lijstenmaker", "🖼️"),
-    "sports": ("Sportwinkel", "⚽"), "outdoor": ("Buitensport", "⛺"), "pet": ("Dierenwinkel", "🐾"),
-    "florist": ("Bloemist", "💐"), "garden_centre": ("Tuincentrum", "🌱"),
-    "hardware": ("IJzerwaren", "🔨"), "doityourself": ("Bouwmarkt", "🛠️"), "paint": ("Verf", "🎨"),
-    "furniture": ("Meubels", "🛋️"), "interior_decoration": ("Woonwinkel", "🪴"), "houseware": ("Huishoudwinkel", "🍳"),
-    "bed": ("Bedden", "🛏️"), "kitchen": ("Keukens", "🍽️"), "lighting": ("Verlichting", "💡"), "carpet": ("Vloeren", "🧱"),
-    "department_store": ("Warenhuis", "🏬"), "variety_store": ("Allerlei", "🏪"), "general": ("Winkel", "🏪"),
-    "dry_cleaning": ("Stomerij", "👔"), "laundry": ("Wasserette", "🧺"), "travel_agency": ("Reisbureau", "✈️"),
-    "copyshop": ("Copyshop", "🖨️"), "funeral_directors": ("Uitvaart", "🕊️"), "pawnbroker": ("Pandjeshuis", "💰"),
-    "ticket": ("Kaartverkoop", "🎟️"), "lottery": ("Loterij", "🎟️"), "e-cigarette": ("Vape", "💨"),
+    "supermarket": ("Supermarkt", "shopping_cart"), "convenience": ("Buurtwinkel", "storefront"), "bakery": ("Bakker", "bakery_dining"),
+    "pastry": ("Banketbakker", "cake"), "butcher": ("Slager", "kebab_dining"), "greengrocer": ("Groenteboer", "nutrition"),
+    "cheese": ("Kaaswinkel", "lunch_dining"), "seafood": ("Vishandel", "set_meal"), "deli": ("Delicatessen", "restaurant"),
+    "confectionery": ("Snoepwinkel", "cookie"), "chocolate": ("Chocolaterie", "cookie"), "coffee": ("Koffie", "local_cafe"),
+    "tea": ("Thee", "emoji_food_beverage"), "alcohol": ("Slijterij", "wine_bar"), "wine": ("Wijnwinkel", "wine_bar"), "beverages": ("Dranken", "local_drink"),
+    "tobacco": ("Tabak", "smoking_rooms"), "kiosk": ("Kiosk", "newspaper"), "newsagent": ("Tijdschriften", "newspaper"),
+    "clothes": ("Kleding", "apparel"), "shoes": ("Schoenen", "steps"), "bag": ("Tassen", "shopping_bag"), "boutique": ("Boetiek", "checkroom"),
+    "jewelry": ("Sieraden", "diamond"), "watches": ("Horloges", "watch"), "fashion_accessories": ("Accessoires", "checkroom"),
+    "second_hand": ("Tweedehands", "recycling"), "charity": ("Kringloop", "recycling"), "tailor": ("Kleermaker", "content_cut"),
+    "hairdresser": ("Kapper", "content_cut"), "beauty": ("Schoonheidssalon", "spa"), "cosmetics": ("Cosmetica", "spa"),
+    "chemist": ("Drogist", "sanitizer"), "optician": ("Opticien", "eyeglasses"), "hearing_aids": ("Hoortoestellen", "hearing"),
+    "medical_supply": ("Zorgwinkel", "medical_services"), "perfumery": ("Parfumerie", "local_florist"),
+    "bicycle": ("Fietsenwinkel", "pedal_bike"), "car": ("Autobedrijf", "directions_car"), "car_repair": ("Garage", "build"),
+    "car_parts": ("Auto-onderdelen", "build"), "motorcycle": ("Motoren", "two_wheeler"),
+    "electronics": ("Elektronica", "electrical_services"), "mobile_phone": ("Telefoons", "smartphone"), "computer": ("Computers", "computer"),
+    "hifi": ("Audio", "headphones"), "appliance": ("Witgoed", "local_laundry_service"), "photo": ("Foto", "photo_camera"), "video_games": ("Games", "sports_esports"),
+    "books": ("Boekwinkel", "menu_book"), "stationery": ("Kantoorartikelen", "edit"), "gift": ("Cadeauwinkel", "redeem"),
+    "toys": ("Speelgoed", "toys"), "games": ("Spellen", "casino"), "music": ("Muziek", "music_note"), "musical_instrument": ("Instrumenten", "piano"),
+    "art": ("Kunst", "image"), "craft": ("Hobbywinkel", "palette"), "fabric": ("Stoffen", "content_cut"), "frame": ("Lijstenmaker", "image"),
+    "sports": ("Sportwinkel", "sports_soccer"), "outdoor": ("Buitensport", "camping"), "pet": ("Dierenwinkel", "pets"),
+    "florist": ("Bloemist", "local_florist"), "garden_centre": ("Tuincentrum", "yard"),
+    "hardware": ("IJzerwaren", "hardware"), "doityourself": ("Bouwmarkt", "handyman"), "paint": ("Verf", "format_paint"),
+    "furniture": ("Meubels", "chair"), "interior_decoration": ("Woonwinkel", "potted_plant"), "houseware": ("Huishoudwinkel", "skillet"),
+    "bed": ("Bedden", "bed"), "kitchen": ("Keukens", "restaurant"), "lighting": ("Verlichting", "lightbulb"), "carpet": ("Vloeren", "grid_view"),
+    "department_store": ("Warenhuis", "store"), "variety_store": ("Allerlei", "storefront"), "general": ("Winkel", "storefront"),
+    "dry_cleaning": ("Stomerij", "dry_cleaning"), "laundry": ("Wasserette", "local_laundry_service"), "travel_agency": ("Reisbureau", "flight"),
+    "copyshop": ("Copyshop", "print"), "funeral_directors": ("Uitvaart", "local_florist"), "pawnbroker": ("Pandjeshuis", "savings"),
+    "ticket": ("Kaartverkoop", "confirmation_number"), "lottery": ("Loterij", "confirmation_number"), "e-cigarette": ("Vape", "air"),
 }
 
 _cache: dict[tuple, tuple[float, list]] = {}
@@ -72,7 +72,7 @@ def osm_winkels(lat: float, lon: float, straal_km: float = 2) -> list[dict]:
         p = e.get("center") or e
         if "lat" not in p or tags.get("shop") in ("vacant", "no"):
             continue
-        soort, icoon = SOORTEN.get(tags.get("shop", ""), ("Winkel", "🏪"))
+        soort, icoon = SOORTEN.get(tags.get("shop", ""), ("Winkel", "storefront"))
         straat = " ".join(filter(None, [tags.get("addr:street"), tags.get("addr:housenumber")]))
         winkels.append({
             "naam": tags["name"], "soort": soort, "icoon": icoon, "lat": p["lat"], "lon": p["lon"],

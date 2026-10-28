@@ -1,0 +1,12 @@
+{
+  "name": "assistent-private-documents",
+  "fields": [
+    {"name": "id", "type": "Edm.String", "key": true},
+    {"name": "owner_id", "type": "Edm.String", "filterable": true},
+    {"name": "scope", "type": "Edm.String", "filterable": true},
+    {"name": "document_id", "type": "Edm.Int32", "filterable": true},
+    {"name": "content_hash", "type": "Edm.String"},
+    {"name": "title", "type": "Edm.String", "searchable": true},
+    {"name": "content", "type": "Edm.String", "searchable": true}
+  ]
+}

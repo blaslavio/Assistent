@@ -221,10 +221,10 @@ def _gebeurtenissen(koppeling: dict, agenda: str, kalender, van: date, tot: date
         elif not hele_dag and gebeurtenis.get("DURATION") is not None:
             einde = (datetime.fromisoformat(start) + gebeurtenis.get("DURATION").dt).strftime("%Y-%m-%dT%H:%M")
         titel = _als_tekst(gebeurtenis.get("SUMMARY")).strip() or "Afspraak"
-        uid = _als_tekst(gebeurtenis.get("UID")) or hashlib.sha1(f"{titel}{start}".encode()).hexdigest()[:12]
+        uid = _als_tekst(gebeurtenis.get("UID")) or hashlib.sha1(f"{titel}{start}".encode(), usedforsecurity=False).hexdigest()[:12]
         if uid.startswith("assistent-") and uid.endswith("@mijn-assistent"):
             continue  # zelf vanuit de app naar je agenda gezet: staat al in de app
-        uit.append({"id": f"ext:{koppeling['id']}:{hashlib.sha1(f'{uid}|{start}'.encode()).hexdigest()[:16]}",
+        uit.append({"id": f"ext:{koppeling['id']}:{hashlib.sha1(f'{uid}|{start}'.encode(), usedforsecurity=False).hexdigest()[:16]}",
                     "titel": titel, "start": start, "einde": einde,
                     "locatie": re.sub(r"\s+", " ", _als_tekst(gebeurtenis.get("LOCATION"))).strip(),
                     "notitie": _als_tekst(gebeurtenis.get("DESCRIPTION")).strip()[:500],
@@ -356,7 +356,7 @@ def schrijf_koppeling() -> dict | None:
 
 def _vingerafdruk(a: dict) -> str:
     velden = [a.get(k) or "" for k in ("titel", "start", "einde", "locatie", "notitie")]
-    return hashlib.sha1("|".join(velden).encode()).hexdigest()[:16]
+    return hashlib.sha1("|".join(velden).encode(), usedforsecurity=False).hexdigest()[:16]
 
 
 def _ics(a: dict) -> str:
@@ -442,7 +442,7 @@ def wegschrijven_vanzelf(afspraken: list[dict], wachten: float = 0) -> None:
     van, tot = (vandaag - timedelta(days=SCHRIJF_TERUG)).isoformat(), (vandaag + timedelta(days=SCHRIJF_VOORUIT)).isoformat()
     gewenst = {UID.format(a["id"]): a for a in afspraken
                if not a.get("extern") and isinstance(a.get("id"), int) and van <= a["start"][:10] <= tot}
-    afdruk = hashlib.sha1("".join(sorted(u + _vingerafdruk(a) for u, a in gewenst.items())).encode()).hexdigest()
+    afdruk = hashlib.sha1("".join(sorted(u + _vingerafdruk(a) for u, a in gewenst.items())).encode(), usedforsecurity=False).hexdigest()
     sleutel = _sleutel(k)
     with _slot:
         laatst = _geschreven.get(sleutel)

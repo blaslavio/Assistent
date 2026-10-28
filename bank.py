@@ -91,7 +91,7 @@ def afmaken(code: str, staat: str) -> dict:
 
 def _sleutel(r: dict) -> str:
     basis = r["referentie"] or f"{r['datum']}|{r['bedrag']}|{r['tegenpartij']}|{r['omschrijving']}"
-    return "bank:" + hashlib.sha1(f"{r['rekening']}|{basis}".encode()).hexdigest()[:32]
+    return "bank:" + hashlib.sha1(f"{r['rekening']}|{basis}".encode(), usedforsecurity=False).hexdigest()[:32]
 
 
 def _al_ingelezen(r: dict, bestaand: list[dict]) -> bool:
