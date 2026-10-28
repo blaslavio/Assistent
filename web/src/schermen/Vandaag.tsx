@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { bijwerken, type Afspraak } from "../api";
 import type { Staat } from "../App";
 import { Plus } from "../iconen";
+import { KeuzeKaart } from "../keuzekaart";
+import { afhandelen, voorstel } from "../lib/voorstellen";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
 import { weerNu, type Weer } from "../lib/weer";
 
@@ -35,6 +37,19 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
     .filter((t) => !t.klaar)
     .sort((a, b) => (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999"))
     .slice(0, 5);
+
+  const v = useMemo(() => voorstel(data, nu), [data, nu]);
+  const [gekozen, setGekozen] = useState<{ sleutel: string; optie: number } | null>(null);
+
+  async function kiesVoorstel(optie: number) {
+    if (!v || gekozen) return;
+    setGekozen({ sleutel: v.sleutel, optie });
+    try {
+      setStaat({ ...staat, data: await bijwerken((g) => afhandelen(g, v, optie)) });
+    } finally {
+      setGekozen(null);
+    }
+  }
 
   async function afvinken(id: number) {
     setStaat({ ...staat, data: { ...data, taken: data.taken.map((t) => (t.id === id ? { ...t, klaar: true } : t)) } });
@@ -77,6 +92,10 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
       </header>
 
       <main className="flex flex-1 flex-col gap-7 px-6 py-4">
+        {v && (
+          <KeuzeKaart keuze={v} open={!gekozen} kies={kiesVoorstel} compact
+            gekozen={gekozen?.sleutel === v.sleutel ? gekozen.optie : undefined} />
+        )}
         {straks && (
           <section>
             <h2 className={kop}>Straks</h2>
