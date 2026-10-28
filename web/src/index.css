@@ -140,6 +140,13 @@
 .stemming-luistert { animation: mascotte-luister 0.9s ease-in-out infinite; }
 .stemming-denkt .mascotte-blik { transform: translate(22px, -30px); }
 .stemming-denkt .mascotte-lijf { animation: mascotte-wieg 2.2s ease-in-out infinite; }
+.stemming-blij .mascotte-lijf { animation: mascotte-blij 0.8s ease-in-out 2; }
+.stemming-slaapt .mascotte-ogen { animation: none; transform: scaleY(0.12); }
+.stemming-slaapt .mascotte-lijf { animation: mascotte-wieg 9s ease-in-out infinite; }
+.stemming-slaapt { animation: mascotte-adem 4s ease-in-out infinite; }
+@keyframes mascotte-blij { 0%, 100% { transform: rotate(0) translateY(0); } 25% { transform: rotate(-10deg) translateY(-6%); }
+  75% { transform: rotate(10deg) translateY(-6%); } }
+@keyframes mascotte-adem { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03, 0.98); } }
 @keyframes mascotte-buig { 0%, 100% { transform: rotate(-7deg) translateY(2%); } 50% { transform: rotate(-4deg) translateY(2%); } }
 @keyframes mascotte-luister { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { .mascotte, .mascotte-lijf, .mascotte-ogen { animation: none !important; } }
