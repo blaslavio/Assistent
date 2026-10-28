@@ -70,3 +70,8 @@
 @media (prefers-reduced-motion: reduce) {
   .bol, .bol-actief, .bezig-tekst, .opkomen, .wegstrepen { animation: none; }
 }
+
+/* Een iPhone zoomt in bij invulvelden met kleinere letters dan 16 pixels, en dan verschuift het scherm. */
+@media (pointer: coarse) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select { font-size: max(16px, 1em); }
+}
