@@ -11,3 +11,7 @@ icalendar
 recurring-ical-events
 caldav
 fitdecode
+google-genai>=1.0,<2
+defusedxml>=0.7.1,<1
+
+imageio-ffmpeg>=0.6,<0.7

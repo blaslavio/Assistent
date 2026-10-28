@@ -18,6 +18,7 @@ import time
 from datetime import date, datetime, timedelta
 
 import opslag
+import samen_leren
 
 # Categorie -> (icoon, woorden in naam of omschrijving waaraan we hem herkennen).
 CATEGORIEEN: dict[str, tuple[str, list[str]]] = {
@@ -140,10 +141,13 @@ def spaardoel_bijwerken(doel_id: str, erbij: float = 0, weg: bool = False) -> di
 # --- Herkennen --------------------------------------------------------------------------------------------------------
 
 def categorie_raden(tegenpartij: str, omschrijving: str, bedrag: float, regels: dict | None = None) -> str:
-    """Raadt de categorie: eerst je eigen regels, dan bekende namen, anders Inkomen (bij plus) of Overig."""
+    """Raadt de categorie: eerst je eigen regels, dan wat de meeste gebruikers samen kozen (samen leren),
+    dan bekende namen, anders Inkomen (bij plus) of Overig."""
     regels = instellingen()["regels"] if regels is None else regels
     if (eigen := regels.get(tegenpartij.strip().lower())) and eigen in CATEGORIEEN:
         return eigen
+    if bedrag < 0 and (samen := samen_leren.categorie(tegenpartij)) in CATEGORIEEN and samen != "Inkomen":
+        return samen
     tekst = f" {tegenpartij} {omschrijving} ".lower()
     for naam, (_, woorden) in CATEGORIEEN.items():
         if naam == "Inkomen" and bedrag < 0:
@@ -294,7 +298,7 @@ def _vingerafdruk(regels: list[dict]) -> list[dict]:
     for r in regels:
         basis = f"{r['datum']}|{r['bedrag']:.2f}|{r['tegenpartij'].lower()}|{r['omschrijving'].lower()}|{r['rekening']}"
         gezien[basis] = gezien.get(basis, 0) + 1
-        r["sleutel"] = "imp:" + hashlib.sha1(f"{basis}|{gezien[basis]}".encode()).hexdigest()[:32]
+        r["sleutel"] = "imp:" + hashlib.sha1(f"{basis}|{gezien[basis]}".encode(), usedforsecurity=False).hexdigest()[:32]
     return regels
 
 

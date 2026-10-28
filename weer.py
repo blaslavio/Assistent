@@ -6,29 +6,33 @@ import time
 import httpx
 
 import reizen
+import symbool
 
 WEER_URL = os.environ.get("WEER_URL", "https://api.open-meteo.com")
 STANDAARD_PLAATS = "Amsterdam"
 
-# WMO-weercodes naar icoon en omschrijving.
+# WMO-weercodes naar symbool (Material Symbols, zie symbool.py) en omschrijving.
 CODES = {
-    0: ("☀️", "zonnig"), 1: ("🌤️", "overwegend zonnig"), 2: ("⛅", "half bewolkt"), 3: ("☁️", "bewolkt"),
-    45: ("🌫️", "mist"), 48: ("🌫️", "mist met rijp"),
-    51: ("🌦️", "lichte motregen"), 53: ("🌦️", "motregen"), 55: ("🌧️", "dichte motregen"),
-    56: ("🌧️", "ijzel"), 57: ("🌧️", "ijzel"),
-    61: ("🌦️", "lichte regen"), 63: ("🌧️", "regen"), 65: ("🌧️", "zware regen"),
-    66: ("🌧️", "ijzel"), 67: ("🌧️", "ijzel"),
-    71: ("🌨️", "lichte sneeuw"), 73: ("🌨️", "sneeuw"), 75: ("❄️", "zware sneeuw"), 77: ("🌨️", "sneeuwkorrels"),
-    80: ("🌦️", "buien"), 81: ("🌧️", "buien"), 82: ("⛈️", "zware buien"),
-    85: ("🌨️", "sneeuwbuien"), 86: ("🌨️", "zware sneeuwbuien"),
-    95: ("⛈️", "onweer"), 96: ("⛈️", "onweer met hagel"), 99: ("⛈️", "onweer met hagel"),
+    0: ("sunny", "zonnig"), 1: ("partly_cloudy_day", "overwegend zonnig"), 2: ("partly_cloudy_day", "half bewolkt"),
+    3: ("cloud", "bewolkt"), 45: ("foggy", "mist"), 48: ("foggy", "mist met rijp"),
+    51: ("rainy_light", "lichte motregen"), 53: ("rainy_light", "motregen"), 55: ("rainy", "dichte motregen"),
+    56: ("rainy", "ijzel"), 57: ("rainy", "ijzel"),
+    61: ("rainy_light", "lichte regen"), 63: ("rainy", "regen"), 65: ("rainy_heavy", "zware regen"),
+    66: ("rainy", "ijzel"), 67: ("rainy", "ijzel"),
+    71: ("weather_snowy", "lichte sneeuw"), 73: ("weather_snowy", "sneeuw"), 75: ("ac_unit", "zware sneeuw"),
+    77: ("weather_snowy", "sneeuwkorrels"),
+    80: ("rainy_light", "buien"), 81: ("rainy", "buien"), 82: ("thunderstorm", "zware buien"),
+    85: ("weather_snowy", "sneeuwbuien"), 86: ("weather_snowy", "zware sneeuwbuien"),
+    95: ("thunderstorm", "onweer"), 96: ("weather_hail", "onweer met hagel"), 99: ("weather_hail", "onweer met hagel"),
 }
 
 _cache: dict[tuple[float, float], tuple[float, dict]] = {}
 
 
 def omschrijving(code: int) -> tuple[str, str]:
-    return CODES.get(code, ("🌡️", "onbekend"))
+    """Symbool (voor markdown) en omschrijving van een weercode."""
+    naam, tekst = CODES.get(code, ("thermostat", "onbekend"))
+    return symbool.md(naam), tekst
 
 
 def voorspelling(adres: str) -> dict:
@@ -76,7 +80,7 @@ def samenvatting(adres: str, datum: str = "") -> dict:
     return {
         "plaats": data["plaats"],
         "datum": dagen[i],
-        "omschrijving": f"{icoon} {tekst}",
+        "omschrijving": tekst,
         "min": round(data["daily"]["temperature_2m_min"][i]),
         "max": round(data["daily"]["temperature_2m_max"][i]),
         "kans_op_regen": data["daily"]["precipitation_probability_max"][i],

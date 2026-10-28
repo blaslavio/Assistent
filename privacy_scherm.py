@@ -167,7 +167,8 @@ def beveiligingscheck() -> None:
         (bool(sleutels), "Inloggen met Face ID", "Stel Face ID in bij Inloggen: veiliger dan een wachtwoord."),
         (not b.get("twee_stap") or b.get("herstelcodes_over", 0) >= 3, "Genoeg herstelcodes",
          "Je hebt bijna geen herstelcodes meer. Zet tweestapsverificatie uit en weer aan voor nieuwe."),
-        (bool(ik.get("email")), "Mailadres voor herstel", "Vul je mailadres in bij Account."),
+        (bool(ik.get("email") and ik.get("email_bevestigd")), "Mailadres voor herstel",
+         "Bevestig je mailadres bij Account." if ik.get("email") else "Vul je mailadres in bij Account."),
         (instellingen()["aan"], "App-vergrendeling", "Zet de app-vergrendeling aan, hieronder."),
         (len(b.get("sessies", [])) <= 3, "Weinig open sessies", "Log uit op apparaten die je niet meer gebruikt."),
         (not mislukt, "Geen mislukte inlogpogingen deze week",
@@ -237,7 +238,7 @@ def lekcheck() -> None:
     with st.form("lekcheck", border=False, clear_on_submit=True):
         ww = st.text_input("Wachtwoord", type="password", autocomplete="current-password")
         if st.form_submit_button("Controleren") and ww:
-            h = hashlib.sha1(ww.encode()).hexdigest().upper()
+            h = hashlib.sha1(ww.encode(), usedforsecurity=False).hexdigest().upper()
             try:
                 r = httpx.get(f"https://api.pwnedpasswords.com/range/{h[:5]}", timeout=8,
                               headers={"Add-Padding": "true", "User-Agent": "Mijn-assistent"})
