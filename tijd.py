@@ -10,6 +10,7 @@ Daaruit volgt per afspraak:
 from datetime import date, datetime, timedelta
 
 import opslag
+import symbool
 
 MOMENTEN = ["vertrokken", "aangekomen", "weg", "terug"]
 
@@ -62,32 +63,55 @@ def tijdsbesteding(van: str, tot: str) -> dict:
     return {"van": van, "tot": tot, "afspraken": regels, "totaal_minuten": totaal}
 
 
-SPORT_ICOON = {"hardlopen": "🏃", "rennen": "🏃", "fitness": "🏋️", "krachttraining": "🏋️", "crossfit": "🏋️",
-               "fietsen": "🚴", "wielrennen": "🚴", "mountainbiken": "🚵", "bmx": "🚲", "spinning": "🚴",
-               "zwemmen": "🏊", "waterpolo": "🤽", "wandelen": "🚶", "hiken": "🥾", "voetbal": "⚽", "futsal": "⚽",
-               "tennis": "🎾", "padel": "🎾", "squash": "🎾", "badminton": "🏸", "tafeltennis": "🏓", "yoga": "🧘",
-               "pilates": "🧘", "boksen": "🥊", "kickboksen": "🥊", "mma": "🥋", "judo": "🥋", "karate": "🥋",
-               "taekwondo": "🥋", "worstelen": "🤼", "basketbal": "🏀", "volleybal": "🏐", "beachvolleybal": "🏐",
-               "handbal": "🤾", "hockey": "🏑", "ijshockey": "🏒", "honkbal": "⚾", "softbal": "🥎", "rugby": "🏉",
-               "american football": "🏈", "golf": "⛳", "skiën": "⛷️", "snowboarden": "🏂", "schaatsen": "⛸️",
-               "skaten": "🛹", "skateboarden": "🛹", "surfen": "🏄", "kitesurfen": "🏄", "zeilen": "⛵",
-               "roeien": "🚣", "kanoën": "🛶", "klimmen": "🧗", "boulderen": "🧗", "paardrijden": "🏇",
-               "atletiek": "🏃", "turnen": "🤸", "dansen": "💃", "schermen": "🤺", "darten": "🎯",
-               "boogschieten": "🏹", "schaken": "♟️", "duiken": "🤿", "triatlon": "🏊", "korfbal": "🏀",
-               "cricket": "🏏", "motorcross": "🏍️", "karten": "🏎️", "parkour": "🤸", "calisthenics": "🤸",
-               "touwtjespringen": "🤸", "wandelvoetbal": "⚽", "bootcamp": "🏋️"}
+# Per sport een symbool (Material Symbols, zie symbool.py).
+SPORT_ICOON = {"hardlopen": "directions_run", "rennen": "directions_run", "fitness": "fitness_center",
+               "krachttraining": "fitness_center", "crossfit": "fitness_center", "fietsen": "directions_bike",
+               "wielrennen": "directions_bike", "mountainbiken": "directions_bike", "bmx": "pedal_bike",
+               "spinning": "directions_bike", "zwemmen": "pool", "waterpolo": "pool", "wandelen": "directions_walk",
+               "hiken": "hiking", "voetbal": "sports_soccer", "futsal": "sports_soccer", "tennis": "sports_tennis",
+               "padel": "sports_tennis", "squash": "sports_tennis", "badminton": "sports_tennis",
+               "tafeltennis": "sports_tennis", "yoga": "self_improvement", "pilates": "self_improvement",
+               "boksen": "sports_mma", "kickboksen": "sports_mma", "mma": "sports_mma", "judo": "sports_martial_arts",
+               "karate": "sports_martial_arts", "taekwondo": "sports_martial_arts", "worstelen": "sports_kabaddi",
+               "basketbal": "sports_basketball", "volleybal": "sports_volleyball", "beachvolleybal": "sports_volleyball",
+               "handbal": "sports_handball", "hockey": "sports_hockey", "ijshockey": "sports_hockey",
+               "honkbal": "sports_baseball", "softbal": "sports_baseball", "rugby": "sports_rugby",
+               "american football": "sports_football", "golf": "golf_course", "skiën": "downhill_skiing",
+               "snowboarden": "snowboarding", "schaatsen": "ice_skating", "skaten": "skateboarding",
+               "skateboarden": "skateboarding", "surfen": "surfing", "kitesurfen": "kitesurfing", "zeilen": "sailing",
+               "roeien": "rowing", "kanoën": "kayaking", "klimmen": "landscape", "boulderen": "landscape",
+               "paardrijden": "pets", "atletiek": "directions_run", "turnen": "sports_gymnastics", "dansen": "nightlife",
+               "schermen": "sports_martial_arts", "darten": "target", "boogschieten": "target", "schaken": "chess",
+               "duiken": "scuba_diving", "triatlon": "pool", "korfbal": "sports_basketball", "cricket": "sports_cricket",
+               "motorcross": "two_wheeler", "karten": "sports_motorsports", "parkour": "sports_gymnastics",
+               "calisthenics": "sports_gymnastics", "touwtjespringen": "sports_gymnastics",
+               "wandelvoetbal": "sports_soccer", "bootcamp": "fitness_center"}
 SPORTEN = sorted(set(SPORT_ICOON) - {"rennen"})
 
 
 def sport_icoon(sport: str) -> str:
-    return SPORT_ICOON.get(sport, "🏅")
+    """Het symbool van een sport, voor markdown."""
+    return symbool.md(SPORT_ICOON.get(sport, "emoji_events"))
 
 
-# Soorten afspraken in de agenda, met hun icoon.
-SOORTEN = {"afspraak": ":material/event:", "sport": ":material/fitness_center:", "uitgaan": ":material/celebration:", "etentje": ":material/restaurant:", "werk": ":material/work:",
-           "familie en vrienden": ":material/groups:", "gezondheid": ":material/favorite:", "reizen": ":material/flight:", "verjaardag": ":material/cake:", "herinnering": ":material/notifications:",
-           "focus": ":material/center_focus_strong:", "vrij": ":material/beach_access:", "bezorging": ":material/local_shipping:",
-           "overig": ":material/calendar_today:"}
+# Soorten afspraken in de agenda, met hun symbool (Material Symbols, zie symbool.py).
+SOORTEN = {"afspraak": "push_pin", "sport": "directions_run", "uitgaan": "celebration", "etentje": "restaurant",
+           "werk": "work", "familie en vrienden": "group", "gezondheid": "stethoscope", "reizen": "flight",
+           "verjaardag": "cake", "herinnering": "notifications", "focus": "target", "vrij": "beach_access",
+           "bezorging": "local_shipping", "overig": "event"}
+# Taken met een deadline staan als herinnering in de agenda, maar zijn geen soort afspraak.
+_TEKENS = SOORTEN | {"taak": "task_alt"}
+
+
+def teken(soort: str) -> str:
+    """Het symbool van een soort afspraak, voor markdown."""
+    return symbool.md(_TEKENS.get(soort, "event"))
+
+
+def soort_tekst(soort: str) -> str:
+    """Symbool en naam, bijvoorbeeld voor een knop of een kopje: ":material/work: Werk"."""
+    return f"{teken(soort)} {soort.capitalize()}"
+
 
 # Elke soort heeft een eigen kleur in de agenda; de gebruiker kan ze aanpassen (instellingen.kleuren).
 # "taak" is voor taken met een deadline, die als herinnering in de agenda staan.
@@ -102,9 +126,9 @@ def kleur(soort: str) -> str:
 
 
 def label_html(soort: str, tekst: str = "") -> str:
-    """Een gekleurd labeltje, bijvoorbeeld "💼 Werk" in de kleur van werk."""
+    """Een gekleurd labeltje met symbool, bijvoorbeeld "Werk" in de kleur van werk."""
     k = kleur(soort)
-    tekst = tekst or f"{SOORTEN.get(soort, '🔔')} {soort.capitalize()}"
+    tekst = symbool.html(_TEKENS.get(soort, "notifications"), "1.05em") + " " + (tekst or soort.capitalize())
     return (f'<span style="background:{k}22;color:{k};border:1px solid {k}55;border-radius:10px;'
             f'padding:1px 8px;font-size:13px;white-space:nowrap">{tekst}</span>')
 
@@ -115,10 +139,20 @@ def soort_van(afspraak: dict) -> str:
     return soort if soort in SOORTEN else "overig"
 
 
-def icoon(afspraak: dict) -> str:
+def icoon_naam(afspraak: dict) -> str:
     if afspraak.get("sport"):
-        return sport_icoon(afspraak["sport"])
+        return SPORT_ICOON.get(afspraak["sport"], "emoji_events")
     return SOORTEN[soort_van(afspraak)]
+
+
+def icoon(afspraak: dict) -> str:
+    """Het symbool van een afspraak, voor markdown."""
+    return symbool.md(icoon_naam(afspraak))
+
+
+def icoon_html(afspraak: dict) -> str:
+    """Het symbool van een afspraak, voor eigen HTML."""
+    return symbool.html(icoon_naam(afspraak))
 
 
 def sportminuten(afspraak: dict) -> int:

@@ -26,23 +26,24 @@ const ITEMS = new Map((D.items || []).map((i) => [i.id, i]));
 // ---------------------------------------------------------------------------------------------------------------
 
 const CATALOGUS = [
-  { naam: "Basis", dingen: [["blok", "🟫", "Blok"], ["plaat", "▭", "Platform"], ["bol", "⚪", "Bol"], ["cilinder", "🛢️", "Zuil"],
-    ["kegel", "🔺", "Kegel"], ["piramide", "◭", "Piramide"], ["ring", "⭕", "Ring"], ["trap", "🪜", "Trap"],
-    ["muur", "🧱", "Muur"], ["boog", "⛩️", "Poort"], ["helling", "◺", "Helling"]] },
-  { naam: "Natuur", dingen: [["boom", "🌳", "Boom"], ["den", "🌲", "Den"], ["struik", "🌿", "Struik"], ["rots", "🪨", "Rots"],
-    ["bloem", "🌷", "Bloem"], ["water", "💧", "Water"], ["wolk", "☁️", "Wolk"]] },
-  { naam: "Bouwen", dingen: [["huis", "🏠", "Huis"], ["toren", "🏰", "Toren"], ["hek", "🚧", "Hek"], ["brug", "🌉", "Brug"],
-    ["pad", "🟨", "Pad"]] },
-  { naam: "Inrichting", dingen: [["tafel", "🍽️", "Tafel"], ["stoel", "🪑", "Stoel"], ["bank", "🛋️", "Bank"],
-    ["lamp", "💡", "Lamp"], ["bord", "🪧", "Tekstbord"], ["kist", "📦", "Kist"]] },
-  { naam: "Spel", dingen: [["start", "🚩", "Start"], ["munt", "🪙", "Munt"], ["ster", "⭐", "Ster"], ["finish", "🏁", "Finish"],
-    ["checkpoint", "📍", "Checkpoint"], ["springkussen", "🟣", "Springkussen"], ["lava", "🔥", "Lava"],
-    ["vraag", "❓", "Vraag"], ["portaal", "🌀", "Portaal"]] },
+  { naam: "Basis", dingen: [["blok", "Blok"], ["plaat", "Platform"], ["bol", "Bol"], ["cilinder", "Zuil"],
+    ["kegel", "Kegel"], ["piramide", "Piramide"], ["ring", "Ring"], ["trap", "Trap"],
+    ["muur", "Muur"], ["boog", "Poort"], ["helling", "Helling"]] },
+  { naam: "Natuur", dingen: [["boom", "Boom"], ["den", "Den"], ["struik", "Struik"], ["rots", "Rots"],
+    ["bloem", "Bloem"], ["water", "Water"], ["wolk", "Wolk"]] },
+  { naam: "Bouwen", dingen: [["huis", "Huis"], ["toren", "Toren"], ["hek", "Hek"], ["brug", "Brug"], ["pad", "Pad"]] },
+  { naam: "Inrichting", dingen: [["tafel", "Tafel"], ["stoel", "Stoel"], ["bank", "Bank"],
+    ["lamp", "Lamp"], ["bord", "Tekstbord"], ["kist", "Kist"]] },
+  { naam: "Spel", dingen: [["start", "Start"], ["munt", "Munt"], ["ster", "Ster"], ["finish", "Finish"],
+    ["checkpoint", "Checkpoint"], ["springkussen", "Springkussen"], ["lava", "Lava"],
+    ["vraag", "Vraag"], ["portaal", "Portaal"]] },
 ];
-const NAMEN = Object.fromEntries(CATALOGUS.flatMap((c) => c.dingen.map(([v, ic, n]) => [v, { icoon: ic, naam: n }])));
-NAMEN.foto = { icoon: "🖼️", naam: "Foto" };
-NAMEN.model = { icoon: "🧊", naam: "3D-model" };
-NAMEN.ontwerp = { icoon: "🧩", naam: "Ontwerp" };
+const NAMEN = Object.fromEntries(CATALOGUS.flatMap((c) => c.dingen.map(([v, n]) => [v, { naam: n }])));
+NAMEN.foto = { naam: "Foto" };
+NAMEN.model = { naam: "3D-model" };
+NAMEN.ontwerp = { naam: "Ontwerp" };
+// In plaats van een emoji: een rustig rondje in de kleur van het ding.
+const stip = (v) => `<span class="stip" style="background:${(STANDAARD[v] || {}).k || "#cbd5e1"}"></span>`;
 
 // Standaardwaarden per vorm: kleur, maat en of je ertegen botst.
 const STANDAARD = {
@@ -488,12 +489,12 @@ function hudBijwerken() {
   const h = $("#hud");
   if (!spel || bouw.spel.soort === "geen") { h.innerHTML = ""; return; }
   const d = spel.doelen, delen = [];
-  if (d.munten) delen.push(`🪙 ${[...spel.gepakt].filter((id) => { const x = bouw.dingen.find((y) => y.id === id); return x && (x.v === "munt" || x.v === "ster"); }).length}/${d.munten}`);
-  if (d.vragen) delen.push(`❓ ${spel.vragen.size}/${d.vragen}`);
-  delen.push(`★ ${spel.punten}`);
+  if (d.munten) delen.push(`Munten ${[...spel.gepakt].filter((id) => { const x = bouw.dingen.find((y) => y.id === id); return x && (x.v === "munt" || x.v === "ster"); }).length}/${d.munten}`);
+  if (d.vragen) delen.push(`Vragen ${spel.vragen.size}/${d.vragen}`);
+  delen.push(`Punten ${spel.punten}`);
   const limiet = (bouw.spel.tijd || 0) * 1000;
   const verstreken = spel.bezig ? performance.now() - spel.start : 0;
-  if (spel.bezig) delen.push(`⏱ ${tijdTekst(limiet ? Math.max(0, limiet - verstreken) : verstreken)}`);
+  if (spel.bezig) delen.push(`Tijd ${tijdTekst(limiet ? Math.max(0, limiet - verstreken) : verstreken)}`);
   h.innerHTML = delen.map((x) => `<span>${x}</span>`).join("");
 }
 
@@ -960,13 +961,13 @@ function paneelTonen() {
   const p = $("#paneel"), d = ding();
   $("#toevoegen").hidden = !!d || testen;
   if (!d || testen) { p.hidden = true; return; }
-  const n = NAMEN[d.v] || { icoon: "", naam: d.v };
+  const n = NAMEN[d.v] || { naam: d.v };
   const it = d.i ? ITEMS.get(d.i) : { titel: d.v === "ontwerp" ? d.t : "" };
   const s = d.s || [1, 1, 1];
   const vastAan = vast(d);
   p.hidden = false;
   p.innerHTML = `
-    <div class="kop"><b>${n.icoon} ${esc(it?.titel || n.naam)}</b><button class="knop" data-a="klaar">Klaar</button></div>
+    <div class="kop"><b>${esc(it?.titel || n.naam)}</b><button class="knop" data-a="klaar">Klaar</button></div>
     <div class="groep"><span class="label">Verplaatsen</span>
       <div class="rij"><button class="knop rond" data-a="links" aria-label="Naar links">◀</button><button class="knop rond" data-a="voor" aria-label="Naar achteren">▲</button>
       <button class="knop rond" data-a="achter" aria-label="Naar voren">▼</button><button class="knop rond" data-a="rechts" aria-label="Naar rechts">▶</button>
@@ -1032,10 +1033,10 @@ function catalogusTonen(tab = 0) {
   c.hidden = false;
   c.innerHTML = `<div class="kop"><b>Toevoegen</b><button class="knop" data-a="dicht">Sluiten</button></div>
     <div class="tabs">${tabs.map((t, k) => `<button class="knop pil ${k === tab ? "aan" : ""}" data-tab="${k}">${t}</button>`).join("")}</div>
-    <div class="tegels">${tab < CATALOGUS.length ? CATALOGUS[tab].dingen.map(([v, ic, n]) => `<button class="tegel" data-v="${v}"><span>${ic}</span>${n}</button>`).join("")
-      : tab === CATALOGUS.length ? (ontwerpen.length ? ontwerpen.map((o, k) => `<button class="tegel" data-v="ontwerp" data-o="${k}">${o.omslag ? `<img src="data:image/jpeg;base64,${o.omslag}" alt="">` : `<span>🧩</span>`}${esc(o.titel || "Ontwerp")}</button>`).join("")
+    <div class="tegels">${tab < CATALOGUS.length ? CATALOGUS[tab].dingen.map(([v, n]) => `<button class="tegel" data-v="${v}">${stip(v)}${n}</button>`).join("")
+      : tab === CATALOGUS.length ? (ontwerpen.length ? ontwerpen.map((o, k) => `<button class="tegel" data-v="ontwerp" data-o="${k}">${o.omslag ? `<img src="data:image/jpeg;base64,${o.omslag}" alt="">` : stip("ontwerp")}${esc(o.titel || "Ontwerp")}</button>`).join("")
         : `<p class="klein">Nog geen 3D-ontwerpen. Maak er een in de 3D-studio (VR en games › 3D-studio).</p>`)
-      : fotos.length ? fotos.map((f) => `<button class="tegel" data-v="${f.soort}" data-i="${f.id}">${f.soort === "foto" && (f.klein || f.data) ? `<img src="data:image/jpeg;base64,${f.klein || f.data}" alt="">` : `<span>🧊</span>`}${esc(f.titel || (f.soort === "foto" ? "Foto" : "3D-model"))}</button>`).join("")
+      : fotos.length ? fotos.map((f) => `<button class="tegel" data-v="${f.soort}" data-i="${f.id}">${f.soort === "foto" && (f.klein || f.data) ? `<img src="data:image/jpeg;base64,${f.klein || f.data}" alt="">` : stip("model")}${esc(f.titel || (f.soort === "foto" ? "Foto" : "3D-model"))}</button>`).join("")
       : `<p class="klein">Nog geen foto's of 3D-modellen. Voeg ze toe onder de bouwer, bij "Foto's en 3D-modellen".</p>`}</div>
     ${tab === 4 ? `<p class="klein">Spel: munten en sterren geven punten, de finish beëindigt het spel, een checkpoint onthoudt waar je was, lava stuurt je terug en een portaal brengt je naar het volgende portaal.</p>` : ""}`;
   c.querySelector("[data-a=dicht]").onclick = () => { c.hidden = true; };
@@ -1147,11 +1148,11 @@ function sjabloon(soort) {
   return b;
 }
 function sjablonenTonen() {
-  const keuzes = [["leeg", "⬜", "Leeg veld", "Begin helemaal opnieuw."], ["park", "🌳", "Park", "Bomen, water en een bankje."],
-    ["parcours", "🏁", "Parcours", "Springspel met munten en finish."], ["doolhof", "🧩", "Doolhof", "Zoek de munten op tijd."],
-    ["quiz", "❓", "Quizpad", "Vragen langs een pad."], ["galerie", "🖼️", "Expositie", "Je foto's aan de muur."]];
+  const keuzes = [["leeg", "plaat", "Leeg veld", "Begin helemaal opnieuw."], ["park", "boom", "Park", "Bomen, water en een bankje."],
+    ["parcours", "finish", "Parcours", "Springspel met munten en finish."], ["doolhof", "muur", "Doolhof", "Zoek de munten op tijd."],
+    ["quiz", "vraag", "Quizpad", "Vragen langs een pad."], ["galerie", "foto", "Expositie", "Je foto's aan de muur."]];
   blad("#instellingen", `<div class="kop"><b>Waar wil je mee beginnen?</b><button class="knop" data-a="dicht">Sluiten</button></div>
-    <div class="tegels">${keuzes.map(([k, ic, n, uit]) => `<button class="tegel breed" data-sjabloon="${k}"><span>${ic}</span><b>${n}</b><small>${uit}</small></button>`).join("")}</div>
+    <div class="tegels">${keuzes.map(([k, v, n, uit]) => `<button class="tegel breed" data-sjabloon="${k}">${stip(v)}<b>${n}</b><small>${uit}</small></button>`).join("")}</div>
     ${bouw.dingen.length ? `<p class="waarschuwing">Dit vervangt wat er nu staat. Met Ongedaan maken krijg je het terug.</p>` : ""}`,
   (b) => b.querySelectorAll("[data-sjabloon]").forEach((x) => x.onclick = () => {
     momentopname();

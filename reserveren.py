@@ -13,14 +13,14 @@ import activiteiten
 import opslag
 import samen
 
-# Waarvoor je plant: de soort in je agenda, een icoon en welke uitjes erbij passen.
+# Waarvoor je plant: de soort in je agenda, een symbool (Material Symbols) en welke uitjes erbij passen.
 GELEGENHEDEN = {
-    "Date": ("uitgaan", "❤️", ["Eten", "Cultuur", "Film", "Muziek", "Actief", "Natuur"]),
-    "Speelafspraak": ("familie en vrienden", "🧸", ["Familie", "Dieren", "Natuur", "Actief"]),
-    "Uitje": ("uitgaan", "🎉", activiteiten.VOORKEUREN + ["Eten"]),
-    "Etentje": ("etentje", "🍽️", ["Eten"]),
-    "Verjaardag": ("familie en vrienden", "🎂", ["Eten", "Actief", "Familie"]),
-    "Afspraak": ("afspraak", "📌", []),
+    "Date": ("uitgaan", "favorite", ["Eten", "Cultuur", "Film", "Muziek", "Actief", "Natuur"]),
+    "Speelafspraak": ("familie en vrienden", "toys", ["Familie", "Dieren", "Natuur", "Actief"]),
+    "Uitje": ("uitgaan", "celebration", activiteiten.VOORKEUREN + ["Eten"]),
+    "Etentje": ("etentje", "restaurant", ["Eten"]),
+    "Verjaardag": ("familie en vrienden", "cake", ["Eten", "Actief", "Familie"]),
+    "Afspraak": ("afspraak", "push_pin", []),
 }
 STATUS = {"bevestigd": "Bevestigd", "wachtlijst": "Op de wachtlijst", "geannuleerd": "Geannuleerd",
           "gekomen": "Geweest", "niet_gekomen": "Niet gekomen"}

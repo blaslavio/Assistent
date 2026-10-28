@@ -25,16 +25,16 @@ STANDAARD = {"regio": "Nederland", "geslacht": "Vrouw", "snelheid": 1.0, "voorle
 # Het gevoel van een antwoord. De assistent zet het label [gevoel: ...] vooraan; het wordt niet getoond.
 # toonhoogte en tempo zijn voor de stem van het apparaat, tag voor de natuurlijke stem (ElevenLabs).
 GEVOELENS = {
-    "neutraal": {"icoon": "🙂", "toonhoogte": 1.0, "tempo": 1.0, "tag": ""},
-    "blij": {"icoon": "😊", "toonhoogte": 1.1, "tempo": 1.04, "tag": "[cheerfully]"},
-    "enthousiast": {"icoon": "🤩", "toonhoogte": 1.15, "tempo": 1.08, "tag": "[excited]"},
-    "rustig": {"icoon": "😌", "toonhoogte": 0.96, "tempo": 0.92, "tag": "[calmly]"},
-    "meelevend": {"icoon": "🤗", "toonhoogte": 0.94, "tempo": 0.9, "tag": "[softly, with warmth]"},
-    "bemoedigend": {"icoon": "💪", "toonhoogte": 1.05, "tempo": 1.0, "tag": "[encouragingly]"},
-    "serieus": {"icoon": "🧐", "toonhoogte": 0.92, "tempo": 0.95, "tag": "[seriously]"},
-    "grappig": {"icoon": "😄", "toonhoogte": 1.1, "tempo": 1.05, "tag": "[playfully]"},
-    "verrast": {"icoon": "😮", "toonhoogte": 1.15, "tempo": 1.04, "tag": "[surprised]"},
-    "trots": {"icoon": "🥳", "toonhoogte": 1.08, "tempo": 1.0, "tag": "[proudly]"},
+    "neutraal": {"toonhoogte": 1.0, "tempo": 1.0, "tag": ""},
+    "blij": {"toonhoogte": 1.1, "tempo": 1.04, "tag": "[cheerfully]"},
+    "enthousiast": {"toonhoogte": 1.15, "tempo": 1.08, "tag": "[excited]"},
+    "rustig": {"toonhoogte": 0.96, "tempo": 0.92, "tag": "[calmly]"},
+    "meelevend": {"toonhoogte": 0.94, "tempo": 0.9, "tag": "[softly, with warmth]"},
+    "bemoedigend": {"toonhoogte": 1.05, "tempo": 1.0, "tag": "[encouragingly]"},
+    "serieus": {"toonhoogte": 0.92, "tempo": 0.95, "tag": "[seriously]"},
+    "grappig": {"toonhoogte": 1.1, "tempo": 1.05, "tag": "[playfully]"},
+    "verrast": {"toonhoogte": 1.15, "tempo": 1.04, "tag": "[surprised]"},
+    "trots": {"toonhoogte": 1.08, "tempo": 1.0, "tag": "[proudly]"},
 }
 # Klanken die de assistent in gesproken antwoorden mag gebruiken, met dubbele haken: [[lacht]].
 KLANKEN = {"lacht": "[laughs]", "grinnikt": "[chuckles]", "zucht": "[sighs]", "fluistert": "[whispers]"}

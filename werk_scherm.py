@@ -72,7 +72,7 @@ def oefenknoppen(doel: dict) -> None:
             st.rerun()
     kol3, kol4 = st.columns(2)
     if kol3.button("Mondeling overhoren", key=f"overhoor_{doel['id']}", width="stretch",
-                   help="De assistent stelt vragen; je kunt ook praten met 🎤"):
+                   help="De assistent stelt vragen; je kunt ook praten met de microfoon"):
         vraag_assistent(f"Overhoor me over {doel['onderwerp']} (leerdoel {doel['id']}). Stel één vraag tegelijk en "
                         "begin bij wat ik het minst goed beheers. Leg de score per stap vast.")
     if kol4.button("Volgende stap uitleggen", key=f"uitleg_{doel['id']}", width="stretch"):
@@ -133,7 +133,7 @@ def toets(o: dict, doel: dict) -> None:
                 else "Dit oefen je binnenkort nog een keer; de app plant het in.")
     for i, (v, k) in enumerate(zip(vragen, o["keuzes"])):
         juist = k == v["juist"]
-        st.markdown(f"{'✅' if juist else '❌'} **{i + 1}.** {v['vraag']}  \n"
+        st.markdown(f"{':material/check_circle:' if juist else ':material/cancel:'} **{i + 1}.** {v['vraag']}  \n"
                     + ("" if juist else f"Jouw antwoord: {v['opties'][k]}  \nGoed: **{v['opties'][v['juist']]}**  \n")
                     + f":gray[{v['uitleg']}]")
     voortgang_na(doel["id"])
@@ -194,7 +194,7 @@ def notities() -> None:
                 st.rerun()
     notities = opslag.lijst("notities")
     zoek = zoekveld.zoekveld("notities_zoek", "Zoeken in notities", [
-        zoekveld.suggestie(n["titel"], icoon="📝", zoek=n["tekst"][:300]) for n in reversed(notities)])
+        zoekveld.suggestie(n["titel"], icoon="edit_note", zoek=n["tekst"][:300]) for n in reversed(notities)])
     for n in reversed(notities):
         if zoek and zoek.lower() not in (n["titel"] + n["tekst"]).lower():
             continue
@@ -204,7 +204,7 @@ def notities() -> None:
             kol1, kol2, kol3 = st.columns(3)
             if kol1.button("Bewaren", key=f"not_bew_{n['id']}", width="stretch") and tekst != n["tekst"]:
                 opslag.lijst_bijwerken("notities", n["id"], tekst=tekst)
-                st.toast("Bewaard.", icon="📝")
+                st.toast("Bewaard.", icon=":material/edit_note:")
             if kol2.button("Hulp", key=f"not_hulp_{n['id']}", width="stretch",
                            help="Laat de assistent samenvatten, ordenen of er taken uit halen"):
                 vraag_assistent(f"Hier is mijn notitie '{n['titel']}':\n\n{tekst}\n\nVat hem kort samen, orden hem en "
@@ -361,7 +361,7 @@ def lijst_item(naam: str, ander: str, item: dict) -> None:
         if kol3.button("→ " + LIJSTNAAM[ander], key=f"verpl_{item['id']}", width="stretch"):
             opslag.verplaatsen(naam, ander, item["id"])
             st.rerun()
-        if kol4.button("✕", key=f"lweg_{item['id']}", width="stretch", help="Weghalen"):
+        if kol4.button("", icon=":material/close:", key=f"lweg_{item['id']}", width="stretch", help="Weghalen"):
             opslag.lijst_weg(naam, item["id"])
             st.rerun()
         if opties := item.get("opties"):
@@ -371,7 +371,7 @@ def lijst_item(naam: str, ander: str, item: dict) -> None:
                     verzend = ("" if o["verzendkosten"] is None else
                                " · gratis verzending" if not o["verzendkosten"] else f" · + {euro(o['verzendkosten'])} verzending")
                     kol_a, kol_b = st.columns([5, 1], vertical_alignment="center")
-                    kol_a.markdown(f"{'🏆 ' if nr == 0 else ''}**{euro(totaal)}** · [{o['winkel']}]({o['link']}){verzend}  \n"
+                    kol_a.markdown(f"{':material/trophy: ' if nr == 0 else ''}**{euro(totaal)}** · [{o['winkel']}]({o['link']}){verzend}  \n"
                                    f":gray[{o['product']}{' · ' + o['opmerking'] if o['opmerking'] else ''}]")
                     if kol_b.button("Kies", key=f"kies_{item['id']}_{nr}"):
                         opslag.lijst_bijwerken(naam, item["id"], prijs=totaal, winkel=o["winkel"], link=o["link"])
@@ -381,7 +381,7 @@ def lijst_item(naam: str, ander: str, item: dict) -> None:
 
 def op_lijst(naam: str, product: str, prijs: float | None = None, bron: str = "") -> None:
     opslag.lijst_toevoegen(naam, naam_product=product, prijs=prijs, winkel="", link="", gekocht=False, bron=bron)
-    st.toast(f"Op je {naam} gezet: {product}", icon="⭐" if naam == "wenslijst" else "🛍️")
+    st.toast(f"Op je {naam} gezet: {product}", icon=":material/star:" if naam == "wenslijst" else ":material/shopping_bag:")
 
 
 # --- DIY en hobby ----------------------------------------------------------------------
@@ -417,7 +417,7 @@ def diy_project(p: dict) -> None:
     kosten = sum(m["prijs"] for m in materialen if m["prijs"])
     gedaan = set(p.get("gedaan", []))
     with st.container(border=True):
-        st.markdown(f"**🔨 {plan['titel']}**  \n{plan['moeilijkheid']} · {plan['tijd']} · materiaal ongeveer "
+        st.markdown(f":material/handyman: **{plan['titel']}**  \n{plan['moeilijkheid']} · {plan['tijd']} · materiaal ongeveer "
                     f"**{euro(kosten)}**")
         st.progress(len(gedaan) / max(len(plan["stappen"]), 1), text=f"{len(gedaan)} van {len(plan['stappen'])} stappen")
         with st.expander("Wat heb je nodig"):
@@ -425,15 +425,15 @@ def diy_project(p: dict) -> None:
                 kol1, kol2, kol3 = st.columns([5, 1, 1], vertical_alignment="center")
                 links = " · ".join(f"[{w}]({u})" for w, u in slim.winkel_links(m["zoekterm"], m["winkel"]))
                 kol1.markdown(f"{m['naam']} · {m['hoeveelheid']} · ~{euro(m['prijs'])}  \n:gray[Kopen bij:] {links}")
-                if kol2.button("🛍️", key=f"diy_k_{p['id']}_{nr}", help="Op je kooplijst"):
+                if kol2.button("", icon=":material/shopping_bag:", key=f"diy_k_{p['id']}_{nr}", help="Op je kooplijst"):
                     op_lijst("kooplijst", m["naam"], m["prijs"], f"voor {plan['titel']}")
-                if kol3.button("⭐", key=f"diy_w_{p['id']}_{nr}", help="Op je wenslijst"):
+                if kol3.button("", icon=":material/star:", key=f"diy_w_{p['id']}_{nr}", help="Op je wenslijst"):
                     op_lijst("wenslijst", m["naam"], m["prijs"], f"voor {plan['titel']}")
             if st.button("Alles op mijn kooplijst", key=f"diy_alles_{p['id']}"):
                 for m in materialen:
                     opslag.lijst_toevoegen("kooplijst", naam_product=m["naam"], prijs=m["prijs"], winkel="", link="",
                                            gekocht=False, bron=f"voor {plan['titel']}")
-                st.toast(f"{len(materialen)} dingen op je kooplijst gezet.", icon="🛍️")
+                st.toast(f"{len(materialen)} dingen op je kooplijst gezet.", icon=":material/shopping_bag:")
             if plan["gereedschap"]:
                 st.caption("Gereedschap: " + ", ".join(plan["gereedschap"]))
             st.caption("Prijzen zijn een schatting; tik op Vergelijk bij je kooplijst voor actuele prijzen.")
@@ -495,13 +495,13 @@ def scan_uitslag(u: dict) -> None:
                     start = f"{a['datum']}T{a['begin']}" if a["begin"] else a["datum"]
                     einde = f"{a['datum']}T{a['einde']}" if a["begin"] and a["einde"] else None
                     opslag.afspraak_toevoegen(a["titel"], start, einde, locatie=a["locatie"], notitie="Van een foto")
-                    st.toast(f"In je agenda: {a['titel']}", icon="📅")
+                    st.toast(f"In je agenda: {a['titel']}", icon=":material/event:")
     for nr, taak in enumerate(u["taken"]):
         kol1, kol2 = st.columns([5, 1], vertical_alignment="center")
         kol1.markdown(f"{taak}")
-        if kol2.button("➕", key=f"scan_taak_{nr}", help="Als taak toevoegen"):
+        if kol2.button("", icon=":material/add:", key=f"scan_taak_{nr}", help="Als taak toevoegen"):
             opslag.taak_toevoegen(taak)
-            st.toast("Taak toegevoegd.", icon="✅")
+            st.toast("Taak toegevoegd.", icon=":material/check_circle:")
     for nr, p in enumerate(u["producten"]):
         naam = f"{p['merk']} {p['naam']}".strip() if p["merk"] and p["merk"].lower() not in p["naam"].lower() else p["naam"]
         with st.container(border=True):
@@ -516,11 +516,11 @@ def scan_uitslag(u: dict) -> None:
                 op_lijst("wenslijst", naam, p["prijs_op_foto"], "van een foto")
             for i, o in enumerate(st.session_state.get(f"scan_opties_{nr}", [])):
                 totaal = o["prijs"] + (o["verzendkosten"] or 0)
-                st.markdown(f"{'🏆 ' if i == 0 else ''}**{euro(totaal)}** · [{o['winkel']}]({o['link']})"
+                st.markdown(f"{':material/trophy: ' if i == 0 else ''}**{euro(totaal)}** · [{o['winkel']}]({o['link']})"
                             f" · :gray[{o['product']}]")
     if u["tekst"]:
         with st.expander("Tekst op de foto"):
             st.code(u["tekst"], language=None, wrap_lines=True)
             if st.button("Bewaar als notitie"):
                 opslag.lijst_toevoegen("notities", titel=u["beschrijving"][:40], tekst=u["tekst"])
-                st.toast("Bewaard bij Hulpmiddelen › Notities.", icon="📝")
+                st.toast("Bewaard bij Hulpmiddelen › Notities.", icon=":material/edit_note:")
