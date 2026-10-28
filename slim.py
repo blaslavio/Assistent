@@ -80,7 +80,7 @@ def foutmelding(fout: anthropic.APIError) -> str:
         melding = fout.body.get("error", {}).get("message", "") if isinstance(fout.body, dict) else ""
         return str(melding) or "De assistent is even niet bereikbaar. Probeer het zo opnieuw."
     if isinstance(fout, anthropic.AuthenticationError):
-        return "De Anthropic-sleutel klopt niet. Vervang hem bij ⚙️ Instellingen."
+        return "De Anthropic-sleutel klopt niet. Vervang hem bij Instellingen."
     if isinstance(fout, anthropic.RateLimitError):
         return "Het is even te druk. Probeer het over een minuut opnieuw."
     if isinstance(fout, anthropic.APIConnectionError):

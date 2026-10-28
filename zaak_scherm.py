@@ -199,6 +199,14 @@ def beroep_instellingen() -> None:
         if st.button("Omzet en bedrijfsresultaten", icon=":material/monitoring:", width="stretch", key="bedrijf_omzet"):
             _openen("zakelijk", "omzet")
             st.rerun()
+        if st.button("Klanten", icon=":material/groups:", width="stretch", key="bedrijf_klanten",
+                     help="Beheer klanten en hun gegevens. Een afzonderlijk klantsaldo is nog niet beschikbaar."):
+            _openen("zakelijk", "klanten")
+            st.rerun()
+        if st.button("Boekhouding en btw", icon=":material/receipt_long:", width="stretch", key="bedrijf_boekhouding",
+                     help="Inkomsten en uitgaven bijhouden; controleer de btw zelf vóór je aangifte."):
+            _openen("zakelijk", "boekhouding")
+            st.rerun()
     st.caption("De assistent kan adviseren over je winkelindeling en verkoopresultaten op basis van beschikbare bedrijfsgegevens.")
     st.markdown("**Vakgebied en specialisatie**")
     st.caption("Selecteer jouw vakgebied. Je kunt ook een eigen specialisatie invoeren.")

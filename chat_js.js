@@ -312,12 +312,18 @@ const ICOON = {
   peiling: '<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',
   lijstje: '<svg viewBox="0 0 24 24"><path d="M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17M11 6h9M11 12h9M11 18h9"/></svg>',
   plek: '<svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-12a7 7 0 0114 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
-  cursus: '<svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5L2 9zM6 11v5c3 2 9 2 12 0v-5M22 9v6"/></svg>',
   geld: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v.01M18 15v.01"/></svg>',
   bel: '<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2"/></svg>',
   video: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg>',
   stil: '<svg viewBox="0 0 24 24"><path d="M9 5a3 3 0 016 0v6a3 3 0 01-6 0zM5 11a7 7 0 0014 0M12 18v3"/></svg>',
   ophangen: '<svg viewBox="0 0 24 24"><path d="M3 14c5-5 13-5 18 0l-2.5 2.5-3.5-1.5v-3a10 10 0 00-6 0v3l-3.5 1.5z"/></svg>',
+  ai: '<svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>',
+  foto: '<svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  klok: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>',
+  winkel: '<svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6zM9 8V6a3 3 0 016 0v2"/></svg>',
+  cursus: '<svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5zM6 11v5c3 2.5 9 2.5 12 0v-5M22 9v6"/></svg>',
+  pot: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="7" rx="7" ry="3"/><path d="M5 7v5c0 1.7 3.1 3 7 3s7-1.3 7-3V7M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/></svg>',
+  ruimte: '<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>',
   draai: '<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0114-5l2-2v6h-6l2.5-2.5A5.5 5.5 0 006.5 12M20 12a8 8 0 01-14 5l-2 2v-6h6l-2.5 2.5A5.5 5.5 0 0017.5 12"/></svg>',
 };
 const EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
@@ -560,7 +566,7 @@ function toonCommunityInfo(st) {
     <div class="c-inhoud c-vulling">
       <div class="c-profiel">${communityAvatar(c.naam, true)}<b>${esc(c.naam)}</b>
         ${c.omschrijving ? `<small>${esc(c.omschrijving)}</small>` : ""}<small>${leden(c.leden)}</small></div>
-      <div class="c-kaart"><button class="c-blad-knop" data-a="community-pot" data-id="${c.id}">${ICOON.geld}<span>${T("Inzamelen")}<br><small>${beheer ? T("Spaardoel of donaties voor de community") : T("Spaardoelen van de community")}</small></span></button>
+      <div class="c-kaart"><button class="c-blad-knop" data-a="community-pot" data-id="${c.id}">${ICOON.pot}<span>${T("Inzamelen")}<br><small>${beheer ? T("Spaardoel of donaties voor de community") : T("Spaardoelen van de community")}</small></span></button>
         <button class="c-blad-knop" data-a="community-cursussen" data-id="${c.id}">${ICOON.cursus}<span>${T("Cursussen en abonnement")}<br><small>${beheer ? T("Cursussen maken en verkopen") : T("Online cursussen volgen")}</small></span></button></div>
       <div class="c-sectie">${T("Uitnodigen")}</div>
       <div class="c-zoek"><input class="c-veld" id="c-c-wie" placeholder="${esc(T("Gebruikersnaam"))}" autocapitalize="none" autocomplete="off">
@@ -646,7 +652,7 @@ function contactSuggesties(st, tekst) {
   const regels = gevonden.map((p) => `<button class="c-suggestie" data-a="${p.contact ? "chat-met" : "contact-suggestie"}" data-naam="${esc(p.wie)}" ${p.contact && !p.chat ? "disabled" : ""}>
       ${avatar(p.naam)}<span><b>${esc(p.naam)}</b><small>@${esc(p.wie)} · ${p.contact ? T("in je contacten") : T("uit je groepen")}</small></span></button>`);
   if (/^[+0-9][0-9 ()-]{6,}$/.test(q) && cijfers.length >= 8) {
-    regels.push(`<button class="c-suggestie" data-a="contact-toevoegen"><span class="c-suggestie-i">📞</span><span><b>${esc(tekst.trim())}</b><small>${T("Zoeken op telefoonnummer")}</small></span></button>`);
+    regels.push(`<button class="c-suggestie" data-a="contact-toevoegen"><span class="c-suggestie-i">${ICOON.bel}</span><span><b>${esc(tekst.trim())}</b><small>${T("Zoeken op telefoonnummer")}</small></span></button>`);
   }
   vak.innerHTML = regels.join("");
 }
@@ -717,7 +723,7 @@ function berichtHtml(st, g, b, vorige) {
     const citaat = m.antwoord ? `<button class="c-citaat" data-a="naar" data-b="${Number(m.antwoord.id) || 0}">
       <b>${esc(m.antwoord.naam)}</b><span>${esc(m.antwoord.tekst)}</span></button>` : "";
     if (m.t === "tekst") {
-      inhoud = citaat + tekstHtml(g, m.tekst) + (m.ai ? `<small class="c-ai">✨ ${esc(T("Beantwoord met hulp van de assistent"))}</small>` : "");
+      inhoud = citaat + tekstHtml(g, m.tekst) + (m.ai ? `<small class="c-ai">${ICOON.ai} ${esc(T("Beantwoord met hulp van de assistent"))}</small>` : "");
       const gevonden = datumHerkennen(m.tekst);
       if (gevonden) inhoud += `<button class="c-chip" data-a="tekst-agenda" data-b="${b.id}">${ICOON.agenda}<span>${esc(T("In agenda"))} · ${esc(wanneer(gevonden.start))}</span></button>`;
     }
@@ -810,10 +816,10 @@ function berichtHtml(st, g, b, vorige) {
   // Eén vinkje: verzonden. Twee grijze: ontvangen. Twee blauwe: gelezen (zoals WhatsApp).
   const ontvangen = mijn && anderen.length && anderen.every((l) => (l.ontvangen_tot || l.gelezen_tot) >= b.id);
   const vinkjes = mijn && !g.community ? `<span class="c-vinkjes ${gelezen ? "c-gelezen" : ""}" title="${esc(gelezen ? T("Gelezen") : ontvangen ? T("Ontvangen") : T("Verzonden"))}">${gelezen || ontvangen ? ICOON.vinkjes : ICOON.vinkje}</span>` : "";
-  const vast = (g.vast || []).includes(b.id) ? "📌 " : "";
+  const vast = (g.vast || []).includes(b.id) ? ICOON.vast : "";
   const menu = !b.weg && b.bericht ? ` data-menu="${b.id}"` : "";
   return `<div class="c-bericht ${mijn ? "c-mijn" : ""} ${kaart ? "c-met-kaart" : ""}" id="c-b-${b.id}"${menu}>${naam}${inhoud}
-    <span class="c-tijd">${vast}${b.verloopt ? "⏱ " : ""}${esc(tijd(b.aangemaakt))}${vinkjes}</span>${b.weg ? "" : emojiHtml(st, b)}</div>`;
+    <span class="c-tijd">${vast}${b.verloopt ? ICOON.klok : ""}${esc(tijd(b.aangemaakt))}${vinkjes}</span>${b.weg ? "" : emojiHtml(st, b)}</div>`;
 }
 
 function toonGesprek(st) {
@@ -878,7 +884,7 @@ function toonGesprek(st) {
        <button class="c-ikoon" data-a="bel-audio" aria-label="${esc(T("Bellen"))}">${ICOON.bel}</button></div>` : "";
   st.wortel.innerHTML = `
     ${kop(terug, `<button class="c-titel" data-a="${g.community ? "cinfo" : "info"}">${beeld}
-      <span><b>${esc(g.community ? g.naam : gesprekNaam(st, g))}</b><small>${g.verdwijnen ? `⏱ ${T(VERDWIJNEN[g.verdwijnen] || "")} · ` : ""}${esc(sub)}</small></span></button>`, belKnoppen)}
+      <span><b>${esc(g.community ? g.naam : gesprekNaam(st, g))}</b><small>${g.verdwijnen ? `${ICOON.klok} ${T(VERDWIJNEN[g.verdwijnen] || "")} · ` : ""}${esc(sub)}</small></span></button>`, belKnoppen)}
     ${vastBericht ? `<button class="c-vast" data-a="vast-volgende" data-b="${vastBericht.id}">${ICOON.vast}<span>${esc(korteInhoud(vastBericht.bericht))}</span>
       ${vastIds.length > 1 ? `<small>${((st.vastStap || 0) % vastIds.length) + 1}/${vastIds.length}</small>` : ""}</button>` : ""}
     ${sleutelWaarschuwing}
@@ -945,16 +951,16 @@ function toonGesprek(st) {
         ${g.soort === "twee" ? "" : `<label class="c-schakel-rij">${T("Anoniem stemmen")}<input type="checkbox" class="c-schakel" id="c-p-anoniem" ${st.peiling.anoniem ? "checked" : ""}></label>`}
       </div></div>` : ""}
     ${st.paneel === "plus" ? `<div class="c-paneel c-plus">
-      <button class="c-plus-knop" data-a="hulp"><span>✨</span>${T("Antwoord voorstellen")}</button>
-      <button class="c-plus-knop" data-a="foto"><span>📷</span>${T("Foto")}</button>
-      <button class="c-plus-knop" data-a="afspraak"><span>📅</span>${g.community ? T("Evenement") : T("Afspraak")}</button>
-      <button class="c-plus-knop" data-a="peiling"><span>📊</span>${T("Peiling")}</button>
-      <button class="c-plus-knop" data-a="lijstje"><span>☑️</span>${T("Lijstje")}</button>
-      <button class="c-plus-knop" data-a="plek"><span>📍</span>${T("Locatie")}</button>
-      <button class="c-plus-knop" data-a="vrij"><span>🕒</span>${T("Wanneer ik kan")}</button>
-      ${g.community ? "" : `<button class="c-plus-knop" data-a="betaal"><span>💶</span>${T("Betaalverzoek")}</button>`}
-      ${g.community ? "" : `<button class="c-plus-knop" data-a="diensten"><span>🗓️</span>${T("Mijn diensten")}</button>`}
-      ${st.winkel ? `<button class="c-plus-knop" data-a="winkel"><span>🛍️</span>${T("Mijn webshop")}</button>` : ""}</div>` : ""}
+      <button class="c-plus-knop" data-a="hulp"><span>${ICOON.ai}</span>${T("Antwoord voorstellen")}</button>
+      <button class="c-plus-knop" data-a="foto"><span>${ICOON.foto}</span>${T("Foto")}</button>
+      <button class="c-plus-knop" data-a="afspraak"><span>${ICOON.agenda}</span>${g.community ? T("Evenement") : T("Afspraak")}</button>
+      <button class="c-plus-knop" data-a="peiling"><span>${ICOON.peiling}</span>${T("Peiling")}</button>
+      <button class="c-plus-knop" data-a="lijstje"><span>${ICOON.lijstje}</span>${T("Lijstje")}</button>
+      <button class="c-plus-knop" data-a="plek"><span>${ICOON.plek}</span>${T("Locatie")}</button>
+      <button class="c-plus-knop" data-a="vrij"><span>${ICOON.klok}</span>${T("Wanneer ik kan")}</button>
+      ${g.community ? "" : `<button class="c-plus-knop" data-a="betaal"><span>${ICOON.geld}</span>${T("Betaalverzoek")}</button>`}
+      ${g.community ? "" : `<button class="c-plus-knop" data-a="diensten"><span>${ICOON.agenda}</span>${T("Mijn diensten")}</button>`}
+      ${st.winkel ? `<button class="c-plus-knop" data-a="winkel"><span>${ICOON.winkel}</span>${T("Mijn webshop")}</button>` : ""}</div>` : ""}
     ${st.antwoord && magSchrijven ? `<div class="c-antwoord-balk"><div><b>${esc(st.antwoord.naam)}</b><span>${esc(st.antwoord.tekst)}</span></div>
       <button class="c-mini" data-a="antwoord-weg" aria-label="${esc(T("Niet beantwoorden"))}">×</button></div>` : ""}
     ${magSchrijven && st.hulp && st.hulp.g === g.id ? hulpRij(st) : ""}
@@ -1059,10 +1065,10 @@ async function toonInfo(st) {
         <b>${esc(gesprekNaam(st, g))}</b>${ander && ander.gebruikersnaam ? `<small>@${esc(ander.gebruikersnaam)}</small>` : ""}
         ${ander && !ander.contact ? `<button class="c-knop" data-a="als-contact" data-naam="${esc(ander.gebruikersnaam || "")}">${T("Aan contacten toevoegen")}</button>` : ""}</div>
       ${deelt ? `<div class="c-kaart c-profiel-links">
-        ${p.boek ? `<button class="c-blad-knop" data-a="profiel-boek">${ICOON.agenda || "📅"}<span>${T("Afspraak maken")}<br><small>${esc(p.boek.titel || "")}</small></span></button>` : ""}
-        ${p.winkel ? `<button class="c-blad-knop" data-a="winkel-open" data-adres="${esc(p.winkel.adres)}">🛍️<span>${T("Webshop")}<br><small>${esc(p.winkel.naam)}</small></span></button>` : ""}
-        ${p.agenda ? `<button class="c-blad-knop" data-a="profiel-agenda">🗓️<span>${T("Agenda bekijken")}<br><small>${p.agenda === "details" ? T("met details") : T("alleen bezet of vrij")}</small></span></button>` : ""}
-        ${(p.ruimtes || []).map((r) => `<button class="c-blad-knop" data-a="profiel-ruimte" data-id="${r.id}">🥽<span>${esc(r.titel)}</span></button>`).join("")}
+        ${p.boek ? `<button class="c-blad-knop" data-a="profiel-boek">${ICOON.agenda}<span>${T("Afspraak maken")}<br><small>${esc(p.boek.titel || "")}</small></span></button>` : ""}
+        ${p.winkel ? `<button class="c-blad-knop" data-a="winkel-open" data-adres="${esc(p.winkel.adres)}">${ICOON.winkel}<span>${T("Webshop")}<br><small>${esc(p.winkel.naam)}</small></span></button>` : ""}
+        ${p.agenda ? `<button class="c-blad-knop" data-a="profiel-agenda">${ICOON.agenda}<span>${T("Agenda bekijken")}<br><small>${p.agenda === "details" ? T("met details") : T("alleen bezet of vrij")}</small></span></button>` : ""}
+        ${(p.ruimtes || []).map((r) => `<button class="c-blad-knop" data-a="profiel-ruimte" data-id="${r.id}">${ICOON.ruimte}<span>${esc(r.titel)}</span></button>`).join("")}
       </div>` : ""}
       ${ander && code ? `<div class="c-kaart"><b>${ICOON.slot} ${T("Beveiligingscode")}</b>
         <div class="c-code">${esc(code)}</div>

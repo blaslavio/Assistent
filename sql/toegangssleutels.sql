@@ -240,7 +240,9 @@ begin
     end if;
   end if;
   update private.herstel set gebruikt = true where id = h.id;
-  update private.gebruikers set hash = extensions.crypt(p_nieuw_wachtwoord, extensions.gen_salt('bf', 10)) where id = g.id;
+  -- De code kwam per mail binnen, dus het mailadres is daarmee ook bevestigd.
+  update private.gebruikers set hash = extensions.crypt(p_nieuw_wachtwoord, extensions.gen_salt('bf', 10)),
+    email_bevestigd = true where id = g.id;
   -- Overal uitloggen: wie je oude wachtwoord had, komt er niet meer in.
   update private.sessies set verloopt = now() where gebruiker = g.id and verloopt > now();
   update private.apparaten set ingetrokken = true where gebruiker = g.id and not ingetrokken;
