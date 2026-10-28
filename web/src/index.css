@@ -57,6 +57,12 @@
 }
 @keyframes glans { from { background-position: 100% 0; } to { background-position: 0 0; } }
 
+/* Zacht binnenkomen, voor panelen die wisselen. */
+.opkomen { animation: opkomen 0.22s ease-out; }
+@keyframes opkomen { from { opacity: 0; transform: translateY(6px); } }
+.wegstrepen { animation: wegstrepen 0.35s ease-in forwards; }
+@keyframes wegstrepen { to { opacity: 0; transform: translateX(12px); } }
+
 @media (prefers-reduced-motion: reduce) {
-  .bol, .bol-actief, .bezig-tekst { animation: none; }
+  .bol, .bol-actief, .bezig-tekst, .opkomen, .wegstrepen { animation: none; }
 }

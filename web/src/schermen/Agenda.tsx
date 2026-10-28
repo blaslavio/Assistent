@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { bijwerken, type Afspraak, type Taak } from "../api";
 import type { Staat } from "../App";
-import { Kruis, Plus, Prullenbak, Terug } from "../iconen";
+import { Bel, Envelop, Kruis, Lijstje, Plus, Prullenbak, Terug } from "../iconen";
+import { HerinneringenPaneel, MailPaneel, TakenPaneel } from "./AgendaPanelen";
+import { mailsBewaard } from "../lib/mail";
 import { DAGEN_KORT, MAANDEN, dagTitel, datumTekst, heleDag, moment, plusDagen, uur, weekBegin } from "../lib/tijd";
 
 // Dezelfde kleuren per soort als in de oude app.
@@ -14,6 +16,9 @@ const kleur = (a: Afspraak) => KLEUREN[a.soort ?? ""] ?? KLEUREN.afspraak;
 const SOORTEN = ["afspraak", "werk", "sport", "etentje", "uitgaan", "familie en vrienden", "gezondheid", "reizen"];
 
 type Weergave = "dag" | "week" | "maand";
+type Paneel = "mail" | "taken" | "herinneringen";
+const PANELEN: [Paneel, string, typeof Bel][] = [["mail", "Mail", Envelop], ["taken", "Taken", Lijstje],
+  ["herinneringen", "Herinneringen", Bel]];
 const WEERGAVEN: [Weergave, string][] = [["dag", "Dag"], ["week", "Week"], ["maand", "Maand"]];
 const BEGIN_UUR = 0;
 const HOOGTE = 56; // pixels per uur in de dagweergave
@@ -37,6 +42,7 @@ export default function Agenda({ staat, setStaat }: Props) {
   const [gekozen, setGekozen] = useState(vandaag);
   const [nieuw, setNieuw] = useState(false);
   const [open, setOpen] = useState<Afspraak | null>(null);
+  const [paneel, setPaneel] = useState<Paneel | null>(null);
   const datum = new Date(`${gekozen}T12:00`);
 
   function setWeergave(w: Weergave) {
@@ -79,36 +85,67 @@ export default function Agenda({ staat, setStaat }: Props) {
     ? `${groot(MAANDEN[(weergave === "week" ? plusDagen(weekBegin(datum), 3) : datum).getMonth()])}`
     : groot(MAANDEN[datum.getMonth()]);
   const stap = weergave === "dag" ? "dag" : weergave === "week" ? "week" : "maand";
+  const nuLokaal = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  const telTaken = staat.data.taken.filter((t) => !t.klaar && t.deadline && t.deadline.slice(0, 10) <= vandaag).length;
+  const telHerinneringen = staat.data.afspraken.filter((a) => a.soort === "herinnering" && a.start.slice(0, 10) === vandaag
+    && a.start >= nuLokaal.slice(0, a.start.length > 10 ? 16 : 10)).length;
+  const telMail = (mailsBewaard() ?? []).filter((m) => !m.gelezen).length;
 
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex flex-col gap-3 px-6 pt-14 pb-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-[32px] font-bold tracking-tight">
-            {titel}{datum.getFullYear() !== new Date().getFullYear() && <span className="text-rustig"> {datum.getFullYear()}</span>}
-          </h1>
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-between gap-2">
+          {paneel ? (
+            <h1 key={paneel} className="opkomen text-[32px] font-bold tracking-tight">{PANELEN.find(([p]) => p === paneel)?.[1]}</h1>
+          ) : (
+            <button onClick={() => verschuif(0)} aria-label="Naar vandaag" className="min-w-0 text-left">
+              <h1 className="truncate text-[32px] font-bold tracking-tight">
+                {titel}{datum.getFullYear() !== new Date().getFullYear() && <span className="text-rustig"> {datum.getFullYear()}</span>}
+              </h1>
+            </button>
+          )}
+          <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Meer in je agenda">
+            {PANELEN.map(([p, naam, Icoon]) => {
+              const telt = p === "taken" ? telTaken : p === "herinneringen" ? telHerinneringen : telMail;
+              return (
+                <button key={p} onClick={() => setPaneel(paneel === p ? null : p)} aria-pressed={paneel === p} aria-label={naam}
+                  className={`relative flex size-10 items-center justify-center rounded-full transition-colors ${paneel === p
+                    ? "bg-inkt text-white dark:bg-white dark:text-black" : "bg-vlak text-rustig"}`}>
+                  <Icoon className="size-5" />
+                  {telt > 0 && paneel !== p && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
+                      {telt > 9 ? "9+" : telt}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {!paneel && (
+          <div className="flex items-center gap-2">
+            <div role="tablist" aria-label="Weergave" className="flex flex-1 rounded-full bg-vlak p-1">
+              {WEERGAVEN.map(([w, naam]) => (
+                <button key={w} role="tab" aria-selected={weergave === w} onClick={() => setWeergave(w)}
+                  className={`h-8 flex-1 rounded-full text-sm font-medium ${weergave === w ? "bg-white shadow-sm dark:bg-[#2a2a30]" : "text-rustig"}`}>
+                  {naam}
+                </button>
+              ))}
+            </div>
             <button onClick={() => verschuif(-1)} aria-label={`Vorige ${stap}`}
               className="flex size-10 items-center justify-center rounded-full text-rustig hover:bg-vlak"><Terug /></button>
-            <button onClick={() => verschuif(0)} className="h-10 rounded-full px-3 text-sm font-medium hover:bg-vlak">Vandaag</button>
             <button onClick={() => verschuif(1)} aria-label={`Volgende ${stap}`}
-              className="flex size-10 rotate-180 items-center justify-center rounded-full text-rustig hover:bg-vlak"><Terug /></button>
+              className="-ml-1 flex size-10 rotate-180 items-center justify-center rounded-full text-rustig hover:bg-vlak"><Terug /></button>
+            <button onClick={() => setNieuw(true)} aria-label="Nieuwe afspraak"
+              className="flex size-10 items-center justify-center rounded-full bg-accent text-white"><Plus className="size-5" /></button>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div role="tablist" aria-label="Weergave" className="flex flex-1 rounded-full bg-vlak p-1">
-            {WEERGAVEN.map(([w, naam]) => (
-              <button key={w} role="tab" aria-selected={weergave === w} onClick={() => setWeergave(w)}
-                className={`h-8 flex-1 rounded-full text-sm font-medium ${weergave === w ? "bg-white shadow-sm dark:bg-[#2a2a30]" : "text-rustig"}`}>
-                {naam}
-              </button>
-            ))}
-          </div>
-          <button onClick={() => setNieuw(true)} aria-label="Nieuwe afspraak"
-            className="flex size-10 items-center justify-center rounded-full bg-accent text-white"><Plus className="size-5" /></button>
-        </div>
+        )}
       </header>
 
+      {paneel === "mail" && <MailPaneel staat={staat} setStaat={setStaat} />}
+      {paneel === "taken" && <TakenPaneel staat={staat} setStaat={setStaat} />}
+      {paneel === "herinneringen" && <HerinneringenPaneel staat={staat} setStaat={setStaat} />}
+      {!paneel && <div key={weergave} className="opkomen flex flex-1 flex-col">
       {weergave === "dag" && (
         <DagWeergave gekozen={gekozen} vandaag={vandaag} setGekozen={setGekozen} afspraken={afspraken} taken={taken}
           open={setOpen} />
@@ -119,6 +156,7 @@ export default function Agenda({ staat, setStaat }: Props) {
       {weergave === "maand" && (
         <MaandWeergave gekozen={gekozen} vandaag={vandaag} afspraken={afspraken} taken={taken} naarDag={naarDag} />
       )}
+      </div>}
 
       {nieuw && <NieuweAfspraak datum={gekozen} sluit={() => setNieuw(false)}
         bewaard={(data) => { setStaat({ ...staat, data }); setNieuw(false); }} />}
