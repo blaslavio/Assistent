@@ -63,6 +63,12 @@ def validate_execution(plan: Plan, approvals: Mapping[Action, bool],
                        completed: Sequence[Action]) -> tuple[Action, ...]:
     """List only currently eligible steps. No side effects occur here."""
     done = set(completed)
+    defined = {step.action for step in plan.steps}
+    if not done.issubset(defined):
+        raise ValueError("Completed action is not part of this plan.")
+    for step in plan.steps:
+        if step.action in done and not set(step.depends_on).issubset(done):
+            raise ValueError("Completed actions violate workflow dependencies.")
     eligible = []
     for step in plan.steps:
         if step.action in done:
