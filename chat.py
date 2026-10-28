@@ -214,7 +214,11 @@ CSS = """
 .c-plus-knop { display: flex; flex-direction: column; align-items: center; gap: 4px; font: inherit; font-size: 13px;
   border: 0; background: transparent; color: inherit; cursor: pointer; }
 .c-plus-knop span { width: 52px; height: 52px; border-radius: 16px; background: var(--c-zacht); display: grid;
-  place-items: center; font-size: 24px; }
+  place-items: center; font-size: 24px; color: var(--c-hoofd); }
+.c-plus-knop span svg { width: 26px; height: 26px; }
+.c-blad-knop > svg { width: 22px; height: 22px; flex: none; }
+.c-ai svg, .c-tijd svg, .c-wortel small svg { width: 12px; height: 12px; vertical-align: -1px; margin-right: 2px; }
+.c-suggestie .c-suggestie-i svg { width: 22px; height: 22px; color: var(--c-hoofd); }
 .c-invoer { display: flex; gap: 8px; align-items: flex-end; padding: 8px 10px; border-top: 1px solid var(--c-rand);
   background: var(--c-achter); padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
 .c-invoer textarea { flex: 1; resize: none; border-radius: 22px; padding: 9px 16px; max-height: 140px; line-height: 1.35;
@@ -322,7 +326,7 @@ CSS = """
 """
 
 _JS = (Path(__file__).parent / "chat_js.js").read_text()
-_chat = st.components.v2.component("chat_" + hashlib.sha1((_JS + CSS).encode()).hexdigest()[:10],
+_chat = st.components.v2.component("chat_" + hashlib.sha1((_JS + CSS).encode(), usedforsecurity=False).hexdigest()[:10],
                                    html='<div class="c-wortel"></div>', css=CSS, js=_JS)
 
 # Ongelezen berichten per account, kort onthouden zodat de kopbalk niet bij elke klik de database vraagt.

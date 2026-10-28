@@ -8,7 +8,6 @@ functions = {n.name: ast.get_source_segment(source, n)
              for n in ast.parse(source).body if isinstance(n, ast.FunctionDef)}
 
 class ShoppingNavigationTests(unittest.TestCase):
-    """Regressie: selectbox-state wijzigen vóór het renderen van de widget."""
     def test_shop_dashboard_deferred_navigation(self):
         self.assertIn('st.session_state.pop("_webshop_volgende_deel", None)', shop_source)
         self.assertIn('st.session_state["_webshop_volgende_deel"] = bestemming', shop_source)
@@ -22,11 +21,7 @@ class ShoppingNavigationTests(unittest.TestCase):
         self.assertIn('key="winkelen_deel"', functions["pagina"])
         self.assertIn('on_click=_open_onderdeel, args=(doel,)', functions["ontdekken"])
         self.assertNotIn('st.session_state.winkelen_deel = doel', functions["ontdekken"])
-
-    def test_left_aligned_discovery_cards(self):
-        self.assertIn('with st.container(border=True):', functions["ontdekken"])
-        self.assertIn('st.caption(uitleg)', functions["ontdekken"])
-        self.assertIn('icon=":material/arrow_forward:"', functions["ontdekken"])
+        self.assertNotIn('st.rerun()', functions["ontdekken"])
 
     def test_all_buyer_categories_visible(self):
         self.assertIn('if d != "winkel"', functions["pagina"])

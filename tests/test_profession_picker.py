@@ -12,8 +12,8 @@ class ProfessionPickerTests(unittest.TestCase):
         self.assertIn("sorted((beroep.naam_van(k) for k in beroep.BEROEPEN), key=str.casefold)", code)
         self.assertIn("index=None if not nu", code)
         self.assertIn("Selecteer een beroep of voer een specialisatie in", code)
-        self.assertIn("with st.container(border=True):", code)
-        self.assertIn('st.caption(uitleg)', code)
+        self.assertIn('st.container(key="onderneming_snel")', code)
+        self.assertNotIn("with st.container(border=True):", code)
 
 
 if __name__ == "__main__":

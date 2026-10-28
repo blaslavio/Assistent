@@ -28,12 +28,6 @@ def _open_onderdeel(onderdeel: str) -> None:
 
 
 def pagina() -> None:
-    st.html("""<style>
-    /* Zakelijke winkelinterface: links uitlijnen, ook op mobiele schermen. */
-    .stMain .stButton button {justify-content:flex-start;text-align:left}
-    .stMain .stButton button p {text-align:left}
-    .stMain .stMarkdown p, .stMain .stCaptionContainer p {text-align:left}
-    </style>""")
     if not samen.beschikbaar():
         st.info("Winkelen werkt alleen in de online versie.")
         return
@@ -48,15 +42,11 @@ def pagina() -> None:
         if betaald.get("betaallink"):
             st.link_button("Nu betalen", betaald["betaallink"], type="primary", width="stretch")
     delen = list(DELEN) if verkoper() else [d for d in DELEN if d != "winkel"]
-    # Streamlit-widgetkeys uitsluitend aanpassen voordat de selectbox wordt gemaakt.
     volgend = st.session_state.pop("_winkelen_volgende_deel", None)
     if volgend in delen:
-        # Deze toewijzing gebeurt vóór de selectbox, nooit tijdens een knopactie.
         st.session_state["winkelen_deel"] = volgend
     elif st.session_state.get("winkelen_deel") not in delen:
         st.session_state["winkelen_deel"] = "buurt"
-    st.markdown("## Winkelen")
-    st.caption("Ontdek winkels, bestel eten, koop tweedehands en beheer je bestellingen.")
     n = winkelen.aantal_in_mandje()
     deel = st.selectbox(
         "Winkelonderdeel", delen, key="winkelen_deel",
@@ -87,26 +77,44 @@ def pagina() -> None:
 
 
 def ontdekken() -> None:
-    """Rustige, links uitgelijnde winkelstart met directe toegang tot elke categorie."""
-    st.title("Ontdek")
-    st.caption("Vind producten, winkels en verkopers. Kies waar je naar zoekt.")
+    """Een rustig, links uitgelijnd winkeloverzicht zonder externe widgets."""
+    st.subheader("Ontdek")
+    st.caption("Wat zoek je vandaag? Kies een onderdeel om direct verder te gaan.")
     opties = [
         ("Winkels", "winkels", ":material/storefront:",
-         "Bekijk het aanbod van winkels en ondernemers."),
+         "Bekijk winkels en hun assortiment."),
         ("Eten bestellen", "eten", ":material/restaurant:",
-         "Ontdek restaurants en beschikbare bezorgopties."),
+         "Ontdek restaurants en bestel bij aangesloten aanbieders."),
         ("Tweedehands", "tweedehands", ":material/checkroom:",
-         "Zoek kleding en artikelen van particuliere verkopers."),
+         "Vind kleding en artikelen van particuliere verkopers."),
         ("Producten", "producten", ":material/shopping_bag:",
-         "Zoek rechtstreeks in het aanbod van alle winkels."),
+         "Vergelijk producten uit verschillende winkels."),
     ]
-    for naam, doel, icoon, uitleg in opties:
-        with st.container(border=True):
-            st.markdown(f"**{naam}**")
-            st.caption(uitleg)
-            st.button(f"Bekijk {naam.lower()}", icon=icoon, key=f"ontdek_{doel}",
-                      width="stretch", on_click=_open_onderdeel, args=(doel,))
-    st.caption("Nog weinig aanbod? Winkels en verkopers verschijnen zodra ze hun aanbod publiceren.")
+    st.html("""<style>
+    .st-key-winkel_ontdekken button {
+        justify-content: flex-start !important;
+        text-align: left !important;
+        min-height: 3.4rem;
+    }
+    .st-key-winkel_ontdekken button p {text-align: left !important;}
+    </style>""")
+    with st.container(key="winkel_ontdekken"):
+        for naam, doel, icoon, uitleg in opties:
+            with st.container(border=True):
+                st.button(naam, icon=icoon, key=f"ontdek_{doel}",
+                          width="stretch", help=uitleg,
+                          on_click=_open_onderdeel, args=(doel,))
+                st.caption(uitleg)
+    st.divider()
+    st.markdown("**Mijn aankopen**")
+    st.button("Winkelmandje bekijken", icon=":material/shopping_cart:",
+              key="ontdek_mandje", width="stretch",
+              help="Bekijk je producten en reken af.",
+              on_click=_open_onderdeel, args=("mandje",))
+    st.button("Bestellingen bekijken", icon=":material/receipt_long:",
+              key="ontdek_bestellingen", width="stretch",
+              help="Bekijk eerdere aankopen en hun status.",
+              on_click=_open_onderdeel, args=("bestellingen",))
 
 
 def inkopen() -> None:
@@ -143,8 +151,10 @@ def in_de_buurt(categorie: str = "") -> None:
     if soort == "restaurant":
         winkels = sorted(winkels, key=lambda w: not w.get("bezorgt_hier"))
     if not winkels:
-        st.info("Stel eerst je plaats in." if not winkelen.waar()
-                else "Geen aanbieders gevonden. Probeer een andere zoekterm.")
+        st.info("Stel je plaats in om aanbieders in de buurt te vinden."
+                if not winkelen.waar()
+                else "Er zijn hier nog geen aanbieders gevonden. Probeer een andere zoekterm.")
+        return
     for w in winkels[:60]:
         winkel_regel(w)
     if st.button("Kaart met alle winkels", icon=":material/map:", type="tertiary"):
@@ -162,7 +172,7 @@ def winkel_regel(w: dict) -> None:
         if w.get("bezorgt_hier"):
             delen.append(f"bezorgt in {w['bezorg_minuten']} min")
         if v := (w.get("vertrouwen") or {}).get("beoordelingen"):
-            delen.append(f"★ {str(w['vertrouwen']['sterren']).replace('.', ',')} ({v})")
+            delen.append(f":material/star: {str(w['vertrouwen']['sterren']).replace('.', ',')} ({v})")
         st.markdown(f'<span style="color:{w["kleur"]}">●</span> **{w["naam"]}**  \n'
                     f'<span style="color:#6b7280;font-size:14px">{" · ".join(delen)}</span>',
                     unsafe_allow_html=True, width="stretch")
@@ -177,8 +187,17 @@ def producten(inkopen: bool) -> None:
     lat, lon = _waar()
     lijst = _fout(samen.winkelen_producten, zoek.strip(), lat, lon, inkopen) or []
     if not lijst:
-        st.info("Geen producten voor deze zoekopdracht. Probeer een andere zoekterm." if zoek.strip()
-                else "Nog geen aanbod beschikbaar in deze categorie. Kijk later opnieuw.")
+        if not winkelen.waar():
+            st.info("Stel je plaats in om aanbod in de buurt te ontdekken. "
+                    "Je kunt dit hierboven bij Locatie wijzigen.")
+        elif zoek.strip():
+            st.info("Geen producten gevonden voor deze zoekopdracht. "
+                    "Probeer een andere naam of een bredere zoekterm.")
+        elif inkopen:
+            st.info("Er zijn nog geen groothandels aangesloten.")
+        else:
+            st.info("Er zijn nog geen producten beschikbaar in deze omgeving.")
+        return
     kolommen = st.columns(2)
     for i, p in enumerate(lijst[:60]):
         with kolommen[i % 2].container(border=True):
@@ -282,7 +301,7 @@ def mandje_winkel(adres: str, w: dict | None) -> None:
         st.caption("Deze producten kun je niet samen bestellen. Haal er een weg.")
         return
     with st.form(f"afrekenen_{adres}", border=False):
-        levering = st.radio("Hoe?", opties, horizontal=True, format_func=lambda l: samen.LEVERING[l][2:],
+        levering = st.radio("Hoe?", opties, horizontal=True, format_func=samen.LEVERING.get,
                             label_visibility="collapsed")
         bezorgadres = st.text_input("Bezorgadres", value=opslag.instellingen().get("thuisadres", ""),
                                     placeholder="Bijv. Dorpsstraat 1, Ede")

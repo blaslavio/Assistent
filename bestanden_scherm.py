@@ -7,6 +7,7 @@ de acties. Downloaden opent Safari (of je browser) met een link die 5 minuten we
 import streamlit as st
 
 import toegang
+import action_tools
 import bestanden
 import documenten_scherm
 import opslag
@@ -53,6 +54,20 @@ def ruimte_balk(gebruikt: int, totaal: int) -> None:
 
 def pagina() -> None:
     _melding()
+    with st.expander("Bestand comprimeren", expanded=False):
+        bestand = st.file_uploader("Kies een bestand voor compressie", key="bs_compress_upload")
+        if st.button("Voorbereiden voor download", key="bs_compress_start", disabled=bestand is None):
+            st.session_state.pop("bs_compress_result", None)
+            try:
+                st.session_state["bs_compress_result"] = action_tools.compress_file(bestand.name, bestand.getvalue())
+            except ValueError as err:
+                st.error(str(err))
+        if resultaat := st.session_state.get("bs_compress_result"):
+            naam, inhoud, melding = resultaat
+            st.caption(melding)
+            st.download_button("Download bestand", inhoud, file_name=naam,
+                               mime="application/octet-stream", key="bs_compress_download")
+            st.caption("Dit bestand is niet gepubliceerd of gedeeld.")
     bestanden.vanzelf_opruimen()
     deel = st.segmented_control("Bestanden", ["Bestanden", "Prullenbak"], default="Bestanden", key="bs_deel",
                                 label_visibility="collapsed") or "Bestanden"
