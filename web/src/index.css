@@ -116,3 +116,16 @@
 .document blockquote { border-left: 3px solid var(--color-lijn); padding-left: 0.8em; color: var(--color-rustig); }
 .document a { color: var(--color-accent); text-decoration: underline; }
 .document img { max-width: 100%; border-radius: 12px; }
+
+/* De mascotte: zweeft, wiegt vanaf zijn voet en knippert. Bij een nieuwe tip maakt hij een klein sprongetje. */
+.mascotte { animation: mascotte-zweef 4.2s ease-in-out infinite; }
+.mascotte-lijf { transform-origin: 50% 95%; animation: mascotte-wieg 6s ease-in-out infinite; overflow: visible; }
+.mascotte-ogen { transform-box: fill-box; transform-origin: center; animation: mascotte-knipper 5s infinite; }
+.mascotte-hup .mascotte-lijf { animation: mascotte-hup 0.6s ease-out, mascotte-wieg 6s ease-in-out 0.6s infinite; }
+@keyframes mascotte-zweef { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes mascotte-wieg { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes mascotte-knipper { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes mascotte-hup { 0% { transform: translateY(0) scale(1, 1); } 30% { transform: translateY(-10%) scale(0.96, 1.04); }
+  60% { transform: translateY(0) scale(1.04, 0.96); } 100% { transform: translateY(0) scale(1, 1); } }
+@media (prefers-reduced-motion: reduce) { .mascotte, .mascotte-lijf, .mascotte-ogen { animation: none !important; } }
+.minder-beweging .mascotte, .minder-beweging .mascotte-lijf, .minder-beweging .mascotte-ogen { animation: none !important; }

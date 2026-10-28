@@ -1,15 +1,18 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { alsIk, bijwerken, instellingenBijwerken, uitloggen, weergavenaamWijzigen } from "../api";
+import { alsIk, bijwerken, instellingenBijwerken, uitloggen } from "../api";
 import { gekoppeld } from "../lib/mail";
-import { betaalStatus, platformInstellen, verkoperAanmelden, type BetaalStatus } from "../lib/bestellingen";
+import { betaalStatus, lijst as bestellingenLijst, klaar, platformInstellen, stand, verkoperAanmelden, type BetaalStatus,
+  type Bestelling } from "../lib/bestellingen";
+import { euro } from "../lib/winkelen";
 import { MailKoppelen } from "./AgendaPanelen";
 import { BoekpaginaInstellen, MailVersturen } from "./Gasten";
 import type { Staat } from "../App";
-import { Terug, Vonk } from "../iconen";
+import { Envelop, Euro, Huis, Kalender, Lijstje, Persoon, Schuiven, Slot, Terug, Vonk, Vraag } from "../iconen";
 import { Schakelaar, kop } from "./instellingen-ui";
 import { Account, Beveiliging, Techniek } from "./Beveiliging";
-import { Onderdeel, OnderdelenTegels, type OnderdeelNaam } from "./Onderdelen";
+import { ONDERDELEN, Onderdeel, type OnderdeelNaam } from "./Onderdelen";
 import { AlgemeenScherm, IdeeScherm, type Weergave } from "./Algemeen";
+import { Profiel, useEigenFoto } from "./Profiel";
 
 type Props = { staat: Staat; vernieuw: () => Promise<void>; terug: () => void; opUitgelogd: () => void;
   setStaat: (s: Staat) => void };
@@ -37,6 +40,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
   const [bezig, setBezig] = useState(false);
   const [melding, setMelding] = useState("");
   const g = staat.gebruiker;
+  const [eigenFoto] = useEigenFoto(g);
   const inst = (staat.data.instellingen ?? {}) as Inst;
   const naam = g.weergavenaam || g.naam || "Jij";
 
@@ -67,14 +71,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
     </div>
   );
 
-  if (pagina === "profiel") return scherm("Profiel", <Profiel naam={g.weergavenaam ?? ""} gebruikersnaam={g.naam ?? ""}
-    bewaar={async (nieuw) => {
-      setBezig(true);
-      const fout = await weergavenaamWijzigen(nieuw).catch(() => "Bewaren lukte niet.");
-      await vernieuw();
-      setBezig(false);
-      setMelding(fout || "Bewaard");
-    }} />);
+  if (pagina === "profiel") return scherm("Profiel", <Profiel g={g} vernieuw={vernieuw} />);
 
   if (pagina === "assistent") {
     const stijl = inst.stijl ?? {};
@@ -132,7 +129,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
       className="h-12 rounded-2xl bg-vlak font-medium text-red-600 dark:text-red-400">Ontkoppelen</button>
   </> : <MailKoppelen staat={staat} setStaat={setStaat} />);
 
-  if (pagina === "afspraken") return scherm("Afspraken met gasten", <>
+  if (pagina === "afspraken") return scherm("Boekingspagina", <>
     <BoekpaginaInstellen naam={naam} />
     {g.id === 1 && <MailVersturen />}
   </>);
@@ -140,7 +137,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
   if (pagina === "betalingen") return scherm("Betalingen", <Betalingen eigenaar={g.id === 1} />);
 
   if (onderdeel) return <Onderdeel naam={onderdeel} staat={staat} vernieuw={vernieuw} terug={() => setOnderdeel(null)} />;
-  if (pagina === "algemeen") return scherm("Algemeen", <AlgemeenScherm inst={inst as Weergave} bewaar={(a) => bewaar(a)} />);
+  if (pagina === "algemeen") return scherm("Weergave", <AlgemeenScherm inst={inst as Weergave} bewaar={(a) => bewaar(a)} />);
   if (pagina === "idee") return scherm("Idee of probleem", <IdeeScherm />);
   if (pagina === "thuis") return scherm("Thuis", <>
     <TekstVeld label="Thuisadres" uitleg="Voor het weer op Vandaag en reistijden. Alleen jij ziet dit."
@@ -156,34 +153,46 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
 
       <button onClick={() => setPagina("profiel")} className="flex w-full items-center gap-4 rounded-[20px] bg-vlak p-4 text-left">
         <span className="flex size-14 items-center justify-center overflow-hidden rounded-full bg-white text-xl font-semibold dark:bg-black/40">
-          {g.foto ? <img src={g.foto} alt="" className="size-full object-cover" /> : naam[0].toUpperCase()}
+          {eigenFoto ? <img src={eigenFoto} alt="" className="size-full object-cover" /> : naam[0].toUpperCase()}
         </span>
         <span className="flex flex-col">
           <span className="text-lg font-semibold">{naam}</span>
-          {g.naam && <span className="text-sm text-rustig">@{g.naam}</span>}
+          <span className="text-sm text-rustig">{g.naam ? `@${g.naam}` : "Profiel bewerken"}</span>
         </span>
+        <Terug className="ml-auto size-5 shrink-0 rotate-180 text-zacht" />
       </button>
 
-      <OnderdelenTegels open={setOnderdeel} />
+      <Groep titel="Account">
+        <Rij icoon={Persoon} kleur="#5b6cf0" titel="Account" uitleg="Mailadres en wachtwoord" open={() => setPagina("account")} />
+        <Rij icoon={Slot} kleur="#3a8f5c" titel="Privacy en beveiliging" uitleg="Tweestapsverificatie, apparaten, wat de assistent weet" open={() => setPagina("privacy")} />
+      </Groep>
 
-      <ul className="mt-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
-        <Rij titel="Algemeen" uitleg="Kleur, tekstgrootte, wat er op Vandaag staat" open={() => setPagina("algemeen")} />
-        <Rij titel="Assistent" uitleg="Naam, toon en hoe hij antwoordt" open={() => setPagina("assistent")} />
-        <Rij titel="Privacy en beveiliging" uitleg="Tweestapsverificatie, apparaten, wat de assistent weet" open={() => setPagina("privacy")} />
-        <Rij titel="Account" uitleg="Mailadres, wachtwoord, je gegevens" open={() => setPagina("account")} />
-        <Rij titel="Thuis" uitleg={inst.thuisadres || "Adres voor het weer en reistijden"} open={() => setPagina("thuis")} />
-      </ul>
+      <Groep titel="Geld">
+        <Rij icoon={Euro} kleur="#e08a1e" titel="Betalingen" uitleg="Overzicht, kopersbescherming en uitbetalen" open={() => setPagina("betalingen")} />
+        <Rij icoon={Lijstje} kleur="#c2571a" titel="Budget" uitleg="Uitgaven en afschriften" open={() => setOnderdeel("budget")} />
+      </Groep>
 
-      <ul className="mt-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
-        <Rij titel="Mail" uitleg={gekoppeld(staat.data) ? "Gekoppeld" : "Koppel je mailbox"} open={() => setPagina("mail")} />
-        <Rij titel="Betalingen" uitleg="Betalen en ontvangen via de app" open={() => setPagina("betalingen")} />
-        <Rij titel="Afspraken met gasten" uitleg={inst.boekpagina ? "Je boekingspagina staat aan" : "Laat mensen zonder account een afspraak inplannen"}
+      <Groep titel="Koppelingen">
+        <Rij icoon={Envelop} kleur="#2f80ed" titel="Mail" uitleg={gekoppeld(staat.data) ? "Gekoppeld" : "Koppel je mailbox"} open={() => setPagina("mail")} />
+        <Rij icoon={Kalender} kleur="#d64545" titel="Boekingspagina" uitleg={inst.boekpagina ? "Staat aan" : "Laat mensen zonder account een afspraak inplannen"}
           open={() => setPagina("afspraken")} />
-      </ul>
+        <Rij icoon={Huis} kleur="#8a6cd6" titel="Thuis" uitleg={inst.thuisadres || "Adres voor het weer en reistijden"} open={() => setPagina("thuis")} />
+      </Groep>
 
-      <ul className="mt-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
-        <Rij titel="Idee of probleem" uitleg="Zeg wat beter kan" open={() => setPagina("idee")} />
-      </ul>
+      <Groep titel="App">
+        <Rij icoon={Schuiven} kleur="#6b7280" titel="Weergave" uitleg="Kleur, tekstgrootte, wat er op Vandaag staat" open={() => setPagina("algemeen")} />
+        <Rij icoon={Vonk} kleur="#4f46e5" titel="Assistent" uitleg="Naam, toon en hoe hij antwoordt" open={() => setPagina("assistent")} />
+      </Groep>
+
+      <Groep titel="Lijsten en documenten">
+        {ONDERDELEN.filter(([id]) => id !== "budget").map(([id, titel, Icoon]) => (
+          <Rij key={id} icoon={Icoon} kleur="#14866d" titel={titel} uitleg={ONDERDEEL_UITLEG[id] ?? ""} open={() => setOnderdeel(id)} />
+        ))}
+      </Groep>
+
+      <Groep titel="Hulp">
+        <Rij icoon={Vraag} kleur="#0e9fb3" titel="Idee of probleem" uitleg="Zeg wat beter kan en volg wat ermee gebeurt" open={() => setPagina("idee")} />
+      </Groep>
 
       <button
         onClick={async () => {
@@ -197,15 +206,33 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
   );
 }
 
-function Rij({ titel, uitleg, open }: { titel: string; uitleg: string; open: () => void }) {
+function Groep({ titel, children }: { titel: string; children: ReactNode }) {
   return (
-    <li>
-      <button onClick={open} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="font-medium">{titel}</span>
-          <span className="truncate text-sm text-rustig">{uitleg}</span>
+    <section className="mt-7">
+      <h2 className={kop}>{titel}</h2>
+      <ul className="flex flex-col overflow-hidden rounded-[20px] bg-vlak">{children}</ul>
+    </section>
+  );
+}
+
+const ONDERDEEL_UITLEG: Record<string, string> = { boodschappen: "Wat je nog moet halen", kooplijst: "Wat je wilt kopen, met prijs",
+  wenslijst: "Cadeau-ideeën en wensen", notities: "Snel iets opschrijven", documenten: "Brieven en teksten, ook als Word of PDF" };
+
+function Rij({ icoon: Icoon, kleur, titel, uitleg, open }: { icoon: (p: { className?: string }) => ReactNode; kleur: string;
+  titel: string; uitleg: string; open: () => void }) {
+  return (
+    <li className="[&+li>button>span:last-child]:border-t [&+li>button>span:last-child]:border-lijn">
+      <button onClick={open} className="flex w-full items-center gap-3 pl-4 text-left">
+        <span style={{ background: kleur }} className="flex size-8 shrink-0 items-center justify-center rounded-lg text-white">
+          <Icoon className="size-[18px]" />
         </span>
-        <Terug className="size-5 shrink-0 rotate-180 text-zacht" />
+        <span className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4">
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="font-medium">{titel}</span>
+            <span className="truncate text-sm text-rustig">{uitleg}</span>
+          </span>
+          <Terug className="size-5 shrink-0 rotate-180 text-zacht" />
+        </span>
       </button>
     </li>
   );
@@ -243,18 +270,6 @@ function TekstVeld({ label, uitleg, waarde, bewaar }: { label: string; uitleg: s
   );
 }
 
-function Profiel({ naam, gebruikersnaam, bewaar }: { naam: string; gebruikersnaam: string; bewaar: (n: string) => void }) {
-  return <>
-    <TekstVeld label="Naam" uitleg="Zo zien anderen je in de chat." waarde={naam} bewaar={bewaar} />
-    {gebruikersnaam && (
-      <div className="flex flex-col gap-1 px-1">
-        <span className={kop.replace("mb-2 px-1 ", "")}>Gebruikersnaam</span>
-        <span>@{gebruikersnaam}</span>
-        <span className="text-sm text-rustig">Hiermee vinden anderen je om te chatten.</span>
-      </div>
-    )}
-  </>;
-}
 
 /** Je eigen Anthropic-sleutel: we laten nooit zien wat er staat, alleen dát er een staat. */
 function Sleutel({ ingesteld, bewaar }: { ingesteld: boolean; bewaar: (v: string) => void }) {
@@ -344,8 +359,13 @@ function Betalingen({ eigenaar }: { eigenaar: boolean }) {
     }
   }
 
-  if (!st) return <p className="bezig-tekst px-1">{melding || "Laden"}</p>;
+  if (!st) return <>
+    <p className="bezig-tekst px-1">{melding || "Laden"}</p>
+    <BetaalOverzicht />
+    <BetaalUitleg />
+  </>;
   return <>
+    <BetaalOverzicht />
     <section className="flex flex-col gap-2">
       <h2 className={kop}>Status</h2>
       <p className="rounded-2xl bg-vlak px-4 py-3.5 text-[15px]">
@@ -391,6 +411,72 @@ function Betalingen({ eigenaar }: { eigenaar: boolean }) {
         <p className="px-1 text-[13px] text-zacht">Webhook-adres in Stripe: https://lnjsekmlpjyiwdlzcowa.supabase.co/functions/v1/betalen</p>
       </section>
     )}
+    <BetaalUitleg />
     {melding && <p role="status" className="px-1 text-sm text-rustig">{melding}</p>}
   </>;
+}
+
+/** Wat er bij jou openstaat: wat je nog moet betalen, wat je nog ontvangt, en je laatste betalingen. */
+function BetaalOverzicht() {
+  const [l, setL] = useState<Bestelling[] | null>(null);
+  useEffect(() => { bestellingenLijst().then(setL).catch(() => setL([])); }, []);
+  if (!l) return null;
+  const open = l.filter((b) => !klaar(b) && b.status !== "geschil");
+  const betalen = open.filter((b) => b.rol === "koper").reduce((n, b) => n + b.bedrag, 0);
+  const ontvangen = open.filter((b) => b.rol === "verkoper").reduce((n, b) => n + b.bedrag, 0);
+  const recent = l.slice().sort((a, b) => b.bijgewerkt.localeCompare(a.bijgewerkt)).slice(0, 5);
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className={kop}>Overzicht</h2>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-2xl bg-vlak px-4 py-3">
+          <p className="text-[13px] text-rustig">Nog te betalen</p>
+          <p className="text-xl font-semibold">{euro(betalen)}</p>
+        </div>
+        <div className="rounded-2xl bg-vlak px-4 py-3">
+          <p className="text-[13px] text-rustig">Nog te ontvangen</p>
+          <p className="text-xl font-semibold">{euro(ontvangen)}</p>
+        </div>
+      </div>
+      {recent.length === 0
+        ? <p className="px-1 text-sm text-rustig">Nog geen betalingen. Koop of verkoop iets in de winkel om te beginnen.</p>
+        : (
+          <ul className="flex flex-col divide-y divide-lijn overflow-hidden rounded-2xl bg-vlak">
+            {recent.map((b) => (
+              <li key={b.id} className="flex items-center gap-3 px-4 py-3">
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-medium">{b.titel}</span>
+                  <span className="truncate text-[13px] text-rustig">{b.rol === "koper" ? "Gekocht van" : "Verkocht aan"} {b.ander} · {stand(b)}</span>
+                </span>
+                <span className={b.rol === "verkoper" ? "font-medium text-green-700 dark:text-green-400" : "font-medium"}>
+                  {b.rol === "verkoper" ? "+" : "−"}{euro(b.bedrag)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+    </section>
+  );
+}
+
+function BetaalUitleg() {
+  const punten: [string, string][] = [
+    ["Kopersbescherming", "Betaal je via de app, dan staat het geld vast tot jij bevestigt dat alles goed is. Kosten: € 0,50 plus 3%."],
+    ["Verkopen", "Als verkoper betaal je op de marktplaats niets. In je eigen webshop is het 5%, minimaal € 0,35 per bestelling."],
+    ["Buiten de app", "Contant, betaalverzoek of overmaken kan ook. Dan rekent de app niets, maar is er geen kopersbescherming."],
+    ["Veilig", "Betalingen lopen via Stripe. De app ziet en bewaart nooit je pasgegevens."],
+  ];
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className={kop}>Zo werkt het</h2>
+      <ul className="flex flex-col divide-y divide-lijn overflow-hidden rounded-2xl bg-vlak">
+        {punten.map(([titel, tekst]) => (
+          <li key={titel} className="flex flex-col gap-0.5 px-4 py-3">
+            <span className="font-medium">{titel}</span>
+            <span className="text-sm text-rustig">{tekst}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
