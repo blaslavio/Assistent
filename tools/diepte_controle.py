@@ -20,8 +20,15 @@ import dieptecontrole
 
 
 def bronhashes():
-    r = subprocess.run(["rg", "--files", "-g", "*.py", "-g", "!attachments/**"], cwd=ROOT, capture_output=True, text=True, check=True)
-    return {naam: hashlib.sha256((ROOT / naam).read_bytes()).hexdigest() for naam in sorted(r.stdout.splitlines())}
+    try:
+        r = subprocess.run(["rg", "--files", "-g", "*.py", "-g", "!attachments/**"], cwd=ROOT, capture_output=True, text=True, check=True)
+        namen = r.stdout.splitlines()
+    except FileNotFoundError:
+        # Ook minimale CI-runners moeten de broncontrole kunnen uitvoeren.
+        uitgesloten = {".git", ".venv", "venv", "__pycache__", "node_modules", "attachments", "data"}
+        namen = [str(p.relative_to(ROOT)) for p in ROOT.rglob("*.py")
+                 if not set(p.relative_to(ROOT).parts) & uitgesloten]
+    return {naam: hashlib.sha256((ROOT / naam).read_bytes()).hexdigest() for naam in sorted(namen)}
 
 
 def controle(seed=dieptecontrole.SEED, per_familie=dieptecontrole.PER_FAMILIE, engine=None):

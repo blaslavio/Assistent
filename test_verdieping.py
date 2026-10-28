@@ -186,6 +186,20 @@ kosten_formulier()
         self.assertEqual(r["samenvatting"],{"mislukt":1,"geslaagd":14})
         self.assertNotIn("PRIVE-GEGEVENS-NIET-BEWAREN",json.dumps(r))
 
+    def test_broncontrole_werkt_zonder_ripgrep_op_minimale_runner(self):
+        from tools import diepte_controle
+        with tempfile.TemporaryDirectory() as mapje:
+            root = Path(mapje)
+            (root / "module.py").write_text("x = 1\n")
+            for naam in (".venv", "node_modules", "attachments", "data"):
+                (root / naam).mkdir()
+                (root / naam / "overslaan.py").write_text("privé = True\n")
+            with patch.object(diepte_controle, "ROOT", root), patch.object(diepte_controle.subprocess, "run", side_effect=FileNotFoundError):
+                eerste = diepte_controle.bronhashes()
+                self.assertEqual(set(eerste), {"module.py"})
+                (root / "module.py").write_text("x = 2\n")
+                self.assertNotEqual(eerste, diepte_controle.bronhashes())
+
     def test_uiterste_kalenderdatum_en_lange_duur_crashen_niet(self):
         item={"wat":"afspraak","titel":"Test","start":"9999-12-31T10:00","einde":"9999-12-31T11:00"}
         r=agendacontrole.controleer(item,[item],nu=datetime(2030,1,1,tzinfo=timezone.utc))
