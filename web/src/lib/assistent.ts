@@ -4,6 +4,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE, SLEUTEL, alsIk, bijwerken, gegevensLaden, huidigeSessie, type Gegevens } from "../api";
 import { DAGEN, datumTekst, nuTekst, plusDagen } from "./tijd";
+import { BETAALWIJZE, LEVERING, euro, klaarzetten, zoeken, type Bestelling, type Product } from "./winkelen";
 
 const MODEL = "claude-opus-5-5";
 const MAX_RONDES = 12;
@@ -33,6 +34,10 @@ Werkwijze:
 - Actuele informatie (openingstijden, prijzen, nieuws): zoek op internet en noem je bron kort.
 - Geheugen: je krijgt hieronder wat je al over de gebruiker weet; gebruik het zonder ernaar te vragen. Hoor je iets
   dat later nuttig is (voorkeuren, gewoontes, namen), bewaar het met onthouden, kort en als één feit.
+- Winkelen: zoek met producten_zoeken in de webshops en op de marktplaats in de app. De gebruiker ziet de
+  gevonden producten als kaartjes; noem in tekst alleen kort wat opvalt (goedkoopste, dichtstbij, verschil).
+  Wil de gebruiker iets kopen, zet het dan klaar met bestelling_klaarzetten. Je bestelt en betaalt nooit zelf:
+  de gebruiker tikt zelf op Bestellen. Verzin nooit producten, prijzen of winkels.
 - Geld, contracten en codes: nooit zelf iets betalen, ondertekenen of doorgeven.
 - Herken nooit wie iemand is aan zijn gezicht.
 - Begin elk antwoord met een gevoelslabel, precies zo: [gevoel: blij]. Kies uit neutraal, blij, enthousiast, rustig,
@@ -86,6 +91,24 @@ const LIJST: Hulpmiddel[] = [
     name: "onthouden", description: "Bewaar iets over de gebruiker voor alle volgende gesprekken.",
     input_schema: { type: "object", properties: { feit: tekst("Eén kort feit."),
       onderwerp: tekst("Bijvoorbeeld eten, sport, werk, familie, vervoer, planning of algemeen.") }, required: ["feit"] },
+  },
+  {
+    name: "producten_zoeken",
+    description: "Zoek producten in de webshops in de app en op de marktplaats. Geeft per product een sleutel, prijs, "
+      + "verkoper en de mogelijke levering en betaalwijzen. De gebruiker ziet de uitkomst als kaartjes.",
+    input_schema: { type: "object", properties: { zoek: tekst("Een of twee zoekwoorden, bijvoorbeeld fiets of koffiebonen.") },
+      required: ["zoek"] },
+  },
+  {
+    name: "bestelling_klaarzetten",
+    description: "Zet een bestelling klaar als kaart met een knop Bestellen. Bestelt niets: alleen de gebruiker kan "
+      + "op de knop tikken. Gebruik een sleutel uit producten_zoeken.",
+    input_schema: { type: "object", properties: {
+      sleutel: tekst("De sleutel van het product, bijvoorbeeld w12 of m7."),
+      aantal: { type: "integer", description: "Hoeveel, meestal 1." },
+      levering: { type: "string", enum: Object.keys(LEVERING), description: "Een levering die het product aanbiedt." },
+      betaalwijze: { type: "string", enum: Object.keys(BETAALWIJZE), description: "Een betaalwijze die het product aanbiedt." },
+    }, required: ["sleutel", "aantal", "levering", "betaalwijze"] },
   },
   {
     name: "keuze_voorleggen",
@@ -204,7 +227,9 @@ function feiten(g: Gegevens): Feit[] {
 }
 
 /** Voert één hulpmiddel uit. Geeft de tekst voor Claude en eventueel een kaartje voor de gebruiker. */
-export async function uitvoeren(naam: string, v: Record<string, unknown>): Promise<{ resultaat: string; actie?: Actie }> {
+type Uitkomst = { resultaat: string; actie?: Actie; producten?: Product[]; bestelling?: Bestelling };
+
+export async function uitvoeren(naam: string, v: Record<string, unknown>): Promise<Uitkomst> {
   const s = (k: string) => (typeof v[k] === "string" ? (v[k] as string).trim() : "");
   switch (naam) {
     case "agenda_bekijken": {
@@ -288,6 +313,19 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
       });
       return { resultaat: JSON.stringify(feit), actie: nieuw ? { soort: "onthouden", titel: s("feit"),
         detail: "Onthouden", ongedaan: { soort: "feit_weg", id: feit!.id } } : undefined };
+    }
+    case "producten_zoeken": {
+      const lijst = await zoeken(s("zoek"));
+      if (!lijst.length) return { resultaat: "Niets gevonden in de winkels en op de marktplaats in de app." };
+      return { producten: lijst, resultaat: JSON.stringify(lijst.map((p) => ({ sleutel: p.sleutel, titel: p.titel,
+        prijs: euro(p.prijs), bron: p.bron, verkoper: p.verkoper, plaats: p.plaats, levering: p.levering,
+        betaalwijzen: p.betaalwijzen, voorraad: p.voorraad, omschrijving: p.omschrijving }))) };
+    }
+    case "bestelling_klaarzetten": {
+      const k = klaarzetten(s("sleutel"), v.aantal as number, s("levering"), s("betaalwijze"));
+      if ("fout" in k) return { resultaat: `Fout: ${k.fout}` };
+      return { bestelling: k.bestelling, resultaat: "De kaart staat klaar. De gebruiker bestelt zelf met de knop; "
+        + "zeg dat kort en herhaal de details niet." };
     }
     case "vergeten": {
       let gevonden = false;
@@ -375,7 +413,8 @@ export function zonderLabels(t: string) {
 export const BEZIG: Record<string, string> = {
   agenda_bekijken: "Kijkt in je agenda", taken_bekijken: "Kijkt naar je taken", afspraak_toevoegen: "Zet het in je agenda",
   afspraak_verwijderen: "Haalt het uit je agenda", taak_toevoegen: "Zet het op je lijst", taak_afronden: "Vinkt af",
-  onthouden: "Onthoudt dit", vergeten: "Vergeet dit", keuze_voorleggen: "Zet de keuzes klaar", web_search: "Zoekt op internet", web_fetch: "Leest een pagina",
+  onthouden: "Onthoudt dit", vergeten: "Vergeet dit", keuze_voorleggen: "Zet de keuzes klaar",
+  producten_zoeken: "Zoekt in de winkels", bestelling_klaarzetten: "Zet je bestelling klaar", web_search: "Zoekt op internet", web_fetch: "Leest een pagina",
 };
 
 export type Gebeurtenissen = {
@@ -383,6 +422,8 @@ export type Gebeurtenissen = {
   bezig: (wat: string) => void;
   actie: (a: Actie) => void;
   keuze: (k: Keuze) => void;
+  producten?: (p: Product[]) => void;
+  bestelling?: (b: Bestelling) => void;
 };
 
 /**
@@ -445,8 +486,10 @@ export async function antwoord(client: Anthropic, berichten: Anthropic.MessagePa
         continue;
       }
       try {
-        const { resultaat, actie } = await uitvoeren(v.name, v.input);
+        const { resultaat, actie, producten, bestelling } = await uitvoeren(v.name, v.input);
         if (actie) op.actie(actie);
+        if (producten) op.producten?.(producten);
+        if (bestelling) op.bestelling?.(bestelling);
         resultaten.push({ type: "tool_result", tool_use_id: v.id, content: resultaat });
       } catch {
         resultaten.push({ type: "tool_result", tool_use_id: v.id, is_error: true, content: "Opslaan lukte niet." });

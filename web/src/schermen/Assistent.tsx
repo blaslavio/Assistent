@@ -6,8 +6,11 @@ import { antwoord, gebruikerBeurt, gesprekLeeg, notitie, ongedaanMaken, verbindi
   type Keuze } from "../lib/assistent";
 import { KeuzeKaart } from "../keuzekaart";
 import { Opmaak } from "../lib/opmaak";
+import { BETAALWIJZE, LEVERING, bestellen, euro, type Bestelling, type Product } from "../lib/winkelen";
 
-type Beurt = { wie: "jij" | "assistent"; tekst: string; acties: Actie[]; fout?: boolean; keuze?: Keuze; gekozen?: number };
+type Bestelkaart = { b: Bestelling; status: "klaar" | "bezig" | "besteld"; fout?: string; bedrag?: number };
+type Beurt = { wie: "jij" | "assistent"; tekst: string; acties: Actie[]; fout?: boolean; keuze?: Keuze; gekozen?: number;
+  producten?: Product[]; bestellingen?: Bestelkaart[] };
 
 // Het gesprek blijft bewaard zolang dit tabblad open is, ook als je even naar Vandaag gaat. Niet op het apparaat.
 const gesprek: { beurten: Beurt[]; berichten: Anthropic.MessageParam[] } = { beurten: [], berichten: [] };
@@ -90,9 +93,12 @@ export default function Assistent({ staat, vernieuw }: Props) {
           wijzig(plek, (b) => ({ ...b, acties: [...b.acties, a] }));
         },
         keuze: (k) => wijzig(plek, (b) => ({ ...b, keuze: k })),
+        producten: (p) => wijzig(plek, (b) => ({ ...b, producten: p })),
+        bestelling: (x) => wijzig(plek, (b) => ({ ...b, bestellingen: [...(b.bestellingen ?? []), { b: x, status: "klaar" }] })),
       }, stoppen.current.signal);
       if (slot) wijzig(plek, (b) => ({ ...b, tekst: (zonderLabels(ruw) + "\n\n" + slot).trim() }));
-      else if (!ruw.trim()) wijzig(plek, (b) => ({ ...b, tekst: b.acties.length || b.keuze ? "" : "Klaar." }));
+      else if (!ruw.trim()) wijzig(plek, (b) => ({ ...b, tekst: b.acties.length || b.keuze || b.producten || b.bestellingen
+        ? "" : "Klaar." }));
     } catch (e) {
       if (!stoppen.current?.signal.aborted) {
         // Een gesprek dat halverwege afbrak, sturen we niet opnieuw mee: dan blijft het geldig.
@@ -152,6 +158,22 @@ export default function Assistent({ staat, vernieuw }: Props) {
     }
   }
 
+  /** Alleen hier gaat een bestelling echt weg: na een tik van de gebruiker zelf. */
+  async function bestel(i: number, j: number) {
+    const kaart = beurten[i].bestellingen?.[j];
+    if (!kaart || kaart.status !== "klaar") return;
+    const zet = (k: Partial<Bestelkaart>) =>
+      wijzig(i, (b) => ({ ...b, bestellingen: b.bestellingen!.map((x, n) => (n === j ? { ...x, ...k } : x)) }));
+    zet({ status: "bezig", fout: undefined });
+    try {
+      const r = await bestellen(kaart.b);
+      zet({ status: "besteld", bedrag: r.bedrag });
+      notitie(`De gebruiker heeft "${kaart.b.product.titel}" besteld met de knop (bestelling ${r.id}, ${euro(r.bedrag)}).`);
+    } catch (e) {
+      zet({ status: "klaar", fout: e instanceof Error ? e.message : "Bestellen lukte niet." });
+    }
+  }
+
   function nieuw() {
     stoppen.current?.abort();
     gesprek.berichten = [];
@@ -200,6 +222,8 @@ export default function Assistent({ staat, vernieuw }: Props) {
                     {b.acties.map((a, j) => <Kaartje key={j} actie={a} terug={() => terugdraaien(i, j)} />)}
                   </ul>
                 )}
+                {b.producten && <ProductRij producten={b.producten} />}
+                {b.bestellingen?.map((k, j) => <BestelKaart key={j} kaart={k} bestel={() => bestel(i, j)} />)}
                 {b.keuze && (
                   <KeuzeKaart keuze={b.keuze} gekozen={b.gekozen} kies={(j) => kies(i, j)}
                     open={i === beurten.length - 1 && !bezig && b.gekozen === undefined} />
@@ -290,3 +314,56 @@ function Kaartje({ actie, terug }: { actie: Actie; terug: () => void }) {
   );
 }
 
+
+/** Wat de assistent vond, als rij kaartjes om langs te vegen. */
+function ProductRij({ producten }: { producten: Product[] }) {
+  return (
+    <ul aria-label="Gevonden producten" className="-mx-1 flex snap-x gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+      {producten.map((p) => (
+        <li key={p.sleutel} className="flex w-44 shrink-0 snap-start flex-col gap-1 rounded-2xl border border-lijn p-3">
+          <span className="line-clamp-2 text-[15px] font-medium leading-snug">{p.titel}</span>
+          <span className="mt-auto text-lg font-semibold">{euro(p.prijs)}</span>
+          <span className="truncate text-[13px] text-rustig">{p.bron === "winkel" ? p.verkoper : `${p.verkoper} · marktplaats`}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function BestelKaart({ kaart, bestel }: { kaart: Bestelkaart; bestel: () => void }) {
+  const { b } = kaart;
+  const totaal = kaart.bedrag ?? b.product.prijs * b.aantal;
+  const winkel = b.product.bron === "winkel";
+  return (
+    <div className="flex flex-col gap-3 rounded-3xl border border-lijn p-4">
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex min-w-0 flex-col">
+          <span className="font-medium">{b.aantal > 1 ? `${b.aantal}× ` : ""}{b.product.titel}</span>
+          <span className="text-[13px] text-rustig">
+            {b.product.verkoper} · {LEVERING[b.levering] ?? b.levering}{winkel ? "" : ` · ${BETAALWIJZE[b.betaalwijze] ?? b.betaalwijze}`}
+          </span>
+        </span>
+        <span className="shrink-0 font-semibold">{euro(totaal)}</span>
+      </div>
+      {kaart.status === "besteld" ? (
+        <p className="flex items-start gap-2 text-[15px]">
+          <Vinkje className="mt-0.5 size-5 shrink-0 text-accent" />
+          <span>{winkel ? "Besteld. Afrekenen doe je bij Bestellingen in de huidige app." : "Verzoek verstuurd. De verkoper laat weten of het doorgaat."}
+            {" "}<a href="../" className="font-medium text-accent">Naar Bestellingen</a></span>
+        </p>
+      ) : (
+        <>
+          {kaart.fout && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{kaart.fout}</p>}
+          <button onClick={bestel} disabled={kaart.status === "bezig"}
+            className="h-11 rounded-full bg-accent font-medium text-white disabled:opacity-50">
+            {kaart.status === "bezig" ? "Bezig…" : winkel ? `Bestellen · ${euro(totaal)}` : "Koopverzoek sturen"}
+          </button>
+          <p className="text-center text-xs text-zacht">
+            {winkel ? (b.levering === "verzenden" ? "Verzendkosten komen er eventueel bij. " : "") + "Er gaat pas iets weg als je tikt."
+              : "De verkoper moet het eerst accepteren. Er gaat pas iets weg als je tikt."}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
