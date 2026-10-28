@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { bijwerken, type Afspraak } from "../api";
 import type { Staat } from "../App";
-import { Plus } from "../iconen";
+import { Persoon, Plus } from "../iconen";
 import { KeuzeKaart } from "../keuzekaart";
 import { afhandelen, voorstel } from "../lib/voorstellen";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
@@ -75,10 +75,9 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
     setStaat({ ...staat, data: nieuw });
   }
 
-  const naam = gebruiker.weergavenaam || gebruiker.naam || "";
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-start justify-between px-6 pt-14 pb-2">
+      <header className="flex items-end justify-between px-6 pt-14 pb-2">
         <div className="flex flex-col gap-1">
           <p className="text-sm text-rustig">
             {dagTitel(nu)}{weer ? ` · ${weer.graden}° ${weer.tekst.toLowerCase()}` : ""}
@@ -86,8 +85,8 @@ export default function Vandaag({ staat, setStaat, naarInstellingen }: Props) {
           <h1 className="text-[32px] font-bold tracking-tight">{groet(nu)}</h1>
         </div>
         <button onClick={naarInstellingen} aria-label="Instellingen"
-          className="flex size-10 items-center justify-center overflow-hidden rounded-full bg-vlak font-semibold">
-          {gebruiker.foto ? <img src={gebruiker.foto} alt="" className="size-full object-cover" /> : (naam[0] ?? "?").toUpperCase()}
+          className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-vlak text-rustig">
+          {gebruiker.foto ? <img src={gebruiker.foto} alt="" className="size-full object-cover" /> : <Persoon className="size-5" />}
         </button>
       </header>
 
