@@ -1069,7 +1069,7 @@ def mijn_webshop(inkopen=None) -> None:
         ]
         for tekst, bestemming, icoon in acties:
             if st.button(tekst, key=f"bouwer_naar_{tekst}", icon=icoon, width="stretch"):
-                st.session_state.webshop_deel = bestemming
+                st.session_state["_webshop_volgende_deel"] = bestemming
                 st.rerun()
     else:
         st.info("Stap 1: geef je winkel een naam en sla deze als concept op. "
