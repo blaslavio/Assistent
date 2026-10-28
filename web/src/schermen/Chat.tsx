@@ -131,7 +131,7 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel }: Prop
       {deel === "winkel" && <WinkelDeel bestel={bestel} />}
       {deel === "oproepen" && ik !== null && <Oproepen ik={ik} lijst={lijst} instellingen={belInst}
         sluitInstellingen={() => setBelInst(false)} zoekIemand={() => { setDeel("chats"); setNieuw(true); }} bewaard={(data) => setStaat?.((s) => (s ? { ...s, data } : s))} />}
-      {deel === "jij" && <Jij staat={staat} naarInstellingen={naarInstellingen} />}
+      {deel === "jij" && <Jij staat={staat} ik={ik} naarInstellingen={naarInstellingen} naar={setDeel} />}
       {/* Zoals WhatsApp: de onderdelen van de chat onderin. Naar beneden vegen of op het streepje tikken klapt hem in. */}
       <div className="sticky bottom-0 z-10 mt-auto">
         <button onClick={() => balkZetten(false)} aria-label="Menu tonen" aria-hidden={!balkWeg} tabIndex={balkWeg ? 0 : -1}
@@ -235,6 +235,7 @@ function Communitys({ lijst, open, vernieuw, staat }: { lijst: Community[]; open
   vernieuw: () => Promise<void>; staat: Staat }) {
   const [weergave, setWeergaveRuw] = useState(bewaardWeergave);
   const [begin] = useState(() => feedInstelling(staat.data.instellingen));
+  const [startBlad, setStartBlad] = useState(false);
   function setWeergave(w: "feed" | "groepen") {
     setWeergaveRuw(w);
     try { localStorage.setItem("assistent.communitydeel", w); } catch { /* geen opslag */ }
@@ -250,14 +251,16 @@ function Communitys({ lijst, open, vernieuw, staat }: { lijst: Community[]; open
   if (weergave === "feed") return (
     <>
       {keuze}
-      <Feed mijn={lijst.filter((c) => c.status === "lid")} begin={begin} open={open} vernieuw={vernieuw} />
+      <Feed mijn={lijst.filter((c) => c.status === "lid")} begin={begin} open={open} vernieuw={vernieuw}
+        maken={() => { setStartBlad(true); setWeergave("groepen"); }} />
     </>
   );
-  return <>{keuze}<Groepen lijst={lijst} open={open} vernieuw={vernieuw} /></>;
+  return <>{keuze}<Groepen lijst={lijst} open={open} vernieuw={vernieuw} startBlad={startBlad} /></>;
 }
 
-function Groepen({ lijst, open, vernieuw }: { lijst: Community[]; open: (id: number) => void; vernieuw: () => Promise<void> }) {
-  const [blad, setBlad] = useState(false);
+function Groepen({ lijst, open, vernieuw, startBlad = false }: { lijst: Community[]; open: (id: number) => void;
+  vernieuw: () => Promise<void>; startBlad?: boolean }) {
+  const [blad, setBlad] = useState(startBlad);
   const [fout, setFout] = useState("");
   async function antwoord(id: number, a: "ja" | "nee") {
     setFout("");
@@ -634,28 +637,80 @@ function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
   );
 }
 
-function Jij({ staat, naarInstellingen }: { staat: Staat; naarInstellingen: () => void }) {
+/** Jij: je eigen plek. Je profiel zoals anderen het zien, je story, en alles wat je koopt en verkoopt. */
+function Jij({ staat, ik, naarInstellingen, naar }: { staat: Staat; ik: number | null; naarInstellingen: () => void;
+  naar: (d: Deel) => void }) {
   const g = staat.gebruiker;
   const naam = g.weergavenaam || g.naam || "Jij";
-  const [gekopieerd, setGekopieerd] = useState(false);
+  const [melding, setMelding] = useState("");
   const [foto] = useEigenFoto(g);
+  const [bestellingen, setBestellingen] = useState(false);
+  const [verkopen, setVerkopen] = useState(false);
+  const [bijgewerkt, setBijgewerkt] = useState(0);
+  const [wacht, setWacht] = useState(0);
+  useEffect(() => {
+    if (!bestellingen) bestellingenLijst().then((l) => setWacht(l.filter(wachtOpMij).length)).catch(() => {});
+  }, [bestellingen]);
+
+  async function delen() {
+    const tekst = `Spreek me in de app: @${g.naam}`;
+    try {
+      if (navigator.share) await navigator.share({ text: tekst });
+      else { await navigator.clipboard.writeText(tekst); setMelding("Gekopieerd. Plak het in een bericht."); }
+    } catch { /* gestopt met delen */ }
+  }
+
+  if (bestellingen) return <Bestellingen terug={() => setBestellingen(false)} />;
+  const tegel = "flex flex-col items-start gap-1 rounded-2xl bg-vlak p-4 text-left";
   return (
-    <div className="flex flex-col gap-5 px-6 pb-8">
-      <div className="flex flex-col items-center gap-2 pt-2 text-center">
-        <span className="flex size-20 items-center justify-center overflow-hidden rounded-full bg-vlak text-3xl font-semibold">
-          {foto ? <img src={foto} alt="" className="size-full object-cover" /> : <Persoon className="size-9 text-rustig" />}
-        </span>
+    <div className="flex flex-col gap-6 pb-8">
+      <div className="flex flex-col items-center gap-2 px-6 pt-2 text-center">
+        <button onClick={naarInstellingen} aria-label="Profiel bewerken"
+          className="flex size-24 items-center justify-center overflow-hidden rounded-full bg-vlak text-3xl font-semibold">
+          {foto ? <img src={foto} alt="" className="size-full object-cover" /> : <Persoon className="size-10 text-rustig" />}
+        </button>
         <p className="text-xl font-semibold">{naam}</p>
-        {g.over && <p className="max-w-xs text-[15px] text-rustig">{g.over}</p>}
-        {g.naam && (
-          <button onClick={() => navigator.clipboard?.writeText(`@${g.naam}`).then(() => setGekopieerd(true), () => {})}
-            className="text-sm text-rustig">
-            @{g.naam} {gekopieerd ? "· gekopieerd" : "· tik om te kopiëren"}
-          </button>
-        )}
-        <p className="max-w-xs text-[13px] text-zacht">Met je gebruikersnaam kunnen anderen een gesprek met je beginnen.</p>
+        {g.naam && <p className="text-sm text-rustig">@{g.naam}</p>}
+        <p className="max-w-xs text-[15px] text-rustig">{g.over || "Nog geen zin over jezelf. Vertel wat je doet of verkoopt, dan weten mensen waarom ze je zouden aanspreken."}</p>
+        <div className="mt-2 flex gap-2">
+          <button onClick={naarInstellingen} className="flex h-10 items-center gap-2 rounded-full bg-vlak px-4 text-sm font-medium">
+            <Bewerk className="size-4" /> Profiel bewerken</button>
+          {g.naam && <button onClick={delen} className="flex h-10 items-center gap-2 rounded-full bg-accent px-4 text-sm font-medium text-white">
+            <Pijl className="size-4" /> Deel profiel</button>}
+        </div>
+        {melding && <p role="status" className="text-sm text-rustig">{melding}</p>}
       </div>
-      <ul className="flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
+
+      {ik !== null && (
+        <section>
+          <h2 className="px-6 pb-1 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig">Je story</h2>
+          <StoryRij ik={ik} />
+        </section>
+      )}
+
+      <section className="grid grid-cols-2 gap-2 px-6">
+        <button onClick={() => setBestellingen(true)} className={`${tegel} relative`}>
+          <Tas className="size-5 text-accent" /><span className="font-medium">Bestellingen</span>
+          <span className="text-[13px] text-rustig">{wacht ? `${wacht} wacht op jou` : "Volg waar het is"}</span>
+          {wacht > 0 && <span className="absolute top-3 right-3 size-2.5 rounded-full bg-accent" />}
+        </button>
+        <button onClick={() => setVerkopen(true)} className={tegel}>
+          <Plus className="size-5 text-accent" /><span className="font-medium">Verkopen</span>
+          <span className="text-[13px] text-rustig">Product of dienst</span>
+        </button>
+        <button onClick={() => naar("communitys")} className={tegel}>
+          <Mensen className="size-5 text-accent" /><span className="font-medium">Community's</span>
+          <span className="text-[13px] text-rustig">Je groepen en de feed</span>
+        </button>
+        <button onClick={() => naar("oproepen")} className={tegel}>
+          <Telefoon className="size-5 text-accent" /><span className="font-medium">Oproepen</span>
+          <span className="text-[13px] text-rustig">Bellen en belafspraken</span>
+        </button>
+      </section>
+
+      <div className="px-6"><JouwAanbod key={bijgewerkt} /></div>
+
+      <ul className="mx-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
         <li>
           <button onClick={naarInstellingen} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
             <Tandwiel className="size-5 text-rustig" />
@@ -667,7 +722,8 @@ function Jij({ staat, naarInstellingen }: { staat: Staat; naarInstellingen: () =
           </button>
         </li>
       </ul>
-      <p className="flex items-center justify-center gap-1.5 text-[13px] text-zacht"><Slot className="size-3.5" /> Je chats en oproepen zijn end-to-end versleuteld.</p>
+      <p className="flex items-center justify-center gap-1.5 px-6 text-[13px] text-zacht"><Slot className="size-3.5" /> Je chats en oproepen zijn end-to-end versleuteld.</p>
+      {verkopen && <Verkopen sluit={() => setVerkopen(false)} geplaatst={() => { setVerkopen(false); setBijgewerkt((n) => n + 1); }} />}
     </div>
   );
 }

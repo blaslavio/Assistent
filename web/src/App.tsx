@@ -102,7 +102,7 @@ export default function App() {
   if (!staat || !huidigeSessie()) return <Inloggen opIngelogd={laden} />;
 
   const scherm = {
-    vandaag: <Vandaag staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} />,
+    vandaag: <Vandaag staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} ga={setTab} />,
     agenda: <Agenda staat={staat} setStaat={setStaat} />,
     chat: <Chat staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
