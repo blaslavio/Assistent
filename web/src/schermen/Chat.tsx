@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Ballon, Bewerk, Dubbelvink, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
+import { JouwAanbod } from "./Delen";
 import { VERDWIJNEN, verdwijnenInstellen, antwoorden, belDuur, berichten, community, communityAntwoorden, communityDeelnemen,
   communityMaken, communityUitnodigen, contacten, gesprekNaam, kortTekst, nieuwGesprek, overzicht, starten, versturen,
   voorbeeld, type Community, type Contact, type Deelnemer, type Gesprek, type Regel } from "../lib/chat";
@@ -462,6 +463,7 @@ function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
           </ul>
         </section>
       )}
+      {!zoek.trim() && <JouwAanbod />}
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium text-rustig">{zoek.trim() ? "Gevonden" : "Te koop"}</h2>
         {fout && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{fout}</p>}
