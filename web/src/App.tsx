@@ -110,7 +110,7 @@ export default function App() {
       gekocht={() => setTeKopen(null)} vooraf={vooraf} voorafGebruikt={() => setVooraf("")}
       naarBestellingen={() => { openVragen(); setTab("chat"); }} /></Suspense>,
     instellingen: <Instellingen staat={staat} vernieuw={laden} terug={() => setTab(vorige)} opUitgelogd={() => setStaat(null)}
-      setStaat={setStaat} />,
+      setStaat={setStaat} vraag={(t) => { setVooraf(t); setTab("assistent"); }} />,
   }[tab];
 
   return (

@@ -4,6 +4,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE, SLEUTEL, alsIk, bijwerken, gegevensLaden, huidigeSessie, type Gegevens } from "../api";
 import { DAGEN, datumTekst, nuTekst, plusDagen } from "./tijd";
+import { herhalingen, leerdoelen, oefenen, reeks, starten, voortgang } from "./leren";
 import { BETAALWIJZE, LEVERING, euro, klaarzetten, zoeken, type Bestelling, type Product } from "./winkelen";
 import type { Grafiek } from "../grafiek";
 
@@ -46,6 +47,8 @@ Werkwijze:
 - Grafieken: laat cijfers die je vergelijkt (per maand, per categorie, verloop) zien met grafiek_tonen. Staven voor
   vergelijken, een lijn voor verloop in de tijd. Hooguit drie reeksen; meer categorieën voeg je samen tot Overig.
   Herhaal de cijfers daarna niet in tekst; noem in één of twee zinnen wat opvalt.
+- Leren: wil de gebruiker iets leren, maak een leerplan met leerdoel_maken (kleine stappen). Bij overhoren stel je
+  één vraag tegelijk, wacht op het antwoord, legt kort uit wat beter kan en geeft daarna een score met leerstap_scoren.
 - Geld, contracten en codes: nooit zelf iets betalen, ondertekenen of doorgeven.
 - Herken nooit wie iemand is aan zijn gezicht.
 - Begin elk antwoord met een gevoelslabel, precies zo: [gevoel: blij]. Kies uit neutraal, blij, enthousiast, rustig,
@@ -90,6 +93,26 @@ const LIJST: Hulpmiddel[] = [
       minuten: { type: "integer", description: "Hoe lang de taak ongeveer duurt, 0 als onbekend." },
       belangrijk: { type: "boolean", description: "true bij geld, boetes, werk of school, of een deadline binnen 3 dagen." },
     }, required: ["titel"] },
+  },
+  {
+    name: "leren_bekijken", description: "Toon de leerdoelen, de leerreeks en welke stappen vandaag herhaald moeten worden.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "leerdoel_maken",
+    description: "Maak een leerplan: een onderwerp met 3 tot 12 kleine stappen die op elkaar voortbouwen. De gebruiker oefent ze in Leren.",
+    input_schema: { type: "object", properties: {
+      onderwerp: tekst("Wat de gebruiker wil leren, kort."),
+      doel: tekst("Optioneel: wat de gebruiker straks kan."),
+      deadline: tekst("Optionele datum JJJJ-MM-DD."),
+      stappen: { type: "array", items: { type: "string" }, description: "Stappen, elk een korte titel." },
+    }, required: ["onderwerp", "stappen"] },
+  },
+  {
+    name: "leerstap_scoren",
+    description: "Geef na het overhoren een score 0 (niet) tot 5 (helemaal) voor een stap; de app plant de volgende herhaling.",
+    input_schema: { type: "object", properties: { leerdoel_id: { type: "integer" }, stap: { type: "integer" },
+      score: { type: "integer" } }, required: ["leerdoel_id", "stap", "score"] },
   },
   {
     name: "taak_afronden", description: "Markeer een taak als klaar.",
@@ -246,7 +269,7 @@ const MOMENT = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/;
 
 /** Wat de gebruiker onder het antwoord ziet, met wat nodig is om het ongedaan te maken. */
 export type Actie = {
-  soort: "afspraak" | "taak" | "klaar" | "onthouden" | "weg";
+  soort: "afspraak" | "taak" | "klaar" | "onthouden" | "weg" | "leren";
   titel: string; detail?: string; ongedaan?: Ongedaan; teruggedraaid?: boolean;
 };
 type Ongedaan =
@@ -254,6 +277,7 @@ type Ongedaan =
   | { soort: "taak_weg"; id: number }
   | { soort: "taak_open"; id: number }
   | { soort: "feit_weg"; id: number }
+  | { soort: "leerdoel_weg"; id: number }
   | { soort: "afspraak_terug"; afspraak: Gegevens["afspraken"][number] };
 
 function nieuwId(g: Gegevens) {
@@ -363,6 +387,27 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
         detail: s("deadline") ? `Voor ${s("deadline").slice(8, 10)}/${Number(s("deadline").slice(5, 7))}` : "Op je takenlijst",
         ongedaan: { soort: "taak_weg", id } } };
     }
+    case "leren_bekijken": {
+      const { data: g } = await gegevensLaden();
+      return { resultaat: JSON.stringify({ reeks: reeks(g), vandaag_herhalen: herhalingen(g).map(({ doel, stap }) =>
+        ({ leerdoel_id: doel.id, stap: stap.nummer, titel: stap.titel, onderwerp: doel.onderwerp })),
+        leerdoelen: leerdoelen(g).map((d) => ({ id: d.id, onderwerp: d.onderwerp, doel: d.doel, deadline: d.deadline,
+          voortgang: voortgang(d), stappen: d.stappen.map((x) => ({ stap: x.nummer, titel: x.titel, score: x.score })) })) }) };
+    }
+    case "leerdoel_maken": {
+      const stappen = Array.isArray(v.stappen) ? (v.stappen as unknown[]).map(String) : [];
+      if (!s("onderwerp") || !stappen.length) return { resultaat: "Fout: geef een onderwerp en minstens één stap." };
+      if (s("deadline") && !DATUM.test(s("deadline"))) return { resultaat: "Fout: deadline als JJJJ-MM-DD." };
+      let id = 0, aantal = 0;
+      await bijwerken((g) => { const d = starten(g, s("onderwerp"), stappen, s("doel"), s("deadline")); id = d.id; aantal = d.stappen.length; });
+      return { resultaat: JSON.stringify({ id, opgeslagen: true }), actie: { soort: "leren", titel: s("onderwerp"),
+        detail: `${aantal} stappen in Leren`, ongedaan: { soort: "leerdoel_weg", id } } };
+    }
+    case "leerstap_scoren": {
+      let gevonden = false;
+      await bijwerken((g) => { gevonden = !!oefenen(g, Number(v.leerdoel_id), Number(v.stap), Number(v.score)); });
+      return { resultaat: gevonden ? JSON.stringify({ opgeslagen: true }) : "Die stap bestaat niet." };
+    }
     case "taak_afronden": {
       let titel = "";
       await bijwerken((g) => {
@@ -439,6 +484,7 @@ export async function ongedaanMaken(o: Ongedaan) {
     if (o.soort === "afspraak_weg") g.afspraken = g.afspraken.filter((a) => a.id !== o.id);
     if (o.soort === "taak_weg") g.taken = g.taken.filter((t) => t.id !== o.id);
     if (o.soort === "taak_open") g.taken.forEach((t) => { if (t.id === o.id) t.klaar = false; });
+    if (o.soort === "leerdoel_weg") g.leerdoelen = leerdoelen(g).filter((d) => d.id !== o.id);
     if (o.soort === "feit_weg") g.geheugen = feiten(g).filter((f) => f.id !== o.id);
     if (o.soort === "afspraak_terug" && !g.afspraken.some((a) => a.id === o.afspraak.id)) g.afspraken.push(o.afspraak);
   });
