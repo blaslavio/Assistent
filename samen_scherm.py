@@ -1733,6 +1733,34 @@ def _gebruiker_verversen() -> None:
     st.session_state.ik = opslag.inloggen(st.session_state.get("naam", ""), st.session_state.wachtwoord) or {}
 
 
+def mail_bevestigen(gebruiker: dict) -> None:
+    """Eén regel: je mailadres is nog niet bevestigd, met een knop voor de code."""
+    import toegangssleutel
+    if not toegangssleutel.mail_ingesteld():
+        return
+    with st.container(horizontal=True, vertical_alignment="center"):
+        st.caption(f"{gebruiker['email']} is nog niet bevestigd.")
+        with st.popover("Bevestigen", icon=":material/mark_email_read:"):
+            if st.button("Stuur code", key="mail_code_sturen", width="stretch"):
+                if fout := opslag.email_code_sturen():
+                    st.error(fout)
+                else:
+                    st.session_state.mail_code_verstuurd = True
+            if st.session_state.get("mail_code_verstuurd"):
+                st.caption("De code staat in je mail.")
+            with st.form("mail_bevestigen", border=False):
+                code = st.text_input("Code uit de mail", max_chars=8, autocomplete="one-time-code",
+                                     placeholder="6 cijfers")
+                if st.form_submit_button("Bevestigen", type="primary", width="stretch") and code.strip():
+                    if fout := opslag.email_bevestigen(code.strip()):
+                        st.error(fout)
+                    else:
+                        st.session_state.pop("mail_code_verstuurd", None)
+                        st.session_state.ik = opslag.inloggen(st.session_state.get("naam", ""),
+                                                              st.session_state.wachtwoord)
+                        st.rerun()
+
+
 def account_instellingen() -> None:
     """Profiel, voorwaarden, gegevens downloaden en account verwijderen."""
     gebruiker = ik()
@@ -1767,6 +1795,8 @@ def account_instellingen() -> None:
                         st.session_state.ik = opslag.inloggen(st.session_state.get("naam", ""),
                                                               st.session_state.wachtwoord)
                         st.success("Opgeslagen.")
+    if samen.beschikbaar() and gebruiker.get("email") and not gebruiker.get("email_bevestigd"):
+        mail_bevestigen(gebruiker)
     if samen.beschikbaar():
         telefoon_instellingen(gebruiker)
     if samen.beschikbaar():

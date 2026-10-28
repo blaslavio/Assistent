@@ -313,6 +313,20 @@ def email_instellen(email: str) -> str | None:
     return _rpc_ik("email_instellen", p_email=email).get("fout")
 
 
+def email_code_sturen() -> str | None:
+    """Stuurt een code naar je mailadres om het te bevestigen. Geeft een foutmelding, of None."""
+    if not online():
+        return "Kan alleen in de online versie."
+    return _rpc_ik("email_code_sturen").get("fout")
+
+
+def email_bevestigen(code: str) -> str | None:
+    """Bevestigt je mailadres met de code uit de mail. Geeft een foutmelding, of None."""
+    if not online():
+        return "Kan alleen in de online versie."
+    return _rpc_ik("email_bevestigen", p_code=code).get("fout")
+
+
 def profiel_bijwerken(nieuwe_naam: str | None = None, weergavenaam: str | None = None,
                       nieuw_wachtwoord: str | None = None) -> str | None:
     """Past gebruikersnaam, weergavenaam of wachtwoord aan. Geeft een foutmelding, of None."""
