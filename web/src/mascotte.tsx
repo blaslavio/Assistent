@@ -1,5 +1,6 @@
-// De goedgekeurde mascotte (assets/assistant_source.svg), licht bewegend en niet aanklikbaar, met een korte tip ernaast.
-import { useEffect, useState } from "react";
+// De goedgekeurde mascotte (assets/assistant_source.svg). Hij beweegt licht, volgt je vinger met zijn ogen, reageert
+// als je op hem tikt en op wat je in de app doet, en dut in als je even niets doet.
+import { useEffect, useRef, useState } from "react";
 
 // De ogen staan los van het lijf, zodat ze kunnen knipperen.
 const OGEN = "M 760,361 L 757,362 L 753,366 L 750,373 L 750,389 L 751,390 L 751,394 L 757,409 L 762,415 L 768,419 L 771,419 L 772,420 L 777,419 L 782,415 L 785,409 L 786,396 L 785,395 L 784,386 L 781,380 L 781,378 L 780,378 L 780,380 L 776,384 L 773,384 L 769,380 L 769,374 L 770,372 L 773,370 L 776,370 L 776,369 L 770,363 L 766,361 Z M 846,326 L 841,329 L 838,335 L 838,338 L 837,339 L 837,353 L 838,354 L 838,358 L 839,359 L 839,362 L 841,368 L 846,378 L 851,383 L 855,385 L 860,385 L 867,379 L 868,373 L 869,372 L 869,357 L 868,356 L 868,352 L 865,344 L 864,347 L 861,350 L 859,350 L 855,347 L 854,345 L 854,340 L 860,335 L 860,333 L 855,328 L 850,326 Z";
@@ -43,17 +44,45 @@ export function tipsVoorNu(nu = new Date()): string[] {
 }
 export const TIPS = ALTIJD;
 
-export type Stemming = "wacht" | "kijkt" | "luistert" | "denkt";
+export type Stemming = "wacht" | "kijkt" | "luistert" | "denkt" | "blij" | "slaapt";
+
+const rustig = () => matchMedia("(prefers-reduced-motion: reduce)").matches
+  || document.documentElement.classList.contains("minder-beweging");
+
+/** Laat de mascotte reageren op iets wat je deed, waar hij ook staat. Bijvoorbeeld: een taak afgevinkt. */
+export function mascotteZeg(tekst: string) {
+  window.dispatchEvent(new CustomEvent("mascotte", { detail: tekst }));
+}
 
 /** Zweeft zachtjes, wiegt een beetje en knippert af en toe met zijn ogen. Met een stemming reageert hij op wat je
  * doet: hij kijkt mee als je typt, luistert als je praat en denkt na als hij bezig is. `hup` laat hem opspringen.
  * Staat stil bij "Minder beweging". */
 export function Mascotte({ className = "", hup = 0, stemming = "wacht" }: { className?: string; hup?: number; stemming?: Stemming }) {
+  const blik = useRef<SVGGElement>(null);
+  // De ogen volgen je vinger of muis, zolang hij niet zelf ergens naar kijkt.
+  useEffect(() => {
+    if (stemming !== "wacht" || rustig()) return;
+    const g = blik.current;
+    const kijk = (e: PointerEvent) => {
+      if (!g) return;
+      const r = g.ownerSVGElement!.getBoundingClientRect();
+      const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 3);
+      const lengte = Math.hypot(dx, dy) || 1;
+      g.style.transform = `translate(${(dx / lengte) * 22}px, ${(dy / lengte) * 22}px)`;
+    };
+    window.addEventListener("pointermove", kijk);
+    window.addEventListener("pointerdown", kijk);
+    return () => {
+      window.removeEventListener("pointermove", kijk);
+      window.removeEventListener("pointerdown", kijk);
+      if (g) g.style.transform = "";
+    };
+  }, [stemming]);
   return (
     <span key={hup} className={`mascotte stemming-${stemming} inline-block ${hup ? "mascotte-hup" : ""} ${className}`}>
       <svg viewBox="533 199 493 621" aria-hidden className="mascotte-lijf pointer-events-none size-full select-none overflow-visible text-[#145b48] dark:text-[#6fcfae]">
         <path fill="currentColor" fillRule="evenodd" d={LIJF} />
-        <g className="mascotte-blik">
+        <g ref={blik} className="mascotte-blik">
           <path className="mascotte-ogen" fill="currentColor" fillRule="evenodd" d={OGEN} />
         </g>
       </svg>
@@ -61,19 +90,74 @@ export function Mascotte({ className = "", hup = 0, stemming = "wacht" }: { clas
   );
 }
 
+const REACTIES = ["Hoi! Tik nog eens voor een andere tip.", "Ik ben er. Waar zal ik mee helpen?", "Haha, dat kietelt.",
+  "Nog een tip? Komt eraan."];
+
+/** De mascotte met een tip. Tik op hem voor een volgende tip of een reactie; vaak achter elkaar tikken kietelt.
+ * Doe je een minuut niets, dan dut hij in. Wat je in de app doet (mascotteZeg) zegt hij hardop. */
 export function MascotteMetTip({ tips: eigen }: { tips?: string[] }) {
   const [tips] = useState(() => eigen ?? tipsVoorNu());
   const [i, setI] = useState(0);
+  const [hup, setHup] = useState(0);
+  const [tekst, setTekst] = useState<string | null>(null);
+  const [stemming, setStemming] = useState<Stemming>("wacht");
+  const tikken = useRef<number[]>([]);
+  const stil = useRef(0);
+
+  // Wakker houden: elke aanraking zet de slaapklok terug.
   useEffect(() => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("minder-beweging")) return;
-    const t = setInterval(() => setI((x) => (x + 1) % tips.length), 9000);
+    const wakker = () => {
+      clearTimeout(stil.current);
+      setStemming((s) => (s === "slaapt" ? "wacht" : s));
+      stil.current = window.setTimeout(() => { setStemming("slaapt"); setTekst("Zzz… tik op me als je me nodig hebt."); }, 60000);
+    };
+    wakker();
+    window.addEventListener("pointerdown", wakker);
+    return () => { clearTimeout(stil.current); window.removeEventListener("pointerdown", wakker); };
+  }, []);
+
+  // Reageren op wat je in de app doet.
+  useEffect(() => {
+    const zeg = (e: Event) => {
+      setTekst((e as CustomEvent<string>).detail);
+      setStemming("blij");
+      setHup((h) => h + 1);
+      window.setTimeout(() => setStemming("wacht"), 1600);
+    };
+    window.addEventListener("mascotte", zeg);
+    return () => window.removeEventListener("mascotte", zeg);
+  }, []);
+
+  useEffect(() => {
+    if (rustig() || tekst) return;
+    const t = setInterval(() => { setI((x) => (x + 1) % tips.length); setHup((h) => h + 1); }, 12000);
     return () => clearInterval(t);
-  }, [tips.length]);
+  }, [tips.length, tekst]);
+
+  function tik() {
+    const nu = Date.now();
+    tikken.current = [...tikken.current.filter((t) => nu - t < 1200), nu];
+    setHup((h) => h + 1);
+    if (stemming === "slaapt") { setStemming("wacht"); setTekst("Oh! Ik was even weg. Waar waren we?"); return; }
+    if (tikken.current.length >= 3) {
+      tikken.current = [];
+      setStemming("blij");
+      setTekst(REACTIES[2]);
+      window.setTimeout(() => setStemming("wacht"), 1600);
+      return;
+    }
+    setTekst(null);
+    setI((x) => (x + 1) % tips.length);
+  }
+
   return (
-    <div className="pointer-events-none flex select-none items-end gap-3">
-      <Mascotte hup={i} className="h-16 w-[52px] shrink-0" />
-      <p aria-live="polite" className="relative mb-4 rounded-2xl rounded-bl-md bg-vlak px-4 py-3 text-[15px] leading-snug text-rustig">
-        {tips[i]}
+    <div className="flex select-none items-end gap-3">
+      <button type="button" onClick={tik} aria-label="Tik op de mascotte voor een volgende tip"
+        className="shrink-0 rounded-2xl active:scale-95">
+        <Mascotte hup={hup} stemming={stemming} className="h-16 w-[52px]" />
+      </button>
+      <p key={tekst ?? i} aria-live="polite" className="opkomen relative mb-4 rounded-2xl rounded-bl-md bg-vlak px-4 py-3 text-[15px] leading-snug text-rustig">
+        {tekst ?? tips[i]}
       </p>
     </div>
   );
