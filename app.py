@@ -221,10 +221,10 @@ def superapp_thema_toepassen() -> None:
     .app-subtitle {{ color: {muted} !important; }}
     .notion-card, .modern-card {{ background: {panel}; border: 1px solid {border}; color: {fg}; }}
     [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {{
-        background: #2563eb !important; border-radius: 16px 16px 4px 16px;
+        background: #e9e8e5 !important; border-radius: 18px 18px 6px 18px;
         padding: 12px 16px; max-width: 85%; margin-left: auto;
     }}
-    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) p {{ color: #fff !important; }}
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) p {{ color: #202124 !important; }}
     [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {{
         background: {panel} !important; border: 1px solid {border};
         border-radius: 16px 16px 16px 4px; padding: 12px 16px; max-width: 85%;
@@ -5533,7 +5533,8 @@ def gesprek() -> None:
         st.session_state.ingesproken = True
     vraag = st.session_state.pop("vooraf_vraag", None)
     if not vraag:
-        vraag = st.chat_input("Stel je vraag aan de assistent...", key="assistent_chat_input")
+        with st.container(key="assistent_inline_input"):
+            vraag = st.chat_input("Stel je vraag aan de assistent...", key="assistent_chat_input")
     # Optional Rive UI: nothing is rendered until the approved .riv is supplied.
     # The request state is driven by actual chat input, not simulated responses.
     rive_chat_state.render_for_event("request_started" if vraag else "ready", height=150)
@@ -5988,6 +5989,8 @@ def chat_communicatie_instellingen() -> None:
 
 def chat_met_profiel() -> None:
     """Chat met één herkenbare ingang voor alle communicatie-instellingen."""
+    if st.button("Assistent openen", icon=":material/smart_toy:", key="chat_open_assistent", width="stretch"):
+        ga_naar("assistent")
     chat_communicatie_instellingen()
     chat.pagina()
 
@@ -6380,7 +6383,9 @@ def assistent_invoer() -> None:
             st.session_state.vooraf_vraag = gezegd
             st.session_state.ingesproken = True
             st.session_state.ga_naar = "assistent"
-    if vraag := st.chat_input(f"Vraag {avatar.aanspreken(mijn_avatar())} iets..."):
+    with st.container(key="snelle_assistent_inline_input"):
+        vraag = st.chat_input(f"Vraag {avatar.aanspreken(mijn_avatar())} iets...")
+    if vraag:
         if snel_uitgave(vraag):
             pass
         elif snelinvoer.lijkt_invoer(vraag):
