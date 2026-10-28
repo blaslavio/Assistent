@@ -11,6 +11,9 @@
   --color-lijn: #eeeef2;
 }
 
+/* Kleuren voor grafieken met meer reeksen (getest op kleurenblindheid, ook in donker). */
+:root { --reeks-1: #2a78d6; --reeks-2: #eb6834; --reeks-3: #1baf7a; }
+
 @layer base {
   html, body, #root { height: 100%; }
   body {
@@ -30,6 +33,7 @@
       --color-lijn: #26262c;
       --color-accent: #6366f1;
       --color-accent-donker: #a5b4fc;
+      --reeks-1: #3987e5; --reeks-2: #d95926; --reeks-3: #199e70;
     }
     body { background: #0b0b0e; }
   }

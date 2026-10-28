@@ -2,7 +2,9 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Staat } from "../App";
 import { OUDE_APP } from "../api";
-import { Herstel, Kalender, Microfoon, Pijl, Plus, Vinkje, Vonk } from "../iconen";
+import { Bestand, Bijlage, Herstel, Kalender, Kruis, Microfoon, Pijl, Plus, Vinkje, Vonk } from "../iconen";
+import { GrafiekKaart, type Grafiek } from "../grafiek";
+import { ACCEPTEER, BijlageFout, MAX_SAMEN, lezen, type Bijlage as Bijlagebestand } from "../lib/bijlagen";
 import { antwoord, gebruikerBeurt, gesprekLeeg, notitie, ongedaanMaken, verbinding, zonderLabels, type Actie,
   type Keuze } from "../lib/assistent";
 import { KeuzeKaart } from "../keuzekaart";
@@ -12,10 +14,13 @@ import { Bladen, ProductRij, type Blad } from "./Winkelen";
 
 type Bestelkaart = { b: Bestelling; status: "klaar" | "bezig" | "besteld"; fout?: string; bedrag?: number };
 type Beurt = { wie: "jij" | "assistent"; tekst: string; acties: Actie[]; fout?: boolean; keuze?: Keuze; gekozen?: number;
-  producten?: Product[]; bestellingen?: Bestelkaart[] };
+  producten?: Product[]; bestellingen?: Bestelkaart[]; bijlagen?: { naam: string; soort: Bijlagebestand["soort"] }[];
+  grafieken?: Grafiek[] };
 
 // Het gesprek blijft bewaard zolang dit tabblad open is, ook als je even naar Vandaag gaat. Niet op het apparaat.
-const gesprek: { beurten: Beurt[]; berichten: Anthropic.MessageParam[] } = { beurten: [], berichten: [] };
+// `gebruikt` telt de meegestuurde bestanden op: het hele gesprek gaat bij elke vraag opnieuw mee.
+const gesprek: { beurten: Beurt[]; berichten: Anthropic.MessageParam[]; gebruikt: number } =
+  { beurten: [], berichten: [], gebruikt: 0 };
 
 const VOORBEELDEN = ["Wat staat er vandaag?", "Plan morgen een uur voor mijn taken", "Zet vrijdag 19:00 etentje met Sanne",
   "Wat is er dit weekend te doen?"];
@@ -36,6 +41,10 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
   const [bezig, setBezig] = useState<string | null>(null);
   const [luistert, setLuistert] = useState(false);
   const [bladen, setBladen] = useState<Blad[]>([]);
+  const [klaar, setKlaar] = useState<Bijlagebestand[]>([]);
+  const [lezend, setLezend] = useState(false);
+  const [melding, setMelding] = useState<string | null>(null);
+  const kiezer = useRef<HTMLInputElement>(null);
   const onder = useRef<HTMLDivElement>(null);
   const veld = useRef<HTMLTextAreaElement>(null);
   const stoppen = useRef<AbortController | null>(null);
@@ -54,10 +63,39 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
   /** Een getypt of ingesproken bericht. */
   function vraag(tekst: string) {
     const vraag = tekst.trim();
-    if (!vraag || bezig) return;
+    if ((!vraag && !klaar.length) || bezig || lezend) return;
     setInvoer("");
+    setMelding(null);
     if (veld.current) veld.current.style.height = "auto";
-    praat(vraag);
+    const mee = klaar;
+    setKlaar([]);
+    praat(vraag, undefined, mee);
+  }
+
+  /** Gekozen bestanden lezen en klaarzetten; ze gaan mee met het volgende bericht. */
+  async function bestandenGekozen(lijst: FileList | null) {
+    if (!lijst?.length) return;
+    setLezend(true);
+    setMelding(null);
+    let ruimte = MAX_SAMEN - gesprek.gebruikt - klaar.reduce((n, b) => n + b.grootte, 0);
+    const nieuw: Bijlagebestand[] = [];
+    for (const bestand of Array.from(lijst).slice(0, 5)) {
+      try {
+        const b = await lezen(bestand);
+        if (b.grootte > ruimte) {
+          setMelding("Dit gesprek zit vol met bestanden. Begin een nieuw gesprek met Nieuw.");
+          break;
+        }
+        ruimte -= b.grootte;
+        nieuw.push(b);
+      } catch (e) {
+        setMelding(e instanceof BijlageFout ? e.message : `${bestand.name} kon ik niet openen.`);
+      }
+    }
+    setKlaar((k) => [...k, ...nieuw]);
+    setLezend(false);
+    if (kiezer.current) kiezer.current.value = "";
+    veld.current?.focus({ preventScroll: true });
   }
 
   /** Bestellen vanuit een productblad: de assistent zet de kaart klaar, jij tikt daarna zelf op Bestellen. */
@@ -87,10 +125,12 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
     praat("", k.opties[j].label);
   }
 
-  async function praat(vraag: string, gekozen?: string) {
+  async function praat(vraag: string, gekozen?: string, bijlagen: Bijlagebestand[] = []) {
     const client = await verbinding(staat.data);
-    const plek = beurten.length + (vraag ? 1 : 0);
-    setBeurten((l) => [...l, ...(vraag ? [{ wie: "jij" as const, tekst: vraag, acties: [] }] : []),
+    const vanJou = Boolean(vraag || bijlagen.length);
+    const plek = beurten.length + (vanJou ? 1 : 0);
+    setBeurten((l) => [...l, ...(vanJou ? [{ wie: "jij" as const, tekst: vraag, acties: [],
+      bijlagen: bijlagen.map(({ naam, soort }) => ({ naam, soort })) }] : []),
       { wie: "assistent", tekst: "", acties: [] }]);
     if (!client) {
       wijzig(plek, (b) => ({ ...b, fout: true, tekst: "De assistent staat nog uit. Zet hem aan in de huidige app bij "
@@ -99,7 +139,9 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
     }
     setBezig("Denkt na");
     stoppen.current = new AbortController();
-    const terugzetten = gebruikerBeurt(gesprek.berichten, vraag, gekozen);
+    const terugzetten = gebruikerBeurt(gesprek.berichten, vraag, gekozen, bijlagen.map((b) => b.blok));
+    const extra = bijlagen.reduce((n, b) => n + b.grootte, 0);
+    gesprek.gebruikt += extra;
     let ruw = "";
     let veranderd = false;
     try {
@@ -117,18 +159,22 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
         keuze: (k) => wijzig(plek, (b) => ({ ...b, keuze: k })),
         producten: (p) => wijzig(plek, (b) => ({ ...b, producten: p })),
         bestelling: (x) => wijzig(plek, (b) => ({ ...b, bestellingen: [...(b.bestellingen ?? []), { b: x, status: "klaar" }] })),
+        grafiek: (g) => wijzig(plek, (b) => ({ ...b, grafieken: [...(b.grafieken ?? []), g] })),
       }, stoppen.current.signal);
       if (slot) wijzig(plek, (b) => ({ ...b, tekst: (zonderLabels(ruw) + "\n\n" + slot).trim() }));
       else if (!ruw.trim()) wijzig(plek, (b) => ({ ...b, tekst: b.acties.length || b.keuze || b.producten || b.bestellingen
+        || b.grafieken
         ? "" : "Klaar." }));
     } catch (e) {
       if (!stoppen.current?.signal.aborted) {
         // Een gesprek dat halverwege afbrak, sturen we niet opnieuw mee: dan blijft het geldig.
         terugzetten();
+        gesprek.gebruikt -= extra;
         const status = (e as { status?: number }).status;
         wijzig(plek, (b) => ({ ...b, fout: true, tekst: status === 429
           ? "Je hebt deze maand je ruimte voor de assistent gebruikt, of het is even te druk. Probeer het later opnieuw."
-          : status === 401 ? "Log opnieuw in om verder te praten." : "De assistent is even niet bereikbaar. Probeer het zo opnieuw." }));
+          : status === 401 ? "Log opnieuw in om verder te praten."
+          : status === 413 ? "Dat is te veel in één keer. Begin een nieuw gesprek of stuur een kleiner bestand." : "De assistent is even niet bereikbaar. Probeer het zo opnieuw." }));
       }
     } finally {
       setBezig(null);
@@ -199,7 +245,10 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
   function nieuw() {
     stoppen.current?.abort();
     gesprek.berichten = [];
+    gesprek.gebruikt = 0;
     gesprekLeeg();
+    setKlaar([]);
+    setMelding(null);
     setBeurten([]);
     setBezig(null);
     veld.current?.focus();
@@ -231,9 +280,12 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
       ) : (
         <main className="flex flex-1 flex-col gap-6 px-6 pt-2 pb-6" aria-live="polite">
           {beurten.map((b, i) => b.wie === "jij" ? (
-            <p key={i} className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-[22px] rounded-br-md bg-accent px-4 py-2.5 text-white">
-              {b.tekst}
-            </p>
+            <div key={i} className="ml-auto flex max-w-[85%] flex-col items-end gap-1.5">
+              {b.bijlagen?.map((x, j) => <Chip key={j} naam={x.naam} />)}
+              {b.tekst && (
+                <p className="whitespace-pre-wrap rounded-[22px] rounded-br-md bg-accent px-4 py-2.5 text-white">{b.tekst}</p>
+              )}
+            </div>
           ) : (
             <div key={i} className="flex gap-3">
               <Bol actief={i === beurten.length - 1 && bezig !== null} />
@@ -244,6 +296,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
                     {b.acties.map((a, j) => <Kaartje key={j} actie={a} terug={() => terugdraaien(i, j)} />)}
                   </ul>
                 )}
+                {b.grafieken?.map((g, j) => <GrafiekKaart key={j} g={g} />)}
                 {b.producten && <ProductRij producten={b.producten} open={(p) => setBladen([{ soort: "product", p }])} />}
                 {b.bestellingen?.map((k, j) => <BestelKaart key={j} kaart={k} bestel={() => bestel(i, j)} />)}
                 {b.keuze && (
@@ -265,7 +318,22 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
       <Bladen stapel={bladen} zet={setBladen} bestel={koop} />
 
       <form onSubmit={verstuur} className="sticky bottom-0 bg-white px-4 pb-3 pt-2 dark:bg-[#0b0b0e]">
-        <div className={`flex items-end gap-2 rounded-[26px] bg-vlak py-1.5 pr-1.5 pl-5 ${luistert ? "ring-2 ring-accent" : ""}`}>
+        {melding && <p role="alert" className="px-3 pb-2 text-sm text-red-600 dark:text-red-400">{melding}</p>}
+        {(klaar.length > 0 || lezend) && (
+          <div className="flex flex-wrap gap-2 px-1 pb-2">
+            {klaar.map((b, i) => (
+              <Chip key={i} naam={b.naam} weg={() => setKlaar((k) => k.filter((_, j) => j !== i))} />
+            ))}
+            {lezend && <span className="bezig-tekst px-2 py-1.5 text-sm">Bestand lezen</span>}
+          </div>
+        )}
+        <div className={`flex items-end gap-1 rounded-[26px] bg-vlak py-1.5 pr-1.5 pl-1.5 ${luistert ? "ring-2 ring-accent" : ""}`}>
+          <input ref={kiezer} type="file" multiple accept={ACCEPTEER} className="hidden"
+            onChange={(e) => bestandenGekozen(e.target.files)} />
+          <button type="button" onClick={() => kiezer.current?.click()} aria-label="Bestand toevoegen" disabled={lezend}
+            className="flex size-10 shrink-0 items-center justify-center rounded-full text-rustig disabled:opacity-40">
+            <Bijlage className="size-5" />
+          </button>
           <label className="flex-1 self-center">
             <span className="sr-only">Bericht aan de assistent</span>
             <textarea ref={veld} rows={1} value={invoer} placeholder={luistert ? "Ik luister…" : "Vraag of zeg iets"}
@@ -287,8 +355,8 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
               className="flex size-10 shrink-0 items-center justify-center rounded-full bg-inkt">
               <span className="size-3 rounded-[3px] bg-white dark:bg-black" />
             </button>
-          ) : invoer.trim() || !Spraak ? (
-            <button aria-label="Versturen" disabled={!invoer.trim()}
+          ) : invoer.trim() || klaar.length || !Spraak ? (
+            <button aria-label="Versturen" disabled={(!invoer.trim() && !klaar.length) || lezend}
               className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-white disabled:opacity-30">
               <Pijl className="size-5" />
             </button>
@@ -301,6 +369,22 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht }: Props) 
         </div>
       </form>
     </div>
+  );
+}
+
+/** Een meegestuurd bestand, als klein label. Met `weg` kun je het er nog af halen voor je verstuurt. */
+function Chip({ naam, weg }: { naam: string; weg?: () => void }) {
+  return (
+    <span className="flex max-w-full items-center gap-1.5 rounded-2xl border border-lijn bg-white py-1.5 pr-1.5 pl-3 text-sm dark:bg-[#0b0b0e]">
+      <Bestand className="size-4 shrink-0 text-rustig" />
+      <span className="truncate">{naam}</span>
+      {weg ? (
+        <button type="button" onClick={weg} aria-label={`${naam} weghalen`}
+          className="flex size-6 shrink-0 items-center justify-center rounded-full text-rustig hover:bg-vlak">
+          <Kruis className="size-3.5" />
+        </button>
+      ) : <span className="w-1.5" />}
+    </span>
   );
 }
 
