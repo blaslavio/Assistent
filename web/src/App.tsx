@@ -60,8 +60,10 @@ export default function App() {
   const [teKopen, setTeKopen] = useState<Product | null>(null);
   const [fout, setFout] = useState("");
 
+  const [voorChat, setVoorChat] = useState<Tab>("vandaag");
   const setTab = (t: Tab) => {
     if (t === "instellingen") setVorige(tab === "instellingen" ? vorige : tab);
+    if (t === "chat" && tab !== "chat") setVoorChat(tab);
     setTabRuw(t);
   };
 
@@ -110,6 +112,7 @@ export default function App() {
     vandaag: <Vandaag staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} ga={setTab} />,
     agenda: <Agenda staat={staat} setStaat={setStaat} />,
     chat: <Chat staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
+      verlaat={() => setTab(voorChat)} terugNaam={TABS.find((t) => t.id === voorChat)?.naam}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
     assistent: <Suspense fallback={null}><Assistent staat={staat} vernieuw={laden} teKopen={teKopen}
       gekocht={() => setTeKopen(null)} vooraf={vooraf} voorafGebruikt={() => setVooraf("")}
@@ -123,7 +126,8 @@ export default function App() {
       {fout && <p role="alert" className="bg-vlak px-6 py-3 text-sm text-rustig">{fout}</p>}
       <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}>{scherm}</Vangnet></div>
       <Vangnet naam="bellen" klein><BelLaag /></Vangnet>
-      <nav aria-label="Hoofdmenu"
+      {/* In de chat heeft de chat zijn eigen menu, zoals een aparte app; linksboven ga je terug. */}
+      {tab !== "chat" && <nav aria-label="Hoofdmenu"
         className="flex shrink-0 justify-around border-t border-lijn pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)]">
         {TABS.map(({ id, naam, Icoon }) => {
           const actief = tab === id;
@@ -135,7 +139,7 @@ export default function App() {
             </button>
           );
         })}
-      </nav>
+      </nav>}
     </div>
   );
 }

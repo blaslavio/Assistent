@@ -19,7 +19,7 @@ function Blok({ titel, children }: { titel: string; children: ReactNode }) {
   return <section className="flex flex-col gap-2"><h2 className={kop}>{titel}</h2>{children}</section>;
 }
 
-export function CommunityBeheer({ c, terug, vernieuw, opgeheven }: { c: Community; terug: () => void;
+export function CommunityBeheer({ c, terug, vernieuw, opgeheven }: { c: Community; terug?: () => void;
   vernieuw: () => Promise<void>; opgeheven: () => void }) {
   const [info, setInfo] = useState<Info | null>(null);
   const [naam, setNaam] = useState(c.naam);
@@ -50,11 +50,13 @@ export function CommunityBeheer({ c, terug, vernieuw, opgeheven }: { c: Communit
   }
 
   return (
-    <div className="flex min-h-full flex-col px-6 pt-12 pb-10">
-      <button onClick={terug} className="-ml-2 flex h-10 items-center gap-1 self-start pr-3 text-rustig">
-        <Terug className="size-5" /> {c.naam}
-      </button>
-      <h1 className="mt-4 mb-6 text-[28px] font-bold tracking-tight">Instellingen</h1>
+    <div className={`flex flex-col px-6 pb-10 ${terug ? "min-h-full pt-12" : ""}`}>
+      {terug && <>
+        <button onClick={terug} className="-ml-2 flex h-10 items-center gap-1 self-start pr-3 text-rustig">
+          <Terug className="size-5" /> {c.naam}
+        </button>
+        <h1 className="mt-4 mb-6 text-[28px] font-bold tracking-tight">Instellingen</h1>
+      </>}
       <div className="flex flex-col gap-7">
         <Blok titel="Naam en omschrijving">
           <input value={naam} onChange={(e) => setNaam(e.target.value)} maxLength={60} aria-label="Naam" className="h-12 rounded-2xl bg-vlak px-4 outline-none" />
