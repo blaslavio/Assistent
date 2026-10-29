@@ -1,3 +1,4 @@
+import { aiGepauzeerd, controleerProjectAi, pauzeerProjectAi, privacyVoorbeeld } from "../lib/projectprivacy";
 import ProjectHoe from "./ProjectHoe";
 import ProjectWanneer from "./ProjectWanneer";
 import ProjectAls from "./ProjectAls";
@@ -42,11 +43,16 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
   const [fout, setFout] = useState("");
   const [melding, setMelding] = useState("");
   const slot = useRef(false);
+  const toestemmingReset = useRef(new Map<string, ProjectActie>());
   const [capaciteit, setCapaciteit] = useState(120);
   const [oefening, setOefening] = useState<ReturnType<typeof oefenplanning> | null>(null);
   const bezoekSleutel = `assistent.projectbezoek.${huidigeSessie()?.naam ?? ""}.${gesprek}`;
   const [gezien, setGezien] = useState(() => { try { const n = Number(localStorage.getItem(bezoekSleutel)); return Number.isSafeInteger(n) && n >= 0 ? n : 0; } catch { return 0; } });
   const [toestemmingDoel, setToestemmingDoel] = useState(PROJECT_SCOPE);
+  const [privacyPauze, setPrivacyPauze] = useState(() => aiGepauzeerd(gesprek));
+  const [geldigMinuten, setGeldigMinuten] = useState(60);
+  const aiVerzoek = useRef<AbortController | null>(null);
+  useEffect(() => () => aiVerzoek.current?.abort(), []);
   const [kennisAan, setKennisAan] = useState(false);
   const [aiBestand, setAiBestand] = useState("");
   const [aiVoorbeeld, setAiVoorbeeld] = useState<string | null>(null);
@@ -90,6 +96,13 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
     slot.current = true; setBezig(true); setOnzeker(true); setFout("");
     const sessie = huidigeSessie();
     try {
+      // Oudere clients herkennen korte looptijden niet. Trek hun eerdere toestemming eerst herkenbaar in.
+      if (pending.soort === "toestemming" && pending.keuze !== "geen" && pending.geldigMinuten !== undefined) {
+        let reset = toestemmingReset.current.get(pending.sleutel);
+        if (!reset) { reset = nieuwFeit("toestemming", "Vervangt mijn eerdere AI-toestemming.", { soort: "eigen" }, { doel: pending.doel, keuze: "geen", leden: pending.leden }); toestemmingReset.current.set(pending.sleutel, reset); }
+        await versturen(gesprek, reset);
+        if (huidigeSessie() !== sessie) return;
+      }
       await versturen(gesprek, pending);
       if (huidigeSessie() !== sessie) return;
       setPending(null); setOnzeker(false); setTekst(""); setMelding("Bevestigd gedeeld met dit project.");
@@ -107,6 +120,10 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
   return <section className="mt-3 border-t border-lijn pt-3" aria-label="Projectregie">
     <h3 className="font-semibold">Projectregie</h3>
     <p className="mt-1 text-sm text-rustig">Kennis, besluiten en acties zijn expliciet bevestigd. De afzender en bron blijven zichtbaar. Alleen geladen, leesbare geschiedenis telt mee.</p>
+    <div className="mt-3 rounded-xl bg-vlak p-3"><p className="font-medium">{privacyPauze ? "Project-AI gepauzeerd op dit apparaat" : "Project-AI vraagt altijd toestemming"}</p>
+      <button className="min-h-11 text-accent" onClick={() => { const aan = !privacyPauze; pauzeerProjectAi(gesprek, aan); setPrivacyPauze(aan); aiVerzoek.current?.abort(); setAiVoorbeeld(null); setAiAkkoord(false); setAiResultaat(""); setMelding(aan ? "Nieuwe project-AI-aanvragen zijn geblokkeerd in deze sessie op dit apparaat. Eerder verstuurde gegevens kunnen niet worden teruggehaald; gedeelde toestemming trek je apart in via Privacy." : "Project-AI hervat. Toestemming en een nieuw gecontroleerd voorbeeld blijven nodig."); }}>{privacyPauze ? "Project-AI hervatten" : "Project-AI pauzeren"}</button>
+      <button className="min-h-11 px-3 text-accent" onClick={() => setDeel("Privacy")}>Wie mag wat?</button>
+    </div>
     <label className="mt-3 block">Mijn werkstand
       <select value={werkstand} onChange={e => { setWerkstand(e.target.value); try { localStorage.setItem(voorkeurSleutel, e.target.value); } catch { setFout("Deze werkstand geldt nu voor dit scherm; opslaan op dit apparaat lukte niet."); } }} className="ml-2 min-h-11 rounded-xl bg-vlak p-2">
         {["Vandaag", "Samenwerken", "Ondernemen"].map(x => <option key={x}>{x}</option>)}
@@ -118,6 +135,7 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
     {pending && <div className="my-3 rounded-xl border border-lijn p-3" aria-label="Projectvoorstel controleren">
       <p className="font-semibold">Controleer {pending.soort}</p><p className="whitespace-pre-wrap break-words">{pending.tekst}</p>
       {pending.stappen?.map(s => <div key={s.id} className="my-2 rounded-xl bg-vlak p-2"><strong>{s.titel}</strong><p>Klaar als: {s.klaarAls}</p><p>{s.minuten} minuten · {s.eigenaar ? namen.get(s.eigenaar) ?? `Deelnemer ${s.eigenaar}` : "Nog niet toegewezen"}</p><p>Afhankelijk van: {s.afhankelijkVan.length ? s.afhankelijkVan.map(id => pending.stappen?.find(x => x.id === id)?.titel ?? id).join(", ") : "geen"}</p>{s.alternatief && <p>Alternatief: {s.alternatief}</p>}</div>)}
+      {pending.geldigMinuten && <p>Toestemming: {pending.geldigMinuten} minuten. Eerdere toestemming wordt eerst ingetrokken; oudere appversies blijven daardoor geblokkeerd.</p>}
       {pending.uiterlijk && <p>Deadline: {datum(pending.uiterlijk)}</p>}
       <p className="text-sm text-rustig">{bronStatus(pending.bron, regels, bestanden)}. Dit wordt gedeeld met de deelnemers aan dit gesprek.</p>
       {onzeker && <p>Een eerdere poging kan al gedeeld zijn. Sluiten draait die niet terug.</p>}
@@ -186,8 +204,16 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
         <option value={PROJECT_SCOPE}>Bevestigde projectkennis</option>{[...bestanden.values()].map(b => <option key={b.id} value={b.id}>{b.titel}</option>)}
       </select></label>
       <p>Benodigde toestemmingen: {nodig(toestemmingDoel).map(id => namen.get(id) ?? `Deelnemer ${id}`).join(", ") || "deelnemers nog niet bekend"}.</p>
+      <label>Mijn nieuwe toestemming geldt<select className="ml-2 min-h-11 bg-vlak p-2" value={geldigMinuten} onChange={e => setGeldigMinuten(Number(e.target.value))}><option value={15}>15 minuten</option><option value={60}>1 uur</option><option value={1440}>24 uur</option></select></label>
+      <ul className="rounded-xl bg-vlak p-3">{nodig(toestemmingDoel).map(id => {
+        const laatste = [...feiten].reverse().find(f => f.afzender === id && f.actie.soort === "toestemming" && f.actie.doel === toestemmingDoel);
+        const einde = laatste ? Date.parse(laatste.tijd) + (laatste.actie.geldigMinuten ?? 1440) * 60_000 : 0;
+        const samenstelling = laatste && [...laatste.actie.leden ?? []].sort((a,b)=>a-b).join() === nodig(toestemmingDoel).sort((a,b)=>a-b).join();
+        const geldig = samenstelling && Date.parse(laatste!.tijd) <= nu && einde > nu && laatste!.actie.keuze !== "geen";
+        return <li key={id}>{namen.get(id) ?? `Deelnemer ${id}`}: {geldig ? `${laatste!.actie.keuze === "titel" ? "alleen titel" : "tekst"} toegestaan tot ${datum(new Date(einde).toISOString())}` : "geen actuele toestemming"}</li>;
+      })}</ul>
       {schrijven && ["geen", "titel", "tekst"].map(keuze => <button key={keuze} className="min-h-11 px-3 text-accent" disabled={!!pending}
-        onClick={() => voorbereiden(nieuwFeit("toestemming", `Mijn AI-toestemming: ${keuze}.`, { soort: "eigen" }, { doel: toestemmingDoel, keuze, leden: nodig(toestemmingDoel) }))}>
+        onClick={() => voorbereiden(nieuwFeit("toestemming", `Mijn AI-toestemming: ${keuze}.`, { soort: "eigen" }, { doel: toestemmingDoel, keuze, leden: nodig(toestemmingDoel), ...(keuze !== "geen" ? { geldigMinuten } : {}) }))}>
         {keuze === "geen" ? "Toestemming intrekken" : keuze === "titel" ? "Alleen titel toestaan" : "Tekst toestaan"}</button>)}
       {feiten.filter(f => f.actie.soort === "toestemming").slice(-10).map(f => <p key={f.bericht}>{namen.get(f.afzender) ?? f.afzender}: {f.actie.keuze} · {datum(f.tijd)}</p>)}
     </>}
@@ -195,28 +221,32 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
       <p className="text-sm text-rustig">Afzonderlijke Claude-projecthulp zonder tools, geheugen of eerdere gesprekken. Alleen het getoonde voorbeeld wordt verstuurd. Iedere vereiste deelnemer moet daarvoor actueel toestemming geven.</p>
       <label className="block"><input type="checkbox" checked={kennisAan} onChange={e => { setKennisAan(e.target.checked); setAiVoorbeeld(null); }} /> Bevestigde projectkennis meenemen</label>
       <label>Bestand<select value={aiBestand} onChange={e => { setAiBestand(e.target.value); setAiVoorbeeld(null); }} className="ml-2 min-h-11 bg-vlak"><option value="">Geen bestand</option>{[...bestanden.values()].map(b => <option key={b.id} value={b.id}>{b.titel}</option>)}</select></label>
-      <button disabled={!aiMogelijk || !staat} className="min-h-11 text-accent" onClick={() => {
-        try { const b = bestanden.get(aiBestand); setAiVoorbeeld(assistentContext(feiten, b ? [{ id: b.id, titel: b.titel, inhoud: b.inhoud, auteurs: auteurs(b.id), onbekendeHerkomst: b.onbekendeHerkomst }] : [], actieveLeden, kennisAan)); setAiAkkoord(false); setFout(""); }
+      <button disabled={!aiMogelijk || !staat || privacyPauze} className="min-h-11 text-accent" onClick={() => {
+        try { controleerProjectAi(gesprek); const b = bestanden.get(aiBestand); setAiVoorbeeld(privacyVoorbeeld(assistentContext(feiten, b ? [{ id: b.id, titel: b.titel, inhoud: b.inhoud, auteurs: auteurs(b.id), onbekendeHerkomst: b.onbekendeHerkomst }] : [], actieveLeden, kennisAan)).inhoud); setAiAkkoord(false); setFout(""); }
         catch (e) { setFout((e as Error).message); }
       }}>Maak gecontroleerd AI-voorbeeld</button>
+      <p className="text-sm text-rustig">Herkenbare e-mailadressen, rekeningnummers en Nederlandse mobiele nummers worden in het AI-voorbeeld afgeschermd. Geheime sleutels blokkeren de aanvraag. Namen, adressen en andere gevoelige tekst worden niet altijd herkend: controleer het voorbeeld zelf. Bronbestanden blijven ongewijzigd.</p>
       {aiVoorbeeld && <div className="rounded-xl bg-vlak p-3"><pre className="max-h-60 overflow-auto whitespace-pre-wrap text-xs">{aiVoorbeeld}</pre>
         <label className="block"><input type="checkbox" checked={aiAkkoord} onChange={e => setAiAkkoord(e.target.checked)} /> Dit voorbeeld mag één keer naar de AI-provider</label>
-        <button disabled={!aiAkkoord || bezig || !aiMogelijk} className="min-h-11 text-accent" onClick={async () => {
+        <button disabled={!aiAkkoord || bezig || !aiMogelijk || privacyPauze} className="min-h-11 text-accent" onClick={async () => {
           if (!staat || slot.current) return;
           const sessie = huidigeSessie(); slot.current = true; setBezig(true); setFout("");
           try {
+            controleerProjectAi(gesprek);
             const vers = await projectRegelsVers(gesprek);
             projectLezen(gesprek, vers.regels);
             // Vernieuwing mag niet stilzwijgend de eerder beoordeelde context vervangen.
             const b = bestanden.get(aiBestand);
-            const controle = assistentContext(projectFeiten(vers.regels), b ? [{ id: b.id, titel: b.titel, inhoud: b.inhoud,
+            const controle = privacyVoorbeeld(assistentContext(projectFeiten(vers.regels), b ? [{ id: b.id, titel: b.titel, inhoud: b.inhoud,
               auteurs: [...vers.regels.filter(r => r.bericht?.t === "project" && r.bericht.bestand === b.id).map(r => r.afzender), ...b.bronAuteurs], onbekendeHerkomst: b.onbekendeHerkomst }] : [],
-              vers.gesprek.leden.filter(l => l.status === "lid").map(l => l.id), kennisAan);
+              vers.gesprek.leden.filter(l => l.status === "lid").map(l => l.id), kennisAan)).inhoud;
             if (controle !== aiVoorbeeld || huidigeSessie() !== sessie) throw new Error("De context is gewijzigd. Maak een nieuw voorbeeld.");
             const { projectHulp } = await import("../lib/assistent");
             if (huidigeSessie() !== sessie) throw new Error("Account gewijzigd.");
-            const uit = await projectHulp(staat.data, controle);
-            if (huidigeSessie() === sessie) { setAiResultaat(uit); setAiVoorbeeld(null); }
+            controleerProjectAi(gesprek);
+            const controller = new AbortController(); aiVerzoek.current = controller;
+            const uit = await projectHulp(staat.data, controle, controller.signal);
+            if (huidigeSessie() === sessie && !aiGepauzeerd(gesprek)) { setAiResultaat(uit); setAiVoorbeeld(null); }
           } catch (e) { if (huidigeSessie() === sessie) setFout(e instanceof Error ? e.message : "De projecthulp is niet bevestigd. Er is niets uitgevoerd."); }
           finally { slot.current = false; setBezig(false); }
         }}>Vraag alleen projectadvies</button>

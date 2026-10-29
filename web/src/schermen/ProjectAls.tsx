@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import type { Staat } from "../App";
 import { bijwerken, gereedschapAdres, huidigeSessie } from "../api";
 import { projectRegelsVers } from "../lib/chat";
-import { alsRegel, bewaarAlsRegel, beoordeelAls, leesAlsRegels, type AlsRegel, type Conditie, type DienstBewijs, type Vervolg } from "../lib/projectals";
+import { alsRegel, bewaarAlsRegel, beoordeelAls, leesAlsRegels, verwijderAlsRegel, type AlsRegel, type Conditie, type DienstBewijs, type Vervolg } from "../lib/projectals";
 import { eigenDienstBewijzen } from "../lib/projectdiensten";
 import { projectFeiten, type Feit } from "../lib/projectregie";
 import { actueleAanpakken } from "../lib/projectplan";
@@ -13,12 +13,13 @@ export default function ProjectAls({gesprek,feiten,staat,setData,planning}:{gesp
   const [voorwaarden,setVoorwaarden]=useState<Conditie[]>([{soort:"betaling_bevestigd",bron:""}]);const [vervolg,setVervolg]=useState<Vervolg>("planning");
   const [pending,setPending]=useState<AlsRegel|null>(null);const [fout,setFout]=useState("");const [bezig,setBezig]=useState(false);const slot=useRef(false);
   const [bewijzen,setBewijzen]=useState<DienstBewijs[]>([]);const [vers,setVers]=useState<Feit[]>([]);const [gecontroleerd,setGecontroleerd]=useState(false);
+  const [verwijderen,setVerwijderen]=useState<AlsRegel|null>(null);
   const [concept,setConcept]=useState("");const [melding,setMelding]=useState("");
   let regels:AlsRegel[]=[];let leesfout="";try{if(staat)regels=leesAlsRegels(staat.data,gesprek);}catch(e){leesfout=(e as Error).message;}
   const doelen=feiten.filter(f=>["actie","besluit","vraag"].includes(f.actie.soort));
   async function controleer(){
     if(slot.current)return;slot.current=true;setBezig(true);setFout("");setGecontroleerd(false);setBewijzen([]);const sessie=huidigeSessie();
-    try{const [p,d]=await Promise.all([projectRegelsVers(gesprek,false),eigenDienstBewijzen()]);if(huidigeSessie()!==sessie)return;
+    try{const [p,d]=await Promise.all([projectRegelsVers(gesprek,false),eigenDienstBewijzen(regels.flatMap(r=>r.voorwaarden.flatMap(c=>c.soort==="betaling_bevestigd"?["betaling" as const]:c.soort==="boeking_bevestigd"?["boeking" as const]:c.soort==="reservering_bevestigd"?["reservering" as const]:[])))]);if(huidigeSessie()!==sessie)return;
       setVers(projectFeiten(p.regels));setBewijzen(d.bewijzen);setGecontroleerd(true);setMelding(d.fouten.join(" ")||"Actuele eigen dienststatus opgehaald. Niet gedeeld met het project.");
     }catch(e){if(huidigeSessie()===sessie)setFout((e as Error).message);}finally{slot.current=false;setBezig(false);}
   }
@@ -54,7 +55,13 @@ export default function ProjectAls({gesprek,feiten,staat,setData,planning}:{gesp
         else if(r.vervolg==="chatconcept")setConcept(`Vervolg voor: ${doelen.find(f=>f.actie.sleutel===r.waarom)?.actie.tekst??"projectdoel"}`);
         else setMelding("Voorwaarden voldaan. Controleer verantwoordelijke, toestemming, kosten en beschikbaarheid voordat je zelf het vervolg uitvoert.");
       }}>Vervolg voorbereiden</button>
+      <button disabled={bezig||!setData} className="min-h-11 px-3 text-accent" onClick={()=>setVerwijderen(r)}>Regel verwijderen</button>
     </article>;})}
+    {verwijderen&&<div className="rounded-xl border border-lijn p-3"><p>Deze persoonlijke regel verwijderen? Bestaande afspraken, betalingen en gedeelde berichten blijven behouden.</p><button disabled={bezig} className="min-h-11 text-accent" onClick={async()=>{
+      if(slot.current||!setData)return;slot.current=true;setBezig(true);const sessie=huidigeSessie();
+      try{const g=await bijwerken(g=>verwijderAlsRegel(g,verwijderen));if(huidigeSessie()===sessie){setData(g);setVerwijderen(null);setGecontroleerd(false);setBewijzen([]);setMelding("Persoonlijke regel verwijderd.");}}
+      catch(e){if(huidigeSessie()===sessie)setFout((e as Error).message);}finally{slot.current=false;setBezig(false);}
+    }}>Bevestig regel verwijderen</button><button disabled={bezig} className="min-h-11 px-3" onClick={()=>setVerwijderen(null)}>Behouden</button></div>}
     {concept&&<div><label>Chatconcept<textarea maxLength={1500} value={concept} onChange={e=>setConcept(e.target.value)} className="w-full bg-vlak p-3"/></label><button className="min-h-11 text-accent" onClick={()=>{window.dispatchEvent(new CustomEvent("assistent-chatconcept",{detail:{gesprek,tekst:concept}}));setMelding("Concept aangeboden aan de chatinvoer. Controleer en verstuur zelf; bestaande invoer wordt niet overschreven.");setConcept("");}}>Zet concept in chatinvoer</button></div>}
   </section>;
 }

@@ -29,3 +29,7 @@ describe("als-regels met onbekend als afzonderlijke uitkomst",()=>{
  it("weigert uitvoerbare code, onbegrensde regels en onleesbare opslag",()=>{const {r}=setup();expect(()=>alsRegel({...r,webhook:"https://voorbeeld.invalid"})).toThrow();expect(()=>alsRegel({...r,voorwaarden:Array(6).fill(r.voorwaarden[0])})).toThrow();const g=gegevens();g.projectRegels="kapot";expect(()=>bewaarAlsRegel(g,r)).toThrow("onleesbaar");});
  it("herhaalt persoonlijke opslag zonder duplicaten en weigert gewijzigde inhoud onder hetzelfde ID",()=>{const {r}=setup();const g=gegevens();bewaarAlsRegel(g,r);bewaarAlsRegel(g,r);expect(g.projectRegels).toHaveLength(1);expect(()=>bewaarAlsRegel(g,{...r,vervolg:"betaling"})).toThrow("andere inhoud");});
 });
+it("verwijdert persoonlijke regels idempotent en beschermt intussen gewijzigde regels",async()=>{
+ const {bewaarAlsRegel,verwijderAlsRegel}=await import("./projectals");const {root}=basis();const r:AlsRegel={id:crypto.randomUUID(),gesprek:8,waarom:root.actie.sleutel,modus:"alle",voorwaarden:[{soort:"betaling_bevestigd",bron:"42"}],vervolg:"planning"};
+ const g=gegevens();bewaarAlsRegel(g,r);expect(()=>verwijderAlsRegel(g,{...r,vervolg:"betaling"})).toThrow("gewijzigd");verwijderAlsRegel(g,r);verwijderAlsRegel(g,r);expect(g.projectRegels).toEqual([]);
+});

@@ -35,3 +35,16 @@ it("blokkeert het delen bij verdwijnende berichten", () => {
   expect(screen.queryByRole("button", { name: "Bestand maken en delen" })).toBeNull();
   expect(versturen).not.toHaveBeenCalled();
 });
+it("schermt het project af zonder de bestaande bewerking te verliezen",()=>{
+ const bestand=bestandMaken(9021,"prive.md","Mijn gevoelige ontwerp");render(<ProjectWerkruimte gesprek={9021} regels={[]} schrijven verdwijnend={false} beginOpen/>);
+ fireEvent.change(screen.getByLabelText("Projectbestand"),{target:{value:bestand.id}});
+ fireEvent.click(screen.getByText("Project afschermen"));expect(screen.queryByRole("textbox",{name:"prive.md"})).toBeNull();
+ fireEvent.click(screen.getByText("Project weer tonen"));expect((screen.getByRole("textbox",{name:"prive.md"}) as HTMLTextAreaElement).value).toBe("Mijn gevoelige ontwerp");
+});
+it("schermt op verzoek automatisch af bij verlaten van de app",()=>{
+ render(<ProjectWerkruimte gesprek={9022} regels={[]} schrijven verdwijnend={false} beginOpen/>);
+ fireEvent.click(screen.getByLabelText("Project afschermen wanneer ik deze app verlaat"));
+ const descriptor=Object.getOwnPropertyDescriptor(document,"visibilityState");
+ try{Object.defineProperty(document,"visibilityState",{configurable:true,value:"hidden"});fireEvent(document,new Event("visibilitychange"));expect(screen.getByText("Project weer tonen")).toBeTruthy();}
+ finally{if(descriptor)Object.defineProperty(document,"visibilityState",descriptor);else delete (document as unknown as Record<string,unknown>).visibilityState;}
+});

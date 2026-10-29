@@ -89,3 +89,9 @@ it("vereist ook toestemming van oorspronkelijke archiefbijdragers buiten het hui
   const f = [toestemming(1, "tekst", FILE, [1, 2]), toestemming(2, "tekst", FILE, [1, 2])];
   expect(() => assistentContext(f, [{ id: FILE, titel: "herstel.md", inhoud: "oud werk", auteurs: [3] }], [1, 2], false, NU)).toThrow("toestemming");
 });
+it("laat korte toestemming echt aflopen en weigert ongeoorloofde looptijden",()=>{
+ const f=[1,2].map(wie=>feit(nieuwFeit("toestemming","15 minuten",{soort:"eigen"},{doel:FILE,keuze:"tekst",leden:[1,2],geldigMinuten:15}),wie,wie));
+ expect(toestemmingen(f,FILE,[1,2],NU+14*60000).tekst).toBe(true);
+ expect(toestemmingen(f,FILE,[1,2],NU+15*60000).tekst).toBe(false);
+ expect(()=>nieuwFeit("toestemming","Te lang",{soort:"eigen"},{doel:FILE,keuze:"tekst",leden:[1,2],geldigMinuten:9999})).toThrow();
+});

@@ -110,3 +110,15 @@ it("neemt ook echte bestandsberichten op in de wijzigingen sinds een bezoek", as
   fireEvent.click(screen.getByRole("button", { name: "Open dit bestand" })); expect(openen).toHaveBeenCalledWith(b.id);
   b.doc.destroy();
 });
+it("pauzeert project-AI zonder toestemming te omzeilen en bewaart de pauze bij heropenen",()=>{
+ const p=basis();p.gesprek=8923;const r=render(<ProjectRegie {...p}/>);
+ fireEvent.click(screen.getByText("Project-AI pauzeren"));fireEvent.click(screen.getByRole("button",{name:"Assistent"}));
+ expect((screen.getByText("Maak gecontroleerd AI-voorbeeld") as HTMLButtonElement).disabled).toBe(true);
+ expect(projectHulp).not.toHaveBeenCalled();r.unmount();render(<ProjectRegie {...p}/>);expect(screen.getByText("Project-AI hervatten")).toBeTruthy();
+ fireEvent.click(screen.getByText("Project-AI hervatten"));
+});
+it("trekt eerdere toestemming eerst in voor compatibele oude clients bij een korte nieuwe toestemming",async()=>{
+ render(<ProjectRegie {...basis()}/>);fireEvent.click(screen.getByRole("button",{name:"Privacy"}));fireEvent.click(screen.getByText("Tekst toestaan"));
+ expect(versturen).not.toHaveBeenCalled();fireEvent.click(screen.getByText("Bevestig en deel met project"));await waitFor(()=>expect(versturen).toHaveBeenCalledTimes(2));
+ const berichten=vi.mocked(versturen).mock.calls.map(c=>c[1]);expect(berichten[0]).toMatchObject({soort:"toestemming",keuze:"geen"});expect(berichten[0]).not.toHaveProperty("geldigMinuten");expect(berichten[1]).toMatchObject({keuze:"tekst",geldigMinuten:60});
+});

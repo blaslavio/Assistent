@@ -58,3 +58,13 @@ export function beoordeelAls(regel:AlsRegel,feiten:Feit[],diensten:DienstBewijs[
     :(delen.some(d=>d.status==="voldaan")?"voldaan":delen.some(d=>d.status==="onbekend")?"onbekend":"niet_voldaan");
   return{status,uitleg:delen.map(d=>d.uitleg)};
 }
+
+/** Verwijder uitsluitend de gecontroleerde persoonlijke regel, met veilige herhaling na verloren antwoord. */
+export function verwijderAlsRegel(g:Gegevens, verwacht:AlsRegel) {
+  const r=alsRegel(verwacht);
+  if(g.projectRegels!==undefined&&!Array.isArray(g.projectRegels))throw new Error("De opgeslagen projectregels zijn onleesbaar.");
+  const alle=((g.projectRegels??[]) as unknown[]).map(alsRegel),oud=alle.find(x=>x.id===r.id);
+  if(!oud)return;
+  if(JSON.stringify(oud)!==JSON.stringify(r))throw new Error("De regel is intussen gewijzigd. Controleer opnieuw.");
+  g.projectRegels=alle.filter(x=>x.id!==r.id);
+}

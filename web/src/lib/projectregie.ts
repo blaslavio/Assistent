@@ -7,7 +7,7 @@ export type Bron = { soort: "eigen" } | { soort: "bericht"; id: number }
   | { soort: "bestand"; id: string; citaat: string };
 export type Soort = "kennis" | "besluit" | "actie" | "vraag" | "aandacht" | "bereikbaar" | "toestemming" | "afgerond" | "aanpak" | "stapstatus" | "werkvenster" | "staptijd";
 export type ProjectActie = Bericht & { t: "projectactie"; versie: 1; sleutel: string; soort: Soort; tekst: string;
-  bron: Bron; doel?: string; minuten?: number; verantwoordelijke?: number; keuze?: string; leden?: number[];
+  bron: Bron; geldigMinuten?: number; doel?: string; minuten?: number; verantwoordelijke?: number; keuze?: string; leden?: number[];
   stappen?: Stap[]; vervangt?: string; stap?: string; uiterlijk?: string; vensters?: Venster[]; van?: string; tot?: string; afspraak?: number };
 export type Feit = { bericht: number; afzender: number; tijd: string; actie: ProjectActie };
 const ID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
@@ -29,10 +29,11 @@ export function valideerBron(b: unknown): Bron {
 export function projectActie(waarde: unknown): ProjectActie {
   if (!waarde || typeof waarde !== "object") throw new Error("Ongeldig projectvoorstel.");
   const b = { ...waarde as ProjectActie };
-  if (Object.keys(b).some(k => !["t", "versie", "sleutel", "soort", "tekst", "bron", "doel", "minuten", "verantwoordelijke", "keuze", "leden", "stappen", "vervangt", "stap", "uiterlijk", "vensters", "van", "tot", "afspraak"].includes(k))
+  if (Object.keys(b).some(k => !["t", "versie", "sleutel", "soort", "tekst", "bron", "geldigMinuten", "doel", "minuten", "verantwoordelijke", "keuze", "leden", "stappen", "vervangt", "stap", "uiterlijk", "vensters", "van", "tot", "afspraak"].includes(k))
     || b.t !== "projectactie" || b.versie !== 1 || typeof b.sleutel !== "string" || !ID.test(b.sleutel) || !SOORTEN.includes(b.soort)
     || !veilig(b.tekst, 1500, true) || !b.tekst.trim()) throw new Error("Gebruik een geldig projectvoorstel van maximaal 1500 tekens.");
   const bron = valideerBron(b.bron);
+  if (b.geldigMinuten !== undefined && (b.soort !== "toestemming" || ![15, 60, 1440].includes(b.geldigMinuten))) throw new Error("Kies toestemming voor 15 minuten, 1 uur of 24 uur.");
   if (b.doel !== undefined && (typeof b.doel !== "string" || !ID.test(b.doel))) throw new Error("Ongeldig projectdoel.");
   if (b.minuten !== undefined && (!Number.isSafeInteger(b.minuten) || b.minuten < 5 || b.minuten > 480)) throw new Error("Kies 5 tot 480 minuten.");
   if (b.verantwoordelijke !== undefined && (!Number.isSafeInteger(b.verantwoordelijke) || b.verantwoordelijke < 1)) throw new Error("Kies een deelnemer.");
@@ -93,7 +94,7 @@ export function toestemmingen(feiten: Feit[], bestand: string, leden: number[], 
     && f.actie.doel === bestand));
   const actueel = waarden.every(f => f && [...f.actie.leden ?? []].sort((a,b)=>a-b).join() === [...ids].sort((a,b)=>a-b).join()
     && Number.isFinite(Date.parse(f.tijd)) && nu >= Date.parse(f.tijd)
-    && nu - Date.parse(f.tijd) < 24 * 3600_000);
+    && nu - Date.parse(f.tijd) < (f.actie.geldigMinuten ?? 1440) * 60_000);
   return { titel: ids.length > 0 && actueel && waarden.every(f => ["titel", "tekst"].includes(f!.actie.keuze!)),
     tekst: ids.length > 0 && actueel && waarden.every(f => f!.actie.keuze === "tekst") };
 }

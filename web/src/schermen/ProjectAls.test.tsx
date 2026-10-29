@@ -25,3 +25,11 @@ it("laat een onbereikbare betaaldienst onbekend en blokkeert het vervolg",async(
  const planning=vi.fn();render(<ProjectAls gesprek={8} feiten={feiten} staat={{gebruiker:{id:1,naam:"Alice"},data} as Staat} planning={planning}/>);
  fireEvent.click(screen.getByText("Controleer voorwaarden met eigen actuele diensten"));await screen.findByText("Betaalstatus niet bereikbaar.");expect((screen.getByText("Vervolg voorbereiden") as HTMLButtonElement).disabled).toBe(true);expect(planning).not.toHaveBeenCalled();
 });
+it("vraagt bevestiging vóór persoonlijke regels worden verwijderd",async()=>{
+ const actie=nieuwFeit("actie","Ontwerp"),feiten=[{actie,bericht:1,afzender:1,tijd:"2026-10-29T08:00:00Z"}];
+ const data={taken:[],afspraken:[],volgend_id:1,projectRegels:[{id:crypto.randomUUID(),gesprek:8,waarom:actie.sleutel,modus:"alle",voorwaarden:[{soort:"betaling_bevestigd",bron:"42"}],vervolg:"planning"}]};
+ vi.mocked(bijwerken).mockImplementation(async fn=>{fn(data);return data;});const setData=vi.fn();
+ render(<ProjectAls gesprek={8} feiten={feiten} staat={{gebruiker:{id:1,naam:"Alice"},data} as Staat} setData={setData} planning={vi.fn()}/>);
+ fireEvent.click(screen.getByText("Regel verwijderen"));expect(bijwerken).not.toHaveBeenCalled();fireEvent.click(screen.getByText("Behouden"));expect(data.projectRegels).toHaveLength(1);
+ fireEvent.click(screen.getByText("Regel verwijderen"));fireEvent.click(screen.getByText("Bevestig regel verwijderen"));await waitFor(()=>expect(setData).toHaveBeenCalled());expect(data.projectRegels).toHaveLength(0);expect(eigenDienstBewijzen).not.toHaveBeenCalled();
+});

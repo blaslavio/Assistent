@@ -13,6 +13,13 @@ export default function ProjectWerkruimte({ gesprek, regels, schrijven, verdwijn
   gesprek: number; regels: Regel[]; schrijven: boolean; verdwijnend: boolean; beginOpen?: boolean; ik?: number; leden?: Lid[]; vernieuw?: () => Promise<void>; staat?: Staat; setData?: (data: Staat["data"]) => void; aiMogelijk?: boolean;
 }) {
   const [open, setOpen] = useState(beginOpen);
+  const [afgeschermd, setAfgeschermd] = useState(false);
+  const [automatisch, setAutomatisch] = useState(false);
+  useEffect(() => {
+    const verberg = () => { if (automatisch && document.visibilityState === "hidden") setAfgeschermd(true); };
+    document.addEventListener("visibilitychange", verberg);
+    return () => document.removeEventListener("visibilitychange", verberg);
+  }, [automatisch]);
   useEffect(() => { if (beginOpen) setOpen(true); }, [beginOpen]);
   const [gekozen, kies] = useState("");
   const [bronVoorstel, setBronVoorstel] = useState<Bron | null>(null);
@@ -78,7 +85,11 @@ export default function ProjectWerkruimte({ gesprek, regels, schrijven, verdwijn
     <button onClick={() => setOpen(!open)} aria-expanded={open} className="min-h-11 w-full text-left font-semibold">
       Projectwerkruimte · {r.bestanden.size} bestanden
     </button>
-    {open && <div className="flex flex-col gap-3">
+    {open && <div className="my-2 rounded-xl bg-vlak p-2"><button className="min-h-11 text-accent" onClick={() => setAfgeschermd(!afgeschermd)}>{afgeschermd ? "Project weer tonen" : "Project afschermen"}</button>
+      <label className="block text-sm"><input type="checkbox" checked={automatisch} onChange={e => setAutomatisch(e.target.checked)} /> Project afschermen wanneer ik deze app verlaat</label>
+      {afgeschermd && <p className="text-sm">Projectinhoud verborgen tegen meekijken. Je bewerkingen blijven bewaard zolang deze pagina open is. Dit is een schermgordijn, geen accountslot; chat en videogesprek blijven zichtbaar.</p>}
+    </div>}
+    {open && <div hidden={afgeschermd}><div className="flex flex-col gap-3">
       <p className="text-sm text-rustig">Werk met de deelnemers aan dezelfde tekst of Markdown. Wijzigingen worden versleuteld gedeeld en automatisch samengevoegd, normaal binnen circa 12 seconden. AI leest niet automatisch mee.</p>
       <p className="text-sm text-rustig">Alleen apparaten die de bijbehorende chatberichten kunnen ontsleutelen, kunnen deze bestanden openen. Download een eigen kopie als back-up.</p>
       {verdwijnend && <p role="alert">Zet verdwijnende berichten uit voordat je samenwerkt. Oude verlopen of verwijderde projectberichten kunnen ontbrekende inhoud veroorzaken.</p>}
@@ -118,7 +129,7 @@ export default function ProjectWerkruimte({ gesprek, regels, schrijven, verdwijn
         schrijven={schrijven && !verdwijnend} aiMogelijk={aiMogelijk && schrijven && !verdwijnend} vernieuw={vernieuw}
         bronVoorstel={bronVoorstel} bronOpenen={bronOpenen} bestandOpenen={id => { if (r.bestanden.has(id)) { kies(id); setAanwijzing(null); } }} staat={staat} setData={setData} />}
       {!schrijven && <p className="text-sm text-rustig">Je kunt deze bestanden bekijken. Schrijven volgt dezelfde rechten als dit chatkanaal.</p>}
-    </div>}
+    </div></div>}
   </section>;
 }
 
