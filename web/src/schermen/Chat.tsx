@@ -1,3 +1,5 @@
+import { BetaalverzoekMaken, ChatBetaalkaart } from "./ChatBetaling";
+import ProjectWerkruimte from "./ProjectWerkruimte";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Kalender, Meer, Bal, Ballon, Bewerk, Boek, Dubbelvink, Fiets, Gereedschap, Huis, Kind, Penseel, Raster as RasterIcoon, Scherm, Shirt, Truck, Winkelpand, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
 import { JouwAanbod } from "./Delen";
@@ -43,9 +45,9 @@ function bewaardDeel(): Deel {
 }
 
 type Props = { verlaat?: () => void; terugNaam?: string; staat: Staat; setStaat?: React.Dispatch<React.SetStateAction<Staat | null>>; naarInstellingen: () => void;
-  bestel: (p: Product) => void };
+  bestel: (p: Product) => void; werkGesprek?: { id: number; ronde: number; gebruiker: number } | null };
 
-export default function Chat({ staat, setStaat, naarInstellingen, bestel, verlaat, terugNaam }: Props) {
+export default function Chat({ staat, setStaat, naarInstellingen, bestel, werkGesprek, verlaat, terugNaam }: Props) {
   const [ik, setIk] = useState<number | null>(null);
   const [belInst, setBelInst] = useState(false);
   const [lijst, setLijst] = useState<Gesprek[]>([]);
@@ -69,6 +71,13 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, verlaa
     setDeelRuw(d);
     try { localStorage.setItem("assistent.chatdeel", d); } catch { /* geen opslag */ }
   }
+
+  useEffect(() => {
+    const dienst=(e:Event)=>{const d=(e as CustomEvent).detail;if(d?.gesprek===open&&d?.dienst==="betaling"){setOpen(null);setWinkel({deel:"bestellingen",melding:"Controleer de bestelling en bevestig zelf de gewenste betaalhandeling."});}};
+    window.addEventListener("assistent-projectdienst",dienst);return()=>window.removeEventListener("assistent-projectdienst",dienst);
+  },[open]);
+
+  useEffect(() => { if (werkGesprek?.gebruiker === staat.gebruiker.id) setOpen(werkGesprek.id); }, [werkGesprek, staat.gebruiker.id]);
 
   const laden = useCallback(async () => {
     const o = await overzicht();
@@ -95,7 +104,7 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, verlaa
 
   if (open !== null && ik !== null) {
     const g = lijst.find((x) => x.id === open);
-    return <Gesprekscherm id={open} ik={ik} begin={g} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
+    return <Gesprekscherm key={open} id={open} ik={ik} begin={g} projectOpen={werkGesprek?.id === open} staat={staat} setStaat={setStaat} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
   }
   if (openGast !== null) return <GastGesprekScherm boeking={openGast} terug={() => { setOpenGast(null); laden().catch(() => {}); }} />;
   if (winkel) return <WinkelApp start={winkel.deel} melding={winkel.melding} bestel={bestel} terug={() => setWinkel(null)} />;
@@ -801,10 +810,15 @@ function NieuwVeld({ sluit, gestart }: { sluit: () => void; gestart: (id: number
   );
 }
 
-function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin?: Gesprek; terug: () => void }) {
+function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat }: { id: number; ik: number; begin?: Gesprek; terug: () => void; projectOpen?: boolean; staat?: Staat; setStaat?: React.Dispatch<React.SetStateAction<Staat | null>> }) {
   const [g, setG] = useState<Gesprek | undefined>(begin);
   const [regels, setRegels] = useState<Regel[]>([]);
   const [invoer, setInvoer] = useState("");
+  useEffect(()=>{
+    const concept=(e:Event)=>{const d=(e as CustomEvent).detail;if(d?.gesprek!==id||typeof d.tekst!=="string"||!d.tekst.trim()||d.tekst.length>1500||/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(d.tekst))return;setInvoer(oud=>oud.trim()?oud:d.tekst);};
+    window.addEventListener("assistent-chatconcept",concept);return()=>window.removeEventListener("assistent-chatconcept",concept);
+  },[id]);
+
   const [fout, setFout] = useState("");
   const [timer, setTimer] = useState(false);
   const tot = useRef(0);
@@ -915,10 +929,12 @@ function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin
         </div>
       )}
 
+      {g?.soort === "twee" && g.status === "lid" && magSchrijven && !g.verdwijnen && g.leden.filter(l=>l.status==="lid"&&l.id!==ik).length===1 && <BetaalverzoekMaken gesprek={id} ander={g.leden.find(l=>l.status==="lid"&&l.id!==ik)!.id} vernieuw={bijwerken} />}
+      {g?.status === "lid" && <ProjectWerkruimte beginOpen={projectOpen} gesprek={id} regels={regels} schrijven={magSchrijven} verdwijnend={!!g.verdwijnen} ik={ik} leden={g.leden} vernieuw={bijwerken} aiMogelijk={!g.alleen_beheer} staat={staat} setData={data => setStaat?.(oud => oud ? { ...oud, data } : oud)} />}
       <main className="flex flex-1 flex-col gap-1 px-4 py-4" aria-live="polite">
-        {regels.map((r, i) => {
+        {regels.filter(r => !["project", "projectactie"].includes(r.bericht?.t ?? "")).map((r, i, zichtbaar) => {
           const mijn = r.afzender === ik;
-          const vorige = regels[i - 1];
+          const vorige = zichtbaar[i - 1];
           const nieuweDag = !vorige || datumTekst(new Date(vorige.tijd)) !== datumTekst(new Date(r.tijd));
           const zelfde = !nieuweDag && vorige?.afzender === r.afzender;
           const lid = g?.leden.find((l) => l.id === r.afzender);
@@ -927,6 +943,11 @@ function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin
           const bijzonder = r.weg || r.fout || !r.bericht || r.bericht.t !== "tekst";
           return (
             <Fragment key={r.id}>
+              <span id={`chat-bericht-${r.id}`} tabIndex={-1} />
+              {r.bericht?.t === "tekst" && !r.weg && !r.fout && g?.status === "lid" && magSchrijven && <button
+                className="min-h-11 self-start px-2 text-xs text-accent" onClick={() => window.dispatchEvent(new CustomEvent("assistent-projectbron", { detail: { gesprek: id, id: r.id } }))}>
+                Maak projectvoorstel uit dit bericht
+              </button>}
               {nieuweDag && (
                 <p className="my-3 text-center text-xs font-medium text-zacht">
                   {datumTekst(new Date(r.tijd)) === datumTekst(new Date()) ? "Vandaag" : dagTitel(new Date(r.tijd))}
@@ -936,7 +957,7 @@ function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin
                 {groep && !mijn && !zelfde && <span className="mb-0.5 ml-3 text-xs font-medium text-rustig">{lid?.naam}</span>}
                 <div className={`max-w-[80%] rounded-[20px] px-3.5 py-2 ${mijn ? "rounded-br-md bg-accent text-white" : "rounded-bl-md bg-vlak"}
                   ${bijzonder ? "italic opacity-80" : ""}`}>
-                  <span className="whitespace-pre-wrap break-words">{tekst}</span>
+                  {!r.weg&&!r.fout&&r.bericht?.t==="projectbetaling"&&g?.soort==="twee" ? <ChatBetaalkaart bericht={r.bericht} ander={mijn ? g.leden.find(l=>l.status==="lid"&&l.id!==ik)?.id ?? 0 : r.afzender} mijn={mijn} /> : <span className="whitespace-pre-wrap break-words">{tekst}</span>}
                   <span className={`ml-2 inline-flex translate-y-0.5 items-center gap-0.5 text-[11px] ${mijn ? "text-white/70" : "text-zacht"}`}>
                     {new Date(r.tijd).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
                     {mijn && (r.id <= gelezen ? <Dubbelvink className="size-4 text-white" />

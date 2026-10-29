@@ -1,14 +1,25 @@
 # Release: werkstromen, communicatie en ontwerp
 
-Doel: de lokale verbeteringen uit deze sessie toevoegen aan de actuele `main`, inclusief het bestaande nieuwe React-ontwerp. De release is samengevoegd met `2758fb4`; de 218 latere commits uit de repository zijn behouden, inclusief de nieuwste instellingen-, beveiligings- en onderdelenpagina’s.
+Doel: de lokale verbeteringen uit deze sessie toevoegen aan de actuele `main`, inclusief het bestaande nieuwe React-ontwerp. De projectuitbreiding is bijgewerkt met `main` op `54b052a`, inclusief de nieuwe navigatie en de bestaande productiereleasepoort voor actuele E2E-bewijzen.
 
 ## Status
+
+De geïntegreerde ontwikkelversie wordt samengevoegd op `develop`. `main` en de productieomgeving worden hierbij niet gepubliceerd. De laatste samenvoeging behoudt snelstart, beleggen en zakelijk beheer naast de projectmotor; 112 webtests en beide webbuilds slagen.
 
 De code en gebouwde webbestanden staan klaar. **Deze release is nog niet live.** GitHub-toegang werkt; een productiebeheerverbinding met Supabase en Streamlit ontbreekt in deze omgeving. De aanwezigheid van `mijn_gegevens_veilig_bewaren` kon niet uit het publieke API-schema worden vastgesteld. De publiek beschikbare app-URL is `https://eisreyyrtvlgtjpqiyhpm2.streamlit.app`.
 
 Er zijn geen productiegegevens, echte betalingen of gebruikersberichten gewijzigd. De bestaande tien externe/handmatige auditpunten blijven open; lokale tests certificeren geen echte login, externe AI, betalingen of mobiele apparaten.
 
+## Projectmotor en aanvullend archief
+
+Waarom, hoe, wanneer en als zijn gekoppeld aan dezelfde bevestigde projectfeiten. De chat kan een bestaande appbestelling als betaalverzoek delen; de ontvanger controleert eigen dienstgegevens en opent zelf de bestaande checkout. Boekingen en reserveringen blijven expliciete handelingen in de bestaande formulieren. Zie [PROJECTREGIE.md](PROJECTREGIE.md).
+
+Voer bij uitrol ook `sql/project_archief.sql` transactioneel uit na de chatmigraties. Zonder deze migratie werken samen bewerken en projectvoorstellen verder, maar apart archiveren niet. Test met twee echte accounts, aparte apparaten en een testbetaling. De lokale tests vervangen geen vers productie-E2E-bewijs voor de exacte releasecommit.
+
 ## In deze release
+
+- Projectwerkruimte in de chat: samen `.txt`/`.md` bewerken met Yjs via de bestaande versleutelde chat en een compacte belweergave. Zie `PROJECTWERKRUIMTE.md` voor grenzen en praktijktests.
+- Vandaag vraagt bevestiging vóór taakacties en dagvoorstellen; mislukte opslag toont geen voltooiing en wist geen invoer. Afronden behoudt afspraken.
 
 - Geteste werkdossiers, bronnen, planning, herstel, communicatieconcepten en privévoorkeuren uit deze sessie.
 - Het actuele ontwerp van de repository, inclusief de nieuw gebouwde React-bundels in `docs/app/` en `nieuwe_app/`.
@@ -33,4 +44,4 @@ Pauzeer de app als de controle faalt. Zet een bekende apprelease terug en beoord
 
 ## Lokale bewijzen
 
-De samengevoegde versie slaagde voor 1248 Python-tests zonder skips, inclusief 25 PostgreSQL-tests. Daarnaast slaagden de bestaande 138 pytest-tests (met 21 subtests) en 19 expliciete regressietests uit de actuele repository. De negen Vitest-webtests controleren ook de nieuwe opslag- en accountgrenzen. `npm run build` bouwde beide productievarianten. Zes lokale Chromium-scenario’s en 1000 navigatieconfiguraties slaagden. Bandit rapporteerde op het bestaande CI-niveau (`-ll -ii`) geen open signalen; de twee vertrouwde AST-testuitvoeringen en twee veilige tijdelijke-mapcontroles hebben een gerichte, toegelichte uitzondering. Dit is geen volledige beveiligingscertificering. Deze uitkomsten bewijzen geen uitgevoerde productie-uitrol. De aparte releasecontrolebestanden en pull-requestchecks tonen de definitieve stand.
+De samengevoegde versie slaagde voor 1248 Python-tests zonder skips, inclusief 25 PostgreSQL-tests. Daarnaast slaagden de bestaande 138 pytest-tests (met 21 subtests) en 19 expliciete regressietests uit de actuele repository. De huidige 38 Vitest-webtests controleren webopslag, accountgrenzen, gelijktijdige projectbewerking, belbediening en bevestigde dagelijkse acties. `npm run build` bouwde beide productievarianten. Zes lokale Chromium-scenario’s en 1000 navigatieconfiguraties slaagden. Bandit rapporteerde op het bestaande CI-niveau (`-ll -ii`) geen open signalen; de twee vertrouwde AST-testuitvoeringen en twee veilige tijdelijke-mapcontroles hebben een gerichte, toegelichte uitzondering. Dit is geen volledige beveiligingscertificering. Deze uitkomsten bewijzen geen uitgevoerde productie-uitrol. De aparte releasecontrolebestanden en pull-requestchecks tonen de definitieve stand.

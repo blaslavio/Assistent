@@ -73,8 +73,10 @@ export default function App() {
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [teKopen, setTeKopen] = useState<Product | null>(null);
   const [fout, setFout] = useState("");
+  const [werkGesprek, setWerkGesprek] = useState<{ id: number; ronde: number; gebruiker: number } | null>(null);
   // De vorige stand staat op het scherm terwijl het inloggen nog loopt (of zonder verbinding).
   const [voorlopig, setVoorlopig] = useState(false);
+
 
   const [voorChat, setVoorChat] = useState<Tab>("vandaag");
   const setTab = (t: Tab) => {
@@ -160,9 +162,12 @@ export default function App() {
   if (!staat || (!huidigeSessie() && !voorlopig)) return <Inloggen opIngelogd={herladen} />;
 
   const scherm = {
-    vandaag: <Vandaag staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} ga={setTab} />,
+    vandaag: <Vandaag key={staat.gebruiker.id} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
+      naarAssistent={() => setTab("assistent")} vernieuw={herladen} ga={setTab} naarProject={gesprek => {
+        setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat");
+      }} />,
     agenda: <Agenda staat={staat} setStaat={setStaat} />,
-    chat: <Chat staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
+    chat: <Chat key={staat.gebruiker.id} werkGesprek={werkGesprek} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
       verlaat={() => setTab(voorChat)} terugNaam={TABS.find((t) => t.id === voorChat)?.naam}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
     assistent: <Assistent staat={staat} vernieuw={herladen} teKopen={teKopen}
@@ -176,7 +181,7 @@ export default function App() {
     <div className="mx-auto flex h-full max-w-xl flex-col">
       {fout && <p role="alert" className="bg-vlak px-6 py-3 text-sm text-rustig">{fout}</p>}
       <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}><Suspense fallback={null}>{scherm}</Suspense></Vangnet></div>
-      <Vangnet naam="bellen" klein><BelLaag /></Vangnet>
+      <Vangnet naam="bellen" klein><BelLaag naarProject={(gesprek) => { setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat"); }} /></Vangnet>
       {/* In de chat heeft de chat zijn eigen menu, zoals een aparte app; linksboven ga je terug. */}
       {tab !== "chat" && <nav aria-label="Hoofdmenu"
         className="flex shrink-0 justify-around border-t border-lijn pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)]">

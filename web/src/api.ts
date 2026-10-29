@@ -31,6 +31,11 @@ let sessie: Sessie | null = null;
 let sessieWacht: Promise<unknown> | null = null;
 let startZonderVerbinding = false;
 
+function zetSessie(nieuw: Sessie | null) {
+  sessie = nieuw;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("assistent-sessie"));
+}
+
 export function huidigeSessie() {
   return sessie;
 }
@@ -43,7 +48,7 @@ export async function alsIk<T = Record<string, unknown>>(functie: string, parame
   const antwoord = await rpc<T>(functie, { ...parameters, p_naam: account.naam, p_wachtwoord: account.token });
   if (sessie !== account) throw new GeenToegang("Het account is intussen gewijzigd.");
   if (antwoord && typeof antwoord === "object" && (antwoord as { geen_toegang?: boolean }).geen_toegang) {
-    sessie = null;
+    zetSessie(null);
     throw new GeenToegang();
   }
   return antwoord;
@@ -79,7 +84,7 @@ export async function inloggen(naam: string, wachtwoord: string, code = "", onth
     p_naam: naam.trim(), p_wachtwoord: wachtwoord, p_code: code, p_apparaat: apparaatNaam(),
   });
   if (a.token) {
-    sessie = { naam: a.naam ?? naam.trim(), token: a.token };
+    zetSessie({ naam: a.naam ?? naam.trim(), token: a.token });
     if (onthouden) {
       const r = await alsIk<{ token?: string }>("apparaat_onthouden", { p_apparaat: apparaatNaam() });
       if (r.token) schrijf(APPARAAT_SLEUTEL, r.token);
@@ -128,7 +133,7 @@ export function opstarten(): { vorige: Promise<Staat | null>; vers: Promise<Staa
       await snelstart.wissen();
       return null;
     }
-    sessie = { naam: a.naam ?? "", token: a.token };
+    zetSessie({ naam: a.naam ?? "", token: a.token });
     if (a.gegevens && !(a.gegevens as { geen_toegang?: boolean }).geen_toegang) return netjes(a.gegevens);
     return gegevensLaden();
   })();
@@ -179,7 +184,7 @@ export async function uitloggen() {
   }
   schrijf(APPARAAT_SLEUTEL, null);
   schrijf(VORIGE_SLEUTEL, null);
-  sessie = null;
+  zetSessie(null);
   await snelstart.wissen();
 }
 
@@ -230,7 +235,7 @@ export async function bijwerken(aanpassen: (g: Gegevens) => void): Promise<Gegev
 
 /** Open dezelfde accountbeveiligde hulpmiddelen vanuit de nieuwe interface. */
 export function gereedschapAdres(route: string): string {
-  const toegestaan = ["communicatiecentrum", "gereedschappen", "werkzoeken", "werkdossier", "werkbronnen",
+  const toegestaan = ["communicatiecentrum", "boekingen", "buurt", "gereedschappen", "werkzoeken", "werkdossier", "werkbronnen",
     "taakplanning", "planning-backup", "sjablonen", "activiteitenoverzicht", "bestandsgereedschap", "gegevenscontrole"];
   if (!toegestaan.includes(route)) throw new Error("Onbekend gereedschap.");
   const url = new URL(OUDE_APP, window.location.href);

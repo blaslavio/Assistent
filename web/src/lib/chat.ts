@@ -275,6 +275,7 @@ export function kortTekst(m?: Bericht) {
   const t = (s: unknown) => (typeof s === "string" ? s : "");
   switch (m.t) {
     case "tekst": return t(m.tekst).slice(0, 100);
+    case "project": return "Project: " + t(m.titel).slice(0, 80);
     case "foto": return "Foto";
     case "afspraak": return `Afspraak: ${t(m.titel)}`;
     case "peiling": return `Peiling: ${t(m.vraag)}`;
@@ -341,15 +342,70 @@ export async function berichten(gesprek: number, na: number) {
   }
   const hoogste = r.berichten.length ? r.berichten[r.berichten.length - 1].id : 0;
   if (hoogste && r.gesprek?.status === "lid") rpc("chat_gelezen", { p_gesprek: gesprek, p_tot: hoogste }).catch(() => {});
-  return { regels, gesprek: r.gesprek, hoogste };
+  return { regels, gesprek: r.gesprek, hoogste, meer: r.berichten.length === 200 };
+}
+
+/** Alleen voor expliciet projectadvies: haal een volledige, actuele leesbare bewijsbasis op. */
+export async function projectRegelsVers(gesprek: number, voorAi = true) {
+  const regels: Regel[] = [];
+  let na = 0;
+  for (let i = 0; i < 50; i++) {
+    const r = await berichten(gesprek, na);
+    if (r.gesprek?.status !== "lid" || (voorAi && r.gesprek.alleen_beheer)) throw new Error("Projectcontrole is niet beschikbaar met deze kanaalrechten.");
+    if (r.regels.some(r => r.weg || r.fout)) throw new Error("De geschiedenis is niet volledig leesbaar. AI-toestemming kan niet betrouwbaar worden gecontroleerd.");
+    regels.push(...r.regels);
+    if (!r.meer) return { regels, gesprek: r.gesprek };
+    if (r.hoogste <= na) break;
+    na = r.hoogste;
+  }
+  throw new Error("Te veel projectgeschiedenis voor een volledige toestemmingscontrole. Er is niets naar AI verstuurd.");
 }
 
 export async function versturen(gesprek: number, bericht: Bericht) {
   if (!ik) throw new Error("De chat is nog niet gestart.");
+  const apparaat = ik;
+  const sessie = huidigeSessie();
   const { apparaten } = await rpc<{ apparaten: Apparaat[] }>("chat_sleutels", { p_gesprek: gesprek });
-  const p = await versleutel(ik, gesprek, apparaten, bericht);
-  return rpc<{ id: number }>("chat_versturen", { p_gesprek: gesprek, p_apparaat: ik.apparaat, p_inhoud: p.inhoud,
+  if (ik !== apparaat || huidigeSessie() !== sessie) throw new Error("Het account is intussen gewijzigd.");
+  const p = await versleutel(apparaat, gesprek, apparaten, bericht);
+  if (ik !== apparaat || huidigeSessie() !== sessie) throw new Error("Het account is intussen gewijzigd.");
+  return rpc<{ id: number }>("chat_versturen", { p_gesprek: gesprek, p_apparaat: apparaat.apparaat, p_inhoud: p.inhoud,
     p_iv: p.iv, p_epk: p.epk, p_sleutels: p.sleutels, p_handtekening: p.handtekening });
+}
+
+/** Een versleutelde, herhaalbare archiefopdracht voorbereiden; nog geen schrijfaanvraag. */
+export async function projectArchiefVoorstel(gesprek: number, bestand: string, tekst: string, titel = "projectbestand.md", auteurs: number[] = [], herkomstOnbekend = false) {
+  if (!ik || tekst.length > 50_000) throw new Error("Open de chat en kies een geldig tekstbestand.");
+  const apparaat = ik, sessie = huidigeSessie();
+  const { apparaten } = await rpc<{ apparaten: Apparaat[] }>("chat_sleutels", { p_gesprek: gesprek });
+  if (ik !== apparaat || huidigeSessie() !== sessie) throw new Error("Account gewijzigd.");
+  const bronAuteurs = [...new Set([apparaat.gebruiker, ...auteurs])];
+  if (bronAuteurs.length > 1000 || bronAuteurs.some(id => !Number.isSafeInteger(id) || id < 1)) throw new Error("De bronbijdragers konden niet worden gecontroleerd.");
+  const p = await versleutel(apparaat, gesprek, apparaten, { t: "projectversie", versie: 1, bestand, tekst, titel, auteurs: bronAuteurs, herkomstOnbekend });
+  const opdracht = crypto.randomUUID();
+  return async () => {
+    if (ik !== apparaat || huidigeSessie() !== sessie) throw new Error("Account gewijzigd.");
+    return rpc<{ id: number; aangemaakt: string }>("project_archief_bewaren", { p_gesprek: gesprek, p_bestand: bestand,
+      p_opdracht: opdracht, p_apparaat: apparaat.apparaat, p_inhoud: p.inhoud, p_iv: p.iv,
+      p_epk: p.epk, p_sleutels: p.sleutels, p_handtekening: p.handtekening });
+  };
+}
+export const projectArchiefLijst = (gesprek: number, bestand: string, voor: number | null = null) =>
+  rpc<{ versies: { id: number; afzender: number; aangemaakt: string }[] }>("project_archief_lijst", { p_gesprek: gesprek, p_bestand: bestand, p_voor: voor });
+export const projectArchiefBestanden = (gesprek: number) => rpc<{ bestanden: { bestand: string; laatst: string; aantal: number }[] }>("project_archief_bestanden", { p_gesprek: gesprek });
+export async function projectArchiefGegevens(gesprek: number, bestand: string, id: number) {
+  if (!ik) throw new Error("Open eerst de chat.");
+  const apparaat = ik, sessie = huidigeSessie();
+  const r = await rpc<RuwBericht & { bestand: string }>("project_archief_lezen", { p_gesprek: gesprek, p_id: id, p_apparaat: apparaat.apparaat });
+  if (ik !== apparaat || huidigeSessie() !== sessie || r.bestand !== bestand) throw new Error("Open de archiefversie opnieuw.");
+  const b = (await ontsleutel(apparaat, gesprek, r)).bericht;
+  if (!b || b.t !== "projectversie" || b.versie !== 1 || b.bestand !== bestand || typeof b.tekst !== "string" || b.tekst.length > 50_000) throw new Error("De archiefversie is onleesbaar.");
+  const titel = typeof b.titel === "string" && b.titel.length <= 100 && /\.(md|txt)$/i.test(b.titel) && !/[\p{Cc}\p{Cs}]/u.test(b.titel) ? b.titel : "hersteld-projectbestand.md";
+  const auteurs = Array.isArray(b.auteurs) && b.auteurs.length <= 1000 && b.auteurs.every(id => Number.isSafeInteger(id) && id > 0) ? [...new Set(b.auteurs as number[])] : null;
+  return { tekst: b.tekst, titel, auteurs: auteurs ?? [], herkomstOnbekend: !auteurs || b.herkomstOnbekend === true };
+}
+export async function projectArchiefLezen(gesprek: number, bestand: string, id: number) {
+  return (await projectArchiefGegevens(gesprek, bestand, id)).tekst;
 }
 
 export const nieuwGesprek = (met: string) =>
