@@ -7,7 +7,7 @@ import { euro } from "../lib/winkelen";
 import { MailKoppelen } from "./AgendaPanelen";
 import { BoekpaginaInstellen, MailVersturen } from "./Gasten";
 import type { Staat } from "../App";
-import { Envelop, Euro, Huis, Kalender, Lijstje, Persoon, Schuiven, Slot, Terug, Vonk, Vraag } from "../iconen";
+import { Boek, Envelop, Euro, Huis, Kalender, Lijstje, Persoon, Schuiven, Slot, Terug, Vonk, Vraag } from "../iconen";
 import { Schakelaar, kop } from "./instellingen-ui";
 import { Account, Beveiliging, Techniek } from "./Beveiliging";
 import { ONDERDELEN, Onderdeel, type OnderdeelNaam } from "./Onderdelen";
@@ -15,7 +15,7 @@ import { AlgemeenScherm, IdeeScherm, type Weergave } from "./Algemeen";
 import { Profiel, useEigenFoto } from "./Profiel";
 
 type Props = { staat: Staat; vernieuw: () => Promise<void>; terug: () => void; opUitgelogd: () => void;
-  setStaat: (s: Staat) => void };
+  setStaat: (s: Staat) => void; vraag: (tekst: string) => void };
 type Pagina = null | "algemeen" | "idee" | "profiel" | "account" | "assistent" | "privacy" | "thuis" | "mail" | "betalingen" | "afspraken";
 
 type Stijl = Record<string, string | undefined>;
@@ -34,7 +34,7 @@ const KEUZES: { sleutel: string; label: string; opties: string[]; standaard: str
 ];
 
 
-export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setStaat }: Props) {
+export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setStaat, vraag }: Props) {
   const [pagina, setPagina] = useState<Pagina>(null);
   const [onderdeel, setOnderdeel] = useState<OnderdeelNaam | null>(null);
   const [bezig, setBezig] = useState(false);
@@ -136,7 +136,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
 
   if (pagina === "betalingen") return scherm("Betalingen", <Betalingen eigenaar={g.id === 1} />);
 
-  if (onderdeel) return <Onderdeel naam={onderdeel} staat={staat} vernieuw={vernieuw} terug={() => setOnderdeel(null)} />;
+  if (onderdeel) return <Onderdeel naam={onderdeel} staat={staat} vernieuw={vernieuw} terug={() => setOnderdeel(null)} vraag={vraag} />;
   if (pagina === "algemeen") return scherm("Weergave", <AlgemeenScherm inst={inst as Weergave} bewaar={(a) => bewaar(a)} />);
   if (pagina === "idee") return scherm("Idee of probleem", <IdeeScherm />);
   if (pagina === "thuis") return scherm("Thuis", <>
@@ -184,8 +184,12 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
         <Rij icoon={Vonk} kleur="#4f46e5" titel="Assistent" uitleg="Naam, toon en hoe hij antwoordt" open={() => setPagina("assistent")} />
       </Groep>
 
+      <Groep titel="Leren">
+        <Rij icoon={Boek} kleur="#0284c7" titel="Leren" uitleg={ONDERDEEL_UITLEG.leren} open={() => setOnderdeel("leren")} />
+      </Groep>
+
       <Groep titel="Lijsten en documenten">
-        {ONDERDELEN.filter(([id]) => id !== "budget").map(([id, titel, Icoon]) => (
+        {ONDERDELEN.filter(([id]) => id !== "budget" && id !== "leren").map(([id, titel, Icoon]) => (
           <Rij key={id} icoon={Icoon} kleur="#14866d" titel={titel} uitleg={ONDERDEEL_UITLEG[id] ?? ""} open={() => setOnderdeel(id)} />
         ))}
       </Groep>
@@ -215,7 +219,7 @@ function Groep({ titel, children }: { titel: string; children: ReactNode }) {
   );
 }
 
-const ONDERDEEL_UITLEG: Record<string, string> = { boodschappen: "Wat je nog moet halen", kooplijst: "Wat je wilt kopen, met prijs",
+const ONDERDEEL_UITLEG: Record<string, string> = { leren: "Elke dag een beetje, met herhalen en overhoren", boodschappen: "Wat je nog moet halen", kooplijst: "Wat je wilt kopen, met prijs",
   wenslijst: "Cadeau-ideeën en wensen", notities: "Snel iets opschrijven", documenten: "Brieven en teksten, ook als Word of PDF" };
 
 function Rij({ icoon: Icoon, kleur, titel, uitleg, open }: { icoon: (p: { className?: string }) => ReactNode; kleur: string;

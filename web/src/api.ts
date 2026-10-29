@@ -155,7 +155,7 @@ export async function bijwerken(aanpassen: (g: Gegevens) => void): Promise<Gegev
 
 /** Open dezelfde accountbeveiligde hulpmiddelen vanuit de nieuwe interface. */
 export function gereedschapAdres(route: string): string {
-  const toegestaan = ["communicatiecentrum", "gereedschappen", "werkzoeken", "werkdossier", "werkbronnen",
+  const toegestaan = ["communicatiecentrum", "boekingen", "buurt", "gereedschappen", "werkzoeken", "werkdossier", "werkbronnen",
     "taakplanning", "planning-backup", "sjablonen", "activiteitenoverzicht", "bestandsgereedschap", "gegevenscontrole"];
   if (!toegestaan.includes(route)) throw new Error("Onbekend gereedschap.");
   const url = new URL(OUDE_APP, window.location.href);

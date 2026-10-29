@@ -1,12 +1,18 @@
 # Release: werkstromen, communicatie en ontwerp
 
-Doel: de lokale verbeteringen uit deze sessie toevoegen aan de actuele `main`, inclusief het bestaande nieuwe React-ontwerp. De release is samengevoegd met `2758fb4`; de 218 latere commits uit de repository zijn behouden, inclusief de nieuwste instellingen-, beveiligings- en onderdelenpagina’s.
+Doel: de lokale verbeteringen uit deze sessie toevoegen aan de actuele `main`, inclusief het bestaande nieuwe React-ontwerp. De projectuitbreiding is bijgewerkt met `main` op `2cade0e`, inclusief de nieuwe navigatie en de bestaande productiereleasepoort voor actuele E2E-bewijzen.
 
 ## Status
 
 De code en gebouwde webbestanden staan klaar. **Deze release is nog niet live.** GitHub-toegang werkt; een productiebeheerverbinding met Supabase en Streamlit ontbreekt in deze omgeving. De aanwezigheid van `mijn_gegevens_veilig_bewaren` kon niet uit het publieke API-schema worden vastgesteld. De publiek beschikbare app-URL is `https://eisreyyrtvlgtjpqiyhpm2.streamlit.app`.
 
 Er zijn geen productiegegevens, echte betalingen of gebruikersberichten gewijzigd. De bestaande tien externe/handmatige auditpunten blijven open; lokale tests certificeren geen echte login, externe AI, betalingen of mobiele apparaten.
+
+## Projectmotor en aanvullend archief
+
+Waarom, hoe, wanneer en als zijn gekoppeld aan dezelfde bevestigde projectfeiten. De chat kan een bestaande appbestelling als betaalverzoek delen; de ontvanger controleert eigen dienstgegevens en opent zelf de bestaande checkout. Boekingen en reserveringen blijven expliciete handelingen in de bestaande formulieren. Zie [PROJECTREGIE.md](PROJECTREGIE.md).
+
+Voer bij uitrol ook `sql/project_archief.sql` transactioneel uit na de chatmigraties. Zonder deze migratie werken samen bewerken en projectvoorstellen verder, maar apart archiveren niet. Test met twee echte accounts, aparte apparaten en een testbetaling. De lokale tests vervangen geen vers productie-E2E-bewijs voor de exacte releasecommit.
 
 ## In deze release
 

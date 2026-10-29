@@ -58,7 +58,7 @@ async function laden() {
   let doel = new URL(appAdres + "/");
   if (open && open.startsWith(appAdres + "/")) doel = new URL(open);
   const gereedschap = new URLSearchParams(location.search).get("gereedschap");
-  if (["communicatiecentrum", "gereedschappen", "werkzoeken", "werkdossier", "werkbronnen", "taakplanning",
+  if (["communicatiecentrum", "boekingen", "buurt", "gereedschappen", "werkzoeken", "werkdossier", "werkbronnen", "taakplanning",
        "planning-backup", "sjablonen", "activiteitenoverzicht", "bestandsgereedschap", "gegevenscontrole"].includes(gereedschap)) {
     doel.searchParams.set("oud", "1");
     doel.searchParams.set("gereedschap", gereedschap);

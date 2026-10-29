@@ -1,6 +1,6 @@
 // MAIL_TEST=1 deno test --allow-net --allow-read --allow-env supabase/functions/mail/index_test.ts
 // Met een kleine nep-mailserver (TLS) die alleen doet wat de functie nodig heeft. Certificaat: MAIL_TEST_CERT/KEY.
-import { bericht, inloggen, kopTekst, lijst } from "./index.ts";
+import { bericht, controleren, inloggen, kopCoderen, kopTekst, lijst, opstellen, versturen } from "./index.ts";
 
 const gelijk = (a: unknown, b: unknown) => {
   if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`${JSON.stringify(a)} != ${JSON.stringify(b)}`);
@@ -82,4 +82,62 @@ Deno.test("nep-mailserver: inloggen, alleen-lezen openen en ophalen", async () =
   gelijk(b.map((x) => [x.uid, x.gelezen, x.onderwerp]), [[9, false, "Nieuw"], [3, true, "Etentje vrijdag"]]);
   if (!opdrachten.includes("EXAMINE INBOX")) throw new Error("niet alleen-lezen geopend");
   if (opdrachten.some((o) => /STORE|SELECT|EXPUNGE|COPY|MOVE/.test(o))) throw new Error("schrijfopdracht gestuurd");
+});
+
+Deno.test("bericht opstellen en controleren", () => {
+  gelijk(kopCoderen("Re: Etentje"), "Re: Etentje");
+  gelijk(kopTekst(kopCoderen("Café vrijdag")), "Café vrijdag");
+  const b = controleren({ aan: [" bram@voorbeeld.nl "], onderwerp: "Re: Etentje", tekst: "Leuk!\nTot vrijdag", antwoord_op: "<a1@x.nl>" });
+  const ruw = opstellen("sanne@voorbeeld.nl", b, new Date("2026-10-28T20:00:00Z"));
+  const delen = ruw.split("\r\n\r\n");
+  if (!delen[0].includes("In-Reply-To: <a1@x.nl>") || !delen[0].includes("To: bram@voorbeeld.nl")) throw new Error(delen[0]);
+  gelijk(new TextDecoder().decode(Uint8Array.from(atob(delen[1].replace(/\r\n/g, "")), (c) => c.charCodeAt(0))), "Leuk!\r\nTot vrijdag");
+  for (const fout of [{ aan: [], tekst: "x" }, { aan: ["geen adres"], tekst: "x" }, { aan: ["a@b.nl\r\nBcc: c@d.nl"], tekst: "x" },
+    { aan: ["a@b.nl"], tekst: "  " }]) {
+    let goed = false;
+    try { controleren(fout); } catch { goed = true; }
+    if (!goed) throw new Error(`niet geweigerd: ${JSON.stringify(fout)}`);
+  }
+  // Een kop kan geen extra regels krijgen.
+  if (/\r\nBcc/.test(opstellen("s@v.nl", controleren({ aan: ["a@b.nl"], onderwerp: "Hoi\r\nBcc: c@d.nl", tekst: "x" })))) {
+    throw new Error("kopinjectie");
+  }
+});
+
+Deno.test("nep-mailserver: versturen over 465", async () => {
+  const cert = Deno.env.get("MAIL_TEST_CERT"), key = Deno.env.get("MAIL_TEST_KEY");
+  if (!cert || !key) return;
+  const server = Deno.listenTls({ port: 0, hostname: "127.0.0.1", cert: await Deno.readTextFile(cert), key: await Deno.readTextFile(key) });
+  const gezien: string[] = [];
+  const klaar = (async () => {
+    const c = await server.accept();
+    const w = (s: string) => c.write(new TextEncoder().encode(s));
+    await w("220 nep\r\n");
+    const buf = new Uint8Array(65536);
+    let rest = "", data = false;
+    while (true) {
+      const n = await c.read(buf);
+      if (n === null) break;
+      rest += new TextDecoder().decode(buf.subarray(0, n));
+      while (rest.includes("\r\n")) {
+        const regel = rest.slice(0, rest.indexOf("\r\n"));
+        rest = rest.slice(rest.indexOf("\r\n") + 2);
+        if (data) { if (regel === ".") { data = false; await w("250 ok\r\n"); } else gezien.push(regel); continue; }
+        gezien.push(regel.startsWith("AUTH") ? "AUTH" : regel);
+        if (regel.startsWith("EHLO")) await w("250-nep\r\n250 AUTH PLAIN\r\n");
+        else if (regel.startsWith("AUTH")) await w(regel === `AUTH PLAIN ${btoa("\0sanne@voorbeeld.nl\0geheim")}` ? "235 ok\r\n" : "535 nee\r\n");
+        else if (regel === "DATA") { data = true; await w("354 ga\r\n"); }
+        else if (regel === "QUIT") { await w("221 dag\r\n"); c.close(); return; }
+        else await w("250 ok\r\n");
+      }
+    }
+  })();
+  const { port } = server.addr as Deno.NetAddr;
+  const caCerts = [await Deno.readTextFile(Deno.env.get("MAIL_TEST_CA") ?? cert)];
+  await versturen({ smtp: "localhost", smtp_poort: port, adres: "sanne@voorbeeld.nl", wachtwoord: "geheim" },
+    controleren({ aan: ["bram@voorbeeld.nl"], onderwerp: "Hoi", tekst: "Tot morgen" }), { caCerts, direct: true });
+  await klaar;
+  server.close();
+  gelijk(gezien.slice(0, 5), ["EHLO assistent", "AUTH", "MAIL FROM:<sanne@voorbeeld.nl>", "RCPT TO:<bram@voorbeeld.nl>", "DATA"]);
+  if (!gezien.includes("Subject: Hoi")) throw new Error("geen onderwerp");
 });

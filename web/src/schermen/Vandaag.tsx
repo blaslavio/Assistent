@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { bijwerken, instellingenBijwerken, type Afspraak } from "../api";
 import type { Staat, Tab } from "../App";
+import { dagenVan } from "../lib/club";
 import { Camera, Envelop, Huis, Kalender, Kruis, Persoon, Plus, Terug, Vinkje } from "../iconen";
 import { gekoppeld } from "../lib/mail";
 import { KeuzeKaart } from "../keuzekaart";
@@ -10,13 +11,14 @@ import { afhandelen, voorstel, type Voorstel } from "../lib/voorstellen";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, uur } from "../lib/tijd";
 import { weerNu, type Weer } from "../lib/weer";
 import { gelijk, taakVoorstel, taakUitvoeren, taakResultaat, type DagActie } from "../lib/dagacties";
+import { eerstvolgende, instellingen as feestInstellingen } from "../lib/feestdagen";
 
 const kop = "mb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig";
 
 type Props = { staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () => void; naarAssistent?: () => void;
-  vernieuw?: () => Promise<void>; ga?: (t: Tab) => void };
+  vernieuw?: () => Promise<void>; ga?: (t: Tab) => void; naarProject?: (gesprek: number) => void };
 
-export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssistent, vernieuw, ga }: Props) {
+export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssistent, vernieuw, ga, naarProject }: Props) {
   const [nu, setNu] = useState(() => new Date());
   const [weer, setWeer] = useState<Weer | null>(null);
   const [invoer, setInvoer] = useState("");
@@ -42,7 +44,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
 
   const vandaag = datumTekst(nu);
   const afspraken = useMemo(
-    () => data.afspraken.filter((a) => a.start.slice(0, 10) === vandaag).sort((a, b) => a.start.localeCompare(b.start)),
+    () => data.afspraken.filter((a) => dagenVan(a, vandaag).includes(vandaag)).sort((a, b) => a.start.localeCompare(b.start)),
     [data.afspraken, vandaag],
   );
   const eind = (a: Afspraak) => (a.einde ? moment(a.einde) : null);
@@ -59,6 +61,21 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
     return data.afspraken.filter((a) => a.start.slice(0, 10) > vandaag && a.start.slice(0, 10) <= tot)
       .sort((a, b) => a.start.localeCompare(b.start)).slice(0, 4);
   }, [data.afspraken, vandaag, nu]);
+  // De eerstvolgende feestdag, vakantie of brugdag in de komende drie weken.
+  const feest = useMemo(() => eerstvolgende(feestInstellingen(data), new Date(`${vandaag}T12:00`)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [vandaag, data.instellingen?.feestdagen]);
+  const [vrijGevraagd, setVrijGevraagd] = useState(false);
+  async function vrijVragen(datum: string) {
+    setVrijGevraagd(true);
+    const d = new Date(`${datum}T12:00`);
+    const deadline = datumTekst(new Date(d.getTime() - 14 * 864e5));
+    setStaat({ ...staat, data: await bijwerken((g) => {
+      g.taken.push({ id: g.volgend_id++, titel: `Vrij vragen voor ${d.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })}`,
+        deadline: deadline > vandaag ? deadline : vandaag, klaar: false });
+    }) });
+    mascotteZeg("Op je takenlijst. Lekker lang weekend!");
+  }
 
   const v = useMemo(() => voorstel(data, nu), [data, nu]);
   const [gekozen, setGekozen] = useState<{ sleutel: string; optie: number } | null>(null);
@@ -224,9 +241,24 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
 
         {toon("afspraken") && !straks && rest.length === 0 && <p className="text-rustig">Niets meer in je agenda vandaag.</p>}
 
-        {toon("afspraken") && komend.length > 0 && (
+        {toon("afspraken") && (komend.length > 0 || feest) && (
           <section>
             <h2 className={kop}>Komende dagen</h2>
+            {feest && (
+              <div className="mb-1 flex items-center gap-3 py-2">
+                <span className="w-20 shrink-0 text-sm text-rustig">{feest.over === 1 ? "Morgen" : `Over ${feest.over} dagen`}</span>
+                <span className="min-w-0 flex-1 leading-snug">
+                  <span className={`mr-2 inline-block size-2 rounded-full ${feest.soort === "feestdag" ? "bg-red-500"
+                    : feest.soort === "vakantie" ? "bg-amber-500" : feest.soort === "brugdag" ? "bg-emerald-500" : "bg-pink-500"}`} />
+                  {feest.naam}
+                </span>
+                {feest.soort === "brugdag" && !vrijGevraagd && (
+                  <button onClick={() => vrijVragen(feest.datum)} className="h-8 shrink-0 rounded-full bg-vlak px-3 text-sm font-medium text-accent">
+                    Vrij vragen
+                  </button>
+                )}
+              </div>
+            )}
             <ul>
               {komend.map((a) => (
                 <li key={a.id} className="flex items-baseline gap-4 py-2">
@@ -252,6 +284,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
                     <span>{t.titel}</span>
                     {t.deadline && t.deadline.slice(0, 10) < vandaag && <span className="text-sm text-red-600 dark:text-red-400">te laat</span>}
                   </label>
+                  <ProjectHerkomst taak={t} open={naarProject} />
                 </li>
               ))}
             </ul>
@@ -272,6 +305,12 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
       </form>}
     </div>
   );
+}
+
+function ProjectHerkomst({ taak, open }: { taak: object; open?: (gesprek: number) => void }) {
+  const bron = (taak as { projectbron?: { gesprek: number; bericht: number } }).projectbron;
+  if (!open || !bron || !Number.isSafeInteger(bron.gesprek) || bron.gesprek < 1 || !Number.isSafeInteger(bron.bericht) || bron.bericht < 1) return null;
+  return <button className="ml-9 min-h-11 text-sm text-accent" onClick={() => open(bron.gesprek)}>Waarom deze taak? Projectbron #{bron.bericht}</button>;
 }
 
 /** Vier eerste stappen voor een nieuw account. Verdwijnt vanzelf als alles klaar is, of als je hem wegtikt. */

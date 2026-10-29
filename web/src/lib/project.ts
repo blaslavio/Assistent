@@ -45,6 +45,16 @@ export class Werkbestand {
   meld() { this.luisteraars.forEach(f => f()); }
   get wacht() { return this.wachtrij.length > 0; }
   get inhoud() { return this.tekst.toString(); }
+  get bronAuteurs() { return [...new Set(this.doc.getArray<number>("bronauteurs").toArray().filter(id => Number.isSafeInteger(id) && id > 0))]; }
+  get onbekendeHerkomst() { return this.doc.getMap("herkomst").get("onbekend") === true; }
+  markeerArchiefHerkomst(auteurs: number[], onbekend: boolean) {
+    if (auteurs.length > 1000 || auteurs.some(id => !Number.isSafeInteger(id) || id < 1)) throw new Error("De archiefherkomst is ongeldig.");
+    this.doc.transact(() => {
+      const nieuw = [...new Set(auteurs)].filter(id => !this.bronAuteurs.includes(id));
+      this.doc.getArray<number>("bronauteurs").push(nieuw);
+      if (onbekend) this.doc.getMap("herkomst").set("onbekend", true);
+    });
+  }
 
   invoerBasis() { return Y.encodeStateAsUpdate(this.doc); }
   bewerk(nieuw: string, basis?: Uint8Array) {
@@ -91,6 +101,7 @@ export class Werkbestand {
       Y.applyUpdate(controle, Y.encodeStateAsUpdate(this.doc));
       Y.applyUpdate(controle, bytes);
       if (controle.getText("inhoud").length > MAX_TEKST || ONGELDIGE_TEKST.test(controle.getText("inhoud").toString())) throw new Error("Het gedeelde bestand is te groot of bevat ongeldige tekens.");
+      if (controle.getArray("bronauteurs").length > 1000) throw new Error("De archiefherkomst is te groot.");
       Y.applyUpdate(this.doc, bytes, oorsprong);
     } finally { controle.destroy(); }
   }

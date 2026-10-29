@@ -18,6 +18,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 ONDERDELEN = {
+    "projectarchief": ["test_project_archief"],
     "communicatie": ["test_communicatie"],
     "integratie": ["test_integratie"],
     "verdieping": ["test_verdieping"],

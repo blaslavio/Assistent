@@ -1,6 +1,7 @@
+import { BetaalverzoekMaken, ChatBetaalkaart } from "./ChatBetaling";
 import ProjectWerkruimte from "./ProjectWerkruimte";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Bal, Ballon, Bewerk, Boek, Dubbelvink, Fiets, Gereedschap, Huis, Kind, Penseel, Raster as RasterIcoon, Scherm, Shirt, Truck, Winkelpand, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
+import { Kalender, Meer, Bal, Ballon, Bewerk, Boek, Dubbelvink, Fiets, Gereedschap, Huis, Kind, Penseel, Raster as RasterIcoon, Scherm, Shirt, Truck, Winkelpand, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
 import { JouwAanbod } from "./Delen";
 import { Berichten, Feed, Schrijven } from "./Feed";
 import { GastGesprekScherm, GastenLijst } from "./Gasten";
@@ -8,7 +9,7 @@ import { gesprekken as gastGesprekken, type GastGesprek } from "../lib/gasten";
 import { feedInstelling } from "../lib/feed";
 import Bestellingen from "./Bestellingen";
 import { isGevraagd, lijst as bestellingenLijst, openGevraagd, wachtOpMij } from "../lib/bestellingen";
-import { VERDWIJNEN, verdwijnenInstellen, antwoorden, berichten, community, communityAntwoorden, communityDeelnemen,
+import { VERDWIJNEN, communityTijdelijk, isHerinnering, verdwijnenInstellen, antwoorden, berichten, community, communityAntwoorden, communityDeelnemen,
   communityMaken, communityUitnodigen, contacten, gesprekNaam, kortTekst, nieuwGesprek, overzicht, starten, versturen,
   voorbeeld, type Community, type Contact, type Deelnemer, type Gesprek, type Regel } from "../lib/chat";
 import { bellen, kan as kanBellen, luisteren } from "../lib/bellen";
@@ -19,6 +20,11 @@ import { StoryRij } from "./Stories";
 import { Verkopen } from "./Verkopen";
 import { useEigenFoto } from "./Profiel";
 import { CommunityBeheer } from "./CommunityBeheer";
+import { EindeKiezen, OpruimBlad, opruimTekst } from "./CommunityOpruimen";
+import { Onderblad } from "./Onderblad";
+import { AppKop, AppMenu, type MenuItem } from "./AppMenu";
+import { ClubAgenda } from "./ClubAgenda";
+import type { Gegevens } from "../api";
 import { Bladen, Raster, type Blad } from "./Winkelen";
 import { rpc } from "../api";
 import { zoeken, type Filter, type Product } from "../lib/winkelen";
@@ -27,29 +33,23 @@ import type { Staat } from "../App";
 
 type Deel = "chats" | "communitys" | "winkel" | "oproepen" | "jij";
 const DELEN: [Deel, string, typeof Ballon][] = [["chats", "Chats", Ballon], ["communitys", "Community's", Mensen],
-  ["winkel", "Winkel", Tas], ["oproepen", "Oproepen", Telefoon], ["jij", "Jij", Persoon]];
+  ["winkel", "Winkel", Tas], ["oproepen", "Bellen", Telefoon], ["jij", "Jij", Persoon]];
 
 function bewaardDeel(): Deel {
   if (isGevraagd()) return "winkel";
   try {
     const d = localStorage.getItem("assistent.chatdeel");
-    if (DELEN.some(([k]) => k === d)) return d as Deel;
+    if (d !== "winkel" && DELEN.some(([k]) => k === d)) return d as Deel;
   } catch { /* geen opslag */ }
   return "chats";
 }
 
-type Props = { staat: Staat; setStaat?: React.Dispatch<React.SetStateAction<Staat | null>>; naarInstellingen: () => void;
+type Props = { verlaat?: () => void; terugNaam?: string; staat: Staat; setStaat?: React.Dispatch<React.SetStateAction<Staat | null>>; naarInstellingen: () => void;
   bestel: (p: Product) => void; werkGesprek?: { id: number; ronde: number; gebruiker: number } | null };
 
-export default function Chat({ staat, setStaat, naarInstellingen, bestel, werkGesprek }: Props) {
+export default function Chat({ staat, setStaat, naarInstellingen, bestel, werkGesprek, verlaat, terugNaam }: Props) {
   const [ik, setIk] = useState<number | null>(null);
   const [belInst, setBelInst] = useState(false);
-  const [balkWeg, setBalkWeg] = useState(() => { try { return localStorage.getItem("assistent.chatbalk") === "weg"; } catch { return false; } });
-  const veegStart = useRef(0);
-  const balkZetten = (weg: boolean) => {
-    setBalkWeg(weg);
-    try { localStorage.setItem("assistent.chatbalk", weg ? "weg" : "aan"); } catch { /* geen opslag */ }
-  };
   const [lijst, setLijst] = useState<Gesprek[]>([]);
   const [groepen, setGroepen] = useState<Community[]>([]);
   const [voorbeelden, setVoorbeelden] = useState<Record<number, string>>({});
@@ -60,11 +60,22 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, werkGe
   const [nieuw, setNieuw] = useState(false);
   const [fout, setFout] = useState("");
   const [deel, setDeelRuw] = useState<Deel>(bewaardDeel);
+  // Winkel opent als eigen app; terug van betalen (?betaald=) meteen bij Bestellingen.
+  const [winkel, setWinkel] = useState<{ deel: WinkelDeelNaam; melding?: string } | null>(() => {
+    const v = openGevraagd();
+    return v ? { deel: "bestellingen", melding: v.melding } : null;
+  });
 
   function setDeel(d: Deel) {
+    if (d === "winkel") { setWinkel({ deel: "ontdekken" }); return; }
     setDeelRuw(d);
     try { localStorage.setItem("assistent.chatdeel", d); } catch { /* geen opslag */ }
   }
+
+  useEffect(() => {
+    const dienst=(e:Event)=>{const d=(e as CustomEvent).detail;if(d?.gesprek===open&&d?.dienst==="betaling"){setOpen(null);setWinkel({deel:"bestellingen",melding:"Controleer de bestelling en bevestig zelf de gewenste betaalhandeling."});}};
+    window.addEventListener("assistent-projectdienst",dienst);return()=>window.removeEventListener("assistent-projectdienst",dienst);
+  },[open]);
 
   useEffect(() => { if (werkGesprek?.gebruiker === staat.gebruiker.id) setOpen(werkGesprek.id); }, [werkGesprek, staat.gebruiker.id]);
 
@@ -93,12 +104,14 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, werkGe
 
   if (open !== null && ik !== null) {
     const g = lijst.find((x) => x.id === open);
-    return <Gesprekscherm key={open} id={open} ik={ik} begin={g} projectOpen={werkGesprek?.id === open} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
+    return <Gesprekscherm key={open} id={open} ik={ik} begin={g} projectOpen={werkGesprek?.id === open} staat={staat} setStaat={setStaat} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
   }
   if (openGast !== null) return <GastGesprekScherm boeking={openGast} terug={() => { setOpenGast(null); laden().catch(() => {}); }} />;
+  if (winkel) return <WinkelApp start={winkel.deel} melding={winkel.melding} bestel={bestel} terug={() => setWinkel(null)} />;
   if (openCommunity !== null && ik !== null) {
     const c = groepen.find((x) => x.id === openCommunity);
     if (c) return <CommunityScherm c={c} openKanaal={setOpen} vernieuw={laden}
+      bijgewerkt={(data) => setStaat?.((s) => (s ? { ...s, data } : s))}
       terug={() => { setOpenCommunity(null); laden().catch(() => {}); }} />;
   }
 
@@ -111,15 +124,11 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, werkGe
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-10 bg-white/90 pt-14 backdrop-blur dark:bg-[#0b0b0e]/90">
-        <div className="flex items-center justify-between px-6 pb-3">
-          <h1 className="text-[32px] font-bold tracking-tight">{DELEN.find(([k]) => k === deel)?.[1]}</h1>
-          {actie && (
-            <button onClick={actie.doe} aria-label={actie.label}
-              className="flex size-10 items-center justify-center rounded-full bg-vlak">{actie.icoon}</button>
-          )}
-        </div>
-      </header>
+      <AppKop terug={verlaat} terugNaam={terugNaam} titel={DELEN.find(([k]) => k === deel)?.[1] ?? "Chat"}
+        rechts={actie && (
+          <button onClick={actie.doe} aria-label={actie.label}
+            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-vlak">{actie.icoon}</button>
+        )} />
       {fout && <p className="px-6 text-rustig">{fout}</p>}
       {deel === "chats" && nieuw && (
         <NieuwVeld sluit={() => setNieuw(false)} gestart={(id) => { setNieuw(false); laden().then(() => setOpen(id)); }} />
@@ -131,46 +140,13 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, werkGe
       {deel === "communitys" && ik !== null && (
         <Communitys lijst={groepen} open={setOpenCommunity} vernieuw={laden} staat={staat} />
       )}
-      {deel === "winkel" && <WinkelDeel bestel={bestel} />}
       {deel === "oproepen" && ik !== null && <Oproepen ik={ik} lijst={lijst} instellingen={belInst}
         sluitInstellingen={() => setBelInst(false)} zoekIemand={() => { setDeel("chats"); setNieuw(true); }} bewaard={(data) => setStaat?.((s) => (s ? { ...s, data } : s))} />}
-      {deel === "jij" && <Jij staat={staat} ik={ik} naarInstellingen={naarInstellingen} naar={setDeel} />}
-      {/* Zoals WhatsApp: de onderdelen van de chat onderin. Naar beneden vegen of op het streepje tikken klapt hem in. */}
-      <div className="sticky bottom-0 z-10 mt-auto">
-        <button onClick={() => balkZetten(false)} aria-label="Menu tonen" aria-hidden={!balkWeg} tabIndex={balkWeg ? 0 : -1}
-          className={`absolute right-4 bottom-3 flex h-10 items-center gap-1.5 rounded-full bg-white/95 px-4 text-sm font-medium shadow-lg ring-1 ring-lijn backdrop-blur transition-all duration-300 dark:bg-[#1c1c22]/95 ${balkWeg ? "opacity-100" : "pointer-events-none translate-y-4 opacity-0"}`}>
-          <Terug className="size-4 rotate-90" /> Menu
-          {ongelezenChats + ongelezenGroepen > 0 && <span className="size-2 rounded-full bg-accent" />}
-        </button>
-        <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${balkWeg ? "grid-rows-[0fr]" : "grid-rows-[1fr]"}`}>
-          <div className="overflow-hidden">
-            <nav aria-label="Chat" aria-hidden={balkWeg}
-              onTouchStart={(e) => { veegStart.current = e.touches[0].clientY; }}
-              onTouchEnd={(e) => { if (e.changedTouches[0].clientY - veegStart.current > 30) balkZetten(true); }}
-              className="border-t border-lijn bg-white/95 px-1 pb-1 backdrop-blur dark:bg-[#0b0b0e]/95">
-              <button onClick={() => balkZetten(true)} aria-label="Menu inklappen" className="flex h-4 w-full items-center justify-center">
-                <span className="h-1 w-9 rounded-full bg-zacht/40" />
-              </button>
-              <div className="grid grid-cols-5">
-          {DELEN.map(([k, naam, Icoon]) => {
-            const telt = k === "chats" ? ongelezenChats : k === "communitys" ? ongelezenGroepen : 0;
-            const actief = deel === k;
-            return (
-              <button key={k} onClick={() => setDeel(k)} aria-pressed={actief} aria-label={naam}
-                className={`relative flex flex-col items-center gap-1 text-[11px] ${actief ? "font-semibold text-inkt" : "text-rustig"}`}>
-                <span className={`flex h-8 w-14 items-center justify-center rounded-full ${actief ? "bg-accent/15 text-accent dark:text-accent-donker" : ""}`}>
-                  <Icoon className="size-5" />
-                </span>
-                {naam}
-                {telt > 0 && <span className="absolute -top-0.5 left-[calc(50%+6px)] flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">{telt}</span>}
-              </button>
-            );
-          })}
-              </div>
-            </nav>
-          </div>
-        </div>
-      </div>
+      {deel === "jij" && <Jij staat={staat} ik={ik} naarInstellingen={naarInstellingen} winkel={(d) => setWinkel({ deel: d })} />}
+      {/* Zoals WhatsApp: de chat is een eigen app met één menu onderin. */}
+      <AppMenu naam="Chat" actief={deel} kies={setDeel}
+        items={DELEN.map(([k, naam, Icoon]) => [k, naam, Icoon,
+          k === "chats" ? ongelezenChats : k === "communitys" ? ongelezenGroepen : 0] as MenuItem<Deel>)} />
     </div>
   );
 }
@@ -254,16 +230,58 @@ function Communitys({ lijst, open, vernieuw, staat }: { lijst: Community[]; open
   if (weergave === "feed") return (
     <>
       {keuze}
-      <Feed mijn={lijst.filter((c) => c.status === "lid")} begin={begin} open={open} vernieuw={vernieuw}
+      <Feed mijn={lijst.filter((c) => c.status === "lid" && !c.herinnering)} begin={begin} open={open} vernieuw={vernieuw}
         maken={() => { setStartBlad(true); setWeergave("groepen"); }} />
     </>
   );
-  return <>{keuze}<Groepen lijst={lijst} open={open} vernieuw={vernieuw} startBlad={startBlad} /></>;
+  return <>{keuze}<Groepen lijst={lijst} open={open} vernieuw={vernieuw} startBlad={startBlad} afspraken={staat.data.afspraken} /></>;
 }
 
-function Groepen({ lijst, open, vernieuw, startBlad = false }: { lijst: Community[]; open: (id: number) => void;
-  vernieuw: () => Promise<void>; startBlad?: boolean }) {
+function Groepen({ lijst, open, vernieuw, startBlad = false, afspraken }: { lijst: Community[]; open: (id: number) => void;
+  vernieuw: () => Promise<void>; startBlad?: boolean; afspraken: Staat["data"]["afspraken"] }) {
   const [blad, setBlad] = useState(startBlad);
+  const [opties, setOpties] = useState<Community | null>(null);
+  const [toonBewaard, setToonBewaard] = useState(false);
+  const actief = lijst.filter((c) => !isHerinnering(c));
+  const bewaard = lijst.filter(isHerinnering);
+  const rij = (c: Community) => {
+    const nieuw = c.kanalen.reduce((n, k) => n + k.ongelezen, 0);
+    const extra = opruimTekst(c);
+    return (
+      <li key={c.id}>
+        {c.status === "uitgenodigd" ? (
+          <div className="flex items-center gap-3 rounded-2xl px-3 py-2.5">
+            <Rondje naam={c.naam} id={-1000 - c.id} groot />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate font-medium">{c.naam}</span>
+              <span className="truncate text-sm text-rustig">Uitnodiging{c.door ? ` van ${c.door}` : ""}{extra ? ` · ${extra}` : ""}</span>
+            </span>
+            <button onClick={() => antwoord(c.id, "nee")} className="h-9 rounded-full bg-vlak px-3 text-sm">Nee</button>
+            <button onClick={() => antwoord(c.id, "ja")} className="h-9 rounded-full bg-accent px-3 text-sm font-medium text-white">Doe mee</button>
+          </div>
+        ) : (
+          <div className="flex items-center rounded-2xl hover:bg-vlak">
+            <button onClick={() => open(c.id)} className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left ${isHerinnering(c) ? "opacity-70" : ""}`}>
+              <Rondje naam={c.naam} id={-1000 - c.id} groot />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className={`truncate ${nieuw ? "font-semibold" : "font-medium"}`}>{c.naam}</span>
+                <span className="truncate text-sm text-rustig">
+                  {extra || `${c.leden} ${c.leden === 1 ? "lid" : "leden"} · ${c.kanalen.length} ${c.kanalen.length === 1 ? "kanaal" : "kanalen"}`}
+                </span>
+              </span>
+              {nieuw > 0 && (
+                <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white">{nieuw}</span>
+              )}
+            </button>
+            <button onClick={() => setOpties(c)} aria-label={`Opties voor ${c.naam}`}
+              className="flex size-10 shrink-0 items-center justify-center rounded-full text-rustig hover:bg-black/5 dark:hover:bg-white/10">
+              <Meer className="size-5" />
+            </button>
+          </div>
+        )}
+      </li>
+    );
+  };
   const [fout, setFout] = useState("");
   async function antwoord(id: number, a: "ja" | "nee") {
     setFout("");
@@ -288,67 +306,39 @@ function Groepen({ lijst, open, vernieuw, startBlad = false }: { lijst: Communit
       {fout && <p role="alert" className="px-6 pb-2 text-sm text-red-600 dark:text-red-400">{fout}</p>}
       {lijst.length > 0 && (
         <ul className="flex flex-col px-3">
-          {lijst.map((c) => {
-            const nieuw = c.kanalen.reduce((n, k) => n + k.ongelezen, 0);
-            return (
-              <li key={c.id}>
-                {c.status === "uitgenodigd" ? (
-                  <div className="flex items-center gap-3 rounded-2xl px-3 py-2.5">
-                    <Rondje naam={c.naam} id={-1000 - c.id} groot />
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate font-medium">{c.naam}</span>
-                      <span className="truncate text-sm text-rustig">Uitnodiging{c.door ? ` van ${c.door}` : ""}</span>
-                    </span>
-                    <button onClick={() => antwoord(c.id, "nee")} className="h-9 rounded-full bg-vlak px-3 text-sm">Nee</button>
-                    <button onClick={() => antwoord(c.id, "ja")} className="h-9 rounded-full bg-accent px-3 text-sm font-medium text-white">Doe mee</button>
-                  </div>
-                ) : (
-                  <button onClick={() => open(c.id)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left hover:bg-vlak">
-                    <Rondje naam={c.naam} id={-1000 - c.id} groot />
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className={`truncate ${nieuw ? "font-semibold" : "font-medium"}`}>{c.naam}</span>
-                      <span className="truncate text-sm text-rustig">
-                        {c.leden} {c.leden === 1 ? "lid" : "leden"} · {c.kanalen.length} {c.kanalen.length === 1 ? "kanaal" : "kanalen"}
-                      </span>
-                    </span>
-                    {nieuw > 0 && (
-                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white">{nieuw}</span>
-                    )}
-                  </button>
-                )}
-              </li>
-            );
-          })}
+          {actief.map(rij)}
           <li>
             <button onClick={() => setBlad(true)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-accent hover:bg-vlak">
               <span className="flex size-12 items-center justify-center rounded-full bg-vlak"><Plus className="size-5" /></span>
               <span className="font-medium">Nieuwe community of code</span>
             </button>
           </li>
+          {bewaard.length > 0 && (
+            <li className="mt-3">
+              <button onClick={() => setToonBewaard(!toonBewaard)} aria-expanded={toonBewaard}
+                className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-rustig">
+                <span>Herinneringen en bewaard · {bewaard.length}</span>
+                <Terug className={`size-4 transition-transform ${toonBewaard ? "rotate-90" : "-rotate-90"}`} />
+              </button>
+            </li>
+          )}
+          {toonBewaard && bewaard.map(rij)}
         </ul>
       )}
-      {blad && <CommunityBlad sluit={() => setBlad(false)} klaar={async (id) => { setBlad(false); await vernieuw(); open(id); }} />}
+      {opties && <OpruimBlad c={opties} afspraken={afspraken} sluit={() => setOpties(null)}
+        klaar={async () => { setOpties(null); await vernieuw(); }} />}
+      {blad && <CommunityBlad afspraken={afspraken} sluit={() => setBlad(false)} klaar={async (id) => { setBlad(false); await vernieuw(); open(id); }} />}
     </>
-  );
-}
-
-function Onderblad({ titel, sluit, children }: { titel: string; sluit: () => void; children: ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/30" onClick={sluit}>
-      <div role="dialog" aria-label={titel} onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[85%] w-full max-w-xl flex-col gap-4 overflow-y-auto rounded-t-[28px] bg-white px-6 pt-3 pb-[max(env(safe-area-inset-bottom),24px)] dark:bg-[#16161a]">
-        <span className="mx-auto h-1 w-10 shrink-0 rounded-full bg-lijn" />
-        <h2 className="text-xl font-semibold">{titel}</h2>
-        {children}
-      </div>
-    </div>
   );
 }
 
 const veld = "h-12 w-full rounded-2xl bg-vlak px-4 outline-none placeholder:text-zacht";
 
-function CommunityBlad({ sluit, klaar }: { sluit: () => void; klaar: (id: number) => void }) {
+function CommunityBlad({ sluit, klaar, afspraken }: { sluit: () => void; klaar: (id: number) => void;
+  afspraken: Staat["data"]["afspraken"] }) {
   const [soort, setSoort] = useState<"maken" | "code">("maken");
+  const [tijdelijk, setTijdelijk] = useState(false);
+  const [nieuw, setNieuw] = useState<number | null>(null);
   const [naam, setNaam] = useState("");
   const [over, setOver] = useState("");
   const [code, setCode] = useState("");
@@ -359,13 +349,24 @@ function CommunityBlad({ sluit, klaar }: { sluit: () => void; klaar: (id: number
     setFout("");
     setBezig(true);
     try {
-      klaar((soort === "maken" ? await communityMaken(naam.trim(), over.trim()) : await communityDeelnemen(code)).id);
+      const id = (soort === "maken" ? await communityMaken(naam.trim(), over.trim()) : await communityDeelnemen(code)).id;
+      if (soort === "maken" && tijdelijk) setNieuw(id);
+      else klaar(id);
     } catch (er) {
       setFout(foutVan(er));
     } finally {
       setBezig(false);
     }
   }
+  if (nieuw !== null) return (
+    <Onderblad titel="Tijdelijke community" sluit={() => klaar(nieuw)}>
+      <EindeKiezen afspraken={afspraken} eigenaar kies={async (e) => {
+        try { if (e) await communityTijdelijk(nieuw, e.eindigt, e.naAfloop); } catch (er) { setFout(foutVan(er)); return; }
+        klaar(nieuw);
+      }} />
+      {fout && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{fout}</p>}
+    </Onderblad>
+  );
   return (
     <Onderblad titel="Community" sluit={sluit}>
       <div className="grid grid-cols-2 gap-1 rounded-full bg-vlak p-1">
@@ -381,6 +382,13 @@ function CommunityBlad({ sluit, klaar }: { sluit: () => void; klaar: (id: number
               aria-label="Naam" className={veld} />
             <input value={over} onChange={(e) => setOver(e.target.value)} maxLength={300} placeholder="Waar gaat het over? (mag leeg)"
               aria-label="Omschrijving" className={veld} />
+            <label className="flex items-center justify-between gap-3 rounded-2xl bg-vlak px-4 py-3">
+              <span className="flex flex-col">
+                <span className="font-medium">Tijdelijk</span>
+                <span className="text-[13px] text-rustig">Voor een uitje of feest. Eindigt vanzelf.</span>
+              </span>
+              <input type="checkbox" checked={tijdelijk} onChange={(e) => setTijdelijk(e.target.checked)} className="size-5 accent-[var(--color-accent)]" />
+            </label>
             <p className="text-[13px] text-rustig">Je krijgt meteen de kanalen mededelingen en algemeen.</p>
           </>
         ) : (
@@ -397,67 +405,73 @@ function CommunityBlad({ sluit, klaar }: { sluit: () => void; klaar: (id: number
   );
 }
 
-function CommunityScherm({ c, openKanaal, vernieuw, terug }: { c: Community; openKanaal: (id: number) => void;
-  vernieuw: () => Promise<void>; terug: () => void }) {
-  const [leden, setLeden] = useState(false);
-  const [instellen, setInstellen] = useState(false);
+type CommunityDeel = "kanalen" | "agenda" | "leden" | "meer";
+
+/** Een community opent als eigen app: kanalen en feed, de leden, en meer (instellingen en verlaten). */
+function CommunityScherm({ c, openKanaal, vernieuw, terug, bijgewerkt }: { c: Community; openKanaal: (id: number) => void;
+  vernieuw: () => Promise<void>; terug: () => void; bijgewerkt?: (g: Gegevens) => void }) {
+  const [deel, setDeel] = useState<CommunityDeel>("kanalen");
   const [opnieuw, setOpnieuw] = useState(0);
   const beheer = c.rol === "eigenaar" || c.rol === "beheerder";
   const keuze = useMemo(() => ({ bron: "alles" as const, verborgen: [], _: opnieuw }), [opnieuw]);
-  if (instellen) return <CommunityBeheer c={c} terug={() => setInstellen(false)} vernieuw={vernieuw}
-    opgeheven={async () => { await vernieuw().catch(() => {}); terug(); }} />;
+  const weg = async () => { await vernieuw().catch(() => {}); terug(); };
+  const items: MenuItem<CommunityDeel>[] = [["kanalen", "Kanalen", Ballon, c.kanalen.reduce((m, k) => m + k.ongelezen, 0)],
+    ["agenda", "Agenda", Kalender], ["leden", "Leden", Mensen], ["meer", "Meer", Meer]];
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center gap-2 px-3 pt-12 pb-2">
-        <button onClick={terug} aria-label="Terug" className="flex size-10 items-center justify-center rounded-full text-rustig hover:bg-vlak">
-          <Terug />
-        </button>
-        <span className="flex-1" />
-        <button onClick={() => setLeden(true)} className="h-9 rounded-full bg-vlak px-4 text-sm font-medium">Leden</button>
-        {beheer && (
-          <button onClick={() => setInstellen(true)} aria-label="Instellingen van de community"
-            className="flex size-10 items-center justify-center rounded-full text-rustig hover:bg-vlak"><Tandwiel className="size-5" /></button>
+      <AppKop terug={terug} terugNaam="Chat" titel={deel === "kanalen" ? c.naam : items.find(([k]) => k === deel)![1]} />
+      {deel === "kanalen" && <>
+        <div className="flex items-center gap-3 px-6 pb-4">
+          <Rondje naam={c.naam} id={-1000 - c.id} />
+          <div className="flex min-w-0 flex-col">
+            {c.omschrijving && <p className="text-[15px] text-rustig">{c.omschrijving}</p>}
+            <p className="text-sm text-zacht">{c.leden} {c.leden === 1 ? "lid" : "leden"}{c.openbaar ? " · openbaar" : ""}</p>
+          </div>
+        </div>
+        {(c.herinnering || c.eindigt) && (
+          <p className="mx-6 mb-3 rounded-2xl bg-vlak px-4 py-2 text-[13px] text-rustig">
+            {c.herinnering ? `${opruimTekst(c)}. Alles is terug te lezen.` : opruimTekst(c)}
+          </p>
         )}
-      </header>
-      <div className="flex flex-col items-center gap-2 px-6 pb-5 text-center">
-        <Rondje naam={c.naam} id={-1000 - c.id} groot />
-        <h1 className="text-2xl font-bold tracking-tight">{c.naam}</h1>
-        {c.omschrijving && <p className="text-[15px] text-rustig">{c.omschrijving}</p>}
-        <p className="text-sm text-zacht">{c.leden} {c.leden === 1 ? "lid" : "leden"}{c.openbaar ? " · openbaar" : ""}</p>
-      </div>
-      <h2 className="px-6 pb-1 text-sm font-medium text-rustig">Kanalen</h2>
-      <ul className="flex flex-col px-3">
-        {c.kanalen.map((k) => (
-          <li key={k.id}>
-            <button onClick={() => openKanaal(k.id)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left hover:bg-vlak">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-vlak text-lg text-rustig">#</span>
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className={`truncate ${k.ongelezen ? "font-semibold" : "font-medium"}`}>{k.naam}</span>
-                <span className="text-[13px] text-rustig">{k.alleen_beheer ? "Alleen beheerders schrijven" : tijdje(k.laatst) || "Iedereen schrijft"}</span>
-              </span>
-              {k.ongelezen > 0 && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white">{k.ongelezen}</span>
-              )}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <h2 className="px-6 pt-5 pb-2 text-sm font-medium text-rustig">Feed</h2>
-      <div className="flex flex-col gap-4 pb-8">
-        <Schrijven mijn={[c]} vast={c.id} geplaatst={() => setOpnieuw((n) => n + 1)} />
-        <Berichten keuze={keuze} community={c.id} leeg="Nog geen berichten. Schrijf als eerste iets." />
-      </div>
-      {leden && <LedenBlad c={c} sluit={() => setLeden(false)} weg={async () => { setLeden(false); await vernieuw(); terug(); }} />}
+        <ul className="flex flex-col px-3">
+          {c.kanalen.map((k) => (
+            <li key={k.id}>
+              <button onClick={() => openKanaal(k.id)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left hover:bg-vlak">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-vlak text-lg text-rustig">#</span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className={`truncate ${k.ongelezen ? "font-semibold" : "font-medium"}`}>{k.naam}</span>
+                  <span className="text-[13px] text-rustig">{k.alleen_beheer ? "Alleen beheerders schrijven" : tijdje(k.laatst) || "Iedereen schrijft"}</span>
+                </span>
+                {k.ongelezen > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white">{k.ongelezen}</span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <h2 className="px-6 pt-5 pb-2 text-sm font-medium text-rustig">Feed</h2>
+        <div className="flex flex-col gap-4 pb-8">
+          {!c.herinnering && <Schrijven mijn={[c]} vast={c.id} geplaatst={() => setOpnieuw((n) => n + 1)} />}
+          <Berichten keuze={keuze} community={c.id} leeg="Nog geen berichten. Schrijf als eerste iets." />
+        </div>
+      </>}
+      {deel === "agenda" && <ClubAgenda c={c} bijgewerkt={bijgewerkt} />}
+      {deel === "leden" && <Leden c={c} />}
+      {deel === "meer" && <>
+        {beheer ? <CommunityBeheer c={c} vernieuw={vernieuw} opgeheven={weg} />
+          : <p className="px-6 pb-4 text-[15px] text-rustig">Alleen de beheerders passen de naam, kanalen en regels aan.</p>}
+        {c.rol !== "eigenaar" && <Verlaten c={c} weg={weg} />}
+      </>}
+      <AppMenu naam="Community" items={items} actief={deel} kies={setDeel} />
     </div>
   );
 }
 
-function LedenBlad({ c, sluit, weg }: { c: Community; sluit: () => void; weg: () => void }) {
+function Leden({ c }: { c: Community }) {
   const [info, setInfo] = useState<{ code?: string | null; code_aan: boolean; deelnemers: Deelnemer[] } | null>(null);
   const [wie, setWie] = useState("");
   const [melding, setMelding] = useState("");
   const [fout, setFout] = useState("");
-  const [zeker, setZeker] = useState(false);
   const laden = useCallback(() => community(c.id).then(setInfo).catch((e) => setFout(foutVan(e))), [c.id]);
   useEffect(() => { laden(); }, [laden]);
 
@@ -474,17 +488,9 @@ function LedenBlad({ c, sluit, weg }: { c: Community; sluit: () => void; weg: ()
       setFout(foutVan(er));
     }
   }
-  async function verlaten() {
-    try {
-      await communityAntwoorden(c.id, "verlaten");
-      weg();
-    } catch (er) {
-      setFout(foutVan(er));
-    }
-  }
 
   return (
-    <Onderblad titel="Leden" sluit={sluit}>
+    <div className="flex flex-col gap-4 px-6 pb-8">
       <form onSubmit={nodig} className="flex gap-2">
         <input value={wie} onChange={(e) => setWie(e.target.value)} placeholder="Gebruikersnaam" autoCapitalize="none"
           autoCorrect="off" aria-label="Gebruikersnaam om uit te nodigen" className={`${veld} flex-1`} />
@@ -497,6 +503,7 @@ function LedenBlad({ c, sluit, weg }: { c: Community; sluit: () => void; weg: ()
           Code om mee te doen: <span className="select-all font-mono font-semibold tracking-wider text-inkt">{info.code}</span>
         </p>
       )}
+      {info === null && !fout && <p className="bezig-tekst py-4 text-[15px] text-rustig">Laden</p>}
       <ul className="-mx-3 flex flex-col">
         {(info?.deelnemers ?? []).map((d) => (
           <li key={d.id} className="flex items-center gap-3 rounded-2xl px-3 py-2">
@@ -509,15 +516,33 @@ function LedenBlad({ c, sluit, weg }: { c: Community; sluit: () => void; weg: ()
           </li>
         ))}
       </ul>
-      {c.rol !== "eigenaar" && (zeker ? (
+    </div>
+  );
+}
+
+function Verlaten({ c, weg }: { c: Community; weg: () => void }) {
+  const [zeker, setZeker] = useState(false);
+  const [fout, setFout] = useState("");
+  async function verlaten() {
+    try {
+      await communityAntwoorden(c.id, "verlaten");
+      weg();
+    } catch (er) {
+      setFout(foutVan(er));
+    }
+  }
+  return (
+    <div className="flex flex-col gap-2 px-6 pb-10">
+      {fout && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{fout}</p>}
+      {zeker ? (
         <div className="flex gap-2">
           <button onClick={() => setZeker(false)} className="h-12 flex-1 rounded-2xl bg-vlak font-medium">Toch niet</button>
           <button onClick={verlaten} className="h-12 flex-1 rounded-2xl bg-red-600 font-medium text-white">Verlaten</button>
         </div>
       ) : (
-        <button onClick={() => setZeker(true)} className="h-12 rounded-2xl text-red-600 dark:text-red-400">Community verlaten</button>
-      ))}
-    </Onderblad>
+        <button onClick={() => setZeker(true)} className="h-12 rounded-2xl bg-vlak text-red-600 dark:text-red-400">Community verlaten</button>
+      )}
+    </div>
   );
 }
 
@@ -530,10 +555,45 @@ const CATEGORIEEN: [string, Ic][] = [["Kleding", Shirt], ["Elektronica", Scherm]
   ["Sport", Bal], ["Boeken", Boek], ["Kinderen", Kind], ["Hobby", Penseel]];
 const chip = (aan: boolean) => `flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm ${aan ? "bg-accent font-medium text-white" : "bg-vlak text-rustig"}`;
 
-function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
-  const [bestellingen, setBestellingen] = useState<{ melding?: string } | null>(openGevraagd);
-  const [verkopen, setVerkopen] = useState(false);
+type WinkelDeelNaam = "ontdekken" | "verkopen" | "bestellingen";
+
+/** De winkel als eigen app: ontdekken, zelf verkopen en je bestellingen, met een eigen menu onderin. */
+function WinkelApp({ start, melding, bestel, terug }: { start: WinkelDeelNaam; melding?: string; bestel: (p: Product) => void;
+  terug: () => void }) {
+  const [deel, setDeel] = useState<WinkelDeelNaam>(start);
   const [wacht, setWacht] = useState(0);
+  const [verkopen, setVerkopen] = useState(false);
+  const [bijgewerkt, setBijgewerkt] = useState(0);
+  useEffect(() => {
+    bestellingenLijst().then((l) => setWacht(l.filter(wachtOpMij).length)).catch(() => {});
+  }, [deel]);
+  const items: MenuItem<WinkelDeelNaam>[] = [["ontdekken", "Ontdekken", Zoek], ["verkopen", "Verkopen", Plus],
+    ["bestellingen", "Bestellingen", Tas, wacht]];
+  return (
+    <div className="flex min-h-full flex-col">
+      <AppKop terug={terug} terugNaam="Chat" titel={deel === "ontdekken" ? "Winkel" : items.find(([k]) => k === deel)![1]} />
+      {deel === "ontdekken" && <WinkelDeel key={bijgewerkt} bestel={bestel} verkoop={() => setVerkopen(true)} />}
+      {deel === "verkopen" && (
+        <div className="flex flex-col gap-5 px-6 pb-8">
+          <button onClick={() => setVerkopen(true)} className="flex items-center gap-3 rounded-2xl bg-accent/10 p-4 text-left">
+            <Plus className="size-6 text-accent" />
+            <span className="flex flex-col">
+              <span className="font-medium">Zet iets te koop</span>
+              <span className="text-[13px] text-rustig">Een product of een dienst, met foto en prijs</span>
+            </span>
+          </button>
+          <JouwAanbod key={bijgewerkt} />
+        </div>
+      )}
+      {deel === "bestellingen" && <Bestellingen melding={deel === start ? melding : undefined} />}
+      <AppMenu naam="Winkel" items={items} actief={deel} kies={setDeel} />
+      {verkopen && <Verkopen sluit={() => setVerkopen(false)}
+        geplaatst={() => { setVerkopen(false); setBijgewerkt((n) => n + 1); }} />}
+    </div>
+  );
+}
+
+function WinkelDeel({ bestel, verkoop }: { bestel: (p: Product) => void; verkoop: () => void }) {
   const [zoek, setZoek] = useState("");
   const [term, setTerm] = useState("");
   const [bron, setBron] = useState<NonNullable<Filter["bron"]>>("alles");
@@ -542,7 +602,6 @@ function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
   const [winkels, setWinkels] = useState<WinkelKaart[]>([]);
   const [stapel, setStapel] = useState<Blad[]>([]);
   const [fout, setFout] = useState("");
-  const [bijgewerkt, setBijgewerkt] = useState(0);
 
   useEffect(() => {
     setFout("");
@@ -550,13 +609,7 @@ function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
     zoeken(term, { bron, bezorgen, max: 40 }).then(setProducten).catch((e) => { setProducten([]); setFout(foutVan(e)); });
     if (bron === "alles" || bron === "winkels")
       rpc<WinkelKaart[]>("winkels_zoeken", { p_zoekterm: term }).then((w) => setWinkels(Array.isArray(w) ? w : [])).catch(() => {});
-  }, [term, bron, bezorgen, bijgewerkt]);
-  useEffect(() => {
-    if (!bestellingen) bestellingenLijst().then((l) => setWacht(l.filter(wachtOpMij).length)).catch(() => {});
-  }, [bestellingen]);
-
-  if (bestellingen) return <Bestellingen melding={bestellingen.melding} terug={() => setBestellingen(null)} />;
-
+  }, [term, bron, bezorgen]);
   const zoekt = term.trim() !== "";
   return (
     <div className="flex flex-col gap-5 px-6 pb-8">
@@ -574,19 +627,6 @@ function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
         ))}
         <button aria-pressed={bezorgen} onClick={() => setBezorgen((b) => !b)} className={chip(bezorgen)}>
           <Truck className="size-4" />Bezorgen
-        </button>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <button onClick={() => setVerkopen(true)} className="flex flex-col items-start gap-1 rounded-2xl bg-accent/10 p-4 text-left">
-          <Plus className="size-5 text-accent" />
-          <span className="font-medium">Verkopen</span>
-          <span className="text-[13px] text-rustig">Product of dienst</span>
-        </button>
-        <button onClick={() => setBestellingen({})} className="relative flex flex-col items-start gap-1 rounded-2xl bg-vlak p-4 text-left">
-          <Tas className="size-5 text-rustig" />
-          <span className="font-medium">Bestellingen</span>
-          <span className="text-[13px] text-rustig">{wacht > 0 ? `${wacht} wacht${wacht === 1 ? "" : "en"} op jou` : "Volg je status"}</span>
-          {wacht > 0 && <span className="absolute top-3 right-3 rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white">{wacht}</span>}
         </button>
       </div>
       {!zoekt && (
@@ -619,7 +659,6 @@ function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
           </ul>
         </section>
       )}
-      {!zoekt && <JouwAanbod />}
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium text-rustig">{zoekt ? `Gevonden voor "${term}"` : bron === "diensten" ? "Diensten" : "Te koop"}</h2>
         {fout && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{fout}</p>}
@@ -629,31 +668,29 @@ function WinkelDeel({ bestel }: { bestel: (p: Product) => void }) {
               <Tas className="size-8 text-zacht" />
               <p className="font-medium">{zoekt ? "Niets gevonden" : "Hier staat nog niets"}</p>
               <p className="text-sm text-rustig">{bezorgen ? "Zet Bezorgen uit om ook ophalen te zien, of " : ""}zet zelf als eerste iets te koop.</p>
-              <button onClick={() => setVerkopen(true)} className="h-10 rounded-full bg-accent px-5 text-sm font-medium text-white">Verkopen</button>
+              <button onClick={verkoop} className="h-10 rounded-full bg-accent px-5 text-sm font-medium text-white">Verkopen</button>
             </div>
           ) : <Raster producten={producten} open={(p) => setStapel([{ soort: "product", p }])} />}
       </section>
       <p className="text-[13px] text-zacht">Je kunt ook de assistent vragen iets te zoeken. Er gaat pas iets weg als jij zelf op Bestellen tikt.</p>
       <Bladen stapel={stapel} zet={setStapel} bestel={(p) => { setStapel([]); bestel(p); }} />
-      {verkopen && <Verkopen sluit={() => setVerkopen(false)} geplaatst={() => { setVerkopen(false); setBijgewerkt((n) => n + 1); }} />}
     </div>
   );
 }
 
 /** Jij: je eigen plek. Je profiel zoals anderen het zien, je story, en alles wat je koopt en verkoopt. */
-function Jij({ staat, ik, naarInstellingen, naar }: { staat: Staat; ik: number | null; naarInstellingen: () => void;
-  naar: (d: Deel) => void }) {
+function Jij({ staat, ik, naarInstellingen, winkel }: { staat: Staat; ik: number | null; naarInstellingen: () => void;
+  winkel: (d: WinkelDeelNaam) => void }) {
   const g = staat.gebruiker;
   const naam = g.weergavenaam || g.naam || "Jij";
   const [melding, setMelding] = useState("");
   const [foto] = useEigenFoto(g);
-  const [bestellingen, setBestellingen] = useState(false);
   const [verkopen, setVerkopen] = useState(false);
   const [bijgewerkt, setBijgewerkt] = useState(0);
   const [wacht, setWacht] = useState(0);
   useEffect(() => {
-    if (!bestellingen) bestellingenLijst().then((l) => setWacht(l.filter(wachtOpMij).length)).catch(() => {});
-  }, [bestellingen]);
+    bestellingenLijst().then((l) => setWacht(l.filter(wachtOpMij).length)).catch(() => {});
+  }, []);
 
   async function delen() {
     const tekst = `Spreek me in de app: @${g.naam}`;
@@ -663,7 +700,6 @@ function Jij({ staat, ik, naarInstellingen, naar }: { staat: Staat; ik: number |
     } catch { /* gestopt met delen */ }
   }
 
-  if (bestellingen) return <Bestellingen terug={() => setBestellingen(false)} />;
   const tegel = "flex flex-col items-start gap-1 rounded-2xl bg-vlak p-4 text-left";
   return (
     <div className="flex flex-col gap-6 pb-8">
@@ -692,7 +728,7 @@ function Jij({ staat, ik, naarInstellingen, naar }: { staat: Staat; ik: number |
       )}
 
       <section className="grid grid-cols-2 gap-2 px-6">
-        <button onClick={() => setBestellingen(true)} className={`${tegel} relative`}>
+        <button onClick={() => winkel("bestellingen")} className={`${tegel} relative`}>
           <Tas className="size-5 text-accent" /><span className="font-medium">Bestellingen</span>
           <span className="text-[13px] text-rustig">{wacht ? `${wacht} wacht op jou` : "Volg waar het is"}</span>
           {wacht > 0 && <span className="absolute top-3 right-3 size-2.5 rounded-full bg-accent" />}
@@ -700,14 +736,6 @@ function Jij({ staat, ik, naarInstellingen, naar }: { staat: Staat; ik: number |
         <button onClick={() => setVerkopen(true)} className={tegel}>
           <Plus className="size-5 text-accent" /><span className="font-medium">Verkopen</span>
           <span className="text-[13px] text-rustig">Product of dienst</span>
-        </button>
-        <button onClick={() => naar("communitys")} className={tegel}>
-          <Mensen className="size-5 text-accent" /><span className="font-medium">Community's</span>
-          <span className="text-[13px] text-rustig">Je groepen en de feed</span>
-        </button>
-        <button onClick={() => naar("oproepen")} className={tegel}>
-          <Telefoon className="size-5 text-accent" /><span className="font-medium">Oproepen</span>
-          <span className="text-[13px] text-rustig">Bellen en belafspraken</span>
         </button>
       </section>
 
@@ -782,10 +810,15 @@ function NieuwVeld({ sluit, gestart }: { sluit: () => void; gestart: (id: number
   );
 }
 
-function Gesprekscherm({ id, ik, begin, terug, projectOpen }: { id: number; ik: number; begin?: Gesprek; terug: () => void; projectOpen?: boolean }) {
+function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat }: { id: number; ik: number; begin?: Gesprek; terug: () => void; projectOpen?: boolean; staat?: Staat; setStaat?: React.Dispatch<React.SetStateAction<Staat | null>> }) {
   const [g, setG] = useState<Gesprek | undefined>(begin);
   const [regels, setRegels] = useState<Regel[]>([]);
   const [invoer, setInvoer] = useState("");
+  useEffect(()=>{
+    const concept=(e:Event)=>{const d=(e as CustomEvent).detail;if(d?.gesprek!==id||typeof d.tekst!=="string"||!d.tekst.trim()||d.tekst.length>1500||/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(d.tekst))return;setInvoer(oud=>oud.trim()?oud:d.tekst);};
+    window.addEventListener("assistent-chatconcept",concept);return()=>window.removeEventListener("assistent-chatconcept",concept);
+  },[id]);
+
   const [fout, setFout] = useState("");
   const [timer, setTimer] = useState(false);
   const tot = useRef(0);
@@ -896,9 +929,10 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen }: { id: number; ik: 
         </div>
       )}
 
-      {g?.status === "lid" && <ProjectWerkruimte beginOpen={projectOpen} gesprek={id} regels={regels} schrijven={magSchrijven} verdwijnend={!!g.verdwijnen} />}
+      {g?.soort === "twee" && g.status === "lid" && magSchrijven && !g.verdwijnen && g.leden.filter(l=>l.status==="lid"&&l.id!==ik).length===1 && <BetaalverzoekMaken gesprek={id} ander={g.leden.find(l=>l.status==="lid"&&l.id!==ik)!.id} vernieuw={bijwerken} />}
+      {g?.status === "lid" && <ProjectWerkruimte beginOpen={projectOpen} gesprek={id} regels={regels} schrijven={magSchrijven} verdwijnend={!!g.verdwijnen} ik={ik} leden={g.leden} vernieuw={bijwerken} aiMogelijk={!g.alleen_beheer} staat={staat} setData={data => setStaat?.(oud => oud ? { ...oud, data } : oud)} />}
       <main className="flex flex-1 flex-col gap-1 px-4 py-4" aria-live="polite">
-        {regels.filter(r => r.bericht?.t !== "project").map((r, i, zichtbaar) => {
+        {regels.filter(r => !["project", "projectactie"].includes(r.bericht?.t ?? "")).map((r, i, zichtbaar) => {
           const mijn = r.afzender === ik;
           const vorige = zichtbaar[i - 1];
           const nieuweDag = !vorige || datumTekst(new Date(vorige.tijd)) !== datumTekst(new Date(r.tijd));
@@ -909,6 +943,11 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen }: { id: number; ik: 
           const bijzonder = r.weg || r.fout || !r.bericht || r.bericht.t !== "tekst";
           return (
             <Fragment key={r.id}>
+              <span id={`chat-bericht-${r.id}`} tabIndex={-1} />
+              {r.bericht?.t === "tekst" && !r.weg && !r.fout && g?.status === "lid" && magSchrijven && <button
+                className="min-h-11 self-start px-2 text-xs text-accent" onClick={() => window.dispatchEvent(new CustomEvent("assistent-projectbron", { detail: { gesprek: id, id: r.id } }))}>
+                Maak projectvoorstel uit dit bericht
+              </button>}
               {nieuweDag && (
                 <p className="my-3 text-center text-xs font-medium text-zacht">
                   {datumTekst(new Date(r.tijd)) === datumTekst(new Date()) ? "Vandaag" : dagTitel(new Date(r.tijd))}
@@ -918,7 +957,7 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen }: { id: number; ik: 
                 {groep && !mijn && !zelfde && <span className="mb-0.5 ml-3 text-xs font-medium text-rustig">{lid?.naam}</span>}
                 <div className={`max-w-[80%] rounded-[20px] px-3.5 py-2 ${mijn ? "rounded-br-md bg-accent text-white" : "rounded-bl-md bg-vlak"}
                   ${bijzonder ? "italic opacity-80" : ""}`}>
-                  <span className="whitespace-pre-wrap break-words">{tekst}</span>
+                  {!r.weg&&!r.fout&&r.bericht?.t==="projectbetaling"&&g?.soort==="twee" ? <ChatBetaalkaart bericht={r.bericht} ander={mijn ? g.leden.find(l=>l.status==="lid"&&l.id!==ik)?.id ?? 0 : r.afzender} mijn={mijn} /> : <span className="whitespace-pre-wrap break-words">{tekst}</span>}
                   <span className={`ml-2 inline-flex translate-y-0.5 items-center gap-0.5 text-[11px] ${mijn ? "text-white/70" : "text-zacht"}`}>
                     {new Date(r.tijd).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
                     {mijn && (r.id <= gelezen ? <Dubbelvink className="size-4 text-white" />

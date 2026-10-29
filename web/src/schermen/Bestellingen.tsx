@@ -4,7 +4,7 @@ import { Terug } from "../iconen";
 import { klaar, lijst, stand, stappen, uitvoeren, wachtOpMij, type Bestelling, type Stap } from "../lib/bestellingen";
 import { euro } from "../lib/winkelen";
 
-export default function Bestellingen({ terug, melding: begin }: { terug: () => void; melding?: string }) {
+export default function Bestellingen({ terug, melding: begin }: { terug?: () => void; melding?: string }) {
   const [alle, setAlle] = useState<Bestelling[] | null>(null);
   const [fout, setFout] = useState("");
   const [melding, setMelding] = useState(begin ?? "");
@@ -22,10 +22,12 @@ export default function Bestellingen({ terug, melding: begin }: { terug: () => v
 
   return (
     <div className="opkomen flex flex-col gap-5 px-6 pb-8">
-      <button onClick={terug} className="-ml-2 flex h-10 w-fit items-center gap-1 pr-3 text-rustig">
-        <Terug className="size-5" /> Winkel
-      </button>
-      <h2 className="-mt-2 text-2xl font-semibold tracking-tight">Bestellingen</h2>
+      {terug && <>
+        <button onClick={terug} className="-ml-2 flex h-10 w-fit items-center gap-1 pr-3 text-rustig">
+          <Terug className="size-5" /> Winkel
+        </button>
+        <h2 className="-mt-2 text-2xl font-semibold tracking-tight">Bestellingen</h2>
+      </>}
       {melding && <p role="status" className="rounded-2xl bg-vlak px-4 py-3 text-[15px]">{melding}</p>}
       {fout && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{fout}</p>}
       {alle === null && !fout && <p className="bezig-tekst py-6 text-[15px]">Laden</p>}

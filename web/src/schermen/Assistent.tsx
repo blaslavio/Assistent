@@ -1,7 +1,8 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Staat } from "../App";
-import { Bestand, Bijlage, Herstel, Kalender, Klok, Kruis, Microfoon, Pijl, Plus, Vinkje, Vonk } from "../iconen";
+import { Opstellen } from "./MailOpstellen";
+import { Bestand, Bijlage, Boek, Envelop, Herstel, Kalender, Klok, Kruis, Microfoon, Pijl, Plus, Vinkje, Vonk } from "../iconen";
 import { GrafiekKaart, type Grafiek } from "../grafiek";
 import { ACCEPTEER, BijlageFout, MAX_SAMEN, lezen, type Bijlage as Bijlagebestand } from "../lib/bijlagen";
 import { antwoord, gebruikerBeurt, gesprekLeeg, notitie, ongedaanMaken, verbinding, zonderLabels, type Actie,
@@ -54,6 +55,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
   const [luistert, setLuistert] = useState(false);
   const [klaarNr, setKlaarNr] = useState(0);
   const [geschiedenis, setGeschiedenis] = useState(false);
+  const [teVersturen, setTeVersturen] = useState<{ plek: [number, number]; mail: NonNullable<Actie["mail"]> } | null>(null);
   const stemming: Stemming = bezig ? "denkt" : luistert ? "luistert" : invoer.trim() ? "kijkt" : "wacht";
   const [hup, setHup] = useState(0);
   const [voorstelNr, setVoorstelNr] = useState(0);
@@ -247,6 +249,16 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
     h.start();
   }
 
+  function naVersturen(verstuurd: boolean) {
+    const t = teVersturen;
+    setTeVersturen(null);
+    if (!t || !verstuurd) return;
+    const [i, j] = t.plek;
+    wijzig(i, (b) => ({ ...b, acties: b.acties.map((x, k) => (k === j ? { ...x, mail: undefined,
+      detail: `Verstuurd aan ${t.mail.aan.join(", ")}` } : x)) }));
+    notitie(`De gebruiker heeft de mail "${t.mail.onderwerp}" zelf verstuurd.`);
+  }
+
   async function terugdraaien(i: number, j: number) {
     const a = beurten[i].acties[j];
     if (!a.ongedaan || a.teruggedraaid) return;
@@ -351,7 +363,8 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
                 {b.tekst && (b.fout ? <p className="text-rustig">{b.tekst}</p> : <Opmaak tekst={b.tekst} />)}
                 {b.acties.length > 0 && (
                   <ul className="flex flex-col gap-2">
-                    {b.acties.map((a, j) => <Kaartje key={j} actie={a} terug={() => terugdraaien(i, j)} />)}
+                    {b.acties.map((a, j) => <Kaartje key={j} actie={a} terug={() => terugdraaien(i, j)}
+                      versturen={a.mail ? () => setTeVersturen({ plek: [i, j], mail: a.mail! }) : undefined} />)}
                   </ul>
                 )}
                 {b.grafieken?.map((g, j) => <GrafiekKaart key={j} g={g} />)}
@@ -374,6 +387,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
       )}
 
       <Bladen stapel={bladen} zet={setBladen} bestel={koop} />
+      {teVersturen && <Opstellen data={staat.data} begin={teVersturen.mail} sluit={naVersturen} />}
       {geschiedenis && <Gesprekken sluit={() => setGeschiedenis(false)} open={verderIn} huidig={leeg ? undefined : gesprek.id} />}
 
       <form onSubmit={verstuur} className="sticky bottom-0 bg-white px-4 pb-3 pt-2 dark:bg-[#0b0b0e]">
@@ -457,11 +471,12 @@ function Bol({ groot = false, actief = false }: { groot?: boolean; actief?: bool
 const KLEUR: Record<Actie["soort"], string> = {
   afspraak: "bg-accent/10 text-accent", taak: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   klaar: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", onthouden: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  weg: "bg-vlak text-rustig",
+  weg: "bg-vlak text-rustig", mail: "bg-blue-500/10 text-blue-600 dark:text-blue-400", leren: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
 };
 
-function Kaartje({ actie, terug }: { actie: Actie; terug: () => void }) {
-  const Icoon = actie.soort === "afspraak" ? Kalender : actie.soort === "onthouden" ? Vonk : Vinkje;
+function Kaartje({ actie, terug, versturen }: { actie: Actie; terug: () => void; versturen?: () => void }) {
+  const Icoon = actie.soort === "afspraak" ? Kalender : actie.soort === "onthouden" ? Vonk
+    : actie.soort === "leren" ? Boek : actie.soort === "mail" ? Envelop : Vinkje;
   return (
     <li className={`flex items-center gap-3 rounded-2xl border border-lijn py-2.5 pr-2 pl-3 ${actie.teruggedraaid ? "opacity-50" : ""}`}>
       <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${KLEUR[actie.soort]}`}>
@@ -471,6 +486,9 @@ function Kaartje({ actie, terug }: { actie: Actie; terug: () => void }) {
         <span className={`line-clamp-2 font-medium ${actie.teruggedraaid ? "line-through" : ""}`}>{actie.titel}</span>
         <span className="truncate text-[13px] text-rustig">{actie.teruggedraaid ? "Ongedaan gemaakt" : actie.detail}</span>
       </span>
+      {versturen && !actie.teruggedraaid && (
+        <button onClick={versturen} className="h-9 shrink-0 rounded-full bg-accent px-3.5 text-sm font-medium text-white">Bekijken</button>
+      )}
       {actie.ongedaan && !actie.teruggedraaid && (
         <button onClick={terug} aria-label={`${actie.titel} ongedaan maken`} title="Ongedaan maken"
           className="flex size-10 shrink-0 items-center justify-center rounded-full text-rustig hover:bg-vlak">

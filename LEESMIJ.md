@@ -1,5 +1,7 @@
 # Mijn assistent
 
+Projectwerkruimte, de projectmotor (waarom/hoe/wanneer/als) en chatbetaalverzoeken: zie [PROJECTREGIE.md](PROJECTREGIE.md) voor gebruik, privacy en de uitrolvoorwaarden. Deze uitbreiding is nog niet live.
+
 Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je praat er gewoon Nederlands mee.
 
 **Wat de app kan** (een rustig menu bovenaan; op de telefoon via » linksboven; onderaan kun je altijd iets vragen aan de assistent)

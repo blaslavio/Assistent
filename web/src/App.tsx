@@ -17,6 +17,8 @@ import { deelCode } from "./lib/delen";
 import { GedeeldScherm } from "./schermen/Delen";
 import { BoekScherm, GastScherm } from "./schermen/Gasten";
 import { boekAdres, boekingCode, verwerken } from "./lib/gasten";
+import { PrikScherm } from "./schermen/Prikken";
+import { prikCode } from "./lib/prikken";
 import { Vangnet } from "./vangnet";
 
 // Een gedeelde link (?deel=...) opent een pagina die je zonder inloggen kunt zien.
@@ -24,6 +26,8 @@ const GEDEELD = deelCode();
 // Afspraak maken zonder account (?boek=linknaam) en de eigen pagina van de gast (?boeking=code).
 const BOEK = boekAdres();
 const BOEKING = boekingCode();
+// Stemmen op een datum via een gedeelde link (?prik=code), ook zonder account.
+const PRIK = prikCode();
 
 // Terug van betalen bij Stripe (?betaald=...): meteen naar je bestellingen.
 const BETAALD = adresWaarde("betaald");
@@ -57,8 +61,10 @@ export default function App() {
   const [fout, setFout] = useState("");
   const [werkGesprek, setWerkGesprek] = useState<{ id: number; ronde: number; gebruiker: number } | null>(null);
 
+  const [voorChat, setVoorChat] = useState<Tab>("vandaag");
   const setTab = (t: Tab) => {
     if (t === "instellingen") setVorige(tab === "instellingen" ? vorige : tab);
+    if (t === "chat" && tab !== "chat") setVoorChat(tab);
     setTabRuw(t);
   };
 
@@ -99,20 +105,24 @@ export default function App() {
   if (GEDEELD) return <GedeeldScherm code={GEDEELD} />;
   if (BOEKING) return <GastScherm code={BOEKING} />;
   if (BOEK) return <BoekScherm adres={BOEK} />;
+  if (PRIK) return <PrikScherm code={PRIK} />;
   if (!klaar) return <div className="h-full" />;
   if (!staat || !huidigeSessie()) return <Inloggen opIngelogd={laden} />;
 
   const scherm = {
     vandaag: <Vandaag key={staat.gebruiker.id} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
-      naarAssistent={() => setTab("assistent")} vernieuw={laden} ga={setTab} />,
+      naarAssistent={() => setTab("assistent")} vernieuw={laden} ga={setTab} naarProject={gesprek => {
+        setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat");
+      }} />,
     agenda: <Agenda staat={staat} setStaat={setStaat} />,
     chat: <Chat key={staat.gebruiker.id} werkGesprek={werkGesprek} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
+      verlaat={() => setTab(voorChat)} terugNaam={TABS.find((t) => t.id === voorChat)?.naam}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
     assistent: <Suspense fallback={null}><Assistent staat={staat} vernieuw={laden} teKopen={teKopen}
       gekocht={() => setTeKopen(null)} vooraf={vooraf} voorafGebruikt={() => setVooraf("")}
       naarBestellingen={() => { openVragen(); setTab("chat"); }} /></Suspense>,
     instellingen: <Instellingen staat={staat} vernieuw={laden} terug={() => setTab(vorige)} opUitgelogd={() => setStaat(null)}
-      setStaat={setStaat} />,
+      setStaat={setStaat} vraag={(t) => { setVooraf(t); setTab("assistent"); }} />,
   }[tab];
 
   return (
@@ -120,7 +130,8 @@ export default function App() {
       {fout && <p role="alert" className="bg-vlak px-6 py-3 text-sm text-rustig">{fout}</p>}
       <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}>{scherm}</Vangnet></div>
       <Vangnet naam="bellen" klein><BelLaag naarProject={(gesprek) => { setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat"); }} /></Vangnet>
-      <nav aria-label="Hoofdmenu"
+      {/* In de chat heeft de chat zijn eigen menu, zoals een aparte app; linksboven ga je terug. */}
+      {tab !== "chat" && <nav aria-label="Hoofdmenu"
         className="flex shrink-0 justify-around border-t border-lijn pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)]">
         {TABS.map(({ id, naam, Icoon }) => {
           const actief = tab === id;
@@ -132,7 +143,7 @@ export default function App() {
             </button>
           );
         })}
-      </nav>
+      </nav>}
     </div>
   );
 }
