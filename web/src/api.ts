@@ -217,7 +217,9 @@ export type Afspraak = {
   id: number | string; titel: string; start: string; einde?: string | null; locatie?: string; soort?: string;
   sport?: string; notitie?: string; extern?: boolean;
 };
-export type Taak = { id: number; titel: string; deadline?: string | null; klaar: boolean; prioriteit?: string };
+export type Taak = { id: number; titel: string; deadline?: string | null; klaar: boolean; prioriteit?: string; notitie?: string;
+  herhaal?: Herhaal | null };
+export type Herhaal = "dag" | "week" | "maand";
 export type Gegevens = {
   taken: Taak[]; afspraken: Afspraak[]; volgend_id: number;
   instellingen?: { thuisadres?: string; avatar?: { naam?: string; foto?: string } } & Record<string, unknown>;

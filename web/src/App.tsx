@@ -8,6 +8,7 @@ import { cursusLinkVragen, terugVanCursus } from "./lib/cursus";
 import { Ballon, Kalender, Tandwiel, Vonk, Zon } from "./iconen";
 import Inloggen from "./schermen/Inloggen";
 import Vandaag from "./schermen/Vandaag";
+import { AltijdVragen } from "./schermen/Vraagbalk";
 import { weergaveToepassen, type Weergave } from "./schermen/Algemeen";
 import type { Bestemming } from "./lib/naar";
 import { MascotteFeest } from "./mascotte";
@@ -235,6 +236,7 @@ export default function App() {
         <Suspense fallback={null}><PostBlad id={gedeeldePost} sluit={() => setGedeeldePost(null)} /></Suspense>
       )}
       {/* In de chat heeft de chat zijn eigen menu, zoals een aparte app; linksboven ga je terug. */}
+      {(tab === "agenda" || tab === "instellingen") && <AltijdVragen vraag={(t) => { setVooraf(t); setTab("assistent"); }} />}
       {tab !== "chat" && <nav aria-label="Hoofdmenu"
         className="flex shrink-0 justify-around border-t border-lijn pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)]">
         {TABS.map(({ id, naam, Icoon }) => {

@@ -11,6 +11,7 @@ import { Vraagbalk } from "./Vraagbalk";
 import { afhandelen, voorstel } from "../lib/voorstellen";
 import { voorJou, type Melding } from "../lib/voorjou";
 import { naar } from "../lib/naar";
+import { afvinkenIn } from "../lib/taken";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
 import { weerNu, type Weer } from "../lib/weer";
 import { eerstvolgende, instellingen as feestInstellingen } from "../lib/feestdagen";
@@ -99,13 +100,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga, vraag }
     const over = data.taken.filter((t) => !t.klaar && t.id !== id).length;
     mascotteZeg(afgevinktTekst(over));
     setStaat({ ...staat, data: { ...data, taken: data.taken.map((t) => (t.id === id ? { ...t, klaar: true } : t)) } });
-    const nieuw = await bijwerken((g) => {
-      const taak = g.taken.find((t) => t.id === id);
-      if (taak) taak.klaar = true;
-      // Ingeplande focusblokken voor deze taak die nog moeten komen, zijn niet meer nodig.
-      const nu = nuTekst();
-      g.afspraken = g.afspraken.filter((a) => (a as { taak_id?: number }).taak_id !== id || a.start < nu);
-    });
+    const nieuw = await bijwerken((g) => { afvinkenIn(g, id); });
     setStaat({ ...staat, data: nieuw });
   }
 

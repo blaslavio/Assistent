@@ -12,6 +12,7 @@ import { kop } from "./instellingen-ui";
 import { Leren } from "./Leren";
 import { Zakelijk } from "./Zakelijk";
 import { Huishoudens } from "./Huishouden";
+import { LijstVergelijken, ProductZoeken } from "./Prijsvergelijk";
 
 import { ONDERDELEN, type OnderdeelNaam } from "../lib/onderdeel-lijst";
 export { ONDERDELEN, type OnderdeelNaam };
@@ -77,7 +78,9 @@ function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documen
 
   function toevoegen(e: FormEvent) {
     e.preventDefault();
-    const tekst = invoer.trim();
+    voegToe(invoer.trim());
+  }
+  function voegToe(tekst: string) {
     if (!tekst) return;
     setInvoer("");
     wijzig((lijst, g) => {
@@ -105,7 +108,8 @@ function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documen
         placeholder={naam === "boodschappen" ? "Melk, brood, eieren" : notities ? "Nieuwe notitie" : "Wat wil je kopen?"} />
       <button disabled={!invoer.trim()} aria-label="Toevoegen" className={`${knop} w-12 px-0`}><Plus className="size-5" /></button>
     </form>
-    {items.length === 0 && <p className="text-rustig">Nog niets op deze lijst.</p>}
+    {items.length === 0 && naam !== "boodschappen" && <p className="text-rustig">Nog niets op deze lijst.</p>}
+    {naam === "boodschappen" && <VaakGekocht items={items} voegToe={voegToe} />}
     {open.length > 0 && (
       <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
         {open.map((i) => (
@@ -149,8 +153,31 @@ function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documen
         </ul>
       </section>
     )}
+    {naam === "boodschappen" && open.length > 0 && <LijstVergelijken key={open.map(tekstVan).join(",")} lijst={open.map(tekstVan)} />}
+    {naam === "boodschappen" && <ProductZoeken toevoegen={voegToe} />}
     {fout && <p className="text-sm text-red-600 dark:text-red-400">{fout}</p>}
   </>;
+}
+
+const BASIS = ["Melk", "Brood", "Eieren", "Kaas", "Bananen", "Koffie"];
+
+/** Wat je vaak koopt (of een paar basisdingen), met één tik weer op je lijst. */
+function VaakGekocht({ items, voegToe }: { items: Item[]; voegToe: (t: string) => void }) {
+  const open = new Set(items.filter((i) => !i.gekocht).map((i) => tekstVan(i).toLowerCase()));
+  const eerder = [...new Set(items.filter((i) => i.gekocht).map(tekstVan).reverse())];
+  const keuze = [...eerder, ...BASIS].filter((t, n, l) => t && !open.has(t.toLowerCase())
+    && l.findIndex((x) => x.toLowerCase() === t.toLowerCase()) === n).slice(0, 8);
+  if (!keuze.length) return null;
+  return (
+    <div className="-mt-3 flex flex-wrap gap-1.5">
+      <span className="w-full text-[13px] text-rustig">{eerder.length ? "Vaak gekocht" : "Snel toevoegen"}</span>
+      {keuze.map((t) => (
+        <button key={t} onClick={() => voegToe(t)} className="flex h-8 items-center gap-1 rounded-full bg-vlak px-3 text-sm">
+          <Plus className="size-3.5" /> {t}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function Notitie({ item, terug, bewaar }: { item: Item; terug: () => void; bewaar: (tekst: string) => Promise<void> }) {
