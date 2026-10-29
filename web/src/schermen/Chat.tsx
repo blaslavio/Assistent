@@ -732,7 +732,7 @@ function Jij({ staat, ik, naarInstellingen, winkel }: { staat: Staat; ik: number
 
       <div className="px-6"><JouwAanbod key={bijgewerkt} /></div>
 
-      <ul className="mx-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-[20px] bg-vlak">
+      <ul className="mx-6 flex flex-col divide-y divide-lijn overflow-hidden rounded-3xl bg-vlak">
         <li>
           <button onClick={naarInstellingen} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
             <Tandwiel className="size-5 text-rustig" />
@@ -934,7 +934,7 @@ function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin
               )}
               <div className={`flex flex-col ${mijn ? "items-end" : "items-start"} ${zelfde ? "" : "mt-2"}`}>
                 {groep && !mijn && !zelfde && <span className="mb-0.5 ml-3 text-xs font-medium text-rustig">{lid?.naam}</span>}
-                <div className={`max-w-[80%] rounded-[20px] px-3.5 py-2 ${mijn ? "rounded-br-md bg-accent text-white" : "rounded-bl-md bg-vlak"}
+                <div className={`max-w-[80%] rounded-3xl px-3.5 py-2 ${mijn ? "rounded-br-md bg-accent text-white" : "rounded-bl-md bg-vlak"}
                   ${bijzonder ? "italic opacity-80" : ""}`}>
                   <span className="whitespace-pre-wrap break-words">{tekst}</span>
                   <span className={`ml-2 inline-flex translate-y-0.5 items-center gap-0.5 text-[11px] ${mijn ? "text-white/70" : "text-zacht"}`}>
@@ -965,7 +965,7 @@ function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin
       ) : (
         <form onSubmit={stuur} className="sticky bottom-0 bg-white px-4 pb-3 pt-2 dark:bg-[#0b0b0e]">
           {fout && <p role="alert" className="px-2 pb-2 text-sm text-red-600 dark:text-red-400">{fout}</p>}
-          <label className="flex items-center gap-2 rounded-[26px] bg-vlak py-1.5 pr-1.5 pl-5">
+          <label className="flex items-center gap-2 rounded-3xl bg-vlak py-1.5 pr-1.5 pl-5">
             <span className="sr-only">Bericht</span>
             <input value={invoer} onChange={(e) => setInvoer(e.target.value)} placeholder="Bericht"
               className="h-10 flex-1 bg-transparent outline-none placeholder:text-zacht" />

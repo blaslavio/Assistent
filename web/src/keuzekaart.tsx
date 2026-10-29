@@ -33,7 +33,7 @@ export function KeuzeKaart({ keuze, gekozen, open, kies, compact = false }:
 /** Rustige variant voor Vandaag: de vraag met een rij knoppen, zonder uitleg per optie. */
 function KleineKaart({ keuze, gekozen, open, kies }: { keuze: Keuze; gekozen?: number; open: boolean; kies: (j: number) => void }) {
   return (
-    <div role="group" aria-label={keuze.vraag} className="flex flex-col gap-3 rounded-[20px] bg-vlak p-4">
+    <div role="group" aria-label={keuze.vraag} className="flex flex-col gap-3 rounded-3xl bg-vlak p-4">
       <p className="text-[15px] font-medium">{keuze.vraag}</p>
       <div className="flex flex-wrap gap-2">
         {keuze.opties.map((o, j) => (

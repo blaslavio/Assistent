@@ -1,0 +1,16 @@
+// De namen en iconen van de onderdelen, los van de schermen zelf, zodat een menu ze kan tonen zonder alles te laden.
+import { Bestand, Bewerk, Boek, Grafiek, Hart, Lijstje, Tas, Winkelpand } from "../iconen";
+
+export type OnderdeelNaam = "boodschappen" | "kooplijst" | "wenslijst" | "notities" | "documenten" | "budget" | "beleggen" | "leren" | "zakelijk";
+
+export const ONDERDELEN: [OnderdeelNaam, string, typeof Tas][] = [
+  ["boodschappen", "Boodschappen", Tas],
+  ["kooplijst", "Kooplijst", Lijstje],
+  ["wenslijst", "Wenslijst", Hart],
+  ["notities", "Notities", Bewerk],
+  ["documenten", "Documenten", Bestand],
+  ["budget", "Budget", Lijstje],
+  ["beleggen", "Beleggen", Grafiek],
+  ["leren", "Leren", Boek],
+  ["zakelijk", "Zakelijk", Winkelpand],
+];

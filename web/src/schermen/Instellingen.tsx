@@ -15,7 +15,8 @@ import { AlgemeenScherm, IdeeScherm, type Weergave } from "./Algemeen";
 import { Profiel, useEigenFoto } from "./Profiel";
 
 type Props = { staat: Staat; vernieuw: () => Promise<void>; terug: () => void; opUitgelogd: () => void;
-  setStaat: (s: Staat) => void; vraag: (tekst: string) => void };
+  setStaat: (s: Staat) => void; vraag: (tekst: string) => void; start?: { naam: OnderdeelNaam; n: number } | null;
+  vorigeNaam?: string };
 type Pagina = null | "algemeen" | "idee" | "profiel" | "account" | "assistent" | "privacy" | "thuis" | "mail" | "betalingen" | "afspraken";
 
 type Stijl = Record<string, string | undefined>;
@@ -34,9 +35,12 @@ const KEUZES: { sleutel: string; label: string; opties: string[]; standaard: str
 ];
 
 
-export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setStaat, vraag }: Props) {
+export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setStaat, vraag, start, vorigeNaam }: Props) {
   const [pagina, setPagina] = useState<Pagina>(null);
-  const [onderdeel, setOnderdeel] = useState<OnderdeelNaam | null>(null);
+  const [onderdeel, setOnderdeel] = useState<OnderdeelNaam | null>(start?.naam ?? null);
+  // Via "Je apps" geopend: terug brengt je naar waar je vandaan kwam, niet naar de lijst met instellingen.
+  const [vanApps, setVanApps] = useState(!!start);
+  useEffect(() => { if (start) { setPagina(null); setOnderdeel(start.naam); setVanApps(true); } }, [start]);
   const [bezig, setBezig] = useState(false);
   const [melding, setMelding] = useState("");
   const g = staat.gebruiker;
@@ -136,7 +140,8 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
 
   if (pagina === "betalingen") return scherm("Betalingen", <Betalingen eigenaar={g.id === 1} />);
 
-  if (onderdeel) return <Onderdeel naam={onderdeel} staat={staat} vernieuw={vernieuw} terug={() => setOnderdeel(null)} vraag={vraag} />;
+  if (onderdeel) return <Onderdeel naam={onderdeel} staat={staat} vernieuw={vernieuw} vraag={vraag} terugNaam={vanApps ? vorigeNaam : undefined}
+    terug={() => { setOnderdeel(null); if (vanApps) { setVanApps(false); terug(); } }} />;
   if (pagina === "algemeen") return scherm("Weergave", <AlgemeenScherm inst={inst as Weergave} bewaar={(a) => bewaar(a)} />);
   if (pagina === "idee") return scherm("Idee of probleem", <IdeeScherm />);
   if (pagina === "thuis") return scherm("Thuis", <>
@@ -151,7 +156,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
       </button>
       <h1 className="mt-4 mb-6 text-[32px] font-bold tracking-tight">Instellingen</h1>
 
-      <button onClick={() => setPagina("profiel")} className="flex w-full items-center gap-4 rounded-[20px] bg-vlak p-4 text-left">
+      <button onClick={() => setPagina("profiel")} className="flex w-full items-center gap-4 rounded-3xl bg-vlak p-4 text-left">
         <span className="flex size-14 items-center justify-center overflow-hidden rounded-full bg-white text-xl font-semibold dark:bg-black/40">
           {eigenFoto ? <img src={eigenFoto} alt="" className="size-full object-cover" /> : naam[0].toUpperCase()}
         </span>
@@ -219,7 +224,7 @@ function Groep({ titel, children }: { titel: string; children: ReactNode }) {
   return (
     <section className="mt-7">
       <h2 className={kop}>{titel}</h2>
-      <ul className="flex flex-col overflow-hidden rounded-[20px] bg-vlak">{children}</ul>
+      <ul className="flex flex-col overflow-hidden rounded-3xl bg-vlak">{children}</ul>
     </section>
   );
 }

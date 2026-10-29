@@ -6,6 +6,9 @@ import { Ballon, Kalender, Tandwiel, Vonk, Zon } from "./iconen";
 import Inloggen from "./schermen/Inloggen";
 import Vandaag from "./schermen/Vandaag";
 import { weergaveToepassen, type Weergave } from "./schermen/Algemeen";
+import type { Bestemming } from "./lib/naar";
+import { MascotteFeest } from "./mascotte";
+import type { OnderdeelNaam } from "./lib/onderdeel-lijst";
 import BelLaag from "./schermen/Bellen";
 import { luisteren } from "./lib/bellen";
 import { startenAlsBekend } from "./lib/chat";
@@ -77,8 +80,11 @@ export default function App() {
   const [voorlopig, setVoorlopig] = useState(false);
 
   const [voorChat, setVoorChat] = useState<Tab>("vandaag");
+  // Een onderdeel dat je via "Je apps" opent; het getal laat Instellingen weten dat het opnieuw gevraagd is.
+  const [startOnderdeel, setStartOnderdeel] = useState<{ naam: OnderdeelNaam; n: number } | null>(null);
   const setTab = (t: Tab) => {
     if (t === "instellingen") setVorige(tab === "instellingen" ? vorige : tab);
+    else setStartOnderdeel(null);
     if (t === "chat" && tab !== "chat") setVoorChat(tab);
     setTabRuw(t);
   };
@@ -147,6 +153,17 @@ export default function App() {
     if (boekpagina) verwerken().catch(() => {});
   }, [boekpagina]);
 
+  // Vanuit een app in de app (chat, winkel) naar een ander deel van de app.
+  useEffect(() => {
+    const ga = (e: Event) => {
+      const b = (e as CustomEvent<Bestemming>).detail;
+      if (b.onderdeel) setStartOnderdeel((o) => ({ naam: b.onderdeel!, n: (o?.n ?? 0) + 1 }));
+      setTab(b.tab);
+    };
+    window.addEventListener("app-naar", ga);
+    return () => window.removeEventListener("app-naar", ga);
+  });
+
   // Kleur, tekstgrootte en toegankelijkheid uit je instellingen op de hele app.
   const weergave = staat?.data.instellingen;
   useEffect(() => { weergaveToepassen((weergave ?? {}) as Weergave); }, [weergave]);
@@ -169,7 +186,8 @@ export default function App() {
       gekocht={() => setTeKopen(null)} vooraf={voorafVraag} voorafGebruikt={() => setVooraf("")}
       naarBestellingen={() => { openVragen(); setTab("chat"); }} />,
     instellingen: <Instellingen staat={staat} vernieuw={herladen} terug={() => setTab(vorige)} opUitgelogd={() => setStaat(null)}
-      setStaat={setStaat} vraag={(t) => { setVooraf(t); setTab("assistent"); }} />,
+      setStaat={setStaat} vraag={(t) => { setVooraf(t); setTab("assistent"); }} start={startOnderdeel}
+      vorigeNaam={TABS.find((t) => t.id === vorige)?.naam} />,
   }[tab];
 
   return (
@@ -177,6 +195,7 @@ export default function App() {
       {fout && <p role="alert" className="bg-vlak px-6 py-3 text-sm text-rustig">{fout}</p>}
       <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}><Suspense fallback={null}>{scherm}</Suspense></Vangnet></div>
       <Vangnet naam="bellen" klein><BelLaag /></Vangnet>
+      <MascotteFeest />
       {/* In de chat heeft de chat zijn eigen menu, zoals een aparte app; linksboven ga je terug. */}
       {tab !== "chat" && <nav aria-label="Hoofdmenu"
         className="flex shrink-0 justify-around border-t border-lijn pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)]">

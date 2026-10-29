@@ -353,7 +353,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
             <div key={i} className="ml-auto flex max-w-[85%] flex-col items-end gap-1.5">
               {b.bijlagen?.map((x, j) => <Chip key={j} naam={x.naam} />)}
               {b.tekst && (
-                <p className="whitespace-pre-wrap rounded-[22px] rounded-br-md bg-accent px-4 py-2.5 text-white">{b.tekst}</p>
+                <p className="whitespace-pre-wrap rounded-3xl rounded-br-md bg-accent px-4 py-2.5 text-white">{b.tekst}</p>
               )}
             </div>
           ) : (
@@ -400,7 +400,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
             {lezend && <span className="bezig-tekst px-2 py-1.5 text-sm">Bestand lezen</span>}
           </div>
         )}
-        <div className={`flex items-end gap-1 rounded-[26px] bg-vlak py-1.5 pr-1.5 pl-1.5 ${luistert ? "ring-2 ring-accent" : ""}`}>
+        <div className={`flex items-end gap-1 rounded-3xl bg-vlak py-1.5 pr-1.5 pl-1.5 ${luistert ? "ring-2 ring-accent" : ""}`}>
           <input ref={kiezer} type="file" multiple accept={ACCEPTEER} className="hidden"
             onChange={(e) => bestandenGekozen(e.target.files)} />
           <button type="button" onClick={() => kiezer.current?.click()} aria-label="Bestand toevoegen" disabled={lezend}

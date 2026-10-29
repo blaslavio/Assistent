@@ -5,7 +5,7 @@ import { dagenVan } from "../lib/club";
 import { Camera, Envelop, Huis, Kalender, Kruis, Persoon, Plus, Terug, Vinkje } from "../iconen";
 import { gekoppeld } from "../lib/mail";
 import { KeuzeKaart } from "../keuzekaart";
-import { MascotteMetTip, mascotteZeg } from "../mascotte";
+import { MascotteMetTip, afgevinktTekst, mascotteZeg } from "../mascotte";
 import { opVandaag, type Weergave } from "./Algemeen";
 import { afhandelen, voorstel } from "../lib/voorstellen";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
@@ -83,8 +83,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
 
   async function afvinken(id: number) {
     const over = data.taken.filter((t) => !t.klaar && t.id !== id).length;
-    mascotteZeg(over === 0 ? "Alles afgevinkt. Daar mag je trots op zijn!" : over === 1 ? "Afgevinkt! Nog maar één te gaan."
-      : `Afgevinkt! Nog ${over} te gaan.`);
+    mascotteZeg(afgevinktTekst(over));
     setStaat({ ...staat, data: { ...data, taken: data.taken.map((t) => (t.id === id ? { ...t, klaar: true } : t)) } });
     const nieuw = await bijwerken((g) => {
       const taak = g.taken.find((t) => t.id === id);
@@ -135,7 +134,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
         {toon("afspraken") && straks && (
           <section>
             <h2 className={kop}>Straks</h2>
-            <div className="flex flex-col gap-1.5 rounded-[20px] bg-accent p-5 text-white">
+            <div className="flex flex-col gap-1.5 rounded-3xl bg-accent p-5 text-white">
               <p className="text-[13px] opacity-85">{hoeLang(moment(straks.start), eind(straks), nu) || uur(straks.start)}</p>
               <p className="text-xl font-semibold">{straks.titel}</p>
               <p className="text-sm opacity-85">
@@ -243,7 +242,7 @@ function AanDeSlag({ staat, setStaat, naarInstellingen, ga }: Omit<Props, "ga"> 
     try { setStaat({ ...staat, data: await instellingenBijwerken((i) => { i.aan_de_slag = "weg"; }) as typeof data }); } catch { /* later opnieuw */ }
   }
   return (
-    <section className="rounded-[20px] bg-vlak p-4">
+    <section className="rounded-3xl bg-vlak p-4">
       <div className="mb-3 flex items-center gap-3">
         <div className="flex flex-1 flex-col">
           <h2 className="font-semibold">Maak de app van jou</h2>
