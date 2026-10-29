@@ -1,3 +1,6 @@
+import ProjectBord from "./ProjectBord";
+import ProjectWerkdruk from "./ProjectWerkdruk";
+import { stapStatusVoorstel } from "../lib/projectwerk";
 import ProjectKompas from "./ProjectKompas";
 import { aiGepauzeerd, controleerProjectAi, pauzeerProjectAi, privacyVoorbeeld } from "../lib/projectprivacy";
 import ProjectHoe from "./ProjectHoe";
@@ -12,7 +15,7 @@ import { assistentContext, bronStatus, isAfgerond, nieuwFeit, oefenplanning, ove
 import { taakVoorstel, taakUitvoeren, taakResultaat, type DagActie } from "../lib/dagacties";
 import { leesProjectbericht, projectLezen, type Werkbestand } from "../lib/project";
 
-const DELEN = ["Overzicht", "Hoe", "Wanneer", "Als", "Voorstel", "Wijzigingen", "Oefenen", "Overdracht", "Privacy", "Assistent"];
+const DELEN = ["Overzicht", "Bord", "Werkdruk", "Hoe", "Wanneer", "Als", "Voorstel", "Wijzigingen", "Oefenen", "Overdracht", "Privacy", "Assistent"];
 const datum = (t: string) => new Date(t).toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" });
 const download = (tekst: string, naam: string) => {
   const url = URL.createObjectURL(new Blob([tekst], { type: "text/plain;charset=utf-8" }));
@@ -105,11 +108,18 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
         await versturen(gesprek, reset);
         if (huidigeSessie() !== sessie) return;
       }
+      if (pending.soort === "stapstatus") {
+        const vers = await projectRegelsVers(gesprek, false), huidig = projectFeiten(vers.regels);
+        if (huidigeSessie() !== sessie) return;
+        const plan = huidig.find(f => f.actie.sleutel === pending.doel);
+        if (!plan) throw new Error("De aanpak ontbreekt.");
+        stapStatusVoorstel(plan, pending.stap!, huidig, ik, pending.keuze!, pending.tekst);
+      }
       await versturen(gesprek, pending);
       if (huidigeSessie() !== sessie) return;
       setPending(null); setOnzeker(false); setTekst(""); setMelding("Bevestigd gedeeld met dit project.");
       try { await vernieuw(); } catch { setFout("Delen is bevestigd; de actuele lijst kon nog niet worden opgehaald."); }
-    } catch { if (huidigeSessie() === sessie) setFout("Delen is niet bevestigd. Opnieuw proberen gebruikt hetzelfde voorstel en maakt in dit overzicht geen dubbel feit."); }
+    } catch (e) { if (huidigeSessie() === sessie) setFout((e instanceof Error ? e.message + " " : "") + "Delen is niet bevestigd. Opnieuw proberen gebruikt hetzelfde voorstel en maakt in dit overzicht geen dubbel feit."); }
     finally { slot.current = false; setBezig(false); }
   }
   function voorbereiden(p: ProjectActie) { if (!pending && !slot.current) { setPending(p); setOnzeker(false); setFout(""); } }
@@ -144,7 +154,9 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
       <button disabled={bezig || !schrijven} className="min-h-11 text-accent" onClick={bevestig}>{bezig ? "Delen…" : onzeker ? "Dezelfde projectopdracht opnieuw proberen" : "Bevestig en deel met project"}</button>
       <button disabled={bezig} className="min-h-11 px-3" onClick={() => { setPending(null); setOnzeker(false); }}>Sluiten</button>
     </div>}
-    {deel === "Hoe" && <ProjectHoe doelVoorstel={doelFocus} feiten={feiten} ik={ik} personen={namen} schrijven={schrijven && !pending} voorstel={voorbereiden} />}
+    {deel === "Bord" && <ProjectBord feiten={feiten} ik={ik} namen={namen} doelVoorstel={doelFocus} schrijven={schrijven && !pending} voorstel={voorbereiden} />}
+    {deel === "Werkdruk" && <ProjectWerkdruk feiten={feiten} namen={namen} />}
+    {deel === "Hoe" && <ProjectHoe staat={staat} setData={setData} doelVoorstel={doelFocus} feiten={feiten} ik={ik} personen={namen} schrijven={schrijven && !pending} voorstel={voorbereiden} />}
     {deel === "Wanneer" && <ProjectWanneer doelVoorstel={doelFocus} gesprek={gesprek} feiten={feiten} ik={ik} personen={namen} staat={staat} setData={setData} schrijven={schrijven && !pending} voorstel={voorbereiden} />}
     {deel === "Als" && <ProjectAls doelVoorstel={doelFocus} gesprek={gesprek} feiten={feiten} staat={staat} setData={setData} planning={doel => { setDoelFocus(doel); setDeel("Wanneer"); }} />}
     {deel === "Overzicht" && <>

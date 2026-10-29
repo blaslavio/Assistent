@@ -1,10 +1,13 @@
+import ProjectSjablonen from "./ProjectSjablonen";
+import type { Staat } from "../App";
+import { stapStatusVoorstel } from "../lib/projectwerk";
 import { useEffect, useState, type FormEvent } from "react";
 import { actueleAanpakken, stapStand, volgendeStappen, type Stap } from "../lib/projectplan";
 import { nieuwFeit, type Feit, type ProjectActie } from "../lib/projectregie";
 
 const nieuw = (ik: number, vorige?: string): Stap => ({ id: crypto.randomUUID(), titel: "", klaarAls: "", minuten: 25, eigenaar: ik, alternatief: "", afhankelijkVan: vorige ? [vorige] : [] });
-export default function ProjectHoe({ feiten, ik, personen, doelVoorstel, schrijven, voorstel }: {
-  feiten: Feit[]; ik: number; personen: Map<number,string>; doelVoorstel?: string; schrijven: boolean; voorstel: (p: ProjectActie) => void;
+export default function ProjectHoe({ feiten, ik, personen, doelVoorstel, schrijven, voorstel, staat, setData }: {
+  staat?:Staat; setData?:(g:Staat["data"])=>void; feiten: Feit[]; ik: number; personen: Map<number,string>; doelVoorstel?: string; schrijven: boolean; voorstel: (p: ProjectActie) => void;
 }) {
   const [doel, setDoel] = useState(doelVoorstel ?? "");
   useEffect(() => { if (doelVoorstel) setDoel(doelVoorstel); }, [doelVoorstel]);
@@ -40,10 +43,8 @@ export default function ProjectHoe({ feiten, ik, personen, doelVoorstel, schrijv
         {schrijven && (plan.afzender === ik || stap.eigenaar === ik) && <div className="flex flex-wrap gap-2">
           {["bezig", "klaar", "vast", "te_doen"].map(keuze => <button key={keuze} className="min-h-11 px-2 text-accent" disabled={keuze === "bezig" && wachtOp.length > 0}
             onClick={() => {
-              if (keuze === "klaar" && wachtOp.length) { setFout("Bevestig eerst de voorgangers of maak een andere aanpak."); return; }
-              if (keuze === "vast" && !uitleg.trim()) { setFout("Beschrijf eerst kort het obstakel."); return; }
-              voorstel(nieuwFeit("stapstatus", keuze === "vast" ? uitleg : `${stap.titel}: ${keuze}. Resultaatcriterium: ${stap.klaarAls}`,
-                { soort: "eigen" }, { doel: plan.actie.sleutel, stap: stap.id, keuze }));
+              try { voorstel(stapStatusVoorstel(plan,stap.id,feiten,ik,keuze,uitleg)); setFout(""); }
+              catch(e) { setFout((e as Error).message); }
             }}>{keuze === "klaar" ? "Resultaat zelf bevestigen" : keuze === "vast" ? "Obstakel melden" : keuze === "te_doen" ? "Opnieuw te doen" : "Start voorbereiden"}</button>)}
         </div>}
       </div>)}
@@ -53,6 +54,7 @@ export default function ProjectHoe({ feiten, ik, personen, doelVoorstel, schrijv
     {root && <form onSubmit={bereid} className="flex flex-col gap-3 rounded-xl bg-vlak p-3">
       <h4 className="font-medium">{vervangt ? "Nieuwe versie van de aanpak" : "Maak een uitvoerbare aanpak"}</h4>
       {uiterlijk && <p className="text-sm">Bestaande deadline blijft behouden: {new Date(uiterlijk).toLocaleString("nl-NL", { timeZone:"Europe/Amsterdam" })}. Pas die aan onder Wanneer.</p>}
+      <ProjectSjablonen stappen={stappen} staat={staat} setData={setData} schrijven={schrijven} toepassen={nieuwe => setStappen(nieuwe)} />
       {stappen.map((s,i) => <fieldset key={s.id} className="rounded-xl border border-lijn p-3">
         <legend>Stap {i+1}</legend>
         <label className="block">Wat doe je?<input value={s.titel} maxLength={160} required onChange={e => wijzig(i,{ titel:e.target.value })} className="mt-1 min-h-11 w-full bg-white p-2 dark:bg-black" /></label>

@@ -122,3 +122,11 @@ it("trekt eerdere toestemming eerst in voor compatibele oude clients bij een kor
  expect(versturen).not.toHaveBeenCalled();fireEvent.click(screen.getByText("Bevestig en deel met project"));await waitFor(()=>expect(versturen).toHaveBeenCalledTimes(2));
  const berichten=vi.mocked(versturen).mock.calls.map(c=>c[1]);expect(berichten[0]).toMatchObject({soort:"toestemming",keuze:"geen"});expect(berichten[0]).not.toHaveProperty("geldigMinuten");expect(berichten[1]).toMatchObject({keuze:"tekst",geldigMinuten:60});
 });
+it("weigert een bordstatus als de aanpak tussen preview en delen is vervangen",async()=>{
+ const p=basis(),root=nieuwFeit("actie","Ontwerp maken"),stap={id:crypto.randomUUID(),titel:"Ontwerpen",klaarAls:"Goedgekeurd",minuten:30,eigenaar:1,alternatief:"Samen",afhankelijkVan:[]};
+ const plan=nieuwFeit("aanpak","Route",{soort:"eigen"},{doel:root.sleutel,stappen:[stap]});
+ const row=(bericht:Regel["bericht"],id:number):Regel=>({id,bericht,afzender:1,tijd:new Date().toISOString(),weg:false});p.regels=[row(root,1),row(plan,2)];
+ const nieuw=nieuwFeit("aanpak","Vervangen route",{soort:"eigen"},{doel:root.sleutel,vervangt:plan.sleutel,stappen:[stap]});
+ vi.mocked(projectRegelsVers).mockResolvedValue({regels:[...p.regels,row(nieuw,3)],gesprek:{id:72,soort:"groep",leden,status:"lid",ongelezen:0}});
+ render(<ProjectRegie {...p}/>);fireEvent.click(screen.getByRole("button",{name:"Bord"}));fireEvent.change(screen.getByLabelText("Aanpak op het bord"),{target:{value:plan.sleutel}});fireEvent.click(screen.getByText("Naar bezig voorbereiden"));expect(versturen).not.toHaveBeenCalled();fireEvent.click(screen.getByText("Bevestig en deel met project"));await waitFor(()=>expect(screen.getByRole("alert").textContent).toContain("vervangen"));expect(versturen).not.toHaveBeenCalled();
+});

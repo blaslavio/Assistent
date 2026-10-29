@@ -55,7 +55,7 @@ Dit is geen permanente externe back-up: verwijderen van het gesprek, account of 
 
 ## Verificatie en uitrol
 
-De lokale verificatie omvat 136 Vitest-tests, beide TypeScript/Vite-builds 1.260 Python-tests zonder overgeslagen tests (waaronder 11 PostgreSQL-tests van het echte archiefschema en 25 veilige-opslagtests), plus 358 upstream-pytest-tests en 21 subtests. De productieafhankelijkhedenaudit meldt op dit uitvoermoment geen bekende kwetsbaarheden. De webtests gebruiken nagebootste transport-, AI- en betaalantwoorden; er zijn geen echte betalingen, boekingen, berichten of videogesprekken uitgevoerd. De bestaande productiereleasepoort voor verse E2E-bewijzen blijft ongewijzigd. Deze uitbreiding is nog niet live. Zie `UITROL.md`.
+De lokale verificatie omvat 158 Vitest-tests, beide TypeScript/Vite-builds 1.260 Python-tests zonder overgeslagen tests (waaronder 11 PostgreSQL-tests van het echte archiefschema en 25 veilige-opslagtests), plus 358 upstream-pytest-tests en 21 subtests. De productieafhankelijkhedenaudit meldt op dit uitvoermoment geen bekende kwetsbaarheden. De webtests gebruiken nagebootste transport-, AI- en betaalantwoorden; er zijn geen echte betalingen, boekingen, berichten of videogesprekken uitgevoerd. De bestaande productiereleasepoort voor verse E2E-bewijzen blijft ongewijzigd. Deze uitbreiding is nog niet live. Zie `UITROL.md`.
 
 ## Extra privacy en eenvoudige bediening
 
@@ -83,3 +83,27 @@ Bestaande eigen en gedeelde projecttijden worden opnieuw gecontroleerd wanneer j
 Gedeelde tijden van andere deelnemers blijven beperkte verklaringen: hun overige agenda wordt niet gelezen. Nieuwe voorstellen vermijden wel de bekende gedeelde tijdvakken, ongeacht de volgorde van de stappenlijst. Bij een wijziging van de geladen projectfeiten of eigen agenda verdwijnen de oude getoonde tijdvoorstellen; vraag dan een nieuwe berekening. Agendaopslag blijft apart bevestigen en opnieuw controleren.
 
 Nieuwste lokale controle: **136 webtests en beide appbuilds geslaagd**. Negen extra tests controleren gewijzigde duur, passend aangepast tijdvak, deadline, voorgangers, overlap, verstreken tijden, gedeelde tijdvakken en het kompas. Geen productiewijzigingen.
+
+## Sjablonen, bord, werkdruk en begeleide herplanning
+
+Deze ontwikkeluitbreiding vertaalt bruikbare productideeën naar de bestaande projectmotor:
+
+| Idee | Uitvoering met eigen projecttechniek | Waarom |
+| --- | --- | --- |
+| Herbruikbare werkstructuren, zoals bij Notion | Drie startaanpakken onder Hoe: idee naar resultaat, overleg naar uitvoering en dienst opleveren. Daarnaast maximaal twintig eigen privésjablonen. | Minder invulwerk; resultaatcriteria en alternatieven worden niet vergeten. |
+| Overzichtelijke uitvoering, zoals bij Asana/ClickUp | Bord met Te doen, Bezig, Geblokkeerd en Klaar; zoeken en filteren op eigen stappen. | Dezelfde bevestigde projectstappen in een overzichtelijke weergave, zonder tweede takenlijst. |
+| Werkbelasting bespreken | Werkdruk toont geschatte minuten van open stappen, blokkades en niet toegewezen werk. | Bespreek haalbaarheid zonder verborgen aanwezigheids- of prestatieregistratie. |
+| Planning bijsturen, zoals bij agenda-assistenten | Bij een ongeschikte eigen projectafspraak biedt Wanneer een passend alternatief, waarna je expliciet de verplaatsing bevestigt. | Het systeem helpt rekenen; de gebruiker behoudt zeggenschap over afspraken. |
+
+Dit kopieert geen software van die producten en biedt niet hun volledige functieset. Het gebruikt de eigen begrensde projectberichten, bronverwijzingen, rolcontroles, versiecontrole bij opslag en bestaande privacybediening.
+
+### Gebruik
+
+- Open **Hoe**, selecteer een doel en open **Herbruikbare aanpakken**. Bekijk een sjabloon en bevestig laden als concept. Dit vervangt alleen de onopgeslagen stappen in dat formulier. Een eigen sjabloon bewaren of verwijderen vraagt een aparte preview en bevestiging.
+- Sjablonen behouden titels, criteria, duur, alternatieven en volgorde. Ze nemen geen eerdere verantwoordelijken, stap-ID’s, deadlines, broncodes of voltooiing over. De vrije stapteksten kunnen wel persoonsgegevens bevatten: controleer die vóór privé bewaren of delen. Eigen sjablonen staan in de accountgegevens en zijn niet automatisch gedeeld of geanonimiseerd.
+- Open **Bord** en selecteer zelf een actuele aanpak. Een statusknop maakt uitsluitend een voorstel. De maker of toegewezen uitvoerder mag wijzigen. Starten/afronden vereist bevestigde voorgangers, een obstakel vereist uitleg. Vlak vóór delen worden de actuele projectgeschiedenis, aanpak en bevoegdheid opnieuw gecontroleerd. Dit geldt ook voor statusvoorstellen vanuit Hoe.
+- **Werkdruk** telt alleen geladen, bevestigde stappen van eenduidige actuele aanpakken. Doelen met concurrerende aanpakken worden apart gemeld en niet dubbel geteld. ‘Minuten per werkdag’ is een tijdelijke eigen rekenaanname, geen bevestigde agenda of werkelijk gemeten resterende tijd. Andere projecten en privéagenda’s worden niet opgevraagd.
+- Open **Wanneer**, bereken de aanpak en kies bij een te controleren eigen afspraak **Passend alternatief voor eigen afspraak controleren**. Het voorbeeld toont oud en nieuw tijdvak. Na bevestigen controleert de app verse projectinformatie en accountgegevens. Dezelfde afspraak-ID, notities en overige gegevens blijven behouden; er komt geen dubbele afspraak bij.
+- Herplanning weigert een gewijzigde bronafspraak, een veranderd tijdvoorstel, een externe agenda-afspraak of een afspraak die niet bij de eigen projectstap hoort. Ontbreekt een passend tijdvak of is een voorganger nog afhankelijk, pas dan eerst beschikbaarheid, deadline of aanpak aan. Er worden geen andere afspraken, uitnodigingen, betalingen, boekingen of reserveringen aangepast. Deel de nieuwe projecttijd desgewenst apart.
+
+Verificatie: **158 webtests** en beide TypeScript/Vite-builds. Nieuwe tests controleren sjabloonvalidatie, privacy van overgenomen velden, opslag/herhaling/verwijderen, JSON-veldvolgorde, bordrollen, voorgangers, vervangen aanpakken, werkdruktelling, preview vóór uitvoering en herplanning zonder gegevensverlies. Geen nieuwe database-migratie nodig voor deze vier toevoegingen.

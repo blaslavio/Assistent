@@ -1,3 +1,4 @@
+import { herplanVoorstel, herplanVastleggen, type HerplanPoging } from "../lib/projectherplan";
 import { useEffect, useRef, useState } from "react";
 import { bijwerken, huidigeSessie } from "../api";
 import type { Staat } from "../App";
@@ -18,11 +19,12 @@ export default function ProjectWanneer({ gesprek, feiten, ik, personen, staat, s
   const [rijen,setRijen]=useState<TijdRij[]|null>(null);const [fout,setFout]=useState("");const [melding,setMelding]=useState("");
   useEffect(()=>{setRijen(null);},[feiten,planId,staat?.data.afspraken]);
   const slot=useRef(false);
+  const [herplan,setHerplan]=useState<HerplanPoging|null>(null);
   const [pending,setPending]=useState<TijdPoging|null>(null);const [bezig,setBezig]=useState(false);
   return <section aria-label="Wanneer voeren we het uit" className="flex flex-col gap-3">
     <p className="text-sm text-rustig">Alle tijden zijn Nederlandse tijd. De motor combineert stapvolgorde, opgegeven beschikbaarheid, deadline en je eigen appagenda. Andere agenda’s worden niet ingezien. Er worden geen tijden stilzwijgend vastgelegd.</p>
     {fout&&<p role="alert">{fout}</p>}{melding&&<p role="status">{melding}</p>}
-    <label>Uitvoerbare aanpak<select disabled={!!pending} value={planId} className="mt-1 min-h-11 w-full bg-vlak p-2" onChange={e=>{setPlanId(e.target.value);setRijen(null);setPending(null);}}>
+    <label>Uitvoerbare aanpak<select disabled={!!pending||!!herplan} value={planId} className="mt-1 min-h-11 w-full bg-vlak p-2" onChange={e=>{setPlanId(e.target.value);setRijen(null);setPending(null);}}>
       <option value="">Kies een bevestigde aanpak uit Hoe</option>{plannen.map(p=><option key={p.actie.sleutel} value={p.actie.sleutel}>{p.actie.tekst.slice(0,100)} · #{p.bericht}</option>)}
     </select></label>
     <details className="rounded-xl border border-lijn p-3"><summary className="min-h-11 cursor-pointer font-medium">Mijn beschikbaarheid opgeven</summary>
@@ -41,10 +43,21 @@ export default function ProjectWanneer({ gesprek, feiten, ik, personen, staat, s
       <p className="font-medium">{r.stap.titel} · {r.persoon?personen.get(r.persoon)??"andere deelnemer":"nog toewijzen"}</p>
       {r.van&&r.tot&&<p>{toon(r.van)} – {toon(r.tot)}</p>}<p className="text-sm">{r.reden}</p>
       {r.voorwaardelijk&&<p className="text-sm">Voorwaardelijk: een voorganger is nog niet bevestigd ingepland.</p>}
-      {plan&&r.persoon===ik&&r.van&&r.tot&&!r.afspraak&&!r.voorwaardelijk&&r.reden.startsWith("Voorstel")&&staat&&setData&&<button className="min-h-11 text-accent" disabled={!!pending||bezig}
+      {plan&&r.persoon===ik&&r.van&&r.tot&&!r.afspraak&&!r.voorwaardelijk&&r.reden.startsWith("Voorstel")&&staat&&setData&&<button className="min-h-11 text-accent" disabled={!!pending||!!herplan||bezig}
         onClick={()=>setPending({opdracht:crypto.randomUUID(),gesprek,aanpak:plan.actie.sleutel,stap:r.stap.id,van:r.van!,tot:r.tot!})}>Eigen agendavoorstel controleren</button>}
+      {plan&&r.teControleren&&r.afspraak&&r.persoon===ik&&staat&&setData&&<button disabled={!!pending||!!herplan||bezig} className="min-h-11 text-accent" onClick={()=>{
+        try{setHerplan(herplanVoorstel(staat.data,gesprek,plan.actie.sleutel,r.stap.id,Number(r.afspraak!.id),feiten,ik));setFout("");}catch(e){setFout((e as Error).message);}
+      }}>Passend alternatief voor eigen afspraak controleren</button>}
       {plan&&r.afspraak&&r.van&&r.tot&&schrijven&&!r.teControleren&&!r.voorwaardelijk&&<button className="min-h-11 text-accent" onClick={()=>voorstel(nieuwFeit("staptijd",`Mijn eigen tijdvak voor ${r.stap.titel}: ${toon(r.van!)} – ${toon(r.tot!)}.`,{soort:"eigen"},{doel:plan.actie.sleutel,stap:r.stap.id,van:r.van,tot:r.tot,afspraak:Number(r.afspraak!.id)}))}>Bevestigde eigen tijd apart delen met project</button>}
     </article>)}
+    {herplan&&<div className="rounded-xl border border-lijn p-3"><p>Verplaats alleen je eigen focusafspraak #{herplan.afspraak}.</p><p>Van: {toon(herplan.oudVan)} – {toon(herplan.oudTot)}.</p><p>Naar: {toon(herplan.van)} – {toon(herplan.tot)}.</p><p>Andere afspraken, uitnodigingen, betalingen en reserveringen worden niet aangepast. De projecttijd wordt niet automatisch opnieuw gedeeld.</p>
+      <button disabled={bezig} className="min-h-11 text-accent" onClick={async()=>{
+        if(slot.current||!setData)return;slot.current=true;setBezig(true);setFout("");const sessie=huidigeSessie();
+        try{const vers=await projectRegelsVers(gesprek,false);if(huidigeSessie()!==sessie)throw new Error("Account gewijzigd.");const g=await bijwerken(g=>{herplanVastleggen(g,herplan,projectFeiten(vers.regels),ik);});
+          if(huidigeSessie()===sessie){setData(g);setHerplan(null);setRijen(null);setMelding("Eigen afspraak bevestigd verplaatst. Deel de nieuwe tijd desgewenst apart.");}}
+        catch(e){if(huidigeSessie()===sessie)setFout((e as Error).message+" Verplaatsen is niet bevestigd; dezelfde opdracht blijft behouden.");}finally{slot.current=false;setBezig(false);}
+      }}>Bevestig eigen afspraak verplaatsen</button><button disabled={bezig} className="min-h-11 px-3" onClick={()=>setHerplan(null)}>Sluiten zonder terugdraaien</button>
+    </div>}
     {pending&&<div className="rounded-xl border border-lijn p-3"><p>Vastleggen in je eigen agenda: {toon(pending.van)} – {toon(pending.tot)}. Projectregels en appagenda worden opnieuw gecontroleerd. Er worden geen uitnodigingen verstuurd.</p>
       <button disabled={bezig} className="min-h-11 text-accent" onClick={async()=>{
         if(slot.current||!setData)return;slot.current=true;setBezig(true);setFout("");const sessie=huidigeSessie();
