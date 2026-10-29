@@ -47,6 +47,10 @@ Werkwijze:
 - Beleggen: met beleggingen_bekijken zie je de portefeuille (waarde, resultaat, spreiding), met koers_opzoeken een
   koers en met markt_bekijken de markten. Leg uit in gewone taal; geef nooit persoonlijk koop- of verkoopadvies en
   zeg dat beleggen risico's heeft. De app koopt of verkoopt nooit iets.
+- Zakelijk (voor wie lessen geeft, klanten heeft of zzp'er is): zaak_overzicht geeft omzet, kosten, winst, btw,
+  klanten met hun saldo, lessen van deze week en afspraken die nog afgevinkt moeten worden. Met zaak_boeken zet je
+  een regel in de boekhouding en met groepsles_plannen een les in het rooster; doe dat alleen als de gebruiker het
+  vraagt. Geef geen belastingadvies; verwijs bij twijfel naar een boekhouder.
 - Grafieken: laat cijfers die je vergelijkt (per maand, per categorie, verloop) zien met grafiek_tonen. Staven voor
   vergelijken, een lijn voor verloop in de tijd. Hooguit drie reeksen; meer categorieën voeg je samen tot Overig.
   Herhaal de cijfers daarna niet in tekst; noem in één of twee zinnen wat opvalt.
@@ -235,6 +239,42 @@ const LIJST: Hulpmiddel[] = [
     name: "markt_bekijken",
     description: "Bekijk de markten die de gebruiker volgt (zoals AEX, S&P 500, goud, bitcoin) en zijn volglijst.",
     input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "zaak_overzicht",
+    description: "Bekijk het zakelijke overzicht: omzet, kosten, winst en btw over een periode, klanten met hun saldo, "
+      + "groepslessen van deze week en afspraken die nog afgevinkt moeten worden. Alleen lezen.",
+    input_schema: { type: "object", properties: { periode: { type: "string", enum: ["Maand", "Kwartaal", "Jaar"],
+      description: "Over welke periode de cijfers gaan. Standaard Maand." } } },
+  },
+  {
+    name: "zaak_boeken",
+    description: "Zet een regel in de zakelijke boekhouding: een geleverde dienst (klant moet betalen), een ontvangen "
+      + "betaling of eigen kosten. Alleen als de gebruiker erom vraagt.",
+    input_schema: { type: "object", properties: {
+      soort: { type: "string", enum: ["dienst", "betaling", "kosten"] },
+      bedrag: { type: "number", description: "Bedrag in euro inclusief btw." },
+      omschrijving: tekst("Korte omschrijving."),
+      klant: tekst("Naam van de klant, bij een dienst of betaling."),
+      btw: { type: "integer", enum: [0, 9, 21], description: "Btw-percentage; weglaten voor de standaard van de zaak." },
+      categorie: { type: "string", enum: ["Huur", "Materiaal", "Marketing", "Verzekering", "Software", "Vervoer", "Opleiding", "Overig"],
+        description: "Alleen bij kosten." },
+      datum: tekst("JJJJ-MM-DD, leeg is vandaag."),
+    }, required: ["soort", "bedrag"] },
+  },
+  {
+    name: "groepsles_plannen",
+    description: "Zet een groepsles in het rooster van de zaak. Leden schrijven zich in via de chat. Alleen als de gebruiker erom vraagt.",
+    input_schema: { type: "object", properties: {
+      naam: tekst("Naam van de les, bijvoorbeeld Bootcamp."),
+      start: tekst("Begintijd JJJJ-MM-DDTHH:MM."),
+      minuten: { type: "integer", description: "Duur in minuten, standaard 60." },
+      plekken: { type: "integer", description: "Maximaal aantal deelnemers, standaard 12." },
+      prijs: { type: "number", description: "Prijs per keer in euro; 0 is gratis of inbegrepen." },
+      locatie: tekst("Waar."),
+      elke_week: { type: "boolean", description: "true om de les elke week te herhalen." },
+      aantal_weken: { type: "integer", description: "Hoeveel weken bij herhalen, hooguit 26." },
+    }, required: ["naam", "start"] },
   },
   {
     name: "grafiek_tonen",
@@ -632,6 +672,49 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
       return { resultaat: JSON.stringify({ markten: markten.map(kort),
         volglijst: inst.volglijst.map((x) => kort({ ...(volg[x.symbool] ?? {}), naam: x.naam })) }) };
     }
+    case "zaak_overzicht": {
+      const z = await import("./zaak");
+      const p = (["Maand", "Kwartaal", "Jaar"] as const).find((x) => x === s("periode")) ?? "Maand";
+      const [van, tot] = z.periode(p);
+      const vandaag = new Date();
+      const maandag = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate() - ((vandaag.getDay() + 6) % 7));
+      const zondag = new Date(maandag.getFullYear(), maandag.getMonth(), maandag.getDate() + 6);
+      const [o, klanten, l] = await Promise.all([z.overzicht(van, tot),
+        z.overzicht(z.datumIso(new Date(vandaag.getTime() - 60 * 86400_000)), z.datumIso(vandaag)),
+        z.lessen(z.datumIso(maandag), z.datumIso(zondag)).catch(() => [])]);
+      const c = z.cijfers(o.posten);
+      const euro = (x: number) => Math.round(x) / 100;
+      return { resultaat: JSON.stringify({ periode: `${van} t/m ${tot}`,
+        cijfers_euro: Object.fromEntries(Object.entries(c).map(([k, x]) => [k, euro(x)])), regels: o.posten.length,
+        klanten: klanten.saldi.slice(0, 30).map((k) => ({ klant: k.klant, saldo_euro: euro(k.saldo) })),
+        nog_afvinken: z.nogAfvinken(klanten).slice(0, 15).map((b) => ({ wie: b.naam, wat: b.soort, wanneer: b.start })),
+        lessen_deze_week: l.map((x) => ({ naam: x.naam, start: x.start, ingeschreven: x.ingeschreven, plekken: x.plekken,
+          wachtlijst: x.wachtlijst })) }) };
+    }
+    case "zaak_boeken": {
+      const z = await import("./zaak");
+      const soort = (["dienst", "betaling", "kosten"] as const).find((x) => x === s("soort"));
+      const bedrag = typeof v.bedrag === "number" && Number.isFinite(v.bedrag) ? Math.round(v.bedrag * 100) : 0;
+      if (!soort) return { resultaat: "Fout: soort moet dienst, betaling of kosten zijn." };
+      if (bedrag <= 0 || bedrag > 100_000_000) return { resultaat: "Fout: het bedrag moet groter dan nul zijn." };
+      if (s("datum") && !DATUM.test(s("datum"))) return { resultaat: "Fout: datum als JJJJ-MM-DD." };
+      const { data } = await gegevensLaden();
+      const btw = [0, 9, 21].includes(v.btw as number) ? (v.btw as number) : soort === "kosten" ? 21 : z.instellingen(data).btw;
+      await z.post({ soort, bedrag, omschrijving: s("omschrijving"), klant: soort === "kosten" ? "" : s("klant"), btw,
+        categorie: soort === "kosten" ? s("categorie") : "", ...(s("datum") ? { datum: s("datum") } : {}) });
+      return { resultaat: `Geboekt: ${z.SOORT_NAAM[soort].toLowerCase()} ${z.bedrag(bedrag)}.` };
+    }
+    case "groepsles_plannen": {
+      const z = await import("./zaak");
+      if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s("start"))) return { resultaat: "Fout: start als JJJJ-MM-DDTHH:MM." };
+      if (!s("naam")) return { resultaat: "Fout: geef de les een naam." };
+      const getal = (k: string, standaard: number) => (typeof v[k] === "number" && Number.isFinite(v[k]) ? (v[k] as number) : standaard);
+      const { data } = await gegevensLaden();
+      const n = await z.lesMaken({ naam: s("naam"), start: s("start"), minuten: getal("minuten", 60), plekken: getal("plekken", 12),
+        prijs: Math.max(0, Math.round(getal("prijs", 0) * 100)), locatie: s("locatie"), elkeWeek: v.elke_week === true,
+        aantal: Math.max(1, Math.min(26, getal("aantal_weken", 12))) }, z.instellingen(data).naam);
+      return { resultaat: `${n} ${n === 1 ? "les" : "lessen"} gepland.` };
+    }
     case "grafiek_tonen": {
       const g = { titel: s("titel"), soort: v.soort, labels: v.labels, reeksen: v.reeksen,
         eenheid: v.eenheid ?? "aantal" } as Grafiek;
@@ -729,6 +812,7 @@ export const BEZIG: Record<string, string> = {
   producten_zoeken: "Zoekt in de winkels", bestelling_klaarzetten: "Zet je bestelling klaar", web_search: "Zoekt op internet", web_fetch: "Leest een pagina",
   uitgaven_bekijken: "Kijkt naar je uitgaven", grafiek_tonen: "Maakt een grafiek",
   beleggingen_bekijken: "Kijkt naar je beleggingen", koers_opzoeken: "Zoekt de koers op", markt_bekijken: "Kijkt naar de markten",
+  zaak_overzicht: "Kijkt naar je zaak", zaak_boeken: "Zet het in je boekhouding", groepsles_plannen: "Zet de les in je rooster",
   datum_prikken: "Maakt een stemronde", afmelden: "Meldt je af", beter_melden: "Meldt je beter",
   club_agenda_bekijken: "Kijkt in de agenda van je groepen", stemrondes_bekijken: "Kijkt naar de stemrondes",
 };
