@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { alsIk, bijwerken, instellingenBijwerken, uitloggen } from "../api";
 import { gekoppeld } from "../lib/mail";
+import { gevraagdePagina } from "../lib/naar";
 import { betaalStatus, lijst as bestellingenLijst, klaar, platformInstellen, stand, verkoperAanmelden, type BetaalStatus,
   type Bestelling } from "../lib/bestellingen";
 import { euro } from "../lib/winkelen";
@@ -36,11 +37,17 @@ const KEUZES: { sleutel: string; label: string; opties: string[]; standaard: str
 
 
 export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setStaat, vraag, start, vorigeNaam }: Props) {
-  const [pagina, setPagina] = useState<Pagina>(null);
+  const [pagina, setPagina] = useState<Pagina>(() => (start ? null : gevraagdePagina() as Pagina));
   const [onderdeel, setOnderdeel] = useState<OnderdeelNaam | null>(start?.naam ?? null);
   // Via "Je apps" geopend: terug brengt je naar waar je vandaan kwam, niet naar de lijst met instellingen.
   const [vanApps, setVanApps] = useState(!!start);
   useEffect(() => { if (start) { setPagina(null); setOnderdeel(start.naam); setVanApps(true); } }, [start]);
+  // Van elders in de app naar een pagina hier, bijvoorbeeld "Bevestig je mailadres" op Vandaag.
+  useEffect(() => {
+    const open = () => { const p = gevraagdePagina(); if (p) { setOnderdeel(null); setVanApps(false); setPagina(p as Pagina); } };
+    window.addEventListener("instellingen-pagina", open);
+    return () => window.removeEventListener("instellingen-pagina", open);
+  }, []);
   const [bezig, setBezig] = useState(false);
   const [melding, setMelding] = useState("");
   const g = staat.gebruiker;

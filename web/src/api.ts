@@ -49,7 +49,7 @@ export async function alsIk<T = Record<string, unknown>>(functie: string, parame
   return antwoord;
 }
 
-function apparaatNaam() {
+export function apparaatNaam() {
   const ua = navigator.userAgent;
   return /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android" : "Browser";
 }
@@ -78,14 +78,17 @@ export async function inloggen(naam: string, wachtwoord: string, code = "", onth
   const a = await rpc<Inlogantwoord>("inloggen", {
     p_naam: naam.trim(), p_wachtwoord: wachtwoord, p_code: code, p_apparaat: apparaatNaam(),
   });
-  if (a.token) {
-    sessie = { naam: a.naam ?? naam.trim(), token: a.token };
-    if (onthouden) {
-      const r = await alsIk<{ token?: string }>("apparaat_onthouden", { p_apparaat: apparaatNaam() });
-      if (r.token) schrijf(APPARAAT_SLEUTEL, r.token);
-    }
-  }
+  if (a.token) await sessieStarten(a.naam ?? naam.trim(), a.token, onthouden);
   return a;
+}
+
+/** Na inloggen, een nieuw account of een herstelcode: de sessie gebruiken en dit apparaat onthouden. */
+export async function sessieStarten(naam: string, token: string, onthouden = true) {
+  sessie = { naam, token };
+  if (onthouden) {
+    const r = await alsIk<{ token?: string }>("apparaat_onthouden", { p_apparaat: apparaatNaam() });
+    if (r.token) schrijf(APPARAAT_SLEUTEL, r.token);
+  }
 }
 
 export type Staat = { gebruiker: Gebruiker; data: Gegevens };
@@ -194,7 +197,7 @@ export type Gegevens = {
   taken: Taak[]; afspraken: Afspraak[]; volgend_id: number;
   instellingen?: { thuisadres?: string; avatar?: { naam?: string; foto?: string } } & Record<string, unknown>;
 } & Record<string, unknown>;
-export type Gebruiker = { id: number; naam: string | null; weergavenaam?: string; email?: string; foto?: string;
+export type Gebruiker = { id: number; naam: string | null; weergavenaam?: string; email?: string; email_bevestigd?: boolean; foto?: string;
   heeft_foto?: boolean; foto_zichtbaar?: string; over?: string };
 
 type RuweGegevens = { gebruiker: Gebruiker; data: Partial<Gegevens> };

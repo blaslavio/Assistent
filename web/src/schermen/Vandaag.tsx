@@ -42,7 +42,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga, vraag }
   useEffect(() => {
     if (!toon("voorjou")) { setMeldingen([]); return; }
     let weg = false;
-    voorJou().then((m) => !weg && setMeldingen(m)).catch(() => {});
+    voorJou(gebruiker).then((m) => !weg && setMeldingen(m)).catch(() => {});
     return () => { weg = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perVijf, data.instellingen?.voorpagina]);
