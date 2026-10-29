@@ -28,6 +28,7 @@ export function afvinkenIn(g: Gegevens, id: number, nu = new Date()): Taak | nul
   const taak = g.taken.find((t) => t.id === id);
   if (!taak || taak.klaar) return null;
   taak.klaar = true;
+  (taak as Taak & { klaar_op?: string }).klaar_op = nuTekst(nu);
   // Ingeplande focusblokken voor deze taak die nog moeten komen, zijn niet meer nodig.
   const tekst = nuTekst(nu);
   g.afspraken = g.afspraken.filter((a) => (a as { taak_id?: number }).taak_id !== id || a.start < tekst);

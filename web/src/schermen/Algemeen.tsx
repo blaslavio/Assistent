@@ -20,6 +20,7 @@ export const VANDAAG: [string, string, string][] = [
   ["weer", "Weer", "Naast de datum"],
   ["mascotte", "Tips", "De mascotte met een korte tip"],
   ["afspraken", "Dagschema", "Wat er vandaag nog in je agenda staat"],
+  ["week", "Je week", "Hoe vol je komende dagen zijn, met een rustige dag voor je taken"],
   ["voorjou", "Voor jou", "Wat er in je huishouden en winkel op je wacht"],
   ["taken", "Taken", "Je open taken en een veld om er een toe te voegen"],
 ];

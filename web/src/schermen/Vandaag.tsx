@@ -12,6 +12,7 @@ import { afhandelen, voorstel } from "../lib/voorstellen";
 import { voorJou, type Melding } from "../lib/voorjou";
 import { naar } from "../lib/naar";
 import { afvinkenIn } from "../lib/taken";
+import { dagInZin, weekBeeld } from "../lib/week";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
 import { weerNu, type Weer } from "../lib/weer";
 import { eerstvolgende, instellingen as feestInstellingen } from "../lib/feestdagen";
@@ -201,6 +202,8 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga, vraag }
           </section>
         )}
 
+        {toon("week") && <JeWeek staat={staat} setStaat={setStaat} nu={nu} />}
+
         {toon("taken") && <section>
           <h2 className={kop}>Taken</h2>
           {taken.length === 0 ? (
@@ -273,3 +276,55 @@ function AanDeSlag({ staat, setStaat, naarInstellingen, ga }: Omit<Props, "ga" |
     </section>
   );
 }
+
+/** De komende zeven dagen als kleine staafjes, met een rustige dag en een taak die daar past. */
+function JeWeek({ staat, setStaat, nu }: { staat: Staat; setStaat: (s: Staat) => void; nu: Date }) {
+  const w = useMemo(() => weekBeeld(staat.data, nu), [staat.data, nu]);
+  const [bezig, setBezig] = useState(false);
+  const hoogste = Math.max(8 * 60, ...w.dagen.map((d) => d.minuten + d.taken * 30));
+  async function plan() {
+    if (!w.voorstel || !w.rustig) return;
+    setBezig(true);
+    const id = w.voorstel.id, dag = w.rustig.datum;
+    try {
+      setStaat({ ...staat, data: await bijwerken((g) => { const t = g.taken.find((x) => x.id === id); if (t) t.deadline = dag; }) });
+      mascotteZeg(`Staat op ${dagInZin(dag, nu)}.`);
+    } finally {
+      setBezig(false);
+    }
+  }
+  const zin = [w.vol && `${groot(dagInZin(w.vol.datum, nu))} is vol.`, w.rustig && `${groot(dagInZin(w.rustig.datum, nu))} is rustig.`]
+    .filter(Boolean).join(" ");
+  return (
+    <section>
+      <h2 className={kop}>Je week{w.klaar > 0 ? <span className="normal-case tracking-normal font-normal"> · {w.klaar} {w.klaar === 1 ? "taak" : "taken"} afgerond</span> : null}</h2>
+      <div className="flex items-end justify-between gap-1.5" aria-label="Hoe vol je komende zeven dagen zijn">
+        {w.dagen.map((d, i) => {
+          const last = d.minuten + d.taken * 30;
+          return (
+            <div key={d.datum} className="flex flex-1 flex-col items-center gap-1"
+              aria-label={`${d.naam}: ${d.afspraken} afspraken, ${d.taken} taken`}>
+              <div className="flex h-9 w-full items-end overflow-hidden rounded-lg bg-vlak">
+                <div className={`w-full rounded-lg ${d.datum === w.rustig?.datum ? "bg-emerald-500" : d.datum === w.vol?.datum ? "bg-amber-500" : "bg-accent/70"}`}
+                  style={{ height: `${last ? Math.max(10, Math.round((last / hoogste) * 100)) : 0}%` }} />
+              </div>
+              <span className={`text-[12px] ${i === 0 ? "font-semibold" : "text-rustig"}`}>{i === 0 ? "Nu" : d.naam}</span>
+            </div>
+          );
+        })}
+      </div>
+      {(zin || (w.voorstel && w.rustig)) && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-rustig">
+          {zin && <span>{zin}</span>}
+          {w.voorstel && w.rustig && (
+            <button onClick={plan} disabled={bezig} className="font-medium text-accent disabled:opacity-50">
+              Plan "{w.voorstel.titel}" op {dagInZin(w.rustig.datum, nu)}
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+const groot = (s: string) => s[0].toUpperCase() + s.slice(1);
