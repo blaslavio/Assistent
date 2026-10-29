@@ -387,7 +387,7 @@ function CommunityBlad({ sluit, klaar, afspraken }: { sluit: () => void; klaar: 
       <form onSubmit={doe} className="flex flex-col gap-3">
         {soort === "maken" ? (
           <>
-            <input autoFocus value={naam} onChange={(e) => setNaam(e.target.value)} maxLength={60} placeholder="Naam, bijvoorbeeld Buurt Sanne en Bram"
+            <input autoFocus value={naam} onChange={(e) => setNaam(e.target.value)} maxLength={60} autoComplete="off" placeholder="Naam, bijvoorbeeld Buurt Sanne en Bram"
               aria-label="Naam" className={veld} />
             <input value={over} onChange={(e) => setOver(e.target.value)} maxLength={300} placeholder="Waar gaat het over? (mag leeg)"
               aria-label="Omschrijving" className={veld} />
