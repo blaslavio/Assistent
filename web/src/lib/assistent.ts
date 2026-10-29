@@ -53,6 +53,9 @@ Werkwijze:
   verstuurt zelf. Schrijf nooit iets wat je niet zeker weet (data, bedragen, toezeggingen).
 - Datum prikken: wil de gebruiker met anderen een moment kiezen, kijk eerst in de agenda en maak dan met datum_prikken
   een stemronde met 2 tot 6 vrije momenten. De gebruiker deelt de link zelf. Met stemrondes_bekijken zie je de stand.
+- Groepen en club: zegt de gebruiker dat hij ziek, geblesseerd of op vakantie is, meld hem dan met afmelden af (vraag
+  hooguit tot wanneer). Standaard zien alleen beheerders de reden. Met beter_melden zet je alles weer open, en met
+  club_agenda_bekijken zie je trainingen, wedstrijden en taken. Geef geen medisch advies.
 - Geld, contracten en codes: nooit zelf iets betalen, ondertekenen of doorgeven.
 - Herken nooit wie iemand is aan zijn gezicht.
 - Begin elk antwoord met een gevoelslabel, precies zo: [gevoel: blij]. Kies uit neutraal, blij, enthousiast, rustig,
@@ -129,6 +132,26 @@ const LIJST: Hulpmiddel[] = [
       plaats: tekst("Optioneel: waar."),
       uitnodigen: { type: "array", items: { type: "string" }, description: "Optioneel: gebruikersnamen in de app." },
     }, required: ["titel", "momenten"] },
+  },
+  {
+    name: "afmelden",
+    description: "Meld de gebruiker afwezig in zijn groepen en club (ziek, blessure, vakantie). Komende trainingen en activiteiten "
+      + "in die periode staan dan op 'kan niet', en het komt als hele dag in zijn agenda. Alleen als de gebruiker dit zelf vraagt.",
+    input_schema: { type: "object", properties: {
+      soort: { type: "string", enum: ["ziek", "blessure", "vakantie", "anders"] },
+      van: tekst("Vanaf JJJJ-MM-DD. Standaard vandaag."),
+      tot: tekst("Optioneel: tot en met JJJJ-MM-DD. Leeg = tot de gebruiker zich beter meldt."),
+      opmerking: tekst("Optioneel: korte opmerking."),
+    }, required: ["soort"] },
+  },
+  {
+    name: "beter_melden", description: "Meld de gebruiker weer beter of terug: de komende activiteiten in zijn groepen staan weer open.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "club_agenda_bekijken", description: "Toon de komende activiteiten (trainingen, wedstrijden) in de community's van de gebruiker, "
+      + "met wie er komen, de taken en of hij zelf al antwoordde.",
+    input_schema: { type: "object", properties: {} },
   },
   {
     name: "stemrondes_bekijken", description: "Toon de stemrondes van de gebruiker met per moment hoeveel mensen ja zeiden.",
@@ -416,6 +439,33 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
         actie: { soort: "afspraak", titel: s("titel"), detail: `Stemronde met ${momenten.length} momenten · delen in Agenda › Datum prikken`,
           ongedaan: { soort: "peiling_weg", id: p.id } } };
     }
+    case "afmelden": {
+      const soort = ["ziek", "blessure", "vakantie", "anders"].includes(s("soort")) ? s("soort") as "ziek" : "anders";
+      const van = /^\d{4}-\d{2}-\d{2}$/.test(s("van")) ? s("van") : datumTekst(new Date());
+      const tot = /^\d{4}-\d{2}-\d{2}$/.test(s("tot")) ? s("tot") : null;
+      const { afwezigMelden } = await import("./club");
+      const r = await afwezigMelden(soort, van, tot, [], false, s("opmerking"));
+      return { resultaat: JSON.stringify({ ok: true, afgemeld_voor_activiteiten: r.afgemeld, reden_zien: "alleen beheerders" }),
+        actie: { soort: "afspraak", titel: "Afgemeld", detail: `${soort} vanaf ${van}${tot ? ` t/m ${tot}` : ", tot je je beter meldt"}` } };
+    }
+    case "beter_melden": {
+      const { beterMelden, mijnAfwezig } = await import("./club");
+      const lijst = await mijnAfwezig();
+      for (const m of lijst) await beterMelden(m);
+      return { resultaat: lijst.length ? `Beter gemeld in ${lijst.length} melding(en).` : "Er stond geen afmelding open." };
+    }
+    case "club_agenda_bekijken": {
+      const { agenda } = await import("./club");
+      const { overzicht } = await import("./chat");
+      const groepen = (await overzicht()).communities.filter((c) => c.status === "lid").slice(0, 8);
+      const uit = await Promise.all(groepen.map(async (c) => {
+        const a = await agenda(c.id, 21).catch(() => null);
+        return { community: c.naam, activiteiten: (a?.activiteiten ?? []).slice(0, 12).map((x) => ({ titel: x.titel, soort: x.soort,
+          start: x.start, plaats: x.plaats, afgelast: x.afgelast, mijn_antwoord: x.antwoorden.find((l) => l.ik)?.antwoord ?? null,
+          komen: x.antwoorden.filter((l) => l.antwoord === "ja").length, taken: x.taken.map((t) => `${t.naam}: ${t.wie.map((w) => w.naam).join(", ") || "open"}`) })) };
+      }));
+      return { resultaat: JSON.stringify(uit) };
+    }
     case "stemrondes_bekijken": {
       const { mijn } = await import("./prikken");
       const lijst = await mijn();
@@ -631,7 +681,8 @@ export const BEZIG: Record<string, string> = {
   onthouden: "Onthoudt dit", vergeten: "Vergeet dit", keuze_voorleggen: "Zet de keuzes klaar",
   producten_zoeken: "Zoekt in de winkels", bestelling_klaarzetten: "Zet je bestelling klaar", web_search: "Zoekt op internet", web_fetch: "Leest een pagina",
   uitgaven_bekijken: "Kijkt naar je uitgaven", grafiek_tonen: "Maakt een grafiek",
-  datum_prikken: "Maakt een stemronde", stemrondes_bekijken: "Kijkt naar de stemrondes",
+  datum_prikken: "Maakt een stemronde", afmelden: "Meldt je af", beter_melden: "Meldt je beter",
+  club_agenda_bekijken: "Kijkt in de agenda van je groepen", stemrondes_bekijken: "Kijkt naar de stemrondes",
 };
 
 export type Gebeurtenissen = {

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Meer, Bal, Ballon, Bewerk, Boek, Dubbelvink, Fiets, Gereedschap, Huis, Kind, Penseel, Raster as RasterIcoon, Scherm, Shirt, Truck, Winkelpand, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
+import { Kalender, Meer, Bal, Ballon, Bewerk, Boek, Dubbelvink, Fiets, Gereedschap, Huis, Kind, Penseel, Raster as RasterIcoon, Scherm, Shirt, Truck, Winkelpand, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
 import { JouwAanbod } from "./Delen";
 import { Berichten, Feed, Schrijven } from "./Feed";
 import { GastGesprekScherm, GastenLijst } from "./Gasten";
@@ -21,6 +21,8 @@ import { CommunityBeheer } from "./CommunityBeheer";
 import { EindeKiezen, OpruimBlad, opruimTekst } from "./CommunityOpruimen";
 import { Onderblad } from "./Onderblad";
 import { AppKop, AppMenu, type MenuItem } from "./AppMenu";
+import { ClubAgenda } from "./ClubAgenda";
+import type { Gegevens } from "../api";
 import { Bladen, Raster, type Blad } from "./Winkelen";
 import { rpc } from "../api";
 import { zoeken, type Filter, type Product } from "../lib/winkelen";
@@ -100,6 +102,7 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, verlaa
   if (openCommunity !== null && ik !== null) {
     const c = groepen.find((x) => x.id === openCommunity);
     if (c) return <CommunityScherm c={c} openKanaal={setOpen} vernieuw={laden}
+      bijgewerkt={(data) => setStaat?.((s) => (s ? { ...s, data } : s))}
       terug={() => { setOpenCommunity(null); laden().catch(() => {}); }} />;
   }
 
@@ -393,18 +396,18 @@ function CommunityBlad({ sluit, klaar, afspraken }: { sluit: () => void; klaar: 
   );
 }
 
-type CommunityDeel = "kanalen" | "leden" | "meer";
+type CommunityDeel = "kanalen" | "agenda" | "leden" | "meer";
 
 /** Een community opent als eigen app: kanalen en feed, de leden, en meer (instellingen en verlaten). */
-function CommunityScherm({ c, openKanaal, vernieuw, terug }: { c: Community; openKanaal: (id: number) => void;
-  vernieuw: () => Promise<void>; terug: () => void }) {
+function CommunityScherm({ c, openKanaal, vernieuw, terug, bijgewerkt }: { c: Community; openKanaal: (id: number) => void;
+  vernieuw: () => Promise<void>; terug: () => void; bijgewerkt?: (g: Gegevens) => void }) {
   const [deel, setDeel] = useState<CommunityDeel>("kanalen");
   const [opnieuw, setOpnieuw] = useState(0);
   const beheer = c.rol === "eigenaar" || c.rol === "beheerder";
   const keuze = useMemo(() => ({ bron: "alles" as const, verborgen: [], _: opnieuw }), [opnieuw]);
   const weg = async () => { await vernieuw().catch(() => {}); terug(); };
   const items: MenuItem<CommunityDeel>[] = [["kanalen", "Kanalen", Ballon, c.kanalen.reduce((m, k) => m + k.ongelezen, 0)],
-    ["leden", "Leden", Mensen], ["meer", "Meer", Meer]];
+    ["agenda", "Agenda", Kalender], ["leden", "Leden", Mensen], ["meer", "Meer", Meer]];
   return (
     <div className="flex min-h-full flex-col">
       <AppKop terug={terug} terugNaam="Chat" titel={deel === "kanalen" ? c.naam : items.find(([k]) => k === deel)![1]} />
@@ -443,6 +446,7 @@ function CommunityScherm({ c, openKanaal, vernieuw, terug }: { c: Community; ope
           <Berichten keuze={keuze} community={c.id} leeg="Nog geen berichten. Schrijf als eerste iets." />
         </div>
       </>}
+      {deel === "agenda" && <ClubAgenda c={c} bijgewerkt={bijgewerkt} />}
       {deel === "leden" && <Leden c={c} />}
       {deel === "meer" && <>
         {beheer ? <CommunityBeheer c={c} vernieuw={vernieuw} opgeheven={weg} />
