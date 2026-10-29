@@ -2,6 +2,7 @@
 // chatberichten ({ t: "bel", fase: "aanbod" | "antwoord" | "einde" }), net als in de huidige app, zodat beide apps
 // elkaar kunnen bellen. Beeld en geluid zelf gaan versleuteld (DTLS-SRTP) van toestel naar toestel, niet via ons.
 import { gesprekken, gesprekNaam, mijnApparaat, stilLezen, versturen, type Bericht } from "./chat";
+import { peilen, type Peiler } from "./peilen";
 
 const ICE = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun.cloudflare.com:3478" }];
 const GELDIG = 45000;
@@ -242,7 +243,7 @@ export const meldingWeg = () => zet({ melding: "" });
 
 const gezien = new Map<number, number>();
 const verwerkt = new Set<string>();
-let klok = 0;
+let klok: Peiler | null = null;
 let snelKlok = 0;
 let bezig = false;
 let namen = new Map<number, { naam: string; ander: number }>();
@@ -313,8 +314,9 @@ function snel(gesprek: number) {
 }
 
 async function ronde() {
-  if (bezig || document.visibilityState !== "visible") return;
+  if (bezig || document.visibilityState !== "visible") return false;
   bezig = true;
+  let nieuw = false;
   try {
     const lijst = await gesprekken();
     namen = new Map(lijst.filter((g) => g.soort === "twee").map((g) =>
@@ -324,22 +326,24 @@ async function ronde() {
       if (!gezien.has(g.id)) {
         gezien.set(g.id, Math.max(0, g.laatste_id - 3)); // de laatste paar: een oproep die net binnenkwam
       }
-      if (g.laatste_id > (gezien.get(g.id) ?? 0)) await kijken(g.id).catch(() => {});
+      if (g.laatste_id > (gezien.get(g.id) ?? 0)) { nieuw = true; await kijken(g.id).catch(() => {}); }
     }
   } catch {
     /* volgende ronde */
   } finally {
     bezig = false;
   }
+  return nieuw;
 }
 
 /** Begint met luisteren naar oproepen (één keer per sessie). */
 export function luisteren(mijnId: number) {
   if (klok && ikId === mijnId) return;
   ikId = mijnId;
-  clearInterval(klok);
+  klok?.stop();
   ronde();
-  klok = window.setInterval(ronde, 3000);
+  // Snel als er net iets binnenkwam of je de app gebruikt; is het stil, dan rustiger (een oproep gaat lang genoeg over).
+  klok = peilen(ronde, 3000, 10_000);
 }
 
 export const naamVan = (gesprek: number) => namen.get(gesprek);
