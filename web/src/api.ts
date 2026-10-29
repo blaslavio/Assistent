@@ -228,17 +228,6 @@ export async function bijwerken(aanpassen: (g: Gegevens) => void): Promise<Gegev
   return data;
 }
 
-/** Open dezelfde accountbeveiligde hulpmiddelen vanuit de nieuwe interface. */
-export function gereedschapAdres(route: string): string {
-  const toegestaan = ["communicatiecentrum", "gereedschappen", "werkzoeken", "werkdossier", "werkbronnen",
-    "taakplanning", "planning-backup", "sjablonen", "activiteitenoverzicht", "bestandsgereedschap", "gegevenscontrole"];
-  if (!toegestaan.includes(route)) throw new Error("Onbekend gereedschap.");
-  const url = new URL(OUDE_APP, window.location.href);
-  url.searchParams.set("oud", "1");
-  url.searchParams.set("gereedschap", route);
-  return url.toString();
-}
-
 /** Past je instellingen aan (bijvoorbeeld de stijl van de assistent) en bewaart ze meteen. */
 export async function instellingenBijwerken(aanpassen: (inst: Record<string, unknown>) => void) {
   return bijwerken((g) => {
