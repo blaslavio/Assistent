@@ -1,6 +1,6 @@
 // De goedgekeurde mascotte (assets/assistant_source.svg). Hij beweegt licht, volgt je vinger met zijn ogen, reageert
 // als je op hem tikt en op wat je in de app doet, en dut in als je even niets doet.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 // De ogen staan los van het lijf, zodat ze kunnen knipperen.
 const OGEN = "M 760,361 L 757,362 L 753,366 L 750,373 L 750,389 L 751,390 L 751,394 L 757,409 L 762,415 L 768,419 L 771,419 L 772,420 L 777,419 L 782,415 L 785,409 L 786,396 L 785,395 L 784,386 L 781,380 L 781,378 L 780,378 L 780,380 L 776,384 L 773,384 L 769,380 L 769,374 L 770,372 L 773,370 L 776,370 L 776,369 L 770,363 L 766,361 Z M 846,326 L 841,329 L 838,335 L 838,338 L 837,339 L 837,353 L 838,354 L 838,358 L 839,359 L 839,362 L 841,368 L 846,378 L 851,383 L 855,385 L 860,385 L 867,379 L 868,373 L 869,372 L 869,357 L 868,356 L 868,352 L 865,344 L 864,347 L 861,350 L 859,350 L 855,347 L 854,345 L 854,340 L 860,335 L 860,333 L 855,328 L 850,326 Z";
@@ -44,13 +44,24 @@ export function tipsVoorNu(nu = new Date()): string[] {
 }
 export const TIPS = ALTIJD;
 
-export type Stemming = "wacht" | "kijkt" | "luistert" | "denkt" | "blij" | "slaapt";
+// Het lijf zonder de krul rechts, en de twee armen (de krul is de rechterarm).
+const ZONDER_KRUL = "533,199 1026,199 1026,425 905,425 888,455 870,490 868,820 533,820";
+const ARM_R = "M862 551C902 548 932 515 952 475C965 450 990 440 987 478C985 505 972 528 958 548";
+const ARM_L = "M668 512C640 522 614 540 598 572";
+
+export type Stemming = "wacht" | "kijkt" | "luistert" | "denkt" | "blij" | "slaapt" | "wijst" | "feest";
 
 const rustig = () => matchMedia("(prefers-reduced-motion: reduce)").matches
   || document.documentElement.classList.contains("minder-beweging");
 
 /** Laat de mascotte reageren op iets wat je deed, waar hij ook staat. Bijvoorbeeld: een taak afgevinkt. */
+/** Wat hij zegt als je een taak afvinkt, met hoeveel er nog over zijn. */
+export const afgevinktTekst = (over: number) => over === 0 ? "Alles afgevinkt. Daar mag je trots op zijn!"
+  : over === 1 ? "Afgevinkt! Nog maar één te gaan." : `Afgevinkt! Nog ${over} te gaan.`;
+
+let hier = 0;
 export function mascotteZeg(tekst: string) {
+  if (!hier) window.dispatchEvent(new CustomEvent("mascotte-los", { detail: tekst }));
   window.dispatchEvent(new CustomEvent("mascotte", { detail: tekst }));
 }
 
@@ -59,6 +70,7 @@ export function mascotteZeg(tekst: string) {
  * Staat stil bij "Minder beweging". */
 export function Mascotte({ className = "", hup = 0, stemming = "wacht" }: { className?: string; hup?: number; stemming?: Stemming }) {
   const blik = useRef<SVGGElement>(null);
+  const knip = `krul${useId().replace(/:/g, "")}`;
   // De ogen volgen je vinger of muis, zolang hij niet zelf ergens naar kijkt.
   useEffect(() => {
     if (stemming !== "wacht" || rustig()) return;
@@ -81,7 +93,12 @@ export function Mascotte({ className = "", hup = 0, stemming = "wacht" }: { clas
   return (
     <span key={hup} className={`mascotte stemming-${stemming} inline-block ${hup ? "mascotte-hup" : ""} ${className}`}>
       <svg viewBox="533 199 493 621" aria-hidden className="mascotte-lijf pointer-events-none size-full select-none overflow-visible text-[#145b48] dark:text-[#6fcfae]">
-        <path fill="currentColor" fillRule="evenodd" d={LIJF} />
+        <clipPath id={knip}><polygon points={ZONDER_KRUL} /></clipPath>
+        <path fill="currentColor" fillRule="evenodd" d={LIJF} clipPath={`url(#${knip})`} />
+        {/* Twee armen die vanaf de schouder draaien: zwaaien, wijzen en juichen. De rechter is de krul van het
+            lijf zelf: die knippen we uit de tekening en tekenen hem los opnieuw, zodat hij kan bewegen. */}
+        <path className="mascotte-arm mascotte-arm-l" d={ARM_L} fill="none" stroke="currentColor" strokeWidth="30" strokeLinecap="round" />
+        <path className="mascotte-arm mascotte-arm-r" d={ARM_R} fill="none" stroke="currentColor" strokeWidth="30" strokeLinecap="round" />
         <g ref={blik} className="mascotte-blik">
           <path className="mascotte-ogen" fill="currentColor" fillRule="evenodd" d={OGEN} />
         </g>
@@ -103,6 +120,16 @@ export function MascotteMetTip({ tips: eigen }: { tips?: string[] }) {
   const [stemming, setStemming] = useState<Stemming>("wacht");
   const tikken = useRef<number[]>([]);
   const stil = useRef(0);
+  const terug = useRef(0);
+  // Even een stemming laten zien en daarna weer gewoon wachten.
+  const even = (s: Stemming, ms: number) => {
+    clearTimeout(terug.current);
+    setStemming(s);
+    terug.current = window.setTimeout(() => setStemming("wacht"), ms);
+  };
+
+  // Zolang hij op het scherm staat, viert hij zelf feest; anders doet de kleine mascotte onderin dat.
+  useEffect(() => { hier += 1; return () => { hier -= 1; clearTimeout(terug.current); }; }, []);
 
   // Wakker houden: elke aanraking zet de slaapklok terug.
   useEffect(() => {
@@ -120,9 +147,7 @@ export function MascotteMetTip({ tips: eigen }: { tips?: string[] }) {
   useEffect(() => {
     const zeg = (e: Event) => {
       setTekst((e as CustomEvent<string>).detail);
-      setStemming("blij");
-      setHup((h) => h + 1);
-      window.setTimeout(() => setStemming("wacht"), 1600);
+      even("feest", 2200);
     };
     window.addEventListener("mascotte", zeg);
     return () => window.removeEventListener("mascotte", zeg);
@@ -130,7 +155,7 @@ export function MascotteMetTip({ tips: eigen }: { tips?: string[] }) {
 
   useEffect(() => {
     if (rustig() || tekst) return;
-    const t = setInterval(() => { setI((x) => (x + 1) % tips.length); setHup((h) => h + 1); }, 12000);
+    const t = setInterval(() => { setI((x) => (x + 1) % tips.length); even("wijst", 1800); }, 12000);
     return () => clearInterval(t);
   }, [tips.length, tekst]);
 
@@ -141,13 +166,13 @@ export function MascotteMetTip({ tips: eigen }: { tips?: string[] }) {
     if (stemming === "slaapt") { setStemming("wacht"); setTekst("Oh! Ik was even weg. Waar waren we?"); return; }
     if (tikken.current.length >= 3) {
       tikken.current = [];
-      setStemming("blij");
       setTekst(REACTIES[2]);
-      window.setTimeout(() => setStemming("wacht"), 1600);
+      even("blij", 1600);
       return;
     }
     setTekst(null);
     setI((x) => (x + 1) % tips.length);
+    even("wijst", 1800);
   }
 
   return (
@@ -159,6 +184,33 @@ export function MascotteMetTip({ tips: eigen }: { tips?: string[] }) {
       <p key={tekst ?? i} aria-live="polite" className="opkomen relative mb-4 rounded-2xl rounded-bl-md bg-vlak px-4 py-3 text-[15px] leading-snug text-rustig">
         {tekst ?? tips[i]}
       </p>
+    </div>
+  );
+}
+
+/** Iets gedaan op een scherm zonder mascotte, zoals een taak afvinken in de agenda: dan komt hij even onderin
+ * juichen, klapt zich in als een paperclip en verdwijnt weer. */
+export function MascotteFeest() {
+  const [tekst, setTekst] = useState<string | null>(null);
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let weg = 0;
+    const zeg = (e: Event) => {
+      clearTimeout(weg);
+      setTekst((e as CustomEvent<string>).detail);
+      setN((x) => x + 1);
+      weg = window.setTimeout(() => setTekst(null), 3200);
+    };
+    window.addEventListener("mascotte-los", zeg);
+    return () => { clearTimeout(weg); window.removeEventListener("mascotte-los", zeg); };
+  }, []);
+  if (!tekst) return null;
+  return (
+    <div key={n} role="status" className="pointer-events-none fixed inset-x-0 bottom-24 z-40 flex justify-center px-6 opkomen">
+      <div className="flex max-w-sm items-end gap-2 rounded-3xl bg-white/95 py-2 pr-4 pl-2 shadow-lg ring-1 ring-lijn backdrop-blur dark:bg-[#16161a]/95">
+        <Mascotte stemming="feest" className="h-12 w-[39px] shrink-0" />
+        <p className="mb-1.5 text-[15px] leading-snug">{tekst}</p>
+      </div>
     </div>
   );
 }

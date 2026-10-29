@@ -15,7 +15,8 @@ import { AlgemeenScherm, IdeeScherm, type Weergave } from "./Algemeen";
 import { Profiel, useEigenFoto } from "./Profiel";
 
 type Props = { staat: Staat; vernieuw: () => Promise<void>; terug: () => void; opUitgelogd: () => void;
-  setStaat: (s: Staat) => void; vraag: (tekst: string) => void };
+  setStaat: (s: Staat) => void; vraag: (tekst: string) => void; start?: { naam: OnderdeelNaam; n: number } | null;
+  vorigeNaam?: string };
 type Pagina = null | "algemeen" | "idee" | "profiel" | "account" | "assistent" | "privacy" | "thuis" | "mail" | "betalingen" | "afspraken";
 
 type Stijl = Record<string, string | undefined>;
@@ -34,9 +35,12 @@ const KEUZES: { sleutel: string; label: string; opties: string[]; standaard: str
 ];
 
 
-export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setStaat, vraag }: Props) {
+export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setStaat, vraag, start, vorigeNaam }: Props) {
   const [pagina, setPagina] = useState<Pagina>(null);
-  const [onderdeel, setOnderdeel] = useState<OnderdeelNaam | null>(null);
+  const [onderdeel, setOnderdeel] = useState<OnderdeelNaam | null>(start?.naam ?? null);
+  // Via "Je apps" geopend: terug brengt je naar waar je vandaan kwam, niet naar de lijst met instellingen.
+  const [vanApps, setVanApps] = useState(!!start);
+  useEffect(() => { if (start) { setPagina(null); setOnderdeel(start.naam); setVanApps(true); } }, [start]);
   const [bezig, setBezig] = useState(false);
   const [melding, setMelding] = useState("");
   const g = staat.gebruiker;
@@ -136,7 +140,8 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
 
   if (pagina === "betalingen") return scherm("Betalingen", <Betalingen eigenaar={g.id === 1} />);
 
-  if (onderdeel) return <Onderdeel naam={onderdeel} staat={staat} vernieuw={vernieuw} terug={() => setOnderdeel(null)} vraag={vraag} />;
+  if (onderdeel) return <Onderdeel naam={onderdeel} staat={staat} vernieuw={vernieuw} vraag={vraag} terugNaam={vanApps ? vorigeNaam : undefined}
+    terug={() => { setOnderdeel(null); if (vanApps) { setVanApps(false); terug(); } }} />;
   if (pagina === "algemeen") return scherm("Weergave", <AlgemeenScherm inst={inst as Weergave} bewaar={(a) => bewaar(a)} />);
   if (pagina === "idee") return scherm("Idee of probleem", <IdeeScherm />);
   if (pagina === "thuis") return scherm("Thuis", <>

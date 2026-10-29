@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { bijwerken, instellingenBijwerken, type Afspraak, type Taak } from "../api";
 import type { Staat } from "../App";
+import { afgevinktTekst, mascotteZeg } from "../mascotte";
 import { Bel, Bewerk, Envelop, Euro, Herstel, Kalender, Plus, Prullenbak, Slot, Vinkje, Vonk } from "../iconen";
 import { AANBIEDERS, gekoppeld, mails, mailsBewaard, samenvatting, testen, voorstellen, type Mail, type Voorstel } from "../lib/mail";
 import { gegevensLaden } from "../api";
@@ -66,6 +67,7 @@ export function TakenPaneel({ staat, setStaat }: Props) {
   }
   function afvinken(t: Taak) {
     setWeg((w) => new Set(w).add(t.id));
+    mascotteZeg(afgevinktTekst(open_.filter((x) => x.id !== t.id).length));
     setTimeout(() => {
       wijzig((g) => { g.taken = g.taken.map((x) => (x.id === t.id ? { ...x, klaar: true } : x)); })
         .finally(() => setWeg((w) => { const n = new Set(w); n.delete(t.id); return n; }));

@@ -4,36 +4,27 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import { alsIk, bijwerken, instellingenBijwerken, type Gegevens } from "../api";
 import { AfschriftFout, afschriftLezen, categorieRaden, decoderen, metSleutels } from "../lib/afschrift";
 import type { Staat } from "../App";
+import { mascotteZeg } from "../mascotte";
 import { Bestand, Bewerk, Boek, Grafiek, Hart, Kruis, Lijstje, Plus, Prullenbak, Tas, Terug, Winkelpand } from "../iconen";
 import { Beleggen } from "./Beleggen";
 import { kop } from "./instellingen-ui";
 import { Leren } from "./Leren";
 import { Zakelijk } from "./Zakelijk";
 
-export type OnderdeelNaam = "boodschappen" | "kooplijst" | "wenslijst" | "notities" | "documenten" | "budget" | "beleggen" | "leren" | "zakelijk";
-
-export const ONDERDELEN: [OnderdeelNaam, string, typeof Tas][] = [
-  ["boodschappen", "Boodschappen", Tas],
-  ["kooplijst", "Kooplijst", Lijstje],
-  ["wenslijst", "Wenslijst", Hart],
-  ["notities", "Notities", Bewerk],
-  ["documenten", "Documenten", Bestand],
-  ["budget", "Budget", Lijstje],
-  ["beleggen", "Beleggen", Grafiek],
-  ["leren", "Leren", Boek],
-  ["zakelijk", "Zakelijk", Winkelpand],
-];
+import { ONDERDELEN, type OnderdeelNaam } from "../lib/onderdeel-lijst";
+export { ONDERDELEN, type OnderdeelNaam };
 
 const foutVan = (e: unknown) => (e instanceof Error && e.message ? e.message : "Dat lukte niet. Probeer het opnieuw.");
 const veld = "h-12 min-w-0 flex-1 rounded-2xl bg-vlak px-4 outline-none placeholder:text-zacht";
 const knop = "flex h-12 shrink-0 items-center justify-center rounded-2xl bg-accent px-4 font-medium text-white disabled:opacity-30";
 
-function Scherm({ titel, terug, children, rechts }: { titel: string; terug: () => void; children: ReactNode; rechts?: ReactNode }) {
+function Scherm({ titel, terug, terugNaam = "Instellingen", children, rechts }: { titel: string; terug: () => void; terugNaam?: string;
+  children: ReactNode; rechts?: ReactNode }) {
   return (
     <div className="flex min-h-full flex-col px-6 pt-12 pb-10">
       <div className="flex items-center justify-between">
         <button onClick={terug} className="-ml-2 flex h-10 items-center gap-1 pr-3 text-rustig">
-          <Terug className="size-5" /> Instellingen
+          <Terug className="size-5" /> {terugNaam}
         </button>
         {rechts}
       </div>
@@ -43,15 +34,15 @@ function Scherm({ titel, terug, children, rechts }: { titel: string; terug: () =
   );
 }
 
-export function Onderdeel({ naam, staat, vernieuw, terug, vraag }: { naam: OnderdeelNaam; staat: Staat;
-  vernieuw: () => Promise<void>; terug: () => void; vraag: (tekst: string) => void }) {
+export function Onderdeel({ naam, staat, vernieuw, terug, terugNaam, vraag }: { naam: OnderdeelNaam; staat: Staat;
+  vernieuw: () => Promise<void>; terug: () => void; terugNaam?: string; vraag: (tekst: string) => void }) {
   const titel = ONDERDELEN.find(([id]) => id === naam)![1];
   if (naam === "documenten") return <Documenten terug={terug} />;
-  if (naam === "leren") return <Scherm titel={titel} terug={terug}><Leren staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
-  if (naam === "budget") return <Scherm titel={titel} terug={terug}><Budget staat={staat} /></Scherm>;
-  if (naam === "beleggen") return <Scherm titel={titel} terug={terug}><Beleggen staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
-  if (naam === "zakelijk") return <Scherm titel={titel} terug={terug}><Zakelijk staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
-  return <Scherm titel={titel} terug={terug}><Lijst naam={naam} data={staat.data} vernieuw={vernieuw} /></Scherm>;
+  if (naam === "leren") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Leren staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
+  if (naam === "budget") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Budget staat={staat} /></Scherm>;
+  if (naam === "beleggen") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Beleggen staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
+  if (naam === "zakelijk") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Zakelijk staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
+  return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Lijst naam={naam} data={staat.data} vernieuw={vernieuw} /></Scherm>;
 }
 
 // --- Lijstjes ------------------------------------------------------------------------------------------------------
@@ -117,7 +108,10 @@ function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documen
         {open.map((i) => (
           <li key={i.id} className="flex items-center gap-3 px-4 py-3">
             {vinkbaar && <input type="checkbox" aria-label={`${tekstVan(i)} afvinken`} className="size-[22px] shrink-0 accent-accent"
-              onChange={() => wijzig((l) => { const x = l.find((y) => y.id === i.id); if (x) x.gekocht = true; })} />}
+              onChange={() => {
+                if (open.length === 1) mascotteZeg(naam === "boodschappen" ? "Alles in je mandje. Goed gedaan!" : "Alles afgevinkt!");
+                wijzig((l) => { const x = l.find((y) => y.id === i.id); if (x) x.gekocht = true; });
+              }} />}
             {notities ? (
               <button onClick={() => setNotitie(i)} className="flex min-w-0 flex-1 flex-col text-left">
                 <span className="truncate font-medium">{i.titel || "Notitie"}</span>

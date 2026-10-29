@@ -4,13 +4,18 @@ import { alsIk } from "../api";
 import { Schakelaar, kop } from "./instellingen-ui";
 import { LANDEN, REGIO_S, REGIO_UITLEG, type FeestInstellingen } from "../lib/feestdagen";
 
-export type Weergave = { thema?: "auto" | "licht" | "donker";
+export type Stijl = { kleur?: "indigo" | "zeegroen" | "oranje" | "grafiet"; vorm?: "rond" | "strak"; ruimte?: "ruim" | "compact" };
+export type Weergave = { thema?: "auto" | "licht" | "donker"; stijl?: Stijl;
   toegankelijk?: { tekst?: string; contrast?: boolean; minder_beweging?: boolean };
   voorpagina?: Record<string, boolean>; voorbeeldvragen?: boolean; feestdagen?: Partial<FeestInstellingen> };
 
 // Dezelfde namen als in de oude app, zodat een eerder gekozen tekstgrootte blijft staan.
 export const TEKSTGROOTTE: Record<string, number> = { Klein: 0.92, Normaal: 1, Groot: 1.12, "Extra groot": 1.25 };
 const THEMA: [NonNullable<Weergave["thema"]>, string][] = [["auto", "Automatisch"], ["licht", "Licht"], ["donker", "Donker"]];
+const KLEUREN: [NonNullable<Stijl["kleur"]>, string, string][] = [
+  ["indigo", "Indigo", "#4f46e5"], ["zeegroen", "Zeegroen", "#0f766e"], ["oranje", "Oranje", "#c2410c"], ["grafiet", "Grafiet", "#27272a"]];
+const VORM: [NonNullable<Stijl["vorm"]>, string][] = [["rond", "Rond"], ["strak", "Strak"]];
+const RUIMTE: [NonNullable<Stijl["ruimte"]>, string][] = [["ruim", "Ruim"], ["compact", "Compact"]];
 export const VANDAAG: [string, string, string][] = [
   ["weer", "Weer", "Naast de datum"],
   ["mascotte", "Tips", "De mascotte met een korte tip"],
@@ -25,6 +30,11 @@ export function weergaveToepassen(i: Weergave) {
   const t = i.toegankelijk ?? {};
   if (i.thema === "licht" || i.thema === "donker") html.dataset.thema = i.thema;
   else delete html.dataset.thema;
+  const st = i.stijl ?? {};
+  const zet = (k: "kleur" | "vorm" | "ruimte", v: string | undefined, standaard: string) => {
+    if (v && v !== standaard) html.dataset[k] = v; else delete html.dataset[k];
+  };
+  zet("kleur", st.kleur, "indigo"); zet("vorm", st.vorm, "rond"); zet("ruimte", st.ruimte, "ruim");
   html.style.setProperty("--zoom", String(TEKSTGROOTTE[t.tekst ?? ""] ?? 1));
   html.classList.toggle("contrast", !!t.contrast);
   html.classList.toggle("minder-beweging", !!t.minder_beweging);
@@ -34,8 +44,28 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
   bewaar: (aanpassen: (i: Record<string, unknown>) => void) => void }) {
   const t = inst.toegankelijk ?? {};
   const toegankelijk = (stuk: Weergave["toegankelijk"]) => bewaar((i) => { i.toegankelijk = { ...t, ...stuk }; });
+  const st = inst.stijl ?? {};
+  const stijl = (stuk: Stijl) => bewaar((i) => { i.stijl = { ...st, ...stuk }; });
   return <>
-    <Keuzes label="Kleur" opties={THEMA} waarde={inst.thema ?? "auto"} kies={(v) => bewaar((i) => { i.thema = v; })} />
+    <Keuzes label="Licht of donker" opties={THEMA} waarde={inst.thema ?? "auto"} kies={(v) => bewaar((i) => { i.thema = v; })} />
+    <fieldset>
+      <legend className={kop}>Kleur</legend>
+      <div className="flex gap-3">
+        {KLEUREN.map(([k, naam, hex]) => {
+          const aan = (st.kleur ?? "indigo") === k;
+          return (
+            <button key={k} type="button" aria-pressed={aan} onClick={() => stijl({ kleur: k })}
+              className="flex flex-1 flex-col items-center gap-1.5 text-[13px]">
+              <span className={`size-10 rounded-full ${aan ? "ring-2 ring-offset-2 ring-inkt ring-offset-white dark:ring-offset-[#0b0b0e]" : ""}`}
+                style={{ background: hex }} />
+              <span className={aan ? "font-semibold" : "text-rustig"}>{naam}</span>
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+    <Keuzes label="Vorm" opties={VORM} waarde={st.vorm ?? "rond"} kies={(v) => stijl({ vorm: v })} />
+    <Keuzes label="Ruimte" opties={RUIMTE} waarde={st.ruimte ?? "ruim"} kies={(v) => stijl({ ruimte: v })} />
     <Keuzes label="Tekstgrootte" opties={Object.keys(TEKSTGROOTTE).map((k) => [k, k === "Extra groot" ? "Extra" : k])}
       waarde={t.tekst && t.tekst in TEKSTGROOTTE ? t.tekst : "Normaal"} kies={(v) => toegankelijk({ tekst: v })} />
     <div className="flex flex-col gap-2">

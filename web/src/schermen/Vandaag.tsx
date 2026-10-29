@@ -5,7 +5,7 @@ import { dagenVan } from "../lib/club";
 import { Camera, Envelop, Huis, Kalender, Kruis, Persoon, Plus, Terug, Vinkje } from "../iconen";
 import { gekoppeld } from "../lib/mail";
 import { KeuzeKaart } from "../keuzekaart";
-import { MascotteMetTip, mascotteZeg } from "../mascotte";
+import { MascotteMetTip, afgevinktTekst, mascotteZeg } from "../mascotte";
 import { opVandaag, type Weergave } from "./Algemeen";
 import { afhandelen, voorstel } from "../lib/voorstellen";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
@@ -83,8 +83,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
 
   async function afvinken(id: number) {
     const over = data.taken.filter((t) => !t.klaar && t.id !== id).length;
-    mascotteZeg(over === 0 ? "Alles afgevinkt. Daar mag je trots op zijn!" : over === 1 ? "Afgevinkt! Nog maar één te gaan."
-      : `Afgevinkt! Nog ${over} te gaan.`);
+    mascotteZeg(afgevinktTekst(over));
     setStaat({ ...staat, data: { ...data, taken: data.taken.map((t) => (t.id === id ? { ...t, klaar: true } : t)) } });
     const nieuw = await bijwerken((g) => {
       const taak = g.taken.find((t) => t.id === id);
