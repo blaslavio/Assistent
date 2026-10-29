@@ -5,7 +5,7 @@ import { alsIk } from "../api";
 export type EigenProduct = { id: number; titel: string; prijs: number; actief: boolean; geblokkeerd: boolean;
   in_winkel: boolean; voorraad: number | null; betaalwijzen: string[]; levering: string[] };
 export type EigenWinkel = { adres: string; naam: string; omschrijving: string; kleur: string; verzendkosten: number;
-  gratis_vanaf: number | null; retour: string; open: boolean; volgers: number; actie: string };
+  gratis_vanaf: number | null; retour: string; open: boolean; volgers: number; actie: string; winkeladres: string };
 export type MijnWinkel = { winkel: EigenWinkel | null; niveau: string; kan_betalen: boolean; commissie_procent: number;
   commissie_min: number; producten: EigenProduct[]; verkopen: { aantal: number; omzet: number; commissie: number } };
 
@@ -21,7 +21,7 @@ export async function mijnWinkel(): Promise<MijnWinkel> {
   const w = r.winkel;
   return {
     winkel: w ? { ...w, verzendkosten: getal(w.verzendkosten), gratis_vanaf: w.gratis_vanaf == null ? null : getal(w.gratis_vanaf),
-      omschrijving: w.omschrijving ?? "", retour: w.retour ?? "", actie: w.actie ?? "", volgers: getal(w.volgers) } : null,
+      omschrijving: w.omschrijving ?? "", retour: w.retour ?? "", actie: w.actie ?? "", winkeladres: w.winkeladres ?? "", volgers: getal(w.volgers) } : null,
     niveau: r.niveau ?? "particulier", kan_betalen: !!r.kan_betalen,
     commissie_procent: getal(r.commissie_procent ?? 5), commissie_min: getal(r.commissie_min ?? 0.35),
     producten: (r.producten ?? []).map((p) => ({ ...p, prijs: getal(p.prijs), betaalwijzen: p.betaalwijzen ?? [],
@@ -36,7 +36,8 @@ export const webadres = (naam: string) => naam.toLowerCase().normalize("NFD").re
 
 async function doe(functie: string, parameters: Record<string, unknown>) {
   const r = await alsIk<{ ok?: boolean; fout?: string }>(functie, parameters);
-  if (r.fout) throw new Error(r.fout);
+  // De database noemt nog een menu van de vorige app; hier staat het onder Instellingen.
+  if (r.fout) throw new Error(r.fout.includes("Stripe") ? "Zet eerst betalingen aan in Instellingen › Betalingen." : r.fout);
   return r;
 }
 
@@ -48,6 +49,14 @@ export function winkelBewaren(w: Pick<EigenWinkel, "adres" | "naam" | "omschrijv
 
 export const productInWinkel = (id: number, inWinkel: boolean, voorraad: number | null) =>
   doe("winkel_product", { p_aanbod: id, p_in_winkel: inWinkel, p_voorraad: voorraad });
+
+/** Een winkel met een echte plek komt op de winkelkaart. Leeg adres: alleen online. */
+export async function vestigingBewaren(adres: string) {
+  const { zoekPlek } = await import("./kaart");
+  const p = adres.trim() ? await zoekPlek(adres) : null;
+  if (adres.trim() && !p) throw new Error("Dit adres kan ik niet op de kaart vinden. Probeer straat, nummer en plaats.");
+  return doe("winkel_vestiging", { p_winkeladres: adres.trim(), p_lat: p?.lat ?? null, p_lon: p?.lon ?? null });
+}
 
 /** Een webshop kan met accounttype Verkoper; wie nog Particulier is, wordt dat als hij een winkel begint. */
 export const verkoperWorden = () => doe("niveau_instellen", { p_niveau: "verkoper", p_bedrijf: {} });

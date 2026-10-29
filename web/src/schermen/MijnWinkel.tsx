@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Onderblad } from "./Onderblad";
 import { Schakelaar } from "./instellingen-ui";
-import { WINKELKLEUREN, mijnWinkel, productInWinkel, verkoperWorden, webadres, winkelBewaren, winkelLink,
+import { WINKELKLEUREN, mijnWinkel, productInWinkel, verkoperWorden, vestigingBewaren, webadres, winkelBewaren, winkelLink,
   type EigenProduct, type EigenWinkel, type MijnWinkel as Gegevens } from "../lib/mijnwinkel";
 import { euro } from "../lib/winkelen";
 import { Winkelpand } from "../iconen";
@@ -193,6 +193,7 @@ function Instellen({ w, sluit, klaar }: { w: EigenWinkel; sluit: () => void; kla
     setFout("");
     try {
       await winkelBewaren(v);
+      if (v.winkeladres.trim() !== w.winkeladres.trim()) await vestigingBewaren(v.winkeladres);
       klaar();
     } catch (e) {
       setFout(foutVan(e));
@@ -225,6 +226,12 @@ function Instellen({ w, sluit, klaar }: { w: EigenWinkel; sluit: () => void; kla
             onChange={(e) => zet({ gratis_vanaf: e.target.value.trim() ? bedrag(e.target.value) : null })} className={veld} />
         </label>
       </div>
+      <label className="flex flex-col gap-1.5">
+        <span className="px-1 text-sm font-medium">Winkeladres</span>
+        <input value={v.winkeladres} onChange={(e) => zet({ winkeladres: e.target.value })} maxLength={200}
+          placeholder="Leeg als je alleen online verkoopt" className={veld} />
+        <span className="px-1 text-[13px] text-rustig">Met een adres sta je op de winkelkaart.</span>
+      </label>
       <textarea value={v.retour} onChange={(e) => zet({ retour: e.target.value })} maxLength={1000} rows={2}
         aria-label="Retourbeleid" placeholder="Retour, bijvoorbeeld: binnen 14 dagen terugsturen"
         className="w-full rounded-2xl bg-vlak px-4 py-3 outline-none focus:ring-2 focus:ring-accent" />
