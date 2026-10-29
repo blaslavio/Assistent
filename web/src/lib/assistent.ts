@@ -248,6 +248,12 @@ const LIJST: Hulpmiddel[] = [
       description: "Over welke periode de cijfers gaan. Standaard Maand." } } },
   },
   {
+    name: "winkel_overzicht",
+    description: "Bekijk de eigen webshop van de gebruiker: open of dicht, de link, welke producten erin staan met voorraad "
+      + "en wat er verkocht is. Alleen lezen; aanpassen doet de gebruiker zelf in Chat › Winkel › Verkopen.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
     name: "zaak_boeken",
     description: "Zet een regel in de zakelijke boekhouding: een geleverde dienst (klant moet betalen), een ontvangen "
       + "betaling of eigen kosten. Alleen als de gebruiker erom vraagt.",
@@ -690,6 +696,17 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
         nog_afvinken: z.nogAfvinken(klanten).slice(0, 15).map((b) => ({ wie: b.naam, wat: b.soort, wanneer: b.start })),
         lessen_deze_week: l.map((x) => ({ naam: x.naam, start: x.start, ingeschreven: x.ingeschreven, plekken: x.plekken,
           wachtlijst: x.wachtlijst })) }) };
+    }
+    case "winkel_overzicht": {
+      const m = await import("./mijnwinkel");
+      const g = await m.mijnWinkel();
+      if (!g.winkel) return { resultaat: JSON.stringify({ winkel: null,
+        uitleg: "Nog geen winkel. Die begin je in Chat › Winkel › Verkopen › Begin je eigen winkel." }) };
+      return { resultaat: JSON.stringify({ naam: g.winkel.naam, open: g.winkel.open, link: m.winkelLink(g.winkel.adres),
+        kan_betalingen_ontvangen: g.kan_betalen, verzendkosten: g.winkel.verzendkosten, gratis_vanaf: g.winkel.gratis_vanaf,
+        producten: g.producten.filter((p) => p.in_winkel).map((p) => ({ titel: p.titel, prijs: euro(p.prijs),
+          voorraad: p.voorraad, uitverkocht: p.voorraad === 0 })),
+        verkocht: g.verkopen.aantal, omzet: euro(g.verkopen.omzet), kosten: euro(g.verkopen.commissie) }) };
     }
     case "zaak_boeken": {
       const z = await import("./zaak");
