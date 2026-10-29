@@ -71,8 +71,14 @@ function starten(html) {
     venster.style.top = Math.round(vv ? vv.offsetTop : 0) + "px";
     if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
   };
-  if (vv) { vv.addEventListener("resize", pas); vv.addEventListener("scroll", pas); }
-  window.addEventListener("scroll", pas, { passive: true });
+  // Het toetsenbord schuift in een animatie omhoog; het venster volgt die beeld voor beeld, zodat niets verspringt.
+  let tot = 0;
+  const volg = () => { pas(); if (performance.now() < tot) requestAnimationFrame(volg); };
+  const kort = () => { const begin = tot <= performance.now(); tot = performance.now() + 700; if (begin) requestAnimationFrame(volg); };
+  if (vv) { vv.addEventListener("resize", kort); vv.addEventListener("scroll", kort); }
+  window.addEventListener("scroll", kort, { passive: true });
+  // Slepen op de pagina eronder (naast het venster) schuift niets.
+  document.addEventListener("touchmove", (e) => { if (e.cancelable && e.target !== venster) e.preventDefault(); }, { passive: false });
   pas();
 }
 """

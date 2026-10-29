@@ -17,6 +17,19 @@ export function schermVastzetten() {
   window.addEventListener("resize", pas);
   pas();
 
+  // Slepen op een deel dat zelf niet scrolt, verschuift op een iPhone het hele scherm (vooral met het toetsenbord
+  // open). Dat houden we tegen; lijsten en vensters die wel scrollen, scrollen gewoon.
+  document.addEventListener("touchmove", (e) => {
+    if (e.touches.length > 1) return;
+    for (let el = e.target as HTMLElement | null; el && el !== document.body; el = el.parentElement) {
+      const stijl = getComputedStyle(el);
+      if (/(auto|scroll)/.test(stijl.overflowY + stijl.overflowX)
+        && (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1)) return;
+      if (el.matches("input, textarea, canvas, video, iframe, [contenteditable=true], .leaflet-container, [data-sleep]")) return;
+    }
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+
   // Tik je in een invoerveld, dan is het toetsenbord open (ook in het venster op de Streamlit-app, waar
   // het formaat van buitenaf komt).
   document.addEventListener("focusin", (e) => {
