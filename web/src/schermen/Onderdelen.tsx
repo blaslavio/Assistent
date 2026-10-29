@@ -1,7 +1,8 @@
 // De onderdelen uit de vorige app: boodschappen, kooplijst, wenslijst, notities, documenten, budget en leren.
 // Lijstjes staan in je gegevens (dezelfde plek als in de vorige app); documenten en uitgaven hebben eigen tabellen.
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { alsIk, bijwerken, instellingenBijwerken, type Gegevens } from "../api";
+import { BankKoppeling } from "./Bank";
 import { AfschriftFout, afschriftLezen, categorieRaden, decoderen, metSleutels } from "../lib/afschrift";
 import type { Staat } from "../App";
 import { mascotteZeg } from "../mascotte";
@@ -347,6 +348,7 @@ function Budget({ staat }: { staat: Staat }) {
   const [fout, setFout] = useState("");
   const b = (staat.data.instellingen?.budget ?? {}) as { budgetten?: Record<string, number>; regels?: Record<string, string>; gebruikt?: boolean };
   const budgetten = b.budgetten ?? {};
+  const bankRegels = useMemo(() => b.regels ?? {}, [b.regels]);
   const [inlezen, setInlezen] = useState("");
 
   // Een afschrift van je bank inlezen: het bestand wordt op je toestel gelezen, alleen de regels gaan naar je account.
@@ -483,6 +485,10 @@ function Budget({ staat }: { staat: Staat }) {
           ))}
         </ul>
       )}
+    </section>
+    <section className="flex flex-col gap-2">
+      <h2 className={kop}>Bank</h2>
+      <BankKoppeling eigenaar={staat.gebruiker.id === 1} regels={bankRegels} bijgewerkt={laden} />
     </section>
     <section className="flex flex-col gap-2">
       <h2 className={kop}>Bankafschrift</h2>
