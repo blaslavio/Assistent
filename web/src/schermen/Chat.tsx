@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Kalender, Meer, Bal, Ballon, Bewerk, Boek, Dubbelvink, Fiets, Gereedschap, Huis, Kind, Penseel, Raster as RasterIcoon, Scherm, Shirt, Truck, Winkelpand, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
 import { JouwAanbod } from "./Delen";
 import { Berichten, Feed, Schrijven } from "./Feed";
@@ -30,6 +30,8 @@ import { rpc } from "../api";
 import { zoeken, type Filter, type Product } from "../lib/winkelen";
 import { dagTitel, datumTekst, tijdje } from "../lib/tijd";
 import type { Staat } from "../App";
+
+const WinkelKaart = lazy(() => import("./WinkelKaart").then((m) => ({ default: m.WinkelKaart })));
 
 type Deel = "chats" | "communitys" | "winkel" | "oproepen" | "jij";
 const DELEN: [Deel, string, typeof Ballon][] = [["chats", "Chats", Ballon], ["communitys", "Community's", Mensen],
@@ -102,7 +104,8 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, verlaa
     return <Gesprekscherm id={open} ik={ik} begin={g} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
   }
   if (openGast !== null) return <GastGesprekScherm boeking={openGast} terug={() => { setOpenGast(null); laden().catch(() => {}); }} />;
-  if (winkel) return <WinkelApp start={winkel.deel} melding={winkel.melding} adres={winkel.adres} bestel={bestel} terug={() => setWinkel(null)} />;
+  if (winkel) return <WinkelApp start={winkel.deel} melding={winkel.melding} adres={winkel.adres}
+    thuisadres={staat?.data.instellingen?.thuisadres} bestel={bestel} terug={() => setWinkel(null)} />;
   if (openCommunity !== null && ik !== null) {
     const c = groepen.find((x) => x.id === openCommunity);
     if (c) return <CommunityScherm c={c} openKanaal={setOpen} vernieuw={laden}
@@ -541,7 +544,8 @@ function Verlaten({ c, weg }: { c: Community; weg: () => void }) {
   );
 }
 
-type WinkelKaart = { adres: string; naam: string; omschrijving?: string; producten?: number };
+type WinkelKaartje = { adres: string; naam: string; omschrijving?: string; producten?: number; lat?: number | null;
+  lon?: number | null; winkeladres?: string };
 
 type Ic = (p: { className?: string }) => ReactNode;
 const BRONNEN: [NonNullable<Filter["bron"]>, string, Ic][] = [["alles", "Alles", RasterIcoon], ["marktplaats", "Marktplaats", Mensen],
@@ -553,8 +557,8 @@ const chip = (aan: boolean) => `flex h-9 shrink-0 items-center gap-1.5 rounded-f
 type WinkelDeelNaam = "ontdekken" | "verkopen" | "bestellingen";
 
 /** De winkel als eigen app: ontdekken, zelf verkopen en je bestellingen, met een eigen menu onderin. */
-function WinkelApp({ start, melding, adres, bestel, terug }: { start: WinkelDeelNaam; melding?: string; adres?: string;
-  bestel: (p: Product) => void; terug: () => void }) {
+function WinkelApp({ start, melding, adres, thuisadres, bestel, terug }: { start: WinkelDeelNaam; melding?: string;
+  adres?: string; thuisadres?: string; bestel: (p: Product) => void; terug: () => void }) {
   const [deel, setDeel] = useState<WinkelDeelNaam>(start);
   const [openWinkel, setOpenWinkel] = useState(adres);
   const [wacht, setWacht] = useState(0);
@@ -569,7 +573,7 @@ function WinkelApp({ start, melding, adres, bestel, terug }: { start: WinkelDeel
     <div className="flex min-h-full flex-col">
       <AppKop terug={terug} terugNaam="Chat" titel={deel === "ontdekken" ? "Winkel" : items.find(([k]) => k === deel)![1]} />
       {deel === "ontdekken" && <WinkelDeel key={`${bijgewerkt}-${openWinkel}`} bestel={bestel} verkoop={() => setVerkopen(true)}
-        winkel={openWinkel} />}
+        winkel={openWinkel} thuisadres={thuisadres} />}
       {deel === "verkopen" && (
         <div className="flex flex-col gap-5 px-6 pb-8">
           <button onClick={() => setVerkopen(true)} className="flex items-center gap-3 rounded-2xl bg-accent/10 p-4 text-left">
@@ -591,13 +595,14 @@ function WinkelApp({ start, melding, adres, bestel, terug }: { start: WinkelDeel
   );
 }
 
-function WinkelDeel({ bestel, verkoop, winkel }: { bestel: (p: Product) => void; verkoop: () => void; winkel?: string }) {
+function WinkelDeel({ bestel, verkoop, winkel, thuisadres }: { bestel: (p: Product) => void; verkoop: () => void;
+  winkel?: string; thuisadres?: string }) {
   const [zoek, setZoek] = useState("");
   const [term, setTerm] = useState("");
   const [bron, setBron] = useState<NonNullable<Filter["bron"]>>("alles");
   const [bezorgen, setBezorgen] = useState(false);
   const [producten, setProducten] = useState<Product[] | null>(null);
-  const [winkels, setWinkels] = useState<WinkelKaart[]>([]);
+  const [winkels, setWinkels] = useState<WinkelKaartje[]>([]);
   const [stapel, setStapel] = useState<Blad[]>(() => (winkel ? [{ soort: "winkel", adres: winkel }] : []));
   const [fout, setFout] = useState("");
 
@@ -606,7 +611,7 @@ function WinkelDeel({ bestel, verkoop, winkel }: { bestel: (p: Product) => void;
     setProducten(null);
     zoeken(term, { bron, bezorgen, max: 40 }).then(setProducten).catch((e) => { setProducten([]); setFout(foutVan(e)); });
     if (bron === "alles" || bron === "winkels")
-      rpc<WinkelKaart[]>("winkels_zoeken", { p_zoekterm: term }).then((w) => setWinkels(Array.isArray(w) ? w : [])).catch(() => {});
+      rpc<WinkelKaartje[]>("winkels_zoeken", { p_zoekterm: term }).then((w) => setWinkels(Array.isArray(w) ? w : [])).catch(() => {});
   }, [term, bron, bezorgen]);
   const zoekt = term.trim() !== "";
   return (
@@ -627,7 +632,12 @@ function WinkelDeel({ bestel, verkoop, winkel }: { bestel: (p: Product) => void;
           <Truck className="size-4" />Bezorgen
         </button>
       </div>
-      {!zoekt && (
+      {bron === "winkels" && !zoekt && (
+        <Suspense fallback={<p className="bezig-tekst py-6 text-[15px] text-rustig">Kaart laden</p>}>
+          <WinkelKaart winkels={winkels} thuisadres={thuisadres} open={(a) => setStapel([{ soort: "winkel", adres: a }])} />
+        </Suspense>
+      )}
+      {!zoekt && bron !== "winkels" && (
         <section className="flex flex-col gap-2">
           <h2 className="text-sm font-medium text-rustig">Categorieën</h2>
           <div className="grid grid-cols-4 gap-2">
