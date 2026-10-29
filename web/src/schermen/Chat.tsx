@@ -18,7 +18,7 @@ import { StoryRij } from "./Stories";
 import { Verkopen } from "./Verkopen";
 import { MijnWinkel } from "./MijnWinkel";
 import { Cursussen } from "./Cursussen";
-import { cursusTerug, gekochtControleren } from "../lib/cursus";
+import { cursusTerug, terugControleren } from "../lib/cursus";
 import { mascotteZeg } from "../mascotte";
 import { isWinkelGevraagd, winkelGevraagd } from "../lib/mijnwinkel";
 import { useEigenFoto } from "./Profiel";
@@ -88,11 +88,10 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, verlaa
       voorbeeld(x).then((t) => setVoorbeelden((v) => (v[x.id] === t ? v : { ...v, [x.id]: t }))).catch(() => {});
   }, []);
 
-  // Terug van betalen voor een cursus: controleren of het gelukt is.
+  // Terug van betalen voor een cursus, pakket of abonnement: controleren of het gelukt is.
   useEffect(() => {
-    const sessie = cursusTerug();
-    if (sessie) gekochtControleren(sessie).then((r) => mascotteZeg(r.betaald ? "Gelukt! Je cursus staat klaar in de community."
-      : "De betaling is nog niet binnen. Kijk zo nog eens.")).catch((e) => setFout(e instanceof Error ? e.message : "Controleren lukte niet."));
+    const t = cursusTerug();
+    if (t) terugControleren(t).then(mascotteZeg).catch((e) => setFout(e instanceof Error ? e.message : "Controleren lukte niet."));
   }, []);
 
   useEffect(() => {
@@ -427,7 +426,7 @@ function CommunityScherm({ c, openKanaal, vernieuw, terug, bijgewerkt }: { c: Co
     ["agenda", "Agenda", Kalender], ["cursussen", "Cursussen", Boek], ["leden", "Leden", Mensen], ["meer", "Meer", Meer]];
   return (
     <div className="flex min-h-full flex-col">
-      <AppKop terug={terug} terugNaam="Chat" titel={deel === "kanalen" ? c.naam : items.find(([k]) => k === deel)![1]} />
+      <AppKop terug={terug} terugNaam="Chat" titel={deel === "kanalen" ? c.naam : deel === "cursussen" ? "Cursussen en trainingen" : items.find(([k]) => k === deel)![1]} />
       {deel === "kanalen" && <>
         <div className="flex items-center gap-3 px-6 pb-4">
           <Rondje naam={c.naam} id={-1000 - c.id} />

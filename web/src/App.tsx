@@ -37,9 +37,9 @@ const ZEG = (adresWaarde("zeg") ?? "").trim().slice(0, 500);
 const WINKEL = winkelVragen(adresWaarde("winkel") ?? "");
 // Terug van inloggen bij je bank (?code=...&state=...): de koppeling afmaken in Budget.
 const BANK = terugVanBank(adresWaarde("code"), adresWaarde("state"));
-// Terug van betalen voor een cursus (?cursus_betaald=sessie): de app controleert het in Chat.
-const CURSUS = terugVanCursus(adresWaarde("cursus_betaald"));
-adresOpruimen("betaald", "zeg", "ochtend", "winkel", "code", "state", "cursus_betaald");
+// Terug van betalen voor een cursus, pakket of abonnement in een community: de app controleert het in Chat.
+const CURSUS = terugVanCursus(adresWaarde("cursus_betaald"), adresWaarde("pakket_betaald"), adresWaarde("community_abonnement"));
+adresOpruimen("betaald", "zeg", "ochtend", "winkel", "code", "state", "cursus_betaald", "pakket_betaald", "community_abonnement");
 if (BETAALD !== null) openVragen(BETAALD === "0" ? "Betalen is afgebroken. Je kunt het opnieuw proberen."
   : "Gelukt. Je betaling is binnen en het geld staat vast tot je bevestigt dat alles goed is.");
 // Alleen Vandaag zit in het eerste stuk van de app. De andere schermen komen los, en worden opgehaald zodra de app
