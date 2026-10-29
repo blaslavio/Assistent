@@ -51,6 +51,8 @@ Werkwijze:
   één vraag tegelijk, wacht op het antwoord, legt kort uit wat beter kan en geeft daarna een score met leerstap_scoren.
 - Mail: met mail_bekijken lees je de inbox. Een antwoord of nieuwe mail zet je klaar met mail_opstellen; de gebruiker
   verstuurt zelf. Schrijf nooit iets wat je niet zeker weet (data, bedragen, toezeggingen).
+- Datum prikken: wil de gebruiker met anderen een moment kiezen, kijk eerst in de agenda en maak dan met datum_prikken
+  een stemronde met 2 tot 6 vrije momenten. De gebruiker deelt de link zelf. Met stemrondes_bekijken zie je de stand.
 - Geld, contracten en codes: nooit zelf iets betalen, ondertekenen of doorgeven.
 - Herken nooit wie iemand is aan zijn gezicht.
 - Begin elk antwoord met een gevoelslabel, precies zo: [gevoel: blij]. Kies uit neutraal, blij, enthousiast, rustig,
@@ -115,6 +117,22 @@ const LIJST: Hulpmiddel[] = [
     description: "Geef na het overhoren een score 0 (niet) tot 5 (helemaal) voor een stap; de app plant de volgende herhaling.",
     input_schema: { type: "object", properties: { leerdoel_id: { type: "integer" }, stap: { type: "integer" },
       score: { type: "integer" } }, required: ["leerdoel_id", "stap", "score"] },
+  },
+  {
+    name: "datum_prikken",
+    description: "Maak een stemronde (Datum prikken): anderen tikken via een link aan wanneer ze kunnen. Jij deelt niets; "
+      + "de gebruiker deelt de link zelf vanuit de agenda.",
+    input_schema: { type: "object", properties: {
+      titel: tekst("Waarvoor, bijvoorbeeld Etentje met Sanne en Bram."),
+      momenten: { type: "array", items: { type: "string" }, description: "2 tot 12 momenten als JJJJ-MM-DDTHH:MM, in de toekomst." },
+      minuten: { type: "integer", description: "Hoe lang, in minuten. Standaard 120." },
+      plaats: tekst("Optioneel: waar."),
+      uitnodigen: { type: "array", items: { type: "string" }, description: "Optioneel: gebruikersnamen in de app." },
+    }, required: ["titel", "momenten"] },
+  },
+  {
+    name: "stemrondes_bekijken", description: "Toon de stemrondes van de gebruiker met per moment hoeveel mensen ja zeiden.",
+    input_schema: { type: "object", properties: {} },
   },
   {
     name: "taak_afronden", description: "Markeer een taak als klaar.",
@@ -294,7 +312,8 @@ type Ongedaan =
   | { soort: "taak_open"; id: number }
   | { soort: "feit_weg"; id: number }
   | { soort: "leerdoel_weg"; id: number }
-  | { soort: "afspraak_terug"; afspraak: Gegevens["afspraken"][number] };
+  | { soort: "afspraak_terug"; afspraak: Gegevens["afspraken"][number] }
+  | { soort: "peiling_weg"; id: number };
 
 function nieuwId(g: Gegevens) {
   const id = g.volgend_id;
@@ -384,6 +403,25 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
           + (s("start").length > 10 ? ` · ${s("start").slice(11, 16)}` : " · hele dag")
           + (s("locatie") ? ` · ${s("locatie")}` : ""),
         ongedaan: { soort: "afspraak_weg", id } } };
+    }
+    case "datum_prikken": {
+      const momenten = Array.isArray(v.momenten) ? (v.momenten as unknown[]).map(String) : [];
+      if (momenten.length < 2 || momenten.length > 12 || momenten.some((m) => !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(m)))
+        return { resultaat: "Fout: geef 2 tot 12 momenten als JJJJ-MM-DDTHH:MM." };
+      if (momenten.some((m) => new Date(m) <= new Date())) return { resultaat: "Fout: alle momenten moeten in de toekomst liggen." };
+      const { maken, link } = await import("./prikken");
+      const uit = Array.isArray(v.uitnodigen) ? (v.uitnodigen as unknown[]).map(String) : [];
+      const p = await maken(s("titel"), [...new Set(momenten)].sort(), s("plaats"), Number(v.minuten) || 120, uit);
+      return { resultaat: JSON.stringify({ id: p.id, link: link(p.code), niet_gevonden_in_app: p.niet_gevonden }),
+        actie: { soort: "afspraak", titel: s("titel"), detail: `Stemronde met ${momenten.length} momenten · delen in Agenda › Datum prikken`,
+          ongedaan: { soort: "peiling_weg", id: p.id } } };
+    }
+    case "stemrondes_bekijken": {
+      const { mijn } = await import("./prikken");
+      const lijst = await mijn();
+      return { resultaat: JSON.stringify(lijst.slice(0, 15).map((p) => ({ id: p.id, titel: p.titel, van_mij: p.van_mij, maker: p.maker,
+        open: p.open, gekozen: p.gekozen, gestemd: p.stemmen.map((x) => x.naam),
+        momenten: p.opties.map((o) => ({ start: o.start, ja: o.ja, misschien: o.misschien })) }))) };
     }
     case "afspraak_verwijderen": {
       let weg: Gegevens["afspraken"][number] | undefined;
@@ -516,6 +554,7 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
 }
 
 export async function ongedaanMaken(o: Ongedaan) {
+  if (o.soort === "peiling_weg") await (await import("./prikken")).weg(o.id);
   return bijwerken((g) => {
     if (o.soort === "afspraak_weg") g.afspraken = g.afspraken.filter((a) => a.id !== o.id);
     if (o.soort === "taak_weg") g.taken = g.taken.filter((t) => t.id !== o.id);
@@ -592,6 +631,7 @@ export const BEZIG: Record<string, string> = {
   onthouden: "Onthoudt dit", vergeten: "Vergeet dit", keuze_voorleggen: "Zet de keuzes klaar",
   producten_zoeken: "Zoekt in de winkels", bestelling_klaarzetten: "Zet je bestelling klaar", web_search: "Zoekt op internet", web_fetch: "Leest een pagina",
   uitgaven_bekijken: "Kijkt naar je uitgaven", grafiek_tonen: "Maakt een grafiek",
+  datum_prikken: "Maakt een stemronde", stemrondes_bekijken: "Kijkt naar de stemrondes",
 };
 
 export type Gebeurtenissen = {
