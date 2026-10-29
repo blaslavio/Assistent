@@ -10,6 +10,8 @@ import { afhandelen, voorstel } from "../lib/voorstellen";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
 import { weerNu, type Weer } from "../lib/weer";
 import { eerstvolgende, instellingen as feestInstellingen } from "../lib/feestdagen";
+import { vastleggen, zonderResultaat } from "../lib/sport";
+import { HoeGingHet } from "./Sport";
 
 const kop = "mb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig";
 
@@ -159,6 +161,13 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
         )}
 
         {toon("afspraken") && !straks && rest.length === 0 && <p className="text-rustig">Niets meer in je agenda vandaag.</p>}
+
+        {zonderResultaat(data, nu).slice(0, 1).map((a) => (
+          <HoeGingHet key={a.id} a={a} bewaar={async (r) => {
+            setStaat({ ...staat, data: await bijwerken((g) => { vastleggen(g, a.id, r); }) });
+            mascotteZeg(r.gevoel >= 4 ? "Lekker bezig! Staat erin." : "Goed dat je ging. Staat erin.");
+          }} />
+        ))}
 
         {toon("afspraken") && (komend.length > 0 || feest) && (
           <section>

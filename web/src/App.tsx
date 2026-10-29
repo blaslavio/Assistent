@@ -17,6 +17,7 @@ import { deelCode } from "./lib/delen";
 import { GedeeldScherm } from "./schermen/Delen";
 import { BoekScherm, GastScherm } from "./schermen/Gasten";
 import { boekAdres, boekingCode, verwerken } from "./lib/gasten";
+import { terugkomst, vanzelf as sportVanzelf } from "./lib/sport";
 import { Vangnet } from "./vangnet";
 
 // Een gedeelde link (?deel=...) opent een pagina die je zonder inloggen kunt zien.
@@ -32,6 +33,8 @@ const ZEG = (adresWaarde("zeg") ?? "").trim().slice(0, 500);
 adresOpruimen("betaald", "zeg", "ochtend");
 if (BETAALD !== null) openVragen(BETAALD === "0" ? "Betalen is afgebroken. Je kunt het opnieuw proberen."
   : "Gelukt. Je betaling is binnen en het geld staat vast tot je bevestigt dat alles goed is.");
+// Terug van inloggen bij een sportapp (?state=gz....): meteen naar Sport en gezondheid, daar wordt het afgemaakt.
+const SPORT_TERUG = !!terugkomst();
 // Claude laden we pas als je de assistent opent; zo start de app sneller.
 const Assistent = lazy(() => import("./schermen/Assistent"));
 
@@ -50,7 +53,7 @@ export type Staat = { gebruiker: Gebruiker; data: Gegevens };
 export default function App() {
   const [klaar, setKlaar] = useState(false);
   const [staat, setStaat] = useState<Staat | null>(null);
-  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null ? "chat" : ZEG ? "assistent" : "vandaag");
+  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null ? "chat" : ZEG ? "assistent" : SPORT_TERUG ? "instellingen" : "vandaag");
   const [vooraf, setVooraf] = useState(ZEG);
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [teKopen, setTeKopen] = useState<Product | null>(null);
@@ -91,6 +94,12 @@ export default function App() {
     if (boekpagina) verwerken().catch(() => {});
   }, [boekpagina]);
 
+  // Trainingen, stappen en slaap uit gekoppelde sportapps op de achtergrond bijhalen (hooguit eens per 2 uur per app).
+  useEffect(() => {
+    if (!ingelogd || SPORT_TERUG) return;
+    if (staat) sportVanzelf(staat.data).then((n) => { if (n) laden(); }).catch(() => {});
+  }, [ingelogd, laden]);
+
   // Kleur, tekstgrootte en toegankelijkheid uit je instellingen op de hele app.
   const weergave = staat?.data.instellingen;
   useEffect(() => { weergaveToepassen((weergave ?? {}) as Weergave); }, [weergave]);
@@ -110,7 +119,7 @@ export default function App() {
       gekocht={() => setTeKopen(null)} vooraf={vooraf} voorafGebruikt={() => setVooraf("")}
       naarBestellingen={() => { openVragen(); setTab("chat"); }} /></Suspense>,
     instellingen: <Instellingen staat={staat} vernieuw={laden} terug={() => setTab(vorige)} opUitgelogd={() => setStaat(null)}
-      setStaat={setStaat} vraag={(t) => { setVooraf(t); setTab("assistent"); }} />,
+      setStaat={setStaat} vraag={(t) => { setVooraf(t); setTab("assistent"); }} begin={SPORT_TERUG ? "sport" : undefined} />,
   }[tab];
 
   return (

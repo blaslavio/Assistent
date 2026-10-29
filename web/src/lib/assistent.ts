@@ -49,6 +49,9 @@ Werkwijze:
   Herhaal de cijfers daarna niet in tekst; noem in één of twee zinnen wat opvalt.
 - Leren: wil de gebruiker iets leren, maak een leerplan met leerdoel_maken (kleine stappen). Bij overhoren stel je
   één vraag tegelijk, wacht op het antwoord, legt kort uit wat beter kan en geeft daarna een score met leerstap_scoren.
+- Sport: met sport_bekijken zie je de week (tegen de Beweegrichtlijn van 150 minuten), doelen, geplande en gedane
+  trainingen, en stappen en slaap uit gekoppelde apps. Trainingen zet je in de agenda met training_plannen, een doel met
+  sportdoel_maken. Geef geen medisch advies; bij pijn of klachten verwijs je naar een huisarts of fysiotherapeut.
 - Mail: met mail_bekijken lees je de inbox. Een antwoord of nieuwe mail zet je klaar met mail_opstellen; de gebruiker
   verstuurt zelf. Schrijf nooit iets wat je niet zeker weet (data, bedragen, toezeggingen).
 - Geld, contracten en codes: nooit zelf iets betalen, ondertekenen of doorgeven.
@@ -115,6 +118,30 @@ const LIJST: Hulpmiddel[] = [
     description: "Geef na het overhoren een score 0 (niet) tot 5 (helemaal) voor een stap; de app plant de volgende herhaling.",
     input_schema: { type: "object", properties: { leerdoel_id: { type: "integer" }, stap: { type: "integer" },
       score: { type: "integer" } }, required: ["leerdoel_id", "stap", "score"] },
+  },
+  {
+    name: "sport_bekijken", description: "Toon sport en gezondheid: minuten deze week, doelen met voortgang, geplande en gedane trainingen, stappen en slaap.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "training_plannen", description: "Zet een of meer trainingen in de agenda, eventueel elke week op dezelfde dag en tijd.",
+    input_schema: { type: "object", properties: {
+      sport: tekst("De sport, in het Nederlands, bijvoorbeeld hardlopen of padel."),
+      start: tekst("Eerste training als JJJJ-MM-DDTHH:MM."),
+      minuten: { type: "integer", description: "Hoe lang, 10 tot 600." },
+      weken: { type: "integer", description: "Hoeveel weken achter elkaar (1 = alleen deze keer, hooguit 26)." },
+      waar: tekst("Optioneel: waar."),
+    }, required: ["sport", "start", "minuten"] },
+  },
+  {
+    name: "sportdoel_maken", description: "Maak een sportdoel dat de app automatisch bijhoudt met de trainingen in de agenda.",
+    input_schema: { type: "object", properties: {
+      omschrijving: tekst("Kort, bijvoorbeeld 3 keer per week hardlopen."),
+      sport: tekst("Optioneel: de sport; leeg telt alle sporten."),
+      maatstaf: { type: "string", enum: ["keer_per_week", "minuten_per_week", "km_per_week", "langste_km", "totaal_km", "eigen"] },
+      doelwaarde: { type: "number" }, eenheid: tekst("Alleen bij maatstaf eigen, bijvoorbeeld kg."),
+      deadline: tekst("Optionele datum JJJJ-MM-DD."),
+    }, required: ["omschrijving", "maatstaf", "doelwaarde"] },
   },
   {
     name: "taak_afronden", description: "Markeer een taak als klaar.",
@@ -284,7 +311,7 @@ const MOMENT = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/;
 
 /** Wat de gebruiker onder het antwoord ziet, met wat nodig is om het ongedaan te maken. */
 export type Actie = {
-  soort: "afspraak" | "taak" | "klaar" | "onthouden" | "weg" | "leren" | "mail";
+  soort: "afspraak" | "taak" | "klaar" | "onthouden" | "weg" | "leren" | "mail" | "sport";
   titel: string; detail?: string; ongedaan?: Ongedaan; teruggedraaid?: boolean;
   mail?: { aan: string[]; onderwerp: string; tekst: string; antwoord_op?: string };
 };
@@ -294,6 +321,8 @@ type Ongedaan =
   | { soort: "taak_open"; id: number }
   | { soort: "feit_weg"; id: number }
   | { soort: "leerdoel_weg"; id: number }
+  | { soort: "afspraken_weg"; ids: number[] }
+  | { soort: "sportdoel_weg"; id: number }
   | { soort: "afspraak_terug"; afspraak: Gegevens["afspraken"][number] };
 
 function nieuwId(g: Gegevens) {
@@ -428,6 +457,39 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
       await bijwerken((g) => { gevonden = !!oefenen(g, Number(v.leerdoel_id), Number(v.stap), Number(v.score)); });
       return { resultaat: gevonden ? JSON.stringify({ opgeslagen: true }) : "Die stap bestaat niet." };
     }
+    case "sport_bekijken": {
+      const { data: g } = await gegevensLaden();
+      const sp = await import("./sport");
+      const nu = new Date();
+      return { resultaat: JSON.stringify({ deze_week: sp.dezeWeek(g, nu), beweegnorm_minuten: sp.BEWEEGNORM,
+        doelen: sp.doelen(g).map((d) => ({ id: d.id, omschrijving: d.omschrijving, sport: d.sport, deadline: d.deadline, ...sp.voortgang(g, d, nu) })),
+        gepland: sp.gepland(g, await sp.geboekt(), 14, nu).slice(0, 20),
+        gedaan_30_dagen: sp.gedaan(g, datumTekst(plusDagen(nu, -30)), datumTekst(nu), "", nu).slice(-30)
+          .map((a) => ({ titel: a.titel, start: a.start, sport: a.sport, minuten: sp.minuten(a), km: sp.km(a), gevoel: a.sport_resultaat?.gevoel })),
+        stappen_en_slaap: sp.dagwaarden(g, 7) }) };
+    }
+    case "training_plannen": {
+      if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s("start"))) return { resultaat: "Fout: start als JJJJ-MM-DDTHH:MM." };
+      if (!s("sport")) return { resultaat: "Fout: welke sport?" };
+      const { plannen } = await import("./sport");
+      const weken = Math.max(1, Math.min(26, Number(v.weken) || 1));
+      let ids: number[] = [];
+      await bijwerken((g) => { ids = plannen(g, s("sport"), s("start"), Math.max(10, Math.min(600, Number(v.minuten) || 60)), weken, s("waar")); });
+      return { resultaat: JSON.stringify({ ids, opgeslagen: true }), actie: { soort: "sport", titel: s("sport").charAt(0).toUpperCase() + s("sport").slice(1),
+        detail: weken > 1 ? `${weken} weken, vanaf ${s("start").slice(8, 10)}/${Number(s("start").slice(5, 7))} om ${s("start").slice(11)}`
+          : `${s("start").slice(8, 10)}/${Number(s("start").slice(5, 7))} om ${s("start").slice(11)}`, ongedaan: { soort: "afspraken_weg", ids } } };
+    }
+    case "sportdoel_maken": {
+      if (s("deadline") && !DATUM.test(s("deadline"))) return { resultaat: "Fout: deadline als JJJJ-MM-DD." };
+      const { doelMaken, MAATSTAVEN } = await import("./sport");
+      const maatstaf = MAATSTAVEN.find(([m]) => m === v.maatstaf)?.[0];
+      if (!maatstaf || !s("omschrijving") || !(Number(v.doelwaarde) > 0)) return { resultaat: "Fout: geef omschrijving, maatstaf en doelwaarde." };
+      let id = 0;
+      await bijwerken((g) => { id = doelMaken(g, { omschrijving: s("omschrijving"), sport: s("sport"), maatstaf,
+        doelwaarde: Number(v.doelwaarde), eenheid: s("eenheid"), deadline: s("deadline") }).id; });
+      return { resultaat: JSON.stringify({ id, opgeslagen: true }), actie: { soort: "sport", titel: s("omschrijving"),
+        detail: "Doel in Sport en gezondheid", ongedaan: { soort: "sportdoel_weg", id } } };
+    }
     case "taak_afronden": {
       let titel = "";
       await bijwerken((g) => {
@@ -520,6 +582,8 @@ export async function ongedaanMaken(o: Ongedaan) {
     if (o.soort === "afspraak_weg") g.afspraken = g.afspraken.filter((a) => a.id !== o.id);
     if (o.soort === "taak_weg") g.taken = g.taken.filter((t) => t.id !== o.id);
     if (o.soort === "taak_open") g.taken.forEach((t) => { if (t.id === o.id) t.klaar = false; });
+    if (o.soort === "afspraken_weg") g.afspraken = g.afspraken.filter((a) => !o.ids.includes(a.id as number));
+    if (o.soort === "sportdoel_weg") g.sportdoelen = ((g.sportdoelen as { id: number }[] | undefined) ?? []).filter((d) => d.id !== o.id);
     if (o.soort === "leerdoel_weg") g.leerdoelen = leerdoelen(g).filter((d) => d.id !== o.id);
     if (o.soort === "feit_weg") g.geheugen = feiten(g).filter((f) => f.id !== o.id);
     if (o.soort === "afspraak_terug" && !g.afspraken.some((a) => a.id === o.afspraak.id)) g.afspraken.push(o.afspraak);

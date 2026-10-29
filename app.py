@@ -6527,7 +6527,9 @@ def main() -> None:
     if not opslag.online():
         st.caption("Lokale testmodus: gegevens staan in data/gegevens.json.")
     if "oud" not in st.query_params and nieuwe_app.beschikbaar() and (
-            "nieuw" in st.query_params or not set(st.query_params) - NIEUWE_APP_ADRES):
+            "nieuw" in st.query_params or not set(st.query_params) - NIEUWE_APP_ADRES
+            # Terug van inloggen bij een sportapp: de nieuwe app maakt het koppelen af.
+            or st.query_params.get("state", "").startswith("gz.")):
         # De nieuwe app (web/) is de app; hij heeft zijn eigen inloggen. Alleen links die nog niet in de nieuwe app
         # werken (zoals ?winkel= of terug van een bank) komen hier nog in de oude app terecht.
         nieuwe_app.toon()

@@ -2,7 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Staat } from "../App";
 import { Opstellen } from "./MailOpstellen";
-import { Bestand, Bijlage, Boek, Envelop, Herstel, Kalender, Klok, Kruis, Microfoon, Pijl, Plus, Vinkje, Vonk } from "../iconen";
+import { Bestand, Hartslag, Bijlage, Boek, Envelop, Herstel, Kalender, Klok, Kruis, Microfoon, Pijl, Plus, Vinkje, Vonk } from "../iconen";
 import { GrafiekKaart, type Grafiek } from "../grafiek";
 import { ACCEPTEER, BijlageFout, MAX_SAMEN, lezen, type Bijlage as Bijlagebestand } from "../lib/bijlagen";
 import { antwoord, gebruikerBeurt, gesprekLeeg, notitie, ongedaanMaken, verbinding, zonderLabels, type Actie,
@@ -472,11 +472,12 @@ const KLEUR: Record<Actie["soort"], string> = {
   afspraak: "bg-accent/10 text-accent", taak: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   klaar: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", onthouden: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   weg: "bg-vlak text-rustig", mail: "bg-blue-500/10 text-blue-600 dark:text-blue-400", leren: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+  sport: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
 };
 
 function Kaartje({ actie, terug, versturen }: { actie: Actie; terug: () => void; versturen?: () => void }) {
   const Icoon = actie.soort === "afspraak" ? Kalender : actie.soort === "onthouden" ? Vonk
-    : actie.soort === "leren" ? Boek : actie.soort === "mail" ? Envelop : Vinkje;
+    : actie.soort === "leren" ? Boek : actie.soort === "mail" ? Envelop : actie.soort === "sport" ? Hartslag : Vinkje;
   return (
     <li className={`flex items-center gap-3 rounded-2xl border border-lijn py-2.5 pr-2 pl-3 ${actie.teruggedraaid ? "opacity-50" : ""}`}>
       <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${KLEUR[actie.soort]}`}>

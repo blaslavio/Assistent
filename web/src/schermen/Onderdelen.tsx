@@ -1,14 +1,15 @@
-// De onderdelen uit de vorige app: boodschappen, kooplijst, wenslijst, notities, documenten, budget en leren.
+// De onderdelen uit de vorige app: boodschappen, kooplijst, wenslijst, notities, documenten, budget, leren en sport.
 // Lijstjes staan in je gegevens (dezelfde plek als in de vorige app); documenten en uitgaven hebben eigen tabellen.
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { alsIk, bijwerken, instellingenBijwerken, type Gegevens } from "../api";
 import { AfschriftFout, afschriftLezen, categorieRaden, decoderen, metSleutels } from "../lib/afschrift";
 import type { Staat } from "../App";
-import { Bestand, Bewerk, Boek, Hart, Kruis, Lijstje, Plus, Prullenbak, Tas, Terug } from "../iconen";
+import { Bestand, Hartslag, Bewerk, Boek, Hart, Kruis, Lijstje, Plus, Prullenbak, Tas, Terug } from "../iconen";
 import { kop } from "./instellingen-ui";
 import { Leren } from "./Leren";
+import { Sport } from "./Sport";
 
-export type OnderdeelNaam = "boodschappen" | "kooplijst" | "wenslijst" | "notities" | "documenten" | "budget" | "leren";
+export type OnderdeelNaam = "boodschappen" | "kooplijst" | "wenslijst" | "notities" | "documenten" | "budget" | "leren" | "sport";
 
 export const ONDERDELEN: [OnderdeelNaam, string, typeof Tas][] = [
   ["boodschappen", "Boodschappen", Tas],
@@ -18,6 +19,7 @@ export const ONDERDELEN: [OnderdeelNaam, string, typeof Tas][] = [
   ["documenten", "Documenten", Bestand],
   ["budget", "Budget", Lijstje],
   ["leren", "Leren", Boek],
+  ["sport", "Sport en gezondheid", Hartslag],
 ];
 
 const foutVan = (e: unknown) => (e instanceof Error && e.message ? e.message : "Dat lukte niet. Probeer het opnieuw.");
@@ -44,6 +46,7 @@ export function Onderdeel({ naam, staat, vernieuw, terug, vraag }: { naam: Onder
   const titel = ONDERDELEN.find(([id]) => id === naam)![1];
   if (naam === "documenten") return <Documenten terug={terug} />;
   if (naam === "leren") return <Scherm titel={titel} terug={terug}><Leren staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
+  if (naam === "sport") return <Scherm titel={titel} terug={terug}><Sport staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
   if (naam === "budget") return <Scherm titel={titel} terug={terug}><Budget staat={staat} /></Scherm>;
   return <Scherm titel={titel} terug={terug}><Lijst naam={naam} data={staat.data} vernieuw={vernieuw} /></Scherm>;
 }
@@ -53,7 +56,7 @@ export function Onderdeel({ naam, staat, vernieuw, terug, vraag }: { naam: Onder
 type Item = { id: number; tekst?: string; naam_product?: string; titel?: string; prijs?: number | null; gekocht?: boolean };
 const tekstVan = (i: Item) => i.tekst ?? i.naam_product ?? i.titel ?? "";
 
-function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documenten" | "budget" | "leren">; data: Gegevens;
+function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documenten" | "budget" | "leren" | "sport">; data: Gegevens;
   vernieuw: () => Promise<void> }) {
   const [invoer, setInvoer] = useState("");
   const [notitie, setNotitie] = useState<Item | null>(null);
