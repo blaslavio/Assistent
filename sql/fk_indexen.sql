@@ -1,0 +1,40 @@
+-- Indexen op verwijzingen (foreign keys) zonder index. Bij veel gebruikers wordt opzoeken en opruimen via zo'n
+-- verwijzing anders een zoektocht door de hele tabel. Alleen toevoegen, niets weghalen.
+
+create index if not exists chat_community_leden_door_fk on private.chat_community_leden (door);
+create index if not exists chat_stories_apparaat_fk on private.chat_stories (apparaat);
+create index if not exists chat_story_kijkers_gebruiker_fk on private.chat_story_kijkers (gebruiker);
+create index if not exists community_aanwezig_afwezig_fk on private.community_aanwezig (afwezig);
+create index if not exists community_aanwezig_gebruiker_fk on private.community_aanwezig (gebruiker);
+create index if not exists community_activiteiten_maker_fk on private.community_activiteiten (maker);
+create index if not exists community_cursussen_maker_fk on private.community_cursussen (maker);
+create index if not exists community_post_leuk_gebruiker_fk on private.community_post_leuk (gebruiker);
+create index if not exists community_post_meldingen_gebruiker_fk on private.community_post_meldingen (gebruiker);
+create index if not exists community_posts_auteur_fk on private.community_posts (auteur);
+create index if not exists community_taak_wie_door_fk on private.community_taak_wie (door);
+create index if not exists community_taak_wie_gebruiker_fk on private.community_taak_wie (gebruiker);
+create index if not exists community_vervoer_gebruiker_fk on private.community_vervoer (gebruiker);
+create index if not exists cursus_toegang_gebruiker_fk on private.cursus_toegang (gebruiker);
+create index if not exists cursus_voortgang_les_fk on private.cursus_voortgang (les);
+create index if not exists deellinks_aanbod_id_fk on private.deellinks (aanbod_id);
+create index if not exists gast_toegang_boeking_fk on private.gast_toegang (boeking);
+create index if not exists gezin_items_door_fk on private.gezin_items (door);
+create index if not exists gezin_klus_klaar_door_fk on private.gezin_klus_klaar (door);
+create index if not exists gezin_klussen_gezin_id_fk on private.gezin_klussen (gezin_id);
+create index if not exists gezin_kosten_betaald_door_fk on private.gezin_kosten (betaald_door);
+create index if not exists gezin_kosten_door_fk on private.gezin_kosten (door);
+create index if not exists gezin_leden_door_fk on private.gezin_leden (door);
+create index if not exists gezin_lijst_door_fk on private.gezin_lijst (door);
+create index if not exists gezin_lijst_klaar_door_fk on private.gezin_lijst (klaar_door);
+create index if not exists gezondheid_inzendcodes_gebruiker_id_fk on private.gezondheid_inzendcodes (gebruiker_id);
+create index if not exists pakket_aankopen_pakket_fk on private.pakket_aankopen (pakket);
+create index if not exists pot_bijdragen_gebruiker_fk on private.pot_bijdragen (gebruiker);
+create index if not exists pot_leden_door_fk on private.pot_leden (door);
+create index if not exists potten_community_fk on private.potten (community);
+create index if not exists potten_gezin_fk on private.potten (gezin);
+create index if not exists potten_maker_fk on private.potten (maker);
+create index if not exists project_items_door_fk on private.project_items (door);
+create index if not exists project_items_toegewezen_aan_fk on private.project_items (toegewezen_aan);
+create index if not exists push_web_codes_gebruiker_id_fk on private.push_web_codes (gebruiker_id);
+create index if not exists ruimte_meldingen_door_fk on private.ruimte_meldingen (door);
+create index if not exists ruimte_scores_gebruiker_id_fk on private.ruimte_scores (gebruiker_id);

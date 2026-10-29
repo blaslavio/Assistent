@@ -30,6 +30,7 @@ import { ClubAgenda } from "./ClubAgenda";
 import type { Gegevens } from "../api";
 import { Bladen, Raster, type Blad } from "./Winkelen";
 import { rpc } from "../api";
+import { peilen } from "../lib/peilen";
 import { zoeken, type Filter, type Product } from "../lib/winkelen";
 import { dagTitel, datumTekst, tijdje } from "../lib/tijd";
 import type { Staat } from "../App";
@@ -80,14 +81,20 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, verlaa
     try { localStorage.setItem("assistent.chatdeel", d); } catch { /* geen opslag */ }
   }
 
-  const laden = useCallback(async () => {
+  const vorige = useRef("");
+  const kijkNieuw = useCallback(async () => {
     const o = await overzicht();
+    const stand = JSON.stringify(o);
+    const nieuw = stand !== vorige.current;
+    vorige.current = stand;
     setLijst(o.gesprekken);
     setGroepen(o.communities);
     gastGesprekken().then((g) => setGasten(g.gesprekken)).catch(() => {});
     for (const x of o.gesprekken.slice(0, 30))
       voorbeeld(x).then((t) => setVoorbeelden((v) => (v[x.id] === t ? v : { ...v, [x.id]: t }))).catch(() => {});
+    return nieuw;
   }, []);
+  const laden = useCallback(async () => { await kijkNieuw(); }, [kijkNieuw]);
 
   // Terug van betalen voor een cursus, pakket of abonnement: controleren of het gelukt is.
   useEffect(() => {
@@ -106,9 +113,9 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, verlaa
 
   useEffect(() => {
     if (ik === null || open !== null) return;
-    const t = setInterval(() => document.visibilityState === "visible" && laden().catch(() => {}), 4000);
-    return () => clearInterval(t);
-  }, [ik, open, laden]);
+    const p = peilen(kijkNieuw, 4000, 20_000);
+    return p.stop;
+  }, [ik, open, kijkNieuw]);
 
   if (open !== null && ik !== null) {
     const g = lijst.find((x) => x.id === open);
@@ -842,7 +849,7 @@ function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin
   const bezig = useRef(false);
 
   const bijwerken = useCallback(async () => {
-    if (bezig.current) return;
+    if (bezig.current) return false;
     bezig.current = true;
     try {
       const r = await berichten(id, tot.current);
@@ -852,6 +859,7 @@ function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin
         const al = new Set(oud.map((x) => x.id));
         return [...oud, ...r.regels.filter((x) => !al.has(x.id))];
       });
+      return r.regels.length > 0;
     } finally {
       bezig.current = false;
     }
@@ -859,8 +867,8 @@ function Gesprekscherm({ id, ik, begin, terug }: { id: number; ik: number; begin
 
   useEffect(() => {
     bijwerken().catch((e) => setFout(e instanceof Error ? e.message : "Laden lukte niet."));
-    const t = setInterval(() => document.visibilityState === "visible" && bijwerken().catch(() => {}), 2500);
-    return () => clearInterval(t);
+    const p = peilen(bijwerken, 2500, 15_000);
+    return p.stop;
   }, [bijwerken]);
   useEffect(() => { onder.current?.scrollIntoView({ block: "end" }); }, [regels.length]);
 
