@@ -7,7 +7,8 @@
 // Acties (POST, JSON): verkoper_aanmelden, verkoper_status, afrekenen, ontvangen, geschil_besluiten,
 // boeking_afrekenen, boekingen_verrekenen, en voor extra opslag (per maand): abonnement_afsluiten,
 // abonnement_bijwerken, abonnement_opzeggen, abonnement_beheren, abonnement_stoppen, en in community's:
-// cursus_afrekenen, cursus_controleren, community_abonneren, community_controleren, community_opzeggen.
+// cursus_afrekenen, cursus_controleren, pakket_afrekenen, pakket_controleren, community_abonneren,
+// community_controleren, community_opzeggen.
 // Stripe stuurt gebeurtenissen (webhook) naar dezelfde URL, met de kop stripe-signature.
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -360,7 +361,7 @@ async function abonnementStoppen(body: Record<string, unknown>) {
   return { ok: true };
 }
 
-// --- Community's: cursussen (eenmalig) en abonnementen (per maand) -------------------------------
+// --- Community's: cursussen en pakketten (eenmalig) en abonnementen (per maand of jaar) -------------------------------
 // Het geld gaat via Stripe meteen naar de eigenaar van de community, min de commissie van het platform.
 // Na het betalen komt de koper terug met het nummer van de betaalsessie; die controleren we bij Stripe zelf,
 // zodat de toegang er meteen is (de webhook doet hetzelfde, voor als iemand de app sluit).
@@ -409,12 +410,14 @@ async function cursusControleren(body: Record<string, unknown>) {
   return { betaald: Boolean(await cursusGekocht(sessie)), cursus: Number(sessie.metadata.cursus) };
 }
 
+// Per maand of per jaar. De sleutel noemt de periode (behalve bij maand, zodat bestaande prijzen blijven gelden).
 async function communityPrijs(p: Record<string, any>) {
-  const sleutel = `community_${p.id}_${p.prijs_cent}`;
+  const jaar = p.periode === "jaar";
+  const sleutel = `community_${p.id}_${p.prijs_cent}${jaar ? "_jaar" : ""}`;
   const gevonden = await stripe("GET", `/v1/prices?active=true&lookup_keys[]=${encodeURIComponent(sleutel)}`);
   if (gevonden.data?.length) return gevonden.data[0].id as string;
   const nieuw = await stripe("POST", "/v1/prices", {
-    currency: "eur", unit_amount: p.prijs_cent, recurring: { interval: "month" }, lookup_key: sleutel,
+    currency: "eur", unit_amount: p.prijs_cent, recurring: { interval: jaar ? "year" : "month" }, lookup_key: sleutel,
     product_data: { name: `${p.community_naam}: ${p.naam}` }, metadata: { community_plan: p.id },
   }, `prijs-${sleutel}`);
   return nieuw.id as string;
@@ -449,7 +452,46 @@ async function communityControleren(body: Record<string, unknown>) {
   return { actief: ["active", "trialing"].includes(sessie.subscription?.status) };
 }
 
-// Opzeggen aan het eind van de betaalde maand (terug = toch doorgaan). Kan ook als je geen lid meer bent.
+// Een pakket: een paar cursussen of trainingen samen, eenmalig betaald. Werkt verder als een cursus kopen.
+async function pakketGekocht(sessie: Record<string, any>) {
+  if (sessie.payment_status !== "paid" || !sessie.metadata?.pakket) return false;
+  return await rpc("stripe_pakket_gekocht", { p_pakket: Number(sessie.metadata.pakket),
+    p_gebruiker: Number(sessie.metadata.gebruiker), p_sessie: sessie.id, p_betaling: sessie.payment_intent,
+    p_bedrag: sessie.amount_total });
+}
+
+async function pakketAfrekenen(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  const k = await rpc("stripe_pakket", { p_pakket: Number(body.pakket), p_gebruiker: g.id });
+  if (!k) throw new Fout("Dit pakket is niet (meer) te koop.");
+  if (k.al) throw new Fout("Je hebt dit pakket al.");
+  if (k.eigen) throw new Fout("Dit is je eigen pakket.");
+  if (!k.account || !k.klaar) throw new Fout("De maker kan op dit moment geen betalingen ontvangen.");
+  if (body.akkoord !== true) throw new Fout("Geef eerst aan dat je meteen wilt beginnen.");
+  const { app_adres } = await instellingen();
+  const sessie = await stripe("POST", "/v1/checkout/sessions", {
+    mode: "payment",
+    customer_email: g.email ?? undefined,
+    line_items: { 0: { quantity: 1, price_data: { currency: "eur", unit_amount: k.prijs_cent,
+                                                 product_data: { name: `Pakket: ${k.titel}` } } } },
+    payment_intent_data: { application_fee_amount: k.commissie_cent, transfer_data: { destination: k.account },
+                           metadata: { pakket: k.id, gebruiker: g.id } },
+    metadata: { pakket: k.id, gebruiker: g.id },
+    success_url: `${app_adres}/?pakket_betaald={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${app_adres}/?pakket_betaald=0`,
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+  });
+  return { url: sessie.url };
+}
+
+async function pakketControleren(body: Record<string, unknown>) {
+  const g = await gebruiker(body);
+  const sessie = await stripe("GET", `/v1/checkout/sessions/${sessieId(body.sessie)}`);
+  if (Number(sessie.metadata?.gebruiker) !== g.id || !sessie.metadata?.pakket) throw new Fout("Onbekende betaling.");
+  return { betaald: Boolean(await pakketGekocht(sessie)), pakket: Number(sessie.metadata.pakket) };
+}
+
+// Opzeggen aan het eind van de betaalde periode (terug = toch doorgaan). Kan ook als je geen lid meer bent.
 async function communityOpzeggen(body: Record<string, unknown>) {
   const g = await gebruiker(body);
   const lijst = await rpc("stripe_community_abonnementen", { p_gebruiker: g.id }) as
@@ -494,6 +536,9 @@ async function webhook(payload: string, kop: string) {
   } else if (["checkout.session.completed", "checkout.session.async_payment_succeeded"].includes(gebeurtenis.type)
              && object.metadata?.cursus) {
     await cursusGekocht(object);
+  } else if (["checkout.session.completed", "checkout.session.async_payment_succeeded"].includes(gebeurtenis.type)
+             && object.metadata?.pakket) {
+    await pakketGekocht(object);
   } else if (gebeurtenis.type.startsWith("customer.subscription.")) {
     await opslaan(object);
   } else if (gebeurtenis.type === "account.updated") {
@@ -521,6 +566,8 @@ const ACTIES: Record<string, (body: Record<string, unknown>) => Promise<unknown>
   community_abonneren: communityAbonneren,
   community_controleren: communityControleren,
   community_opzeggen: communityOpzeggen,
+  pakket_afrekenen: pakketAfrekenen,
+  pakket_controleren: pakketControleren,
 };
 
 // De chat in de app roept deze functie rechtstreeks vanuit de browser aan.
