@@ -4,7 +4,8 @@ import { alsIk } from "../api";
 
 export type Post = { id: number; community: number; community_naam: string; openbaar: boolean; lid: boolean;
   auteur: string; auteur_id: number; tekst: string; heeft_foto: boolean; aangemaakt: string; leuk: number;
-  ik_leuk: boolean; van_mij: boolean; mag_weg: boolean };
+  ik_leuk: boolean; van_mij: boolean; mag_weg: boolean; reacties?: number };
+export type Reactie = { id: number; auteur: string; auteur_id: number; tekst: string; aangemaakt: string; mag_weg: boolean };
 export type Openbaar = { id: number; naam: string; omschrijving: string; leden: number; lid: boolean };
 export type Bron = "alles" | "mijn" | "openbaar";
 export type FeedInstelling = { bron: Bron; verborgen: number[] };
@@ -44,6 +45,37 @@ export const plaatsen = (community: number, tekst: string, foto: string | null) 
 export const leuk = (post: number, aan: boolean) => rpc("community_post_leuk", { p_post: post, p_aan: aan });
 export const melden = (post: number, reden: string) => rpc("community_post_melden", { p_post: post, p_reden: reden });
 export const weghalen = (post: number) => rpc("community_post_weg", { p_post: post });
+export const reacties = (post: number) =>
+  rpc<{ reacties?: Reactie[]; mag_reageren?: boolean }>("community_post_reacties", { p_post: post })
+    .then((r) => ({ reacties: r.reacties ?? [], magReageren: !!r.mag_reageren }));
+export const reageren = (post: number, tekst: string) =>
+  rpc<{ id: number }>("community_post_reageren", { p_post: post, p_tekst: tekst.trim() });
+export const reactieWeg = (reactie: number) => rpc("community_reactie_weg", { p_reactie: reactie });
+export const postBekijken = async (post: number) => (await rpc<{ post: Post }>("community_post_bekijken", { p_post: post })).post;
+
+/** De link om een bericht te delen. Op Streamlit is dat het adres van het venster eromheen. */
+export function postLink(id: number) {
+  let basis = location.origin + location.pathname;
+  try {
+    basis = window.top!.location.origin + "/";
+  } catch {
+    /* ander adres */
+  }
+  return `${basis}?post=${id}`;
+}
+
+// Een gedeelde link (?post=id) opent dat bericht, ook na het inloggen.
+let gedeeld: number | null = null;
+export function postVragen(waarde: string | null) {
+  gedeeld = waarde && /^\d{1,12}$/.test(waarde) ? Number(waarde) : null;
+  return gedeeld !== null;
+}
+export function postGevraagd() {
+  const id = gedeeld;
+  gedeeld = null;
+  return id;
+}
+
 export const openbaarZetten = (community: number, aan: boolean) =>
   rpc("community_openbaar_zetten", { p_community: community, p_aan: aan });
 export const ontdekken = async (zoek = "") =>

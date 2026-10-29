@@ -1,8 +1,9 @@
 // De feed bij Community's: berichten uit je eigen community's en uit openbare community's, met wat je wilt zien.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { instellingenBijwerken } from "../api";
-import { Beeld, Hart, Kruis, Meer, Wereld } from "../iconen";
-import { BRONNEN, feed, foto, fotoVerkleinen, leuk, meedoen, melden, ontdekken, plaatsen, weghalen,
+import { Ballon, Beeld, Delen, Hart, Kruis, Meer, Wereld } from "../iconen";
+import { BRONNEN, postBekijken, feed, foto, fotoVerkleinen, leuk, meedoen, melden, ontdekken, plaatsen, postLink, reactieWeg, reacties as reactiesLaden,
+  reageren, weghalen, type Reactie,
   type FeedInstelling, type Openbaar, type Post } from "../lib/feed";
 import type { Community } from "../lib/chat";
 import { tijdje } from "../lib/tijd";
@@ -232,7 +233,9 @@ export function Berichten({ keuze, community, leeg }: { keuze: FeedInstelling; c
   );
 }
 
-function Bericht({ p, bij, toonCommunity }: { p: Post; bij: (n: Partial<Post> | null) => void; toonCommunity: boolean }) {
+export function Bericht({ p, bij, toonCommunity, open = false }: { p: Post; bij: (n: Partial<Post> | null) => void;
+  toonCommunity: boolean; open?: boolean }) {
+  const [gesprek, setGesprek] = useState(open);
   const [beeld, setBeeld] = useState<string | null>(null);
   const [menu, setMenu] = useState<"" | "open" | "melden" | "weg">("");
   const [reden, setReden] = useState("");
@@ -271,6 +274,12 @@ function Bericht({ p, bij, toonCommunity }: { p: Post; bij: (n: Partial<Post> | 
             className={`flex h-9 items-center gap-1.5 rounded-full px-2 text-sm ${p.ik_leuk ? "text-red-500" : "text-rustig"}`}>
             <Hart vol={p.ik_leuk} className="size-5" />{p.leuk > 0 && <span className="tabular-nums">{p.leuk}</span>}
           </button>
+          <button onClick={() => setGesprek(!gesprek)} aria-expanded={gesprek} aria-label="Reacties"
+            className="flex h-9 items-center gap-1.5 rounded-full px-2 text-sm text-rustig">
+            <Ballon className="size-5" />{(p.reacties ?? 0) > 0 && <span className="tabular-nums">{p.reacties}</span>}
+          </button>
+          <button onClick={() => deel(p, setMelding)} aria-label="Delen"
+            className="flex size-9 items-center justify-center rounded-full text-rustig"><Delen className="size-5" /></button>
           <span className="flex-1" />
           <button onClick={() => setMenu(menu ? "" : "open")} aria-label="Meer" aria-expanded={!!menu}
             className="flex size-9 items-center justify-center rounded-full text-rustig hover:bg-vlak"><Meer className="size-5" /></button>
@@ -301,8 +310,104 @@ function Bericht({ p, bij, toonCommunity }: { p: Post; bij: (n: Partial<Post> | 
               className="h-9 rounded-full bg-red-600 px-4 text-sm font-medium text-white">Verwijderen</button>
           </div>
         )}
-        {melding && <p role="status" className="text-[13px] text-rustig">{melding}</p>}
+        {melding && <p role="status" className="break-all text-[13px] text-rustig">{melding}</p>}
+        {gesprek && <Reacties post={p.id} aantal={(n) => bij({ reacties: n })} />}
       </div>
     </li>
+  );
+}
+
+async function deel(p: Post, melding: (t: string) => void) {
+  const url = postLink(p.id);
+  const titel = `${p.auteur} in ${p.community_naam}`;
+  if (navigator.share) {
+    try { await navigator.share({ title: titel, text: p.tekst.slice(0, 120), url }); return; }
+    catch (e) { if ((e as Error).name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(url); melding("Link gekopieerd."); } catch { melding(url); }
+}
+
+/** De reacties onder een bericht, met een veld om zelf te reageren als je lid bent. */
+function Reacties({ post, aantal }: { post: number; aantal: (n: number) => void }) {
+  const [lijst, setLijst] = useState<Reactie[] | null>(null);
+  const [mag, setMag] = useState(false);
+  const [tekst, setTekst] = useState("");
+  const [bezig, setBezig] = useState(false);
+  const [fout, setFout] = useState("");
+  const laden = useCallback(() => reactiesLaden(post).then((r) => {
+    setLijst(r.reacties);
+    setMag(r.magReageren);
+    aantal(r.reacties.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }).catch((e) => setFout(foutVan(e))), [post]);
+  useEffect(() => { laden(); }, [laden]);
+
+  async function stuur(e: React.FormEvent) {
+    e.preventDefault();
+    if (!tekst.trim() || bezig) return;
+    setBezig(true);
+    setFout("");
+    try {
+      await reageren(post, tekst);
+      setTekst("");
+      await laden();
+    } catch (er) {
+      setFout(foutVan(er));
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  return (
+    <div className="opkomen mt-1 flex flex-col gap-2">
+      {lijst === null && !fout && <p className="bezig-tekst text-[13px] text-rustig">Laden</p>}
+      {lijst?.map((r) => (
+        <div key={r.id} className="flex gap-2">
+          <Rondje naam={r.auteur} id={r.auteur_id} klein />
+          <div className="min-w-0 flex-1 rounded-2xl bg-vlak px-3 py-2">
+            <p className="flex items-baseline gap-1.5 text-[13px]">
+              <span className="truncate font-semibold">{r.auteur}</span>
+              <span className="shrink-0 text-zacht">{tijdje(r.aangemaakt)}</span>
+              {r.mag_weg && <button onClick={() => reactieWeg(r.id).then(laden).catch((e) => setFout(foutVan(e)))}
+                aria-label="Reactie weghalen" className="ml-auto shrink-0 text-zacht"><Kruis className="size-3.5" /></button>}
+            </p>
+            <p className="whitespace-pre-wrap break-words text-[15px]">{r.tekst}</p>
+          </div>
+        </div>
+      ))}
+      {lijst?.length === 0 && !mag && <p className="text-[13px] text-rustig">Nog geen reacties.</p>}
+      {mag && (
+        <form onSubmit={stuur} className="flex gap-2">
+          <input value={tekst} onChange={(e) => setTekst(e.target.value)} maxLength={500} placeholder="Reageer..."
+            aria-label="Reactie" className="h-10 min-w-0 flex-1 rounded-full bg-vlak px-4 text-[15px] outline-none placeholder:text-zacht" />
+          <button disabled={!tekst.trim() || bezig} className="h-10 rounded-full bg-accent px-4 text-sm font-medium text-white disabled:opacity-40">
+            Stuur</button>
+        </form>
+      )}
+      {fout && <p role="alert" className="text-[13px] text-red-600 dark:text-red-400">{fout}</p>}
+    </div>
+  );
+}
+
+/** Een gedeeld bericht (?post=id), los geopend over de app, met de reacties eronder. */
+export function PostBlad({ id, sluit }: { id: number; sluit: () => void }) {
+  const [p, setP] = useState<Post | null>(null);
+  const [fout, setFout] = useState("");
+  useEffect(() => { postBekijken(id).then(setP).catch((e) => setFout(foutVan(e))); }, [id]);
+  return (
+    <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/30" onClick={sluit}>
+      <div role="dialog" aria-label="Bericht" onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[88%] w-full max-w-xl flex-col overflow-y-auto rounded-t-[28px] bg-white pt-3 pb-[max(env(safe-area-inset-bottom),16px)] dark:bg-[#16161a]">
+        <div className="flex items-center justify-between px-3">
+          <span className="size-10" />
+          <span className="h-1 w-10 rounded-full bg-lijn" />
+          <button onClick={sluit} aria-label="Sluiten" className="flex size-10 items-center justify-center rounded-full hover:bg-vlak">
+            <Kruis className="size-5" /></button>
+        </div>
+        {fout && <p role="alert" className="px-6 py-6 text-[15px] text-rustig">{fout}</p>}
+        {!p && !fout && <p className="bezig-tekst px-6 py-6 text-[15px]">Laden</p>}
+        {p && <ul><Bericht p={p} bij={(n) => (n ? setP({ ...p, ...n }) : sluit())} toonCommunity open /></ul>}
+      </div>
+    </div>
   );
 }

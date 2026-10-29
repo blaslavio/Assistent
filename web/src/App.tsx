@@ -21,6 +21,8 @@ import { boekAdres, boekingCode, verwerken } from "./lib/gasten";
 import { prikCode } from "./lib/prikken";
 import { Vangnet } from "./vangnet";
 import { useOnline } from "./lib/net";
+import { postGevraagd, postVragen } from "./lib/feed";
+const PostBlad = lazy(() => import("./schermen/Feed").then((m) => ({ default: m.PostBlad })));
 
 // Een gedeelde link (?deel=...) opent een pagina die je zonder inloggen kunt zien.
 const GEDEELD = deelCode();
@@ -40,8 +42,9 @@ const WINKEL = winkelVragen(adresWaarde("winkel") ?? "");
 const BANK = terugVanBank(adresWaarde("code"), adresWaarde("state"));
 // Terug van betalen voor een cursus, pakket of abonnement in een community: de app controleert het in Chat.
 const CURSUSLINK = cursusLinkVragen(adresWaarde("cursus"));
+const POST = postVragen(adresWaarde("post"));
 const CURSUS = terugVanCursus(adresWaarde("cursus_betaald"), adresWaarde("pakket_betaald"), adresWaarde("community_abonnement"));
-adresOpruimen("betaald", "zeg", "ochtend", "winkel", "code", "state", "cursus_betaald", "pakket_betaald", "community_abonnement", "cursus");
+adresOpruimen("betaald", "zeg", "ochtend", "winkel", "code", "state", "cursus_betaald", "pakket_betaald", "community_abonnement", "cursus", "post");
 if (BETAALD !== null) openVragen(BETAALD === "0" ? "Betalen is afgebroken. Je kunt het opnieuw proberen."
   : "Gelukt. Je betaling is binnen en het geld staat vast tot je bevestigt dat alles goed is.");
 // Alleen Vandaag zit in het eerste stuk van de app. De andere schermen komen los, en worden opgehaald zodra de app
@@ -139,6 +142,9 @@ export default function App() {
     vooraf();
   }, [starten]);
 
+  // Een gedeeld bericht (?post=id) opent over de app zodra je bent ingelogd.
+  const [gedeeldePost, setGedeeldePost] = useState<number | null>(() => (POST ? postGevraagd() : null));
+
   // Komt de verbinding terug, dan halen we meteen de nieuwste stand op.
   const online = useOnline();
   const wasOffline = useRef(false);
@@ -225,6 +231,9 @@ export default function App() {
       <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}><Suspense fallback={null}>{scherm}</Suspense></Vangnet></div>
       <Vangnet naam="bellen" klein><BelLaag /></Vangnet>
       <MascotteFeest />
+      {gedeeldePost !== null && huidigeSessie() && (
+        <Suspense fallback={null}><PostBlad id={gedeeldePost} sluit={() => setGedeeldePost(null)} /></Suspense>
+      )}
       {/* In de chat heeft de chat zijn eigen menu, zoals een aparte app; linksboven ga je terug. */}
       {tab !== "chat" && <nav aria-label="Hoofdmenu"
         className="flex shrink-0 justify-around border-t border-lijn pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)]">
