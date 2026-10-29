@@ -1,0 +1,65 @@
+{
+  "time_utc": "2026-10-29T23:46:57.107473+00:00",
+  "base_commit": "78736a2925693fbdabb2f2b6af401c8cdecae39f",
+  "launch_ready": false,
+  "source_sha256": {
+    "os_release_evidence.py": "86575a2ed95195a3557dacd58fd200b930cedd5c3af4921c603624870748ab96",
+    "tests/test_os_release_evidence.py": "3c0e745c922771009c3c0f24cce53eb017df5afca461dd5c9d94e221ba657c97",
+    "web/src/vangnet.tsx": "c17ab447963405787860aac63b20e7a6a9a86e09d757d4af465da4905d4448a4",
+    "web/src/vangnet.test.tsx": "d5905f4c3f2e8525a8b66395e135316c8484af85cb8742c74ad4b6ebe7009d3d",
+    "web/index.html": "73218b5b70b7fa885eeba768d0f1cba1f3ae33b54a14f05ab79203ac160ba095",
+    ".github/workflows/project-checks.yml": "9288c4085a7dd0afd5373c19a040dbc0d00d72d3d8bb9bf3393669d8d8599ca4"
+  },
+  "checks": {
+    "python": {
+      "passed": 1269,
+      "skipped": 0
+    },
+    "pytest": {
+      "passed": 362,
+      "subtests": 21
+    },
+    "web": {
+      "passed": 180,
+      "files": 36
+    },
+    "builds": 2,
+    "npm_known_vulnerabilities": 0
+  },
+  "browser": {
+    "scope": "local unauthenticated startup; external requests blocked",
+    "results": [
+      {
+        "width": 390,
+        "height": 844,
+        "horizontal_overflow": false,
+        "zoom_allowed": true,
+        "rendered": true,
+        "buttons": [
+          "",
+          "Inloggen"
+        ]
+      },
+      {
+        "width": 1280,
+        "height": 900,
+        "horizontal_overflow": false,
+        "zoom_allowed": true,
+        "rendered": true,
+        "buttons": [
+          "",
+          "Inloggen"
+        ]
+      }
+    ]
+  },
+  "unverified": [
+    "production_e2e",
+    "multi_device",
+    "video_camera_microphone",
+    "production_migrations_restore",
+    "publication",
+    "full_accessibility",
+    "load_capacity"
+  ]
+}

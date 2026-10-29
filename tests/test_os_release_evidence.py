@@ -35,6 +35,28 @@ class ReleaseEvidenceTests(unittest.TestCase):
                  self.evidence("chat", environment="staging"))
         self.assertEqual(release_gate(items, commit_sha="abc", now=self.now)["verified"], 0)
 
+    def test_newer_failure_blocks_old_success_regardless_of_order(self):
+        good = self.evidence("payments", observed_at=self.now - timedelta(minutes=2))
+        bad = self.evidence("payments", passed=False)
+        for items in ((good, bad), (bad, good)):
+            self.assertEqual(release_gate(items, commit_sha="abc", now=self.now)["verified"], 0)
+
+    def test_failure_wins_ties(self):
+        good = self.evidence("auth")
+        bad = self.evidence("auth", passed=False)
+        for items in ((good, bad), (bad, good)):
+            self.assertEqual(release_gate(items, commit_sha="abc", now=self.now)["verified"], 0)
+
+    def test_newer_recovery_can_pass(self):
+        items = (self.evidence("chat", passed=False, observed_at=self.now - timedelta(minutes=2)),
+                 self.evidence("chat"))
+        self.assertEqual(release_gate(items, commit_sha="abc", now=self.now)["verified"], 1)
+
+    def test_truthy_values_are_not_success_evidence(self):
+        for value in ("false", 1, None):
+            self.assertEqual(release_gate((self.evidence("auth", passed=value),),
+                                         commit_sha="abc", now=self.now)["verified"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -27,17 +27,22 @@ def release_gate(evidence: tuple[Evidence, ...], *, commit_sha: str,
         raise ValueError("max_age_hours must be positive")
     if not commit_sha:
         raise ValueError("commit_sha is required")
-    covered = set()
+    latest: dict[str, Evidence] = {}
     for item in evidence:
         if item.workflow not in CRITICAL_WORKFLOWS:
             continue
         if item.observed_at.tzinfo is None or item.observed_at.utcoffset() is None:
             continue
         age = now - item.observed_at
-        if (item.passed and item.kind == "e2e" and item.environment == "production"
+        if (item.kind == "e2e" and item.environment == "production"
                 and item.commit_sha == commit_sha
                 and timedelta(0) <= age <= timedelta(hours=max_age_hours)):
-            covered.add(item.workflow)
+            previous = latest.get(item.workflow)
+            # The newest result wins; a failure wins equal timestamps.
+            if (previous is None or item.observed_at > previous.observed_at
+                    or (item.observed_at == previous.observed_at and item.passed is not True)):
+                latest[item.workflow] = item
+    covered = {name for name, item in latest.items() if item.passed is True}
     missing = tuple(name for name in CRITICAL_WORKFLOWS if name not in covered)
     return {"ready": not missing, "verified": len(covered),
             "total": len(CRITICAL_WORKFLOWS), "missing": missing}

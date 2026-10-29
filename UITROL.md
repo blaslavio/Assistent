@@ -1,5 +1,7 @@
 # Release: werkstromen, communicatie en ontwerp
 
+De actuele vrijgavestatus en concrete acceptatievoorwaarden staan in [LANCERINGSCONTROLE.md](LANCERINGSCONTROLE.md).
+
 De actuele lokale testuitslagen en resterende aandachtspunten staan in [UITGEBREIDE_TESTCONTROLE.md](UITGEBREIDE_TESTCONTROLE.md); historische aantallen hieronder zijn geen nieuwe productievalidatie.
 
 Doel: de lokale verbeteringen uit deze sessie toevoegen aan de actuele `main`, inclusief het bestaande nieuwe React-ontwerp. De projectuitbreiding is bijgewerkt met `main` op `54b052a`, inclusief de nieuwe navigatie en de bestaande productiereleasepoort voor actuele E2E-bewijzen.
