@@ -4,11 +4,16 @@
 // Stripe naar de eigenaar.
 import { SLEUTEL, SUPABASE, alsIk, huidigeSessie } from "../api";
 
-export type Soort = "cursus" | "training";
+export type Soort = "cursus" | "training" | "dienst";
+/** Wat bij de soort hoort. Cursus: niveau. Training: wanneer, duur, waar, plaatsen. Dienst: duur, waar, boeklink.
+ *  `link` (om online mee te doen) krijgen alleen deelnemers en de eigenaar. */
+export type Details = { niveau?: "" | "beginner" | "gevorderd" | "iedereen"; wanneer?: string; duur?: number;
+  waar?: "online" | "locatie"; plek?: string; link?: string; plaatsen?: number; boeklink?: string };
+export const SOORTEN: [Soort, string][] = [["cursus", "Cursus"], ["training", "Training"], ["dienst", "Dienst"]];
 export type Periode = "maand" | "jaar";
 export type Cursus = { id: number; community: number; titel: string; omschrijving: string; soort: Soort; prijs_cent: number;
   voor_abonnees: boolean; gepubliceerd: boolean; toegang: boolean; gekocht: boolean; lessen: number; minuten: number;
-  klaar: number; kopers: number | null };
+  klaar: number; kopers: number | null; details: Details; deelnemers: number };
 export type Les = { id: number; titel: string; minuten: number; inhoud: string | null; video: string | null; klaar: boolean };
 export type Plan = { id: number; naam: string; prijs_cent: number; periode: Periode; voordelen: string; actief: boolean;
   abonnees: number | null };
@@ -28,16 +33,18 @@ async function doe<T>(functie: string, parameters: Record<string, unknown>) {
 export const aanbod = async (community: number): Promise<Aanbod> => {
   const a = await doe<Aanbod>("community_aanbod", { p_community: community });
   return { ...a, plannen: a.plannen ?? [], pakketten: a.pakketten ?? [], abonnement: a.abonnement ?? null,
-    cursussen: (a.cursussen ?? []).map((c) => ({ ...c, soort: c.soort ?? "cursus" })) };
+    cursussen: (a.cursussen ?? []).map((c) => ({ ...c, soort: c.soort ?? "cursus", details: c.details ?? {} })) };
 };
 export const lezen = (cursus: number) =>
-  doe<Cursus & { les_lijst: Les[]; beheer: boolean; community_naam: string }>("cursus_lezen", { p_cursus: cursus });
+  doe<Cursus & { les_lijst: Les[]; beheer: boolean; community_naam: string }>("cursus_lezen", { p_cursus: cursus })
+    .then((c) => ({ ...c, soort: c.soort ?? "cursus", details: c.details ?? {} }));
 
 export const opslaan = (community: number, cursus: number | null, c: { titel: string; omschrijving: string; prijs: number;
-  gepubliceerd: boolean; soort?: Soort; voorAbonnees?: boolean }) =>
+  gepubliceerd: boolean; soort?: Soort; voorAbonnees?: boolean; details?: Details }) =>
   doe<{ id: number }>("cursus_opslaan", { p_community: community, p_cursus: cursus, p_titel: c.titel.trim(),
     p_omschrijving: c.omschrijving.trim(), p_prijs_cent: c.voorAbonnees ? 0 : Math.round(Math.max(0, c.prijs) * 100),
-    p_voor_abonnees: !!c.voorAbonnees, p_gepubliceerd: c.gepubliceerd, p_soort: c.soort ?? "cursus" });
+    p_voor_abonnees: !!c.voorAbonnees, p_gepubliceerd: c.gepubliceerd, p_soort: c.soort ?? "cursus",
+    p_details: c.details ?? {} });
 
 /** Een abonnement per maand of per jaar; cursussen met "Bij abonnement" zijn dan inbegrepen. */
 export const planOpslaan = (community: number, plan: number | null, p: { naam: string; prijs: number; periode: Periode;
@@ -142,4 +149,69 @@ export async function terugControleren(t: Terug): Promise<string> {
   if (!r.betaald) return "De betaling is nog niet binnen. Kijk zo nog eens.";
   return t.soort === "pakket" ? "Gelukt! Alles uit je pakket staat klaar in de community."
     : "Gelukt! Je cursus staat klaar in de community.";
+}
+
+/** "do 5 nov, 19:30" voor een training. */
+export function wanneerTekst(w?: string) {
+  if (!w) return "";
+  const d = new Date(w);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("nl-NL", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/** "90 min", "1 uur", "1,5 uur". */
+export function duurTekst(min?: number) {
+  if (!min) return "";
+  return min < 60 || min % 30 ? `${min} min` : `${String(min / 60).replace(".", ",")} uur`;
+}
+
+/** De korte regel onder een titel: wat voor soort, wanneer, hoe lang en waar. */
+export function soortRegel(c: Pick<Cursus, "soort" | "details">) {
+  const d = c.details ?? {};
+  const waar = d.waar === "locatie" ? d.plek || "Op locatie" : d.waar === "online" ? "Online" : "";
+  if (c.soort === "training") return ["Training", wanneerTekst(d.wanneer), duurTekst(d.duur), waar].filter(Boolean).join(" · ");
+  if (c.soort === "dienst") return ["Dienst", duurTekst(d.duur), waar].filter(Boolean).join(" · ");
+  const niveaus: Record<string, string> = { beginner: "Voor beginners", gevorderd: "Voor gevorderden", iedereen: "Voor iedereen" };
+  const niveau = niveaus[d.niveau ?? ""] ?? "";
+  return ["Cursus", niveau].filter(Boolean).join(" · ");
+}
+
+/** Een training die al geweest is. */
+export const voorbij = (c: Pick<Cursus, "soort" | "details">, nu = new Date()) =>
+  c.soort === "training" && !!c.details?.wanneer && new Date(c.details.wanneer).getTime() + (c.details.duur ?? 0) * 60000 < nu.getTime();
+
+// Een gedeelde link (?cursus=id) opent die cursus, training of dienst in de community, ook na het inloggen.
+let gedeeld: number | null = null;
+let gevonden: { id: number; community: number } | null = null;
+export function cursusLinkVragen(waarde: string | null) {
+  gedeeld = waarde && /^\d{1,12}$/.test(waarde) ? Number(waarde) : null;
+  return gedeeld !== null;
+}
+export const isCursusLinkGevraagd = () => gedeeld !== null;
+/** Zoekt bij welke community de gedeelde cursus hoort. */
+export async function cursusLinkOpenen(): Promise<number | null> {
+  const id = gedeeld;
+  gedeeld = null;
+  if (id === null) return null;
+  const c = await lezen(id);
+  gevonden = { id, community: c.community };
+  return c.community;
+}
+/** De gedeelde cursus, als die bij deze community hoort (één keer). */
+export function cursusLinkPakken(community: number) {
+  if (gevonden?.community !== community) return null;
+  const id = gevonden.id;
+  gevonden = null;
+  return id;
+}
+
+/** De link om te delen. Op Streamlit is dat het adres van het venster eromheen. */
+export function cursusLink(id: number) {
+  let basis = location.origin + location.pathname;
+  try {
+    basis = window.top!.location.origin + "/";
+  } catch {
+    /* ander adres */
+  }
+  return `${basis}?cursus=${id}`;
 }

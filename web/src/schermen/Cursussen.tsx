@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Onderblad } from "./Onderblad";
 import { Schakelaar } from "./instellingen-ui";
-import { Boek, Kruis, Plus, Ster, Terug, Vinkje } from "../iconen";
+import { Boek, Klok, Kruis, Plus, Ster, Terug, Vinkje } from "../iconen";
 import { mascotteZeg } from "../mascotte";
 import { aanbod, abonneren, kopen, lesKlaar, lesOpslaan, lesWijzigen, lezen, opslaan, opzeggen, pakketKopen, pakketOpslaan,
-  pakketWeg, perPeriode, planOpslaan, prijsTekst, videoSpeler, type Aanbod, type Cursus, type Les, type Pakket, type Periode,
-  type Plan, type Soort } from "../lib/cursus";
+  pakketWeg, perPeriode, planOpslaan, prijsTekst, videoSpeler, cursusLink, duurTekst, soortRegel, voorbij, wanneerTekst,
+  SOORTEN, type Aanbod, type Cursus, type Details, type Les, type Pakket, type Periode, type Plan, type Soort } from "../lib/cursus";
+import { linkNetjes } from "../lib/winkelopmaak";
 
 const foutVan = (e: unknown) => (e instanceof Error && e.message ? e.message : "Dat lukte niet. Probeer het opnieuw.");
 const veld = "h-12 w-full rounded-2xl bg-vlak px-4 outline-none placeholder:text-zacht focus:ring-2 focus:ring-accent";
@@ -40,9 +41,9 @@ function Akkoord({ aan, zet }: { aan: boolean; zet: (a: boolean) => void }) {
   );
 }
 
-export function Cursussen({ community }: { community: number }) {
+export function Cursussen({ community, start = null }: { community: number; start?: number | null }) {
   const [a, setA] = useState<Aanbod | null>(null);
-  const [open, setOpen] = useState<number | null>(null);
+  const [open, setOpen] = useState<number | null>(start);
   const [blad, setBlad] = useState<null | "cursus" | "plan" | "pakket" | Plan | Pakket>(null);
   const [bekijk, setBekijk] = useState<Pakket | null>(null);
   const [fout, setFout] = useState("");
@@ -107,13 +108,16 @@ export function Cursussen({ community }: { community: number }) {
           <ul className="flex flex-col gap-2">
             {a.cursussen.map((c) => (
               <li key={c.id}>
-                <button onClick={() => setOpen(c.id)} className="flex w-full items-center gap-3 rounded-2xl bg-vlak p-4 text-left">
-                  <Boek className="size-6 shrink-0 text-accent" />
+                <button onClick={() => setOpen(c.id)}
+                  className={`flex w-full items-center gap-3 rounded-2xl bg-vlak px-4 py-3 text-left ${voorbij(c) ? "opacity-60" : ""}`}>
+                  <SoortTeken c={c} />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate font-medium">{c.titel}</span>
-                    <span className="text-[13px] text-rustig">{c.soort === "training" ? "Training · " : ""}{voortgang(c)}{!c.gepubliceerd ? " · concept" : ""}</span>
+                    <span className="truncate text-[13px] text-rustig">
+                      {soortRegel(c)}{c.soort === "cursus" ? ` · ${voortgang(c)}` : ""}{voorbij(c) ? " · geweest" : ""}{!c.gepubliceerd ? " · concept" : ""}
+                    </span>
                   </span>
-                  {!c.toegang && <span className="shrink-0 text-sm font-medium">{c.voor_abonnees ? "Bij abonnement" : prijsTekst(c.prijs_cent)}</span>}
+                  {!c.toegang && <span className="shrink-0 text-sm font-medium">{c.voor_abonnees ? "Abonnement" : prijsTekst(c.prijs_cent)}</span>}
                 </button>
               </li>
             ))}
@@ -122,7 +126,7 @@ export function Cursussen({ community }: { community: number }) {
       )}
       {a?.beheer && (
         <div className="flex gap-2">
-          <button onClick={() => setBlad("cursus")} className={stil}><Plus className="size-5" /> Cursus</button>
+          <button onClick={() => setBlad("cursus")} className={stil}><Plus className="size-5" /> Aanbod</button>
           <button onClick={() => setBlad("plan")} className={stil}><Plus className="size-5" /> Abonnement</button>
           <button onClick={() => setBlad("pakket")} disabled={a.cursussen.length < 2} className={`${stil} disabled:opacity-40`}><Plus className="size-5" /> Pakket</button>
         </div>
@@ -252,6 +256,60 @@ function PakketInstellen({ community, pakket, cursussen, kanVerkopen, sluit, kla
   );
 }
 
+/** Links in de lijst: een training toont de datum, een dienst een klok, een cursus een boek. */
+function SoortTeken({ c }: { c: Pick<Cursus, "soort" | "details"> }) {
+  const w = c.soort === "training" && c.details.wanneer ? new Date(c.details.wanneer) : null;
+  if (w && !Number.isNaN(w.getTime())) return (
+    <span className="flex size-11 shrink-0 flex-col items-center justify-center rounded-xl bg-white leading-none dark:bg-black/30">
+      <span className="text-[17px] font-semibold">{w.getDate()}</span>
+      <span className="text-[11px] uppercase text-accent">{w.toLocaleDateString("nl-NL", { month: "short" }).replace(".", "")}</span>
+    </span>
+  );
+  const Icoon = c.soort === "dienst" ? Klok : Boek;
+  return <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-black/30"><Icoon className="size-5 text-accent" /></span>;
+}
+
+const vol = (c: Pick<Cursus, "soort" | "details" | "deelnemers">) =>
+  c.soort === "training" && !!c.details.plaatsen && c.deelnemers >= c.details.plaatsen;
+
+/** Wanneer en waar een training is, of hoe een dienst gaat; met meedoen of een moment kiezen. */
+function Afspraak({ c }: { c: Cursus & { beheer?: boolean } }) {
+  const d = c.details;
+  const regels = [
+    c.soort === "training" ? wanneerTekst(d.wanneer) : "",
+    duurTekst(d.duur),
+    d.waar === "locatie" ? d.plek || "Op locatie" : "Online",
+    c.soort === "training" && d.plaatsen ? (vol(c) ? "Vol" : `Nog ${d.plaatsen - c.deelnemers} van ${d.plaatsen} plaatsen`) : "",
+  ].filter(Boolean);
+  const meedoen = c.toegang && d.waar !== "locatie" && d.link && !voorbij(c);
+  const boeken = c.soort === "dienst" && d.boeklink && (c.toegang || (!c.prijs_cent && !c.voor_abonnees));
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl bg-vlak p-4">
+      <div className="flex items-center gap-3">
+        <SoortTeken c={c} />
+        <span className="flex min-w-0 flex-col">
+          <span className="font-medium">{regels[0]}</span>
+          <span className="text-[13px] text-rustig">{regels.slice(1).join(" · ")}{voorbij(c) ? " · geweest" : ""}</span>
+        </span>
+      </div>
+      {meedoen && <a href={d.link} target="_blank" rel="noopener noreferrer"
+        className={boeken ? "flex h-12 items-center justify-center rounded-2xl bg-white font-medium dark:bg-black/30" : `${knop} flex items-center justify-center`}>
+        {c.soort === "dienst" ? "Online meedoen" : "Meedoen"}</a>}
+      {boeken && <a href={d.boeklink} target="_blank" rel="noopener noreferrer" className={`${knop} flex items-center justify-center`}>Kies een moment</a>}
+      {c.toegang && !c.beheer && d.waar !== "locatie" && !d.link && c.soort === "training" && (
+        <p className="text-[13px] text-rustig">De link om mee te doen komt hier te staan.</p>
+      )}
+    </div>
+  );
+}
+
+async function delen(titel: string, url: string, melding: (t: string) => void) {
+  if (navigator.share) {
+    try { await navigator.share({ title: titel, url }); return; } catch (e) { if ((e as Error).name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(url); melding("Link gekopieerd."); } catch { melding(url); }
+}
+
 function voortgang(c: Pick<Cursus, "lessen" | "klaar" | "minuten" | "toegang">) {
   const lessen = `${c.lessen} ${c.lessen === 1 ? "les" : "lessen"}`;
   if (c.toegang && c.klaar > 0) return `${c.klaar} van ${lessen} klaar`;
@@ -263,37 +321,79 @@ function CursusInstellen({ community, cursus, kanVerkopen, sluit, klaar }: { com
   const [titel, setTitel] = useState(cursus?.titel ?? "");
   const [omschrijving, setOmschrijving] = useState(cursus?.omschrijving ?? "");
   const [soort, setSoort] = useState<Soort>(cursus?.soort ?? "cursus");
+  const [d, setD] = useState<Details>(cursus?.details ?? {});
+  const zet = (x: Partial<Details>) => setD((o) => ({ ...o, ...x }));
   const [toegang, setToegang] = useState<"gratis" | "koop" | "abonnement">(
     cursus?.voor_abonnees ? "abonnement" : cursus?.prijs_cent ? "koop" : "gratis");
   const [prijs, setPrijs] = useState(euro(cursus?.prijs_cent ?? 0));
   const [gepubliceerd, setGepubliceerd] = useState(cursus?.gepubliceerd ?? false);
   const [fout, setFout] = useState("");
+  const getal = (t: string) => Math.max(0, Math.floor(Number(t) || 0));
+  const linkFout = (u?: string) => !!u && !linkNetjes(u);
   async function bewaar() {
     setFout("");
     try {
-      const r = await opslaan(community, cursus?.id ?? null, { titel, omschrijving, gepubliceerd, soort,
+      const details: Details = { ...d, link: linkNetjes(d.link ?? ""), boeklink: linkNetjes(d.boeklink ?? "") };
+      const r = await opslaan(community, cursus?.id ?? null, { titel, omschrijving, gepubliceerd, soort, details,
         voorAbonnees: toegang === "abonnement", prijs: toegang === "koop" ? bedrag(prijs) : 0 });
       klaar(r.id ?? cursus!.id);
     } catch (e) {
       setFout(foutVan(e));
     }
   }
-  const naam = soort === "training" ? "training" : "cursus";
+  const naam = SOORTEN.find(([k]) => k === soort)![1];
+  const vraag = { cursus: "Wat leer je in deze cursus?", training: "Wat doen jullie in deze training?",
+    dienst: "Wat bied je aan, bijvoorbeeld coaching of advies?" }[soort];
   return (
-    <Onderblad titel={cursus ? `${naam[0].toUpperCase()}${naam.slice(1)} aanpassen` : "Nieuwe cursus of training"} sluit={sluit}>
-      <Keuze label="Soort" waarde={soort} zet={setSoort} opties={[["cursus", "Cursus"], ["training", "Training"]]} />
+    <Onderblad titel={cursus ? `${naam} aanpassen` : "Nieuw aanbod"} sluit={sluit}>
+      <Keuze label="Soort" waarde={soort} zet={setSoort} opties={SOORTEN} />
       <input value={titel} onChange={(e) => setTitel(e.target.value)} maxLength={100} placeholder="Titel" aria-label="Titel" className={veld} />
-      <textarea value={omschrijving} onChange={(e) => setOmschrijving(e.target.value)} rows={3} maxLength={2000}
-        placeholder={`Wat leer je in deze ${naam}?`} aria-label="Omschrijving" className={vlak} />
-      <span className={kop}>Wie mag meedoen</span>
+      <textarea value={omschrijving} onChange={(e) => setOmschrijving(e.target.value)} rows={2} maxLength={2000}
+        placeholder={vraag} aria-label="Omschrijving" className={vlak} />
+      {soort === "cursus" && (
+        <Keuze label="Niveau" waarde={d.niveau || "iedereen"} zet={(niveau) => zet({ niveau })}
+          opties={[["iedereen", "Iedereen"], ["beginner", "Beginner"], ["gevorderd", "Gevorderd"]]} />
+      )}
+      {soort === "training" && (
+        <label className="flex flex-col gap-1.5">
+          <span className={kop}>Wanneer</span>
+          <input type="datetime-local" value={d.wanneer ?? ""} onChange={(e) => zet({ wanneer: e.target.value.slice(0, 16) })}
+            aria-label="Wanneer" className={veld} />
+        </label>
+      )}
+      {soort !== "cursus" && <>
+        <div className="flex gap-2">
+          <input value={d.duur || ""} onChange={(e) => zet({ duur: getal(e.target.value) })} inputMode="numeric"
+            placeholder="Duur in minuten" aria-label="Duur in minuten" className={veld} />
+          {soort === "training" && (
+            <input value={d.plaatsen || ""} onChange={(e) => zet({ plaatsen: getal(e.target.value) })} inputMode="numeric"
+              placeholder="Plaatsen" aria-label="Aantal plaatsen" className={veld} />
+          )}
+        </div>
+        <Keuze label="Waar" waarde={d.waar ?? "online"} zet={(waar) => zet({ waar })} opties={[["online", "Online"], ["locatie", "Op locatie"]]} />
+        {(d.waar ?? "online") === "online"
+          ? <input value={d.link ?? ""} onChange={(e) => zet({ link: e.target.value })} inputMode="url" maxLength={300}
+            placeholder="Link om mee te doen (Zoom, Meet, Teams)" aria-label="Link om mee te doen"
+            className={`${veld} ${linkFout(d.link) ? "ring-2 ring-red-500" : ""}`} />
+          : <input value={d.plek ?? ""} onChange={(e) => zet({ plek: e.target.value })} maxLength={200}
+            placeholder="Adres of plaats" aria-label="Adres of plaats" className={veld} />}
+        {(d.waar ?? "online") === "online" && <p className="-mt-2 px-1 text-[13px] text-rustig">Alleen deelnemers zien deze link.</p>}
+      </>}
+      {soort === "dienst" && (
+        <input value={d.boeklink ?? ""} onChange={(e) => zet({ boeklink: e.target.value })} inputMode="url" maxLength={300}
+          placeholder="Link om een moment te kiezen (je boekpagina)" aria-label="Link om een moment te kiezen"
+          className={`${veld} ${linkFout(d.boeklink) ? "ring-2 ring-red-500" : ""}`} />
+      )}
       <Keuze label="Wie mag meedoen" waarde={toegang} zet={setToegang}
-        opties={[["gratis", "Gratis"], ["koop", "Te koop"], ["abonnement", "Bij abonnement"]]} />
-      {toegang === "koop" && <input value={prijs} onChange={(e) => setPrijs(e.target.value)} inputMode="decimal" placeholder="Prijs in euro" aria-label="Prijs" className={veld} />}
-      {toegang === "abonnement" && <p className="px-1 text-[13px] text-rustig">Iedereen met een abonnement op deze community kan meedoen.</p>}
+        opties={[["gratis", "Gratis"], ["koop", "Te koop"], ["abonnement", "Abonnement"]]} />
+      {toegang === "koop" && <input value={prijs} onChange={(e) => setPrijs(e.target.value)} inputMode="decimal"
+        placeholder={soort === "dienst" ? "Prijs per keer in euro" : "Prijs in euro"} aria-label="Prijs" className={veld} />}
       {toegang !== "gratis" && !kanVerkopen && <p className="px-1 text-[13px] text-rustig">Verkopen kan zodra je betalingen ontvangt (Instellingen › Betalingen).</p>}
-      <Schakelaar label="Zichtbaar voor leden" uitleg="Zet dit aan als de lessen klaar zijn." aan={gepubliceerd} zet={setGepubliceerd} />
+      <Schakelaar label="Zichtbaar voor leden" uitleg={soort === "cursus" ? "Zet dit aan als de lessen klaar zijn." : "Zet dit aan als alles klopt."}
+        aan={gepubliceerd} zet={setGepubliceerd} />
       {fout && <p role="alert" className="px-1 text-sm text-red-600">{fout}</p>}
-      <button onClick={bewaar} disabled={!titel.trim() || (toegang === "koop" && !bedrag(prijs))} className={knop}>Bewaren</button>
+      <button onClick={bewaar} disabled={!titel.trim() || (toegang === "koop" && !bedrag(prijs)) || linkFout(d.link) || linkFout(d.boeklink)
+        || (soort === "training" && !d.wanneer)} className={knop}>Bewaren</button>
     </Onderblad>
   );
 }
@@ -304,6 +404,7 @@ function CursusScherm({ id, terug }: { id: number; terug: () => void }) {
   const [bewerk, setBewerk] = useState<Les | "nieuw" | "cursus" | null>(null);
   const [fout, setFout] = useState("");
   const [akkoord, setAkkoord] = useState(false);
+  const [melding, setMelding] = useState("");
   const laden = useCallback(() => lezen(id).then(setC).catch((e) => setFout(foutVan(e))), [id]);
   useEffect(() => { laden(); }, [laden]);
   const doe = (f: () => Promise<unknown>) => f().then(laden).catch((e) => setFout(foutVan(e)));
@@ -336,11 +437,15 @@ function CursusScherm({ id, terug }: { id: number; terug: () => void }) {
       <div className="flex items-center gap-2">
         <button onClick={terug} aria-label="Terug naar cursussen en trainingen" className="-ml-2 flex size-10 items-center justify-center text-rustig"><Terug className="size-5" /></button>
         <h2 className="min-w-0 flex-1 truncate text-xl font-semibold">{c?.titel ?? ""}</h2>
-        {c?.beheer && <button onClick={() => setBewerk("cursus")} className="text-sm font-medium text-accent">Aanpassen</button>}
+        {c && <button onClick={() => delen(c.titel, cursusLink(c.id), setMelding)} className="text-sm font-medium text-accent">Delen</button>}
+        {c?.beheer && <button onClick={() => setBewerk("cursus")} className="ml-2 text-sm font-medium text-accent">Aanpassen</button>}
       </div>
+      {melding && <p role="status" className="-mt-2 break-all text-[13px] text-rustig">{melding}</p>}
       {c && <>
         {c.omschrijving && <p className="whitespace-pre-line text-[15px] text-rustig">{c.omschrijving}</p>}
-        <p className="text-[13px] text-rustig">{voortgang(c)}{c.beheer && c.kopers ? ` · ${c.kopers} keer verkocht` : ""}</p>
+        {c.soort !== "cursus" && <Afspraak c={c} />}
+        <p className="text-[13px] text-rustig">{c.soort === "cursus" ? `${soortRegel(c)} · ${voortgang(c)}` : `${c.deelnemers} ${c.deelnemers === 1 ? "deelnemer" : "deelnemers"}`}
+          {c.beheer && c.kopers ? ` · ${c.kopers} keer verkocht` : ""}</p>
         {c.toegang && c.lessen > 0 && (
           <div className="h-1.5 overflow-hidden rounded-full bg-lijn"><div className="h-full rounded-full bg-accent" style={{ width: `${(c.klaar / c.lessen) * 100}%` }} /></div>
         )}
@@ -351,10 +456,12 @@ function CursusScherm({ id, terug }: { id: number; terug: () => void }) {
           <div className="flex flex-col gap-3 rounded-2xl bg-vlak p-4">
             <span className="text-lg font-semibold">{prijsTekst(c.prijs_cent)}</span>
             <Akkoord aan={akkoord} zet={setAkkoord} />
-            <button disabled={!akkoord} onClick={() => kopen(c.id).catch((e) => setFout(foutVan(e)))} className={knop}>Kopen</button>
+            <button disabled={!akkoord || vol(c)} onClick={() => kopen(c.id).catch((e) => setFout(foutVan(e)))} className={knop}>
+              {vol(c) ? "Vol" : c.soort === "training" ? "Inschrijven" : "Kopen"}</button>
           </div>
         )}
-        <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
+        {(c.soort === "cursus" || c.les_lijst.length > 0) && c.soort !== "cursus" && <h3 className={kop}>Materiaal</h3>}
+        {(c.soort === "cursus" || c.les_lijst.length > 0) && <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
           {c.les_lijst.map((l, n) => (
             <li key={l.id} className="flex items-center gap-3 px-4 py-3">
               {c.toegang ? (
@@ -375,9 +482,10 @@ function CursusScherm({ id, terug }: { id: number; terug: () => void }) {
             </li>
           ))}
           {c.les_lijst.length === 0 && <li className="px-4 py-3 text-rustig">Nog geen lessen.</li>}
-        </ul>
+        </ul>}
         {c.beheer && (
-          <button onClick={() => setBewerk("nieuw")} className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-vlak font-medium"><Plus className="size-5" /> Les toevoegen</button>
+          <button onClick={() => setBewerk("nieuw")} className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-vlak font-medium">
+            <Plus className="size-5" /> {c.soort === "cursus" ? "Les toevoegen" : "Materiaal toevoegen"}</button>
         )}
       </>}
       {fout && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{fout}</p>}

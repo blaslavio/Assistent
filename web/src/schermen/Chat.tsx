@@ -18,7 +18,7 @@ import { StoryRij } from "./Stories";
 import { Verkopen } from "./Verkopen";
 import { MijnWinkel } from "./MijnWinkel";
 import { Cursussen } from "./Cursussen";
-import { cursusTerug, terugControleren } from "../lib/cursus";
+import { cursusLinkOpenen, cursusLinkPakken, cursusTerug, isCursusLinkGevraagd, terugControleren } from "../lib/cursus";
 import { mascotteZeg } from "../mascotte";
 import { isWinkelGevraagd, winkelGevraagd } from "../lib/mijnwinkel";
 import { useEigenFoto } from "./Profiel";
@@ -42,6 +42,7 @@ const DELEN: [Deel, string, typeof Ballon][] = [["chats", "Chats", Ballon], ["co
 
 function bewaardDeel(): Deel {
   if (isGevraagd() || isWinkelGevraagd()) return "winkel";
+  if (isCursusLinkGevraagd()) return "communitys";
   try {
     const d = localStorage.getItem("assistent.chatdeel");
     if (d !== "winkel" && DELEN.some(([k]) => k === d)) return d as Deel;
@@ -99,7 +100,8 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, verlaa
       setIk(id);
       luisteren(id);
       return laden();
-    }).catch((e) => setFout(e instanceof Error ? e.message : "De chat kon niet starten."));
+    }).then(() => cursusLinkOpenen().then((c) => c !== null && setOpenCommunity(c))
+      .catch(() => setFout("Deze cursus, training of dienst zie je als je lid bent van de community."))).catch((e) => setFout(e instanceof Error ? e.message : "De chat kon niet starten."));
   }, [laden]);
 
   useEffect(() => {
@@ -417,7 +419,8 @@ type CommunityDeel = "kanalen" | "agenda" | "cursussen" | "leden" | "meer";
 /** Een community opent als eigen app: kanalen en feed, de leden, en meer (instellingen en verlaten). */
 function CommunityScherm({ c, openKanaal, vernieuw, terug, bijgewerkt }: { c: Community; openKanaal: (id: number) => void;
   vernieuw: () => Promise<void>; terug: () => void; bijgewerkt?: (g: Gegevens) => void }) {
-  const [deel, setDeel] = useState<CommunityDeel>("kanalen");
+  const [startCursus] = useState(() => cursusLinkPakken(c.id));
+  const [deel, setDeel] = useState<CommunityDeel>(startCursus !== null ? "cursussen" : "kanalen");
   const [opnieuw, setOpnieuw] = useState(0);
   const beheer = c.rol === "eigenaar" || c.rol === "beheerder";
   const keuze = useMemo(() => ({ bron: "alles" as const, verborgen: [], _: opnieuw }), [opnieuw]);
@@ -463,7 +466,7 @@ function CommunityScherm({ c, openKanaal, vernieuw, terug, bijgewerkt }: { c: Co
         </div>
       </>}
       {deel === "agenda" && <ClubAgenda c={c} bijgewerkt={bijgewerkt} />}
-      {deel === "cursussen" && <Cursussen community={c.id} />}
+      {deel === "cursussen" && <Cursussen community={c.id} start={startCursus} />}
       {deel === "leden" && <Leden c={c} />}
       {deel === "meer" && <>
         {beheer ? <CommunityBeheer c={c} vernieuw={vernieuw} opgeheven={weg} />
