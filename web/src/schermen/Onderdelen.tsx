@@ -11,6 +11,7 @@ import { Beleggen } from "./Beleggen";
 import { kop } from "./instellingen-ui";
 import { Leren } from "./Leren";
 import { Zakelijk } from "./Zakelijk";
+import { Huishoudens } from "./Huishouden";
 
 import { ONDERDELEN, type OnderdeelNaam } from "../lib/onderdeel-lijst";
 export { ONDERDELEN, type OnderdeelNaam };
@@ -42,6 +43,7 @@ export function Onderdeel({ naam, staat, vernieuw, terug, terugNaam, vraag }: { 
   if (naam === "leren") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Leren staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
   if (naam === "budget") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Budget staat={staat} /></Scherm>;
   if (naam === "beleggen") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Beleggen staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
+  if (naam === "huishouden") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Huishoudens /></Scherm>;
   if (naam === "zakelijk") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Zakelijk staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
   return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Lijst naam={naam} data={staat.data} vernieuw={vernieuw} /></Scherm>;
 }
@@ -51,7 +53,7 @@ export function Onderdeel({ naam, staat, vernieuw, terug, terugNaam, vraag }: { 
 type Item = { id: number; tekst?: string; naam_product?: string; titel?: string; prijs?: number | null; gekocht?: boolean };
 const tekstVan = (i: Item) => i.tekst ?? i.naam_product ?? i.titel ?? "";
 
-function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documenten" | "budget" | "beleggen" | "leren" | "zakelijk">; data: Gegevens;
+function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documenten" | "budget" | "beleggen" | "leren" | "zakelijk" | "huishouden">; data: Gegevens;
   vernieuw: () => Promise<void> }) {
   const [invoer, setInvoer] = useState("");
   const [notitie, setNotitie] = useState<Item | null>(null);

@@ -1,9 +1,10 @@
 // De namen en iconen van de onderdelen, los van de schermen zelf, zodat een menu ze kan tonen zonder alles te laden.
-import { Bestand, Bewerk, Boek, Grafiek, Hart, Lijstje, Tas, Winkelpand } from "../iconen";
+import { Bestand, Bewerk, Boek, Grafiek, Hart, Huis, Lijstje, Tas, Winkelpand } from "../iconen";
 
-export type OnderdeelNaam = "boodschappen" | "kooplijst" | "wenslijst" | "notities" | "documenten" | "budget" | "beleggen" | "leren" | "zakelijk";
+export type OnderdeelNaam = "boodschappen" | "kooplijst" | "wenslijst" | "notities" | "documenten" | "budget" | "beleggen" | "leren" | "zakelijk" | "huishouden";
 
 export const ONDERDELEN: [OnderdeelNaam, string, typeof Tas][] = [
+  ["huishouden", "Huishouden", Huis],
   ["boodschappen", "Boodschappen", Tas],
   ["kooplijst", "Kooplijst", Lijstje],
   ["wenslijst", "Wenslijst", Hart],
