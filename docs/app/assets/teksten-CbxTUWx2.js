@@ -1,4 +1,4 @@
-import{n as e}from"./rolldown-runtime-4tVxZq34.js";var t=e({PRIVACY:()=>r,VOORWAARDEN:()=>n}),n=`**Algemene voorwaarden** (concept, bijgewerkt 19 oktober 2026)
+import{n as e}from"./rolldown-runtime-4tVxZq34.js";var t=e({PRIVACY:()=>r,VOORWAARDEN:()=>n}),n=`**Algemene voorwaarden** (concept, bijgewerkt 29 oktober 2026)
 
 1. **Wat de app is.** Een persoonlijke assistent voor agenda, taken, leren, mail en boodschappen, met de mogelijkheid
    om dingen te delen, samen aan projecten te werken en op de marktplaats iets aan te bieden of te boeken.
@@ -48,10 +48,7 @@ import{n as e}from"./rolldown-runtime-4tVxZq34.js";var t=e({PRIVACY:()=>r,VOORWA
    alleen voor echte mensen: één persoon, één account. Accounts laten aanmaken of besturen door een programma of bot
    is niet toegestaan; zulke accounts worden geblokkeerd. Laat je de assistent een antwoord voorstellen, dan
    verstuur jij het en ben jij er verantwoordelijk voor.
-8. **VR-ruimtes.** In een VR-ruimte laat je je eigen project zien. Zet er alleen foto's, teksten en 3D-modellen in
-   die je zelf hebt gemaakt of mag gebruiken, en geen herkenbare mensen zonder hun toestemming. Een openbare ruimte
-   kan iedereen bekijken, ook zonder account. Je kunt je ruimte en alles erin altijd zelf verwijderen.
-9. **Reviews en marketing.** Een review kan alleen een echte klant geven: na een afgeronde bestelling via de app,
+8. **Reviews en marketing.** Een review kan alleen een echte klant geven: na een afgeronde bestelling via de app,
    of na een bezoek dat de winkel heeft bevestigd met een eenmalige bezoekcode. Eén review per aankoop of bezoek,
    binnen 60 dagen. Schrijf eerlijk en over je eigen ervaring; geen beledigingen, persoonsgegevens of nepreviews.
    Verkopers mogen niet betalen of iets beloven voor een (goede) review en geven een bezoekcode aan iedere klant,
@@ -59,21 +56,21 @@ import{n as e}from"./rolldown-runtime-4tVxZq34.js";var t=e({PRIVACY:()=>r,VOORWA
    tot de beheerder heeft gekeken, en wordt alleen verborgen als hij deze regels breekt. Kortingscodes, acties en
    nieuwtjes moeten kloppen: geen nep-"van"-prijzen of misleidende beloftes. Nieuwtjes gaan alleen naar mensen die
    een winkel zelf volgen, hooguit één per dag; volgen kun je altijd stoppen.
-10. **Melden en blokkeren.** Zie je iets wat niet mag? Gebruik de knop Melden. De beheerder bekijkt meldingen zo
+9. **Melden en blokkeren.** Zie je iets wat niet mag? Gebruik de knop Melden. De beheerder bekijkt meldingen zo
    snel mogelijk en kan aanbod offline halen of een account blokkeren. Wordt iets door meerdere mensen gemeld, dan
    gaat het automatisch offline tot de beheerder heeft gekeken. Nieuwe accounts kunnen de eerste week minder
    tegelijk aanbieden en bestellen. Je kunt bezwaar maken via de beheerder van de app (contactadres volgt).
-11. **Delen en projecten.** Wat je deelt of in een project zet, kunnen de ontvangers of projectleden zien. Deel alleen
+10. **Delen en projecten.** Wat je deelt of in een project zet, kunnen de ontvangers of projectleden zien. Deel alleen
    wat je wilt delen.
-12. **Stoppen.** Je kunt je account altijd verwijderen via Instellingen > Account. De beheerder kan accounts die
+11. **Stoppen.** Je kunt je account altijd verwijderen via Instellingen > Account. De beheerder kan accounts die
    deze voorwaarden overtreden blokkeren. Een account met een lopende betaling of een open geschil kun je pas
    verwijderen als die is afgerond.
-13. **Aansprakelijkheid.** De app wordt aangeboden zoals hij is. De beheerder is niet aansprakelijk voor afspraken
+12. **Aansprakelijkheid.** De app wordt aangeboden zoals hij is. De beheerder is niet aansprakelijk voor afspraken
    tussen gebruikers onderling, of voor schade door het gebruik van de app, behalve bij opzet of grove schuld.
-14. **Wijzigingen.** Als deze voorwaarden veranderen, zie je dat in de app. Op deze voorwaarden is Nederlands recht
+13. **Wijzigingen.** Als deze voorwaarden veranderen, zie je dat in de app. Op deze voorwaarden is Nederlands recht
     van toepassing.
 
-Contact: de beheerder van de app (contactadres volgt).`,r=`**Privacyverklaring** (concept, bijgewerkt 19 oktober 2026)
+Contact: de beheerder van de app (contactadres volgt).`,r=`**Privacyverklaring** (concept, bijgewerkt 29 oktober 2026)
 
 **Welke gegevens.** Je gebruikersnaam, weergavenaam, mailadres en een versleutelde versie van je wachtwoord (het
 wachtwoord zelf bewaren we niet). Verder wat je zelf invult: agenda, taken, contacten, leerdoelen, boodschappen, foto's en
@@ -98,8 +95,6 @@ alleen een onherkenbare versie ervan, met de naam van het apparaat en wanneer he
 dagen zonder gebruik vervalt hij. De namen van je Woning-opdrachten bewaren we bij je instellingen; de app bedient je
 huis nooit zelf, dat doet de app Opdrachten op je eigen apparaat als jij op een knop tikt.
 
-In een VR-ruimte bewaren we de foto's, teksten en 3D-modellen die je erin zet, en hoe vaak hij is bezocht. De 3D-weergave gebruikt A-Frame, geladen via jsDelivr.
-
 **Waarom.** Alleen om de app te laten werken: jouw gegevens tonen, de assistent laten helpen, en gebruikers met
 elkaar in contact brengen. We verkopen niets en tonen geen advertenties.
 
@@ -109,7 +104,8 @@ via je eigen sleutel. Voor weer, routes, plaatsen en bronnen gebruikt de app ope
 OpenStreetMap, OpenAlex, Crossref) en voor het plaatje van je assistent DiceBear; daarvoor gaat alleen de zoekvraag,
 plaats of een willekeurige code mee, niet je naam. Betaal of verkoop
 je via de app, dan verwerkt Stripe je betaal- en (als verkoper) identiteitsgegevens; zie de privacyverklaring van
-Stripe. Wij zien geen bank- of kaartgegevens. Koppel je je mail of Strava, dan haalt de app daar alleen gegevens op als jij erom vraagt.
+Stripe. Wij zien geen bank- of kaartgegevens. Codes om je mailadres te bevestigen of je wachtwoord te herstellen
+versturen we via Brevo (Europese Unie); daarvoor gaat alleen je mailadres en de code mee. Koppel je je mail of Strava, dan haalt de app daar alleen gegevens op als jij erom vraagt.
 Scan je een foto, dan gaat die naar Anthropic om te bekijken en wordt hij niet bewaard. De app herkent geen
 gezichten en zegt nooit wie er op een foto staat.
 
