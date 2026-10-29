@@ -1,4 +1,5 @@
 // Je profiel: foto, naam, gebruikersnaam, een korte tekst over jezelf en je story. Alles wat anderen van je zien.
+import { OpenbarePagina } from "./ProfielPagina";
 import { useEffect, useRef, useState } from "react";
 import { alsIk, type Gebruiker } from "../api";
 import { starten } from "../lib/chat";
@@ -109,6 +110,8 @@ export function Profiel({ g, vernieuw }: { g: Gebruiker; vernieuw: () => Promise
       bewaar={(v) => doe(() => bijwerken({ p_nieuwe_naam: v.trim().toLowerCase().replace(/^@/, "") }))} />
     <Veld label="Over mij" uitleg="Een korte zin, bijvoorbeeld wat je doet of verkoopt." waarde={g.over ?? ""} max={160} lang
       bewaar={(v) => doe(() => alsIk("profiel_over_instellen", { p_over: v }))} />
+
+    <OpenbarePagina naam={g.weergavenaam || g.naam || ""} />
 
     <section>
       <h2 className={kop}>Story</h2>
