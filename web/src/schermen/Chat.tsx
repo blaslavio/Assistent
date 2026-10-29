@@ -17,6 +17,9 @@ import { Rondje } from "../rondje";
 import { StoryRij } from "./Stories";
 import { Verkopen } from "./Verkopen";
 import { MijnWinkel } from "./MijnWinkel";
+import { Cursussen } from "./Cursussen";
+import { cursusTerug, gekochtControleren } from "../lib/cursus";
+import { mascotteZeg } from "../mascotte";
 import { isWinkelGevraagd, winkelGevraagd } from "../lib/mijnwinkel";
 import { useEigenFoto } from "./Profiel";
 import { CommunityBeheer } from "./CommunityBeheer";
@@ -83,6 +86,13 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, verlaa
     gastGesprekken().then((g) => setGasten(g.gesprekken)).catch(() => {});
     for (const x of o.gesprekken.slice(0, 30))
       voorbeeld(x).then((t) => setVoorbeelden((v) => (v[x.id] === t ? v : { ...v, [x.id]: t }))).catch(() => {});
+  }, []);
+
+  // Terug van betalen voor een cursus: controleren of het gelukt is.
+  useEffect(() => {
+    const sessie = cursusTerug();
+    if (sessie) gekochtControleren(sessie).then((r) => mascotteZeg(r.betaald ? "Gelukt! Je cursus staat klaar in de community."
+      : "De betaling is nog niet binnen. Kijk zo nog eens.")).catch((e) => setFout(e instanceof Error ? e.message : "Controleren lukte niet."));
   }, []);
 
   useEffect(() => {
@@ -403,7 +413,7 @@ function CommunityBlad({ sluit, klaar, afspraken }: { sluit: () => void; klaar: 
   );
 }
 
-type CommunityDeel = "kanalen" | "agenda" | "leden" | "meer";
+type CommunityDeel = "kanalen" | "agenda" | "cursussen" | "leden" | "meer";
 
 /** Een community opent als eigen app: kanalen en feed, de leden, en meer (instellingen en verlaten). */
 function CommunityScherm({ c, openKanaal, vernieuw, terug, bijgewerkt }: { c: Community; openKanaal: (id: number) => void;
@@ -414,7 +424,7 @@ function CommunityScherm({ c, openKanaal, vernieuw, terug, bijgewerkt }: { c: Co
   const keuze = useMemo(() => ({ bron: "alles" as const, verborgen: [], _: opnieuw }), [opnieuw]);
   const weg = async () => { await vernieuw().catch(() => {}); terug(); };
   const items: MenuItem<CommunityDeel>[] = [["kanalen", "Kanalen", Ballon, c.kanalen.reduce((m, k) => m + k.ongelezen, 0)],
-    ["agenda", "Agenda", Kalender], ["leden", "Leden", Mensen], ["meer", "Meer", Meer]];
+    ["agenda", "Agenda", Kalender], ["cursussen", "Cursussen", Boek], ["leden", "Leden", Mensen], ["meer", "Meer", Meer]];
   return (
     <div className="flex min-h-full flex-col">
       <AppKop terug={terug} terugNaam="Chat" titel={deel === "kanalen" ? c.naam : items.find(([k]) => k === deel)![1]} />
@@ -454,6 +464,7 @@ function CommunityScherm({ c, openKanaal, vernieuw, terug, bijgewerkt }: { c: Co
         </div>
       </>}
       {deel === "agenda" && <ClubAgenda c={c} bijgewerkt={bijgewerkt} />}
+      {deel === "cursussen" && <Cursussen community={c.id} />}
       {deel === "leden" && <Leden c={c} />}
       {deel === "meer" && <>
         {beheer ? <CommunityBeheer c={c} vernieuw={vernieuw} opgeheven={weg} />
