@@ -4,6 +4,7 @@ import { GeenToegang, adresOpruimen, adresWaarde, gegevensLaden, huidigeSessie, 
 import { openVragen } from "./lib/bestellingen";
 import { winkelVragen } from "./lib/mijnwinkel";
 import { terugVanBank } from "./lib/bank";
+import { terugVanCursus } from "./lib/cursus";
 import { Ballon, Kalender, Tandwiel, Vonk, Zon } from "./iconen";
 import Inloggen from "./schermen/Inloggen";
 import Vandaag from "./schermen/Vandaag";
@@ -36,7 +37,9 @@ const ZEG = (adresWaarde("zeg") ?? "").trim().slice(0, 500);
 const WINKEL = winkelVragen(adresWaarde("winkel") ?? "");
 // Terug van inloggen bij je bank (?code=...&state=...): de koppeling afmaken in Budget.
 const BANK = terugVanBank(adresWaarde("code"), adresWaarde("state"));
-adresOpruimen("betaald", "zeg", "ochtend", "winkel", "code", "state");
+// Terug van betalen voor een cursus (?cursus_betaald=sessie): de app controleert het in Chat.
+const CURSUS = terugVanCursus(adresWaarde("cursus_betaald"));
+adresOpruimen("betaald", "zeg", "ochtend", "winkel", "code", "state", "cursus_betaald");
 if (BETAALD !== null) openVragen(BETAALD === "0" ? "Betalen is afgebroken. Je kunt het opnieuw proberen."
   : "Gelukt. Je betaling is binnen en het geld staat vast tot je bevestigt dat alles goed is.");
 // Alleen Vandaag zit in het eerste stuk van de app. De andere schermen komen los, en worden opgehaald zodra de app
@@ -77,7 +80,7 @@ export type { Staat };
 export default function App() {
   const [klaar, setKlaar] = useState(false);
   const [staat, setStaat] = useState<Staat | null>(null);
-  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL ? "chat" : ZEG ? "assistent" : BANK ? "instellingen" : "vandaag");
+  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL || CURSUS ? "chat" : ZEG ? "assistent" : BANK ? "instellingen" : "vandaag");
   const [voorafVraag, setVooraf] = useState(ZEG);
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [teKopen, setTeKopen] = useState<Product | null>(null);
