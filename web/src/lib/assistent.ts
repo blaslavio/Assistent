@@ -248,6 +248,19 @@ const LIJST: Hulpmiddel[] = [
       description: "Over welke periode de cijfers gaan. Standaard Maand." } } },
   },
   {
+    name: "huishouden_bekijken",
+    description: "Bekijk de huishoudens van de gebruiker (gezin, studentenhuis, samenwonen, vrienden): wie wat haalt of "
+      + "brengt de komende week, de gedeelde boodschappenlijst, wie nog geld krijgt en wiens beurt het is voor klussen.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "huishouden_boodschap",
+    description: "Zet iets op de gedeelde boodschappenlijst van een huishouden. Iedereen in dat huishouden ziet het.",
+    input_schema: { type: "object", properties: {
+      wat: { type: "string", description: "Wat er gehaald moet worden, kort." },
+      huishouden: { type: "string", description: "Naam van het huishouden; leeg als er maar één is." } }, required: ["wat"] },
+  },
+  {
     name: "winkel_overzicht",
     description: "Bekijk de eigen webshop van de gebruiker: open of dicht, de link, welke producten erin staan met voorraad "
       + "en wat er verkocht is. Alleen lezen; aanpassen doet de gebruiker zelf in Chat › Winkel › Verkopen.",
@@ -696,6 +709,35 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
         nog_afvinken: z.nogAfvinken(klanten).slice(0, 15).map((b) => ({ wie: b.naam, wat: b.soort, wanneer: b.start })),
         lessen_deze_week: l.map((x) => ({ naam: x.naam, start: x.start, ingeschreven: x.ingeschreven, plekken: x.plekken,
           wachtlijst: x.wachtlijst })) }) };
+    }
+    case "huishouden_bekijken": {
+      const h = await import("./huishouden");
+      const lijst = (await h.mijnHuishoudens()).filter((g) => g.status === "lid");
+      if (!lijst.length) return { resultaat: JSON.stringify({ huishoudens: [], uitleg: "Nog geen huishouden. Maak er een in Instellingen › Huishouden." }) };
+      const uit = await Promise.all(lijst.map(async (g) => {
+        const ik = g.leden.find((l) => l.ik)?.id;
+        const [agenda, boodschappen, kosten, klussen] = await Promise.all([
+          g.tools.includes("agenda") ? h.agenda(g.id, 7).catch(() => []) : [],
+          g.tools.includes("boodschappen") ? h.lijst(g.id).catch(() => []) : [],
+          g.tools.includes("kosten") ? h.kosten(g.id).catch(() => null) : null,
+          g.tools.includes("klussen") ? h.klussen(g.id).catch(() => []) : [],
+        ]);
+        return { naam: g.naam, leden: g.leden.map((l) => (l.ik ? "jij" : l.naam)), zonder_account: g.kinderen,
+          agenda: agenda.map((i) => ({ wat: h.omschrijving(i), wanneer: i.start, wie: i.wie === null ? "nog niemand" : i.wie === ik ? "jij" : i.wie_naam })),
+          boodschappen: boodschappen.filter((b) => !b.klaar).map((b) => b.tekst),
+          quitte_spelen: kosten ? h.verrekenen(kosten.saldo).map((x) => `${x.van.id === ik ? "jij" : x.van.naam} betaalt ${x.naar.id === ik ? "jou" : x.naar.naam} ${euro(x.bedrag)}`) : undefined,
+          klussen: klussen.map((k) => ({ klus: k.titel, beurt: k.wie === ik ? "jij" : k.wie_naam, klaar: k.klaar })) };
+      }));
+      return { resultaat: JSON.stringify({ huishoudens: uit }) };
+    }
+    case "huishouden_boodschap": {
+      const h = await import("./huishouden");
+      const lijst = (await h.mijnHuishoudens()).filter((g) => g.status === "lid" && g.tools.includes("boodschappen"));
+      const naam = s("huishouden").toLowerCase();
+      const g = naam ? lijst.find((x) => x.naam.toLowerCase().includes(naam)) : lijst.length === 1 ? lijst[0] : undefined;
+      if (!g) return { resultaat: lijst.length ? `Welk huishouden? Kies uit: ${lijst.map((x) => x.naam).join(", ")}.` : "Geen huishouden met een boodschappenlijst." };
+      await h.lijstBijwerken(g.id, "erbij", null, s("wat"));
+      return { resultaat: `Op de boodschappenlijst van ${g.naam}: ${s("wat")}.` };
     }
     case "winkel_overzicht": {
       const m = await import("./mijnwinkel");
