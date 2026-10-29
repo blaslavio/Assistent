@@ -16,6 +16,8 @@ import { useBellen } from "./Bellen";
 import { Rondje } from "../rondje";
 import { StoryRij } from "./Stories";
 import { Verkopen } from "./Verkopen";
+import { MijnWinkel } from "./MijnWinkel";
+import { isWinkelGevraagd, winkelGevraagd } from "../lib/mijnwinkel";
 import { useEigenFoto } from "./Profiel";
 import { CommunityBeheer } from "./CommunityBeheer";
 import { EindeKiezen, OpruimBlad, opruimTekst } from "./CommunityOpruimen";
@@ -34,7 +36,7 @@ const DELEN: [Deel, string, typeof Ballon][] = [["chats", "Chats", Ballon], ["co
   ["winkel", "Winkel", Tas], ["oproepen", "Bellen", Telefoon], ["jij", "Jij", Persoon]];
 
 function bewaardDeel(): Deel {
-  if (isGevraagd()) return "winkel";
+  if (isGevraagd() || isWinkelGevraagd()) return "winkel";
   try {
     const d = localStorage.getItem("assistent.chatdeel");
     if (d !== "winkel" && DELEN.some(([k]) => k === d)) return d as Deel;
@@ -59,9 +61,11 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, verlaa
   const [fout, setFout] = useState("");
   const [deel, setDeelRuw] = useState<Deel>(bewaardDeel);
   // Winkel opent als eigen app; terug van betalen (?betaald=) meteen bij Bestellingen.
-  const [winkel, setWinkel] = useState<{ deel: WinkelDeelNaam; melding?: string } | null>(() => {
+  const [winkel, setWinkel] = useState<{ deel: WinkelDeelNaam; melding?: string; adres?: string } | null>(() => {
     const v = openGevraagd();
-    return v ? { deel: "bestellingen", melding: v.melding } : null;
+    if (v) return { deel: "bestellingen", melding: v.melding };
+    const adres = winkelGevraagd();
+    return adres ? { deel: "ontdekken", adres } : null;
   });
 
   function setDeel(d: Deel) {
@@ -98,7 +102,7 @@ export default function Chat({ staat, setStaat, naarInstellingen, bestel, verlaa
     return <Gesprekscherm id={open} ik={ik} begin={g} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
   }
   if (openGast !== null) return <GastGesprekScherm boeking={openGast} terug={() => { setOpenGast(null); laden().catch(() => {}); }} />;
-  if (winkel) return <WinkelApp start={winkel.deel} melding={winkel.melding} bestel={bestel} terug={() => setWinkel(null)} />;
+  if (winkel) return <WinkelApp start={winkel.deel} melding={winkel.melding} adres={winkel.adres} bestel={bestel} terug={() => setWinkel(null)} />;
   if (openCommunity !== null && ik !== null) {
     const c = groepen.find((x) => x.id === openCommunity);
     if (c) return <CommunityScherm c={c} openKanaal={setOpen} vernieuw={laden}
@@ -549,9 +553,10 @@ const chip = (aan: boolean) => `flex h-9 shrink-0 items-center gap-1.5 rounded-f
 type WinkelDeelNaam = "ontdekken" | "verkopen" | "bestellingen";
 
 /** De winkel als eigen app: ontdekken, zelf verkopen en je bestellingen, met een eigen menu onderin. */
-function WinkelApp({ start, melding, bestel, terug }: { start: WinkelDeelNaam; melding?: string; bestel: (p: Product) => void;
-  terug: () => void }) {
+function WinkelApp({ start, melding, adres, bestel, terug }: { start: WinkelDeelNaam; melding?: string; adres?: string;
+  bestel: (p: Product) => void; terug: () => void }) {
   const [deel, setDeel] = useState<WinkelDeelNaam>(start);
+  const [openWinkel, setOpenWinkel] = useState(adres);
   const [wacht, setWacht] = useState(0);
   const [verkopen, setVerkopen] = useState(false);
   const [bijgewerkt, setBijgewerkt] = useState(0);
@@ -563,7 +568,8 @@ function WinkelApp({ start, melding, bestel, terug }: { start: WinkelDeelNaam; m
   return (
     <div className="flex min-h-full flex-col">
       <AppKop terug={terug} terugNaam="Chat" titel={deel === "ontdekken" ? "Winkel" : items.find(([k]) => k === deel)![1]} />
-      {deel === "ontdekken" && <WinkelDeel key={bijgewerkt} bestel={bestel} verkoop={() => setVerkopen(true)} />}
+      {deel === "ontdekken" && <WinkelDeel key={`${bijgewerkt}-${openWinkel}`} bestel={bestel} verkoop={() => setVerkopen(true)}
+        winkel={openWinkel} />}
       {deel === "verkopen" && (
         <div className="flex flex-col gap-5 px-6 pb-8">
           <button onClick={() => setVerkopen(true)} className="flex items-center gap-3 rounded-2xl bg-accent/10 p-4 text-left">
@@ -573,6 +579,7 @@ function WinkelApp({ start, melding, bestel, terug }: { start: WinkelDeelNaam; m
               <span className="text-[13px] text-rustig">Een product of een dienst, met foto en prijs</span>
             </span>
           </button>
+          <MijnWinkel key={bijgewerkt} bekijk={(a) => { setOpenWinkel(a); setDeel("ontdekken"); }} />
           <JouwAanbod key={bijgewerkt} />
         </div>
       )}
@@ -584,14 +591,14 @@ function WinkelApp({ start, melding, bestel, terug }: { start: WinkelDeelNaam; m
   );
 }
 
-function WinkelDeel({ bestel, verkoop }: { bestel: (p: Product) => void; verkoop: () => void }) {
+function WinkelDeel({ bestel, verkoop, winkel }: { bestel: (p: Product) => void; verkoop: () => void; winkel?: string }) {
   const [zoek, setZoek] = useState("");
   const [term, setTerm] = useState("");
   const [bron, setBron] = useState<NonNullable<Filter["bron"]>>("alles");
   const [bezorgen, setBezorgen] = useState(false);
   const [producten, setProducten] = useState<Product[] | null>(null);
   const [winkels, setWinkels] = useState<WinkelKaart[]>([]);
-  const [stapel, setStapel] = useState<Blad[]>([]);
+  const [stapel, setStapel] = useState<Blad[]>(() => (winkel ? [{ soort: "winkel", adres: winkel }] : []));
   const [fout, setFout] = useState("");
 
   useEffect(() => {
