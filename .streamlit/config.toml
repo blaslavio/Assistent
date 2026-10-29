@@ -9,3 +9,5 @@ buttonRadius = "medium"
 
 [server]
 maxUploadSize = 10
+# De app gaat als één groot bericht naar de browser: ingepakt is dat een kwart zo groot.
+enableWebsocketCompression = true
