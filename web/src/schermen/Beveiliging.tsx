@@ -181,20 +181,34 @@ function TweeStap({ stand, gebruiker, klaar }: { stand: Stand; gebruiker: Gebrui
   );
 }
 
+// Lange lijsten tonen eerst kort: de nieuwste paar, de rest op verzoek.
+const KORT = 3;
+
+function Meer({ aantal, open, zet }: { aantal: number; open: boolean; zet: (open: boolean) => void }) {
+  if (aantal <= KORT) return null;
+  return (
+    <button className="self-start px-1 text-sm font-medium text-accent" aria-expanded={open} onClick={() => zet(!open)}>
+      {open ? "Minder tonen" : `Toon alle ${aantal}`}</button>
+  );
+}
+
 function Ingelogd({ stand, lijst, klaar }: { stand: Stand; lijst: Apparaat[]; klaar: () => Promise<void> }) {
   const [melding, setMelding] = useState("");
   const [inlogs, setInlogs] = useState(false);
+  const [alleSessies, setAlleSessies] = useState(false);
+  const [alleApparaten, setAlleApparaten] = useState(false);
   const reden: Record<string, string> = { wachtwoord: "fout wachtwoord", code: "foute code", sleutel: "Face ID geweigerd" };
   return <>
     <Blok titel="Ingelogd op">
       <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
-        {stand.sessies.map((s, i) => (
+        {(alleSessies ? stand.sessies : stand.sessies.slice(0, KORT)).map((s, i) => (
           <li key={i} className="flex items-center gap-2 px-4 py-3 text-[15px]">
             <span className="flex-1">{s.apparaat || "Onbekend"} <span className="text-rustig">· {datum(s.laatst)}</span></span>
             {s.deze && <span className="text-sm text-accent">dit apparaat</span>}
           </li>
         ))}
       </ul>
+      <Meer aantal={stand.sessies.length} open={alleSessies} zet={setAlleSessies} />
       {(stand.sessies.length > 1 || lijst.length > 0) && (
         <button className={`${stil} self-start`} onClick={async () => {
           try {
@@ -210,7 +224,7 @@ function Ingelogd({ stand, lijst, klaar }: { stand: Stand; lijst: Apparaat[]; kl
     {lijst.length > 0 && (
       <Blok titel="Ingelogd blijven op">
         <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
-          {lijst.map((a) => (
+          {(alleApparaten ? lijst : lijst.slice(0, KORT)).map((a) => (
             <li key={a.id} className="flex items-center gap-2 py-2 pr-2 pl-4 text-[15px]">
               <span className="flex-1">{a.naam || "Onbekend"} <span className="text-rustig">· {datum(a.laatst)}</span></span>
               <button className="h-9 rounded-full px-3 text-sm text-rustig" onClick={async () => {
@@ -220,6 +234,7 @@ function Ingelogd({ stand, lijst, klaar }: { stand: Stand; lijst: Apparaat[]; kl
             </li>
           ))}
         </ul>
+        <Meer aantal={lijst.length} open={alleApparaten} zet={setAlleApparaten} />
         <p className="px-1 text-sm text-rustig">Op deze apparaten hoef je niet in te loggen. Vergeet je er een, dan moet je daar weer inloggen.</p>
       </Blok>
     )}
@@ -275,14 +290,20 @@ function Lekcheck() {
 }
 
 export function Techniek() {
+  const [open, setOpen] = useState(false);
   return (
-    <Blok titel="Zo is het beveiligd">
-      <dl className="flex flex-col gap-2 rounded-2xl bg-vlak p-4 text-[15px]">
-        {TECHNIEK.map(([naam, hoe]) => (
-          <div key={naam}><dt className="font-medium">{naam}</dt><dd className="text-rustig">{hoe}</dd></div>
-        ))}
-      </dl>
-    </Blok>
+    <section className="flex flex-col gap-2">
+      <button className={`${kop} self-start`} aria-expanded={open} onClick={() => setOpen(!open)}>
+        Zo is het beveiligd {open ? "▴" : "▾"}
+      </button>
+      {open && (
+        <dl className="flex flex-col gap-2 rounded-2xl bg-vlak p-4 text-[15px]">
+          {TECHNIEK.map(([naam, hoe]) => (
+            <div key={naam}><dt className="font-medium">{naam}</dt><dd className="text-rustig">{hoe}</dd></div>
+          ))}
+        </dl>
+      )}
+    </section>
   );
 }
 

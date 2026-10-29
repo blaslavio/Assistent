@@ -6,6 +6,7 @@ import { WINKELKLEUREN, mijnWinkel, productInWinkel, verkoperWorden, vestigingBe
   type EigenProduct, type EigenWinkel, type MijnWinkel as Gegevens } from "../lib/mijnwinkel";
 import { euro } from "../lib/winkelen";
 import { Winkelpand } from "../iconen";
+import { WinkelOntwerpen } from "./WinkelOntwerpen";
 
 const foutVan = (e: unknown) => (e instanceof Error ? e.message : "Dat lukte niet.");
 const veld = "h-12 w-full rounded-2xl bg-vlak px-4 outline-none focus:ring-2 focus:ring-accent";
@@ -22,6 +23,7 @@ export function MijnWinkel({ bekijk }: { bekijk: (adres: string) => void }) {
   const [bouwen, setBouwen] = useState(false);
   const [instellen, setInstellen] = useState(false);
   const [melding, setMelding] = useState("");
+  const [ontwerpen, setOntwerpen] = useState<"bewerken" | "voorbeeld" | null>(null);
 
   const laden = useCallback(() => {
     mijnWinkel().then(setG).catch((e) => setFout(foutVan(e)));
@@ -95,12 +97,12 @@ export function MijnWinkel({ bekijk }: { bekijk: (adres: string) => void }) {
           </div>
           <Schakelaar label="Winkel open" uitleg={w.open ? "Iedereen kan bij je kopen." : "Alleen jij ziet je winkel."}
             aan={w.open} zet={openZetten} />
-          {w.open && (
-            <div className="flex gap-2">
-              <button onClick={delen} className={zachteKnop + " bg-white dark:bg-black/30"}>Delen</button>
-              <button onClick={() => bekijk(w.adres)} className={zachteKnop + " bg-white dark:bg-black/30"}>Bekijken</button>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setOntwerpen("bewerken")} className={zachteKnop + " bg-white dark:bg-black/30"}>Ontwerpen</button>
+            <button onClick={() => setOntwerpen("voorbeeld")} className={zachteKnop + " bg-white dark:bg-black/30"}>Voorbeeld</button>
+            {w.open && <button onClick={delen} className={zachteKnop + " bg-white dark:bg-black/30"}>Delen</button>}
+            {w.open && <button onClick={() => bekijk(w.adres)} className={zachteKnop + " bg-white dark:bg-black/30"}>Bekijken</button>}
+          </div>
           {melding && <p role="status" className="break-all px-1 text-[13px] text-rustig">{melding}</p>}
         </div>
       </div>
@@ -108,6 +110,10 @@ export function MijnWinkel({ bekijk }: { bekijk: (adres: string) => void }) {
       {g.verkopen.commissie > 0 && (
         <p className="px-1 text-[13px] text-rustig">Kosten tot nu toe: {euro(g.verkopen.commissie)} ({g.commissie_procent}% per bestelling).</p>
       )}
+      {ontwerpen && <WinkelOntwerpen start={ontwerpen} sluit={(bewaard) => {
+        setOntwerpen(null);
+        if (bewaard) setMelding("Ontwerp bewaard.");
+      }} />}
       {instellen && <Instellen w={w} sluit={() => setInstellen(false)} klaar={() => { setInstellen(false); laden(); }} />}
     </section>
   );
