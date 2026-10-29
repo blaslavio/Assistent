@@ -2,8 +2,9 @@
 // Met je eigen Anthropic-sleutel praat de app rechtstreeks met Claude; anders via de functie `ai` van het platform,
 // die controleert wie je bent en je maandgrens bijhoudt.
 import Anthropic from "@anthropic-ai/sdk";
-import { SUPABASE, SLEUTEL, alsIk, bijwerken, gegevensLaden, huidigeSessie, type Gegevens } from "../api";
+import { SUPABASE, SLEUTEL, alsIk, bijwerken, gegevensLaden, huidigeSessie, type Gegevens, type Herhaal } from "../api";
 import { DAGEN, datumTekst, nuTekst, plusDagen } from "./tijd";
+import { afvinkenIn } from "./taken";
 import { herhalingen, leerdoelen, oefenen, reeks, starten, voortgang } from "./leren";
 import { BETAALWIJZE, LEVERING, euro, klaarzetten, zoeken, type Bestelling, type Product } from "./winkelen";
 import type { Grafiek } from "../grafiek";
@@ -106,6 +107,7 @@ const LIJST: Hulpmiddel[] = [
       deadline: tekst("Optionele datum JJJJ-MM-DD."),
       minuten: { type: "integer", description: "Hoe lang de taak ongeveer duurt, 0 als onbekend." },
       belangrijk: { type: "boolean", description: "true bij geld, boetes, werk of school, of een deadline binnen 3 dagen." },
+      herhaal: { type: "string", enum: ["", "dag", "week", "maand"], description: "Alleen als de taak terugkomt, zoals elke week." },
     }, required: ["titel"] },
   },
   {
@@ -259,6 +261,20 @@ const LIJST: Hulpmiddel[] = [
     input_schema: { type: "object", properties: {
       wat: { type: "string", description: "Wat er gehaald moet worden, kort." },
       huishouden: { type: "string", description: "Naam van het huishouden; leeg als er maar één is." } }, required: ["wat"] },
+  },
+  {
+    name: "boodschappen",
+    description: "De eigen boodschappenlijst van de gebruiker: bekijken, of producten erop zetten.",
+    input_schema: { type: "object", properties: {
+      erbij: { type: "array", items: { type: "string" }, description: "Producten om toe te voegen; leeg om alleen te bekijken." } } },
+  },
+  {
+    name: "prijzen_vergelijken",
+    description: "Vergelijk supermarktprijzen in Nederland (AH, Jumbo, Lidl, Plus, Dirk en meer) met open prijsgegevens. "
+      + "Met één product: per winkel het best passende product met prijs per kilo of liter. Met meerdere of geen producten: "
+      + "het totaal per winkel voor die lijst (geen producten = de boodschappenlijst van de gebruiker). Zonder aanbiedingen.",
+    input_schema: { type: "object", properties: {
+      producten: { type: "array", items: { type: "string" }, description: "Bijvoorbeeld [\"halfvolle melk\"]; leeg voor de boodschappenlijst." } } },
   },
   {
     name: "winkel_overzicht",
@@ -568,7 +584,8 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
       await bijwerken((g) => {
         id = nieuwId(g);
         g.taken.push({ id, titel: s("titel"), deadline: s("deadline") || null, klaar: false,
-          ...(v.minuten ? { minuten: v.minuten as number } : {}), ...(v.belangrijk ? { prioriteit: "hoog" } : {}) });
+          ...(v.minuten ? { minuten: v.minuten as number } : {}), ...(v.belangrijk ? { prioriteit: "hoog" } : {}),
+          ...(["dag", "week", "maand"].includes(s("herhaal")) ? { herhaal: s("herhaal") as Herhaal } : {}) });
       });
       return { resultaat: JSON.stringify({ id, opgeslagen: true }), actie: { soort: "taak", titel: s("titel"),
         detail: s("deadline") ? `Voor ${s("deadline").slice(8, 10)}/${Number(s("deadline").slice(5, 7))}` : "Op je takenlijst",
@@ -600,10 +617,8 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
       await bijwerken((g) => {
         const t = g.taken.find((x) => x.id === v.taak_id);
         if (!t) return;
-        t.klaar = true;
         titel = t.titel;
-        const nu = nuTekst();
-        g.afspraken = g.afspraken.filter((a) => (a as { taak_id?: number }).taak_id !== t.id || a.start < nu);
+        afvinkenIn(g, t.id);
       });
       if (!titel) return { resultaat: `Geen taak met id ${v.taak_id}.` };
       return { resultaat: "Afgerond.", actie: { soort: "klaar", titel, detail: "Afgevinkt",
@@ -738,6 +753,33 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
       if (!g) return { resultaat: lijst.length ? `Welk huishouden? Kies uit: ${lijst.map((x) => x.naam).join(", ")}.` : "Geen huishouden met een boodschappenlijst." };
       await h.lijstBijwerken(g.id, "erbij", null, s("wat"));
       return { resultaat: `Op de boodschappenlijst van ${g.naam}: ${s("wat")}.` };
+    }
+    case "boodschappen": {
+      const erbij = (Array.isArray(v.erbij) ? v.erbij : []).map((x) => String(x).trim()).filter(Boolean).slice(0, 30);
+      let open: string[] = [];
+      await bijwerken((g) => {
+        if (!Array.isArray(g.boodschappen)) g.boodschappen = [];
+        const l = g.boodschappen as { id: number; tekst: string; gekocht: boolean }[];
+        for (const t of erbij) if (!l.some((b) => !b.gekocht && b.tekst.toLowerCase() === t.toLowerCase())) {
+          g.volgend_id = g.volgend_id ?? 1;
+          l.push({ id: g.volgend_id++, tekst: t.slice(0, 120), gekocht: false });
+        }
+        open = l.filter((b) => !b.gekocht).map((b) => b.tekst);
+      });
+      return { resultaat: JSON.stringify({ toegevoegd: erbij, op_de_lijst: open }) };
+    }
+    case "prijzen_vergelijken": {
+      const p = await import("./prijzen");
+      let lijst = (Array.isArray(v.producten) ? v.producten : []).map((x) => String(x).trim()).filter(Boolean).slice(0, 30);
+      if (!lijst.length) lijst = ((await gegevensLaden()).data.boodschappen as { tekst: string; gekocht: boolean }[] | undefined ?? [])
+        .filter((b) => !b.gekocht).map((b) => b.tekst);
+      if (!lijst.length) return { resultaat: "De boodschappenlijst is leeg. Vraag welke producten vergeleken moeten worden." };
+      const winkels = await p.prijzen();
+      if (lijst.length === 1) return { resultaat: JSON.stringify(p.productVergelijken(winkels, lijst[0]).slice(0, 8)
+        .map((r) => ({ winkel: r.winkel, product: r.naam, prijs: r.prijs, maat: r.maat, per: r.per, link: r.link }))) };
+      return { resultaat: JSON.stringify(p.vergelijken(winkels, lijst).slice(0, 5).map((w) => ({ winkel: w.naam, totaal: w.totaal,
+        gevonden: `${w.gevonden} van ${lijst.length}`, producten: w.regels.map((r) => r.product
+          ? `${r.zoekterm}: ${r.product.naam} ${r.product.prijs}` : `${r.zoekterm}: niet gevonden (geschat ${r.schatting})`) }))) };
     }
     case "winkel_overzicht": {
       const m = await import("./mijnwinkel");

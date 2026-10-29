@@ -1,10 +1,12 @@
 // Drie panelen in de agenda: je mail (met een korte samenvatting), je taken en je herinneringen.
 // Toevoegen gebeurt in een veld bovenaan, zonder venster, zodat het scherm stil blijft staan.
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { bijwerken, instellingenBijwerken, type Afspraak, type Taak } from "../api";
+import { bijwerken, instellingenBijwerken, type Afspraak, type Herhaal, type Taak } from "../api";
 import type { Staat } from "../App";
 import { afgevinktTekst, mascotteZeg } from "../mascotte";
-import { Bel, Bewerk, Envelop, Euro, Herstel, Kalender, Plus, Prullenbak, Slot, Vinkje, Vonk } from "../iconen";
+import { Bel, Bewerk, Envelop, Euro, Herstel, Kalender, Kruis, Plus, Prullenbak, Slot, Ster, Vinkje, Vonk } from "../iconen";
+import { HERHALEN, afvinkenIn, sorteer } from "../lib/taken";
+import { begrijp } from "../lib/snelinvoer";
 import { AANBIEDERS, gekoppeld, mails, mailsBewaard, samenvatting, testen, voorstellen, type Mail, type Voorstel } from "../lib/mail";
 import { gegevensLaden } from "../api";
 import { Opstellen } from "./MailOpstellen";
@@ -35,16 +37,41 @@ function datumKort(d: string) {
   return `${DAGEN[x.getDay()].slice(0, 2)} ${x.getDate()}/${x.getMonth() + 1}`;
 }
 
-export function TakenPaneel({ staat, setStaat }: Props) {
+type TakenProps = Props & { naarMail?: () => void };
+const IDEEEN: [string, Herhaal | null][] = [["Boodschappen doen", null], ["Vuilnis buiten zetten", "week"],
+  ["Rekeningen nakijken", "maand"], ["Iemand terugbellen", null]];
+const chip = (aan = false) => `h-8 shrink-0 rounded-full px-3 text-sm ${aan ? "bg-inkt text-white dark:bg-white dark:text-black" : "bg-vlak"}`;
+
+/** Een datumknop die op iPhone gewoon de datumkiezer opent. */
+function DatumKiezen({ waarde, kies, tekst = "Datum" }: { waarde: string; kies: (d: string) => void; tekst?: string }) {
+  return (
+    <label className={`relative flex items-center gap-1 ${chip(false)}`}>
+      <Kalender className="size-4" /> {tekst}
+      <input type="date" value={waarde} onChange={(e) => e.target.value && kies(e.target.value)} aria-label="Kies een datum"
+        className="absolute inset-0 opacity-0" />
+    </label>
+  );
+}
+
+export function TakenPaneel({ staat, setStaat, naarMail }: TakenProps) {
   const [titel, setTitel] = useState("");
-  const [datum, setDatum] = useState("");
+  const [datum, setDatum] = useState<string | null>(null);
+  const [belangrijk, setBelangrijk] = useState(false);
+  const [herhaal, setHerhaal] = useState<Herhaal | null>(null);
   const [weg, setWeg] = useState<Set<number>>(new Set());
   const [open, setOpen] = useState<number | null>(null);
   const [fout, setFout] = useState("");
   const vandaag = datumTekst(new Date());
+  const morgen = datumTekst(plusDagen(new Date(), 1));
   const week = datumTekst(plusDagen(new Date(), 6));
   const open_ = staat.data.taken.filter((t) => !t.klaar);
   const klaar = staat.data.taken.filter((t) => t.klaar).slice(-5).reverse();
+  const begrip = useMemo(() => (titel.trim() ? begrijp(titel) : null), [titel]);
+  // Wat je typt ("vrijdag boodschappen") geeft al een datum; een knop gaat voor.
+  const herkend = begrip?.soort === "taak" ? begrip.deadline : begrip?.soort === "afspraak" ? begrip.datum : null;
+  const wanneer = datum ?? herkend;
+  const telVandaag = open_.filter((t) => t.deadline?.slice(0, 10) === vandaag).length;
+  const telLaat = open_.filter((t) => t.deadline && t.deadline.slice(0, 10) < vandaag).length;
 
   async function wijzig(f: (g: Staat["data"]) => void) {
     setFout("");
@@ -54,14 +81,16 @@ export function TakenPaneel({ staat, setStaat }: Props) {
       setFout(foutVan(e));
     }
   }
-  async function voegToe(e: FormEvent) {
-    e.preventDefault();
-    const t = titel.trim();
-    if (!t) return;
-    setTitel("");
-    setDatum("");
+  const pas = (id: number, f: (t: Taak) => Taak) => wijzig((g) => { g.taken = g.taken.map((x) => (x.id === id ? f(x) : x)); });
+  async function voegToe(e?: FormEvent) {
+    e?.preventDefault();
+    if (!begrip) return;
+    const t = (begrip.soort === "vraag" || datum ? titel.trim() : begrip.titel).slice(0, 160);
+    const extra = { ...(belangrijk ? { prioriteit: "hoog" } : {}), ...(herhaal ? { herhaal } : {}) };
+    const d = herhaal && !wanneer ? vandaag : wanneer;
+    setTitel(""); setDatum(null); setBelangrijk(false); setHerhaal(null);
     await wijzig((g) => {
-      g.taken.push({ id: g.volgend_id, titel: t.slice(0, 160), deadline: datum || null, klaar: false });
+      g.taken.push({ id: g.volgend_id, titel: t, deadline: d || null, klaar: false, ...extra });
       g.volgend_id += 1;
     });
   }
@@ -69,26 +98,64 @@ export function TakenPaneel({ staat, setStaat }: Props) {
     setWeg((w) => new Set(w).add(t.id));
     mascotteZeg(afgevinktTekst(open_.filter((x) => x.id !== t.id).length));
     setTimeout(() => {
-      wijzig((g) => { g.taken = g.taken.map((x) => (x.id === t.id ? { ...x, klaar: true } : x)); })
+      wijzig((g) => { afvinkenIn(g, t.id); })
         .finally(() => setWeg((w) => { const n = new Set(w); n.delete(t.id); return n; }));
     }, 320);
   }
 
   return (
     <div className="opkomen flex flex-col px-6 pb-10">
+      {open_.length > 0 && (
+        <p className="-mt-1 pb-2 text-sm text-rustig">
+          {open_.length} open{telVandaag ? ` · ${telVandaag} vandaag` : ""}
+          {telLaat ? <span className="text-red-600 dark:text-red-400"> · {telLaat} te laat</span> : ""}
+        </p>
+      )}
       <form onSubmit={voegToe} className="flex flex-col gap-2 pb-3">
         <div className="flex gap-2">
-          <input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder="Nieuwe taak" aria-label="Nieuwe taak"
-            enterKeyHint="done" className={veld} />
-          <input type="date" value={datum} onChange={(e) => setDatum(e.target.value)} aria-label="Wanneer klaar"
-            className={`h-12 w-[8.5rem] shrink-0 rounded-2xl bg-vlak px-3 text-sm outline-none ${datum ? "" : "text-zacht"}`} />
+          <input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder="Nieuwe taak, bv. vrijdag boodschappen"
+            aria-label="Nieuwe taak" enterKeyHint="done" className={veld} />
+          <button type="submit" disabled={!titel.trim()} aria-label="Toevoegen"
+            className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-accent text-white disabled:opacity-40">
+            <Plus className="size-5" />
+          </button>
         </div>
+        {begrip && (
+          <div className="opkomen -mx-6 flex gap-1.5 overflow-x-auto px-6 [scrollbar-width:none]">
+            <button type="button" onClick={() => setDatum(datum === vandaag ? "" : vandaag)} className={chip(wanneer === vandaag)}>Vandaag</button>
+            <button type="button" onClick={() => setDatum(datum === morgen ? "" : morgen)} className={chip(wanneer === morgen)}>Morgen</button>
+            {wanneer && wanneer !== vandaag && wanneer !== morgen
+              ? <button type="button" onClick={() => setDatum("")} className={`flex items-center gap-1 ${chip(true)}`}>
+                  {datumKort(wanneer)} <Kruis className="size-3.5" /></button>
+              : <DatumKiezen waarde={datum ?? ""} kies={setDatum} />}
+            <button type="button" onClick={() => setBelangrijk(!belangrijk)} aria-pressed={belangrijk}
+              className={`flex items-center gap-1 ${chip(belangrijk)}`}><Ster className="size-4" /> Belangrijk</button>
+            <button type="button" onClick={() => setHerhaal(herhaal === null ? "week" : herhaal === "week" ? "dag" : herhaal === "dag" ? "maand" : null)}
+              className={`flex items-center gap-1 ${chip(!!herhaal)}`}><Herstel className="size-4" />
+              {herhaal ? HERHALEN.find(([h]) => h === herhaal)?.[1] : "Herhalen"}</button>
+          </div>
+        )}
       </form>
       {fout && <p role="alert" className="pb-2 text-sm text-red-600 dark:text-red-400">{fout}</p>}
-      {open_.length === 0 && <p className="py-6 text-center text-rustig">Niets te doen. Lekker.</p>}
+      {open_.length === 0 && !titel && (
+        <div className="flex flex-col items-start gap-3 py-4">
+          <p className="text-rustig">Niets te doen. Typ hierboven wat je niet wilt vergeten, of begin met:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {IDEEEN.map(([t, h]) => (
+              <button key={t} onClick={() => { setTitel(t); setHerhaal(h); }} className={chip()}>
+                {t}{h ? ` · ${HERHALEN.find(([x]) => x === h)?.[1].toLowerCase()}` : ""}
+              </button>
+            ))}
+          </div>
+          {naarMail && gekoppeld(staat.data) && (
+            <button onClick={naarMail} className="flex items-center gap-2 text-sm font-medium text-accent">
+              <Envelop className="size-4" /> Taken uit je mail halen
+            </button>
+          )}
+        </div>
+      )}
       {GROEPEN.map((groep) => {
-        const lijst = open_.filter((t) => groepVan(t, vandaag, week) === groep)
-          .sort((a, b) => (a.deadline ?? "9").localeCompare(b.deadline ?? "9"));
+        const lijst = open_.filter((t) => groepVan(t, vandaag, week) === groep).sort(sorteer);
         if (!lijst.length) return null;
         return (
           <section key={groep}>
@@ -102,29 +169,23 @@ export function TakenPaneel({ staat, setStaat }: Props) {
                         ? "border-accent bg-accent text-white" : groep === "Te laat" ? "border-red-400" : "border-lijn"}`}>
                       {weg.has(t.id) && <Vinkje className="size-3.5" />}
                     </button>
-                    <button onClick={() => setOpen(open === t.id ? null : t.id)} className="flex min-w-0 flex-1 flex-col text-left">
-                      <span className={`truncate text-[16px] ${weg.has(t.id) ? "text-rustig line-through" : ""}`}>{t.titel}</span>
-                      {t.deadline && groep !== "Vandaag" && (
-                        <span className={`text-[13px] ${groep === "Te laat" ? "text-red-600 dark:text-red-400" : "text-rustig"}`}>
-                          {datumKort(t.deadline.slice(0, 10))}
+                    <button onClick={() => setOpen(open === t.id ? null : t.id)} aria-expanded={open === t.id}
+                      className="flex min-w-0 flex-1 flex-col text-left">
+                      <span className={`flex items-center gap-1.5 text-[16px] ${weg.has(t.id) ? "text-rustig line-through" : ""}`}>
+                        <span className="truncate">{t.titel}</span>
+                        {t.prioriteit === "hoog" && <Ster className="size-3.5 shrink-0 fill-amber-400 text-amber-400" aria-label="Belangrijk" />}
+                      </span>
+                      {(t.deadline && groep !== "Vandaag") || t.herhaal || t.notitie ? (
+                        <span className={`truncate text-[13px] ${groep === "Te laat" ? "text-red-600 dark:text-red-400" : "text-rustig"}`}>
+                          {[t.deadline && groep !== "Vandaag" ? datumKort(t.deadline.slice(0, 10)) : "",
+                            t.herhaal ? HERHALEN.find(([h]) => h === t.herhaal)?.[1].toLowerCase() : "", t.notitie ?? ""]
+                            .filter(Boolean).join(" · ")}
                         </span>
-                      )}
+                      ) : null}
                     </button>
                   </div>
-                  {open === t.id && (
-                    <div className="opkomen mb-2 ml-9 flex flex-wrap gap-2">
-                      {[["Vandaag", vandaag], ["Morgen", datumTekst(plusDagen(new Date(), 1))],
-                        ["Volgende week", datumTekst(plusDagen(new Date(), 7))]].map(([naam, d]) => (
-                        <button key={naam} onClick={() => wijzig((g) => {
-                          g.taken = g.taken.map((x) => (x.id === t.id ? { ...x, deadline: d } : x));
-                        })} className="h-8 rounded-full bg-vlak px-3 text-sm">{naam}</button>
-                      ))}
-                      <button onClick={() => wijzig((g) => { g.taken = g.taken.filter((x) => x.id !== t.id); })}
-                        aria-label="Verwijderen" className="flex h-8 items-center gap-1 rounded-full bg-vlak px-3 text-sm text-red-600 dark:text-red-400">
-                        <Prullenbak className="size-4" /> Weg
-                      </button>
-                    </div>
-                  )}
+                  {open === t.id && <TaakBewerken t={t} pas={(f) => pas(t.id, f)}
+                    weg={() => wijzig((g) => { g.taken = g.taken.filter((x) => x.id !== t.id); })} />}
                 </li>
               ))}
             </ul>
@@ -139,7 +200,7 @@ export function TakenPaneel({ staat, setStaat }: Props) {
               <li key={t.id} className="flex items-center gap-3 py-1.5 text-rustig">
                 <span className="flex size-6 items-center justify-center rounded-full bg-vlak"><Vinkje className="size-3.5" /></span>
                 <span className="min-w-0 flex-1 truncate line-through">{t.titel}</span>
-                <button onClick={() => wijzig((g) => { g.taken = g.taken.map((x) => (x.id === t.id ? { ...x, klaar: false } : x)); })}
+                <button onClick={() => pas(t.id, (x) => ({ ...x, klaar: false }))}
                   aria-label={`${t.titel} terugzetten`} className="flex size-8 items-center justify-center rounded-full hover:bg-vlak">
                   <Herstel className="size-4" />
                 </button>
@@ -148,6 +209,48 @@ export function TakenPaneel({ staat, setStaat }: Props) {
           </ul>
         </section>
       )}
+    </div>
+  );
+}
+
+/** Alles van één taak aanpassen, zonder venster: naam, notitie, wanneer, belangrijk en herhalen. */
+function TaakBewerken({ t, pas, weg }: { t: Taak; pas: (f: (t: Taak) => Taak) => void; weg: () => void }) {
+  const [naam, setNaam] = useState(t.titel);
+  const [notitie, setNotitie] = useState(t.notitie ?? "");
+  const d = t.deadline?.slice(0, 10) ?? "";
+  const vandaag = datumTekst(new Date());
+  const DAGEN_: [string, string][] = [["Vandaag", vandaag], ["Morgen", datumTekst(plusDagen(new Date(), 1))],
+    ["Volgende week", datumTekst(plusDagen(new Date(), 7))]];
+  return (
+    <div className="opkomen mb-3 ml-9 flex flex-col gap-2">
+      <input value={naam} onChange={(e) => setNaam(e.target.value)} aria-label="Naam van de taak"
+        onBlur={() => naam.trim() && naam.trim() !== t.titel && pas((x) => ({ ...x, titel: naam.trim().slice(0, 160) }))}
+        className="h-10 rounded-xl bg-vlak px-3 outline-none" />
+      <textarea value={notitie} onChange={(e) => setNotitie(e.target.value)} placeholder="Notitie" aria-label="Notitie" rows={2}
+        onBlur={() => notitie.trim() !== (t.notitie ?? "") && pas((x) => ({ ...x, notitie: notitie.trim().slice(0, 500) || undefined }))}
+        className="resize-none rounded-xl bg-vlak px-3 py-2 text-sm outline-none placeholder:text-zacht" />
+      <div className="flex flex-wrap gap-1.5">
+        {DAGEN_.map(([naam_, dag]) => (
+          <button key={naam_} onClick={() => pas((x) => ({ ...x, deadline: dag }))} className={chip(d === dag)}>{naam_}</button>
+        ))}
+        <DatumKiezen waarde={d} kies={(dag) => pas((x) => ({ ...x, deadline: dag }))}
+          tekst={d && !DAGEN_.some(([, x]) => x === d) ? datumKort(d) : "Datum"} />
+        {d && <button onClick={() => pas((x) => ({ ...x, deadline: null }))} className={chip()}>Geen datum</button>}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <button onClick={() => pas((x) => ({ ...x, prioriteit: x.prioriteit === "hoog" ? undefined : "hoog" }))}
+          aria-pressed={t.prioriteit === "hoog"} className={`flex items-center gap-1 ${chip(t.prioriteit === "hoog")}`}>
+          <Ster className="size-4" /> Belangrijk
+        </button>
+        {HERHALEN.map(([h, tekst]) => (
+          <button key={h} onClick={() => pas((x) => ({ ...x, herhaal: x.herhaal === h ? null : h, deadline: x.deadline ?? vandaag }))}
+            aria-pressed={t.herhaal === h} className={chip(t.herhaal === h)}>{tekst}</button>
+        ))}
+        <button onClick={weg} aria-label="Verwijderen"
+          className="flex h-8 items-center gap-1 rounded-full bg-vlak px-3 text-sm text-red-600 dark:text-red-400">
+          <Prullenbak className="size-4" /> Weg
+        </button>
+      </div>
     </div>
   );
 }

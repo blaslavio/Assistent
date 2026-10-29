@@ -165,3 +165,21 @@ export function Vraagbalk({ staat, setStaat, vraag }: { staat: Staat; setStaat: 
     </div>
   );
 }
+
+/** Een smalle balk boven het menu, op elk scherm zonder eigen invoer: zo is de assistent altijd één tik weg. */
+export function AltijdVragen({ vraag }: { vraag: (t: string) => void }) {
+  const [tekst, setTekst] = useState("");
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); if (tekst.trim()) { vraag(tekst.trim()); setTekst(""); } }}
+      className="mx-4 mb-2 flex h-11 shrink-0 items-center gap-2 rounded-full bg-vlak pr-1 pl-4">
+      <Vonk className="size-4 shrink-0 text-accent" />
+      <input value={tekst} onChange={(e) => setTekst(e.target.value)} placeholder="Vraag de assistent" aria-label="Vraag de assistent"
+        enterKeyHint="send" className="h-full min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-zacht" />
+      {tekst.trim() && (
+        <button aria-label="Vragen" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-white">
+          <Pijl className="size-4" />
+        </button>
+      )}
+    </form>
+  );
+}

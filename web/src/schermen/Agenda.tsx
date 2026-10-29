@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { bijwerken, type Afspraak, type Taak } from "../api";
 import type { Staat } from "../App";
-import { Bel, Envelop, Kruis, Lijstje, Plus, Prullenbak, Stemmen, Terug } from "../iconen";
+import { Bel, Envelop, Kalender, Kruis, Lijstje, Plus, Prullenbak, Stemmen, Terug } from "../iconen";
 import { HerinneringenPaneel, MailPaneel, TakenPaneel } from "./AgendaPanelen";
 import { PrikkenPaneel, stemrondes, teStemmen } from "./Prikken";
 import { mailsBewaard } from "../lib/mail";
@@ -20,8 +20,8 @@ const SOORTEN = ["afspraak", "werk", "sport", "etentje", "uitgaan", "familie en 
 
 type Weergave = "dag" | "week" | "maand";
 type Paneel = "mail" | "taken" | "herinneringen" | "prikken";
-const PANELEN: [Paneel, string, typeof Bel][] = [["mail", "Mail", Envelop], ["taken", "Taken", Lijstje],
-  ["herinneringen", "Herinneringen", Bel], ["prikken", "Datum prikken", Stemmen]];
+const PANELEN: [Paneel, string, typeof Bel][] = [["taken", "Taken", Lijstje],
+  ["herinneringen", "Herinneringen", Bel], ["mail", "Mail", Envelop], ["prikken", "Datum prikken", Stemmen]];
 const WEERGAVEN: [Weergave, string][] = [["dag", "Dag"], ["week", "Week"], ["maand", "Maand"]];
 const BEGIN_UUR = 0;
 const HOOGTE = 56; // pixels per uur in de dagweergave
@@ -35,6 +35,15 @@ function bewaardeWeergave(): Weergave {
   }
 }
 
+function bewaardPaneel(): Paneel | null {
+  try {
+    const p = sessionStorage.getItem("assistent.agendapaneel");
+    return PANELEN.some(([x]) => x === p) ? (p as Paneel) : null;
+  } catch {
+    return null;
+  }
+}
+
 const groot = (s: string) => s[0].toUpperCase() + s.slice(1);
 
 type Props = { staat: Staat; setStaat: (s: Staat) => void };
@@ -45,7 +54,7 @@ export default function Agenda({ staat, setStaat }: Props) {
   const [gekozen, setGekozen] = useState(vandaag);
   const [nieuw, setNieuw] = useState(false);
   const [open, setOpen] = useState<Afspraak | null>(null);
-  const [paneel, setPaneel] = useState<Paneel | null>(null);
+  const [paneel, setPaneel] = useState<Paneel | null>(bewaardPaneel);
   const [telStemmen, setTelStemmen] = useState(0);
   const datum = new Date(`${gekozen}T12:00`);
 
@@ -54,6 +63,11 @@ export default function Agenda({ staat, setStaat }: Props) {
     if (paneel) return;
     stemrondes().then((l) => setTelStemmen(teStemmen(l))).catch(() => {});
   }, [paneel]);
+
+  function kiesPaneel(p: Paneel | null) {
+    setPaneel(p);
+    try { sessionStorage.setItem("assistent.agendapaneel", p ?? ""); } catch { /* alleen voor nu */ }
+  }
 
   function setWeergave(w: Weergave) {
     setWeergaveRuw(w);
@@ -118,23 +132,29 @@ export default function Agenda({ staat, setStaat }: Props) {
               </h1>
             </button>
           )}
-          <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Meer in je agenda">
-            {PANELEN.map(([p, naam, Icoon]) => {
-              const telt = p === "taken" ? telTaken : p === "herinneringen" ? telHerinneringen : p === "prikken" ? telStemmen : telMail;
-              return (
-                <button key={p} onClick={() => setPaneel(paneel === p ? null : p)} aria-pressed={paneel === p} aria-label={naam}
-                  className={`relative flex size-10 items-center justify-center rounded-full transition-colors ${paneel === p
-                    ? "bg-inkt text-white dark:bg-white dark:text-black" : "bg-vlak text-rustig"}`}>
-                  <Icoon className="size-5" />
-                  {telt > 0 && paneel !== p && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
-                      {telt > 9 ? "9+" : telt}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          {!paneel && (
+            <button onClick={() => setNieuw(true)} aria-label="Nieuwe afspraak"
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Plus className="size-5" /></button>
+          )}
+        </div>
+        {/* Altijd dezelfde rij met namen: je ziet waar je bent en tikt zo terug naar je agenda. */}
+        <div role="tablist" aria-label="Onderdelen van je agenda" className="-mx-6 flex gap-1.5 overflow-x-auto px-6 [scrollbar-width:none]">
+          {([[null, "Agenda", Kalender], ...PANELEN] as [Paneel | null, string, typeof Bel][]).map(([p, naam, Icoon]) => {
+            const telt = p === "taken" ? telTaken : p === "herinneringen" ? telHerinneringen : p === "prikken" ? telStemmen : p === "mail" ? telMail : 0;
+            const aan = paneel === p;
+            return (
+              <button key={naam} role="tab" aria-selected={aan} onClick={() => kiesPaneel(p)}
+                className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors ${aan
+                  ? "bg-inkt text-white dark:bg-white dark:text-black" : "bg-vlak text-rustig"}`}>
+                <Icoon className="size-4" /> {naam}
+                {telt > 0 && !aan && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
+                    {telt > 9 ? "9+" : telt}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
         {!paneel && (
           <div className="flex items-center gap-2">
@@ -150,14 +170,12 @@ export default function Agenda({ staat, setStaat }: Props) {
               className="flex size-10 items-center justify-center rounded-full text-rustig hover:bg-vlak"><Terug /></button>
             <button onClick={() => verschuif(1)} aria-label={`Volgende ${stap}`}
               className="-ml-1 flex size-10 rotate-180 items-center justify-center rounded-full text-rustig hover:bg-vlak"><Terug /></button>
-            <button onClick={() => setNieuw(true)} aria-label="Nieuwe afspraak"
-              className="flex size-10 items-center justify-center rounded-full bg-accent text-white"><Plus className="size-5" /></button>
           </div>
         )}
       </header>
 
       {paneel === "mail" && <MailPaneel staat={staat} setStaat={setStaat} />}
-      {paneel === "taken" && <TakenPaneel staat={staat} setStaat={setStaat} />}
+      {paneel === "taken" && <TakenPaneel staat={staat} setStaat={setStaat} naarMail={() => kiesPaneel("mail")} />}
       {paneel === "herinneringen" && <HerinneringenPaneel staat={staat} setStaat={setStaat} />}
       {paneel === "prikken" && <PrikkenPaneel staat={staat} setStaat={setStaat} />}
       {!paneel && <div key={weergave} className="opkomen flex flex-1 flex-col">
