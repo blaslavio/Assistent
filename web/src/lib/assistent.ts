@@ -356,8 +356,12 @@ export async function uitvoeren(naam: string, v: Record<string, unknown>): Promi
     case "agenda_bekijken": {
       const { data } = await gegevensLaden();
       const lijst = data.afspraken.filter((a) => s("van") <= a.start.slice(0, 10) && a.start.slice(0, 10) <= s("tot"));
-      return { resultaat: JSON.stringify(lijst.map(({ id, titel, start, einde, locatie, soort }) =>
-        ({ id, titel, start, einde, locatie, soort }))) };
+      const { instellingen: feest, kalender } = await import("./feestdagen");
+      const bijzonder = DATUM.test(s("van")) && DATUM.test(s("tot")) && s("van") <= s("tot")
+        ? [...kalender(feest(data), s("van"), s("tot")).values()].flat().filter((d) => d.soort !== "vakantie" || d.van === d.datum || d.datum === s("van"))
+          .map((d) => ({ datum: d.datum, naam: d.naam, vrij: d.vrij, ...(d.tot ? { tot: d.tot } : {}) })) : [];
+      return { resultaat: JSON.stringify({ afspraken: lijst.map(({ id, titel, start, einde, locatie, soort }) =>
+        ({ id, titel, start, einde, locatie, soort })), feestdagen_en_vakanties: bijzonder }) };
     }
     case "taken_bekijken": {
       const { data } = await gegevensLaden();

@@ -9,6 +9,7 @@ import { opVandaag, type Weergave } from "./Algemeen";
 import { afhandelen, voorstel } from "../lib/voorstellen";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
 import { weerNu, type Weer } from "../lib/weer";
+import { eerstvolgende, instellingen as feestInstellingen } from "../lib/feestdagen";
 
 const kop = "mb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig";
 
@@ -50,6 +51,21 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
     return data.afspraken.filter((a) => a.start.slice(0, 10) > vandaag && a.start.slice(0, 10) <= tot)
       .sort((a, b) => a.start.localeCompare(b.start)).slice(0, 4);
   }, [data.afspraken, vandaag, nu]);
+  // De eerstvolgende feestdag, vakantie of brugdag in de komende drie weken.
+  const feest = useMemo(() => eerstvolgende(feestInstellingen(data), new Date(`${vandaag}T12:00`)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [vandaag, data.instellingen?.feestdagen]);
+  const [vrijGevraagd, setVrijGevraagd] = useState(false);
+  async function vrijVragen(datum: string) {
+    setVrijGevraagd(true);
+    const d = new Date(`${datum}T12:00`);
+    const deadline = datumTekst(new Date(d.getTime() - 14 * 864e5));
+    setStaat({ ...staat, data: await bijwerken((g) => {
+      g.taken.push({ id: g.volgend_id++, titel: `Vrij vragen voor ${d.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })}`,
+        deadline: deadline > vandaag ? deadline : vandaag, klaar: false });
+    }) });
+    mascotteZeg("Op je takenlijst. Lekker lang weekend!");
+  }
 
   const v = useMemo(() => voorstel(data, nu), [data, nu]);
   const [gekozen, setGekozen] = useState<{ sleutel: string; optie: number } | null>(null);
@@ -144,9 +160,24 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
 
         {toon("afspraken") && !straks && rest.length === 0 && <p className="text-rustig">Niets meer in je agenda vandaag.</p>}
 
-        {toon("afspraken") && komend.length > 0 && (
+        {toon("afspraken") && (komend.length > 0 || feest) && (
           <section>
             <h2 className={kop}>Komende dagen</h2>
+            {feest && (
+              <div className="mb-1 flex items-center gap-3 py-2">
+                <span className="w-20 shrink-0 text-sm text-rustig">{feest.over === 1 ? "Morgen" : `Over ${feest.over} dagen`}</span>
+                <span className="min-w-0 flex-1 leading-snug">
+                  <span className={`mr-2 inline-block size-2 rounded-full ${feest.soort === "feestdag" ? "bg-red-500"
+                    : feest.soort === "vakantie" ? "bg-amber-500" : feest.soort === "brugdag" ? "bg-emerald-500" : "bg-pink-500"}`} />
+                  {feest.naam}
+                </span>
+                {feest.soort === "brugdag" && !vrijGevraagd && (
+                  <button onClick={() => vrijVragen(feest.datum)} className="h-8 shrink-0 rounded-full bg-vlak px-3 text-sm font-medium text-accent">
+                    Vrij vragen
+                  </button>
+                )}
+              </div>
+            )}
             <ul>
               {komend.map((a) => (
                 <li key={a.id} className="flex items-baseline gap-4 py-2">
