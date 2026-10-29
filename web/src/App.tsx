@@ -4,7 +4,7 @@ import { GeenToegang, adresOpruimen, adresWaarde, gegevensLaden, huidigeSessie, 
 import { openVragen } from "./lib/bestellingen";
 import { winkelVragen } from "./lib/mijnwinkel";
 import { terugVanBank } from "./lib/bank";
-import { terugVanCursus } from "./lib/cursus";
+import { cursusLinkVragen, terugVanCursus } from "./lib/cursus";
 import { Ballon, Kalender, Tandwiel, Vonk, Zon } from "./iconen";
 import Inloggen from "./schermen/Inloggen";
 import Vandaag from "./schermen/Vandaag";
@@ -39,8 +39,9 @@ const WINKEL = winkelVragen(adresWaarde("winkel") ?? "");
 // Terug van inloggen bij je bank (?code=...&state=...): de koppeling afmaken in Budget.
 const BANK = terugVanBank(adresWaarde("code"), adresWaarde("state"));
 // Terug van betalen voor een cursus, pakket of abonnement in een community: de app controleert het in Chat.
+const CURSUSLINK = cursusLinkVragen(adresWaarde("cursus"));
 const CURSUS = terugVanCursus(adresWaarde("cursus_betaald"), adresWaarde("pakket_betaald"), adresWaarde("community_abonnement"));
-adresOpruimen("betaald", "zeg", "ochtend", "winkel", "code", "state", "cursus_betaald", "pakket_betaald", "community_abonnement");
+adresOpruimen("betaald", "zeg", "ochtend", "winkel", "code", "state", "cursus_betaald", "pakket_betaald", "community_abonnement", "cursus");
 if (BETAALD !== null) openVragen(BETAALD === "0" ? "Betalen is afgebroken. Je kunt het opnieuw proberen."
   : "Gelukt. Je betaling is binnen en het geld staat vast tot je bevestigt dat alles goed is.");
 // Alleen Vandaag zit in het eerste stuk van de app. De andere schermen komen los, en worden opgehaald zodra de app
@@ -81,7 +82,7 @@ export type { Staat };
 export default function App() {
   const [klaar, setKlaar] = useState(false);
   const [staat, setStaat] = useState<Staat | null>(null);
-  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL || CURSUS ? "chat" : ZEG ? "assistent" : BANK ? "instellingen" : "vandaag");
+  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL || CURSUS || CURSUSLINK ? "chat" : ZEG ? "assistent" : BANK ? "instellingen" : "vandaag");
   const [voorafVraag, setVooraf] = useState(ZEG);
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [teKopen, setTeKopen] = useState<Product | null>(null);
