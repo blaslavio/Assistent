@@ -2,6 +2,7 @@
 // blijft werken. De fout zelf (zonder je gegevens) gaat naar de server, zodat we hem kunnen oplossen.
 import { Component, type ReactNode } from "react";
 import { rpc } from "./api";
+import { Verbindingsfout, isNetwerkfout } from "./lib/net";
 
 let gemeld = 0;
 
@@ -18,8 +19,15 @@ export function foutMelden(fout: unknown, waar: string, extra = "") {
 /** Vangt fouten die buiten een scherm gebeuren, zoals in een timer of een antwoord van de server. */
 export function foutenVolgen() {
   addEventListener("error", (e) => foutMelden(e.error ?? e.message, "venster"));
-  addEventListener("unhandledrejection", (e) => foutMelden(e.reason, "belofte"));
+  addEventListener("unhandledrejection", (e) => {
+    if (!isNetwerkfout(e.reason) && !(e.reason instanceof Verbindingsfout)) foutMelden(e.reason, "belofte");
+  });
 }
+
+/** Een scherm dat niet binnenkwam (geen internet bij het openen): geen fout in de app, dus ook niets om te melden. */
+const laadfout = (fout: Error) =>
+  isNetwerkfout(fout) || fout instanceof Verbindingsfout
+  || /dynamically imported module|importing a module script failed|loading (css )?chunk/i.test(fout.message);
 
 type Props = { naam: string; children: ReactNode; klein?: boolean };
 
@@ -31,6 +39,7 @@ export class Vangnet extends Component<Props, { fout: Error | null }> {
   }
 
   componentDidCatch(fout: Error, info: { componentStack?: string | null }) {
+    if (laadfout(fout)) return;
     foutMelden(fout, this.props.naam, info.componentStack ?? "");
   }
 
@@ -40,9 +49,14 @@ export class Vangnet extends Component<Props, { fout: Error | null }> {
     if (this.props.klein) return null;
     return (
       <div role="alert" className="flex min-h-full flex-col items-center justify-center gap-3 px-8 py-16 text-center">
-        <p className="text-lg font-semibold">Dit scherm lukt even niet</p>
-        <p className="text-sm text-rustig">Er ging iets mis. Ik heb het doorgegeven, zodat het opgelost wordt.</p>
-        <p className="max-w-full break-words text-xs text-zacht">{fout.message}</p>
+        {laadfout(fout) ? <>
+          <p className="text-lg font-semibold">Dit scherm kon niet laden</p>
+          <p className="text-sm text-rustig">Waarschijnlijk is de verbinding even weg. Controleer je internet en probeer het opnieuw.</p>
+        </> : <>
+          <p className="text-lg font-semibold">Dit scherm lukt even niet</p>
+          <p className="text-sm text-rustig">Er ging iets mis. Ik heb het doorgegeven, zodat het opgelost wordt.</p>
+          <p className="max-w-full break-words text-xs text-zacht">{fout.message}</p>
+        </>}
         <div className="mt-2 flex gap-2">
           <button onClick={() => this.setState({ fout: null })}
             className="rounded-full bg-vlak px-4 py-2 text-sm font-medium">Opnieuw proberen</button>

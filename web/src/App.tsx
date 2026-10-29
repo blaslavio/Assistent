@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { GeenToegang, adresOpruimen, adresWaarde, gegevensLaden, huidigeSessie, momentopnameBewaren, opstarten, overstappen,
   type Staat } from "./api";
 import { openVragen } from "./lib/bestellingen";
@@ -20,6 +20,7 @@ import { deelCode } from "./lib/delen";
 import { boekAdres, boekingCode, verwerken } from "./lib/gasten";
 import { prikCode } from "./lib/prikken";
 import { Vangnet } from "./vangnet";
+import { useOnline } from "./lib/net";
 
 // Een gedeelde link (?deel=...) opent een pagina die je zonder inloggen kunt zien.
 const GEDEELD = deelCode();
@@ -137,6 +138,16 @@ export default function App() {
     vooraf();
   }, [starten]);
 
+  // Komt de verbinding terug, dan halen we meteen de nieuwste stand op.
+  const online = useOnline();
+  const wasOffline = useRef(false);
+  useEffect(() => {
+    if (!online) { wasOffline.current = true; return; }
+    if (wasOffline.current && staat && huidigeSessie()) herladen();
+    wasOffline.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online]);
+
   useEffect(() => {
     if (!fout || !klaar || huidigeSessie()) return;
     window.addEventListener("online", starten, { once: true });
@@ -203,7 +214,13 @@ export default function App() {
 
   return (
     <div className="mx-auto flex h-full max-w-xl flex-col">
-      {fout && <p role="alert" className="bg-vlak px-6 py-3 text-sm text-rustig">{fout}</p>}
+      {!online ? <p role="status" className="bg-vlak px-6 py-3 text-sm text-rustig">
+        Geen internet. Je ziet de laatste stand en wat je typt blijft staan.</p>
+        : fout && <div role="alert" className="flex items-center gap-3 bg-vlak px-6 py-3 text-sm text-rustig">
+          <p className="flex-1">{fout}</p>
+          <button onClick={() => (huidigeSessie() ? herladen() : starten())}
+            className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white">Opnieuw</button>
+        </div>}
       <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}><Suspense fallback={null}>{scherm}</Suspense></Vangnet></div>
       <Vangnet naam="bellen" klein><BelLaag /></Vangnet>
       <MascotteFeest />

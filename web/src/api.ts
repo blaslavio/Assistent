@@ -12,14 +12,39 @@ export const OUDE_APP = (globalThis as { OUDE_APP?: string }).OUDE_APP ?? "../";
 
 export class GeenToegang extends Error {}
 import * as snelstart from "./lib/snelstart";
+import { TE_LANG, Verbindingsfout, isNetwerkfout, statusTekst } from "./lib/net";
+
+// Een databasefunctie die alleen leest, mag bij een haperende verbinding één keer opnieuw: dubbel lezen kan geen kwaad.
+const ALLEEN_LEZEN = /^(mijn_|.*_(bekijken|zoeken|lijst|overzicht|lezen|stand)$)/;
+// Langer dan dit wachten op antwoord van de database heeft geen zin; ook een grote foto past er ruim in.
+const WACHTTIJD = 45_000;
 
 export async function rpc<T = unknown>(functie: string, parameters: Record<string, unknown> = {}): Promise<T> {
-  const r = await fetch(`${SUPABASE}/rest/v1/rpc/${functie}`, {
-    method: "POST",
-    headers: { apikey: SLEUTEL, "Content-Type": "application/json" },
-    body: JSON.stringify(parameters),
-  });
-  if (!r.ok) throw Object.assign(new Error(`Even geen verbinding (${r.status}).`), { status: r.status });
+  const poging = async () => {
+    const stop = new AbortController();
+    const klok = setTimeout(() => stop.abort(), WACHTTIJD);
+    try {
+      return await fetch(`${SUPABASE}/rest/v1/rpc/${functie}`, {
+        method: "POST",
+        headers: { apikey: SLEUTEL, "Content-Type": "application/json" },
+        body: JSON.stringify(parameters),
+        signal: stop.signal,
+      });
+    } catch (e) {
+      throw stop.signal.aborted ? new Verbindingsfout(TE_LANG) : isNetwerkfout(e) ? new Verbindingsfout() : e;
+    } finally {
+      clearTimeout(klok);
+    }
+  };
+  let r: Response;
+  try {
+    r = await poging();
+  } catch (e) {
+    if (!(e instanceof Verbindingsfout) || !ALLEEN_LEZEN.test(functie) || navigator.onLine === false) throw e;
+    await new Promise((klaar) => setTimeout(klaar, 1500));
+    r = await poging();
+  }
+  if (!r.ok) throw Object.assign(new Error(statusTekst(r.status)), { status: r.status });
   return r.status === 204 ? (null as T) : r.json();
 }
 
@@ -37,7 +62,7 @@ export function huidigeSessie() {
 
 export async function alsIk<T = Record<string, unknown>>(functie: string, parameters: Record<string, unknown> = {}) {
   if (!sessie && sessieWacht) await sessieWacht;
-  if (!sessie && startZonderVerbinding) throw new Error("Even geen verbinding. Probeer het zo opnieuw.");
+  if (!sessie && startZonderVerbinding) throw new Verbindingsfout();
   if (!sessie) throw new GeenToegang();
   const account = sessie;
   const antwoord = await rpc<T>(functie, { ...parameters, p_naam: account.naam, p_wachtwoord: account.token });

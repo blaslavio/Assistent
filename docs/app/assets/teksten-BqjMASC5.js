@@ -1,4 +1,4 @@
-import{n as e}from"./rolldown-runtime-4tVxZq34.js";var t=e({PRIVACY:()=>r,VOORWAARDEN:()=>n}),n=`**Algemene voorwaarden** (concept, bijgewerkt 29 oktober 2026)
+import{r as e}from"./react-DHsaPJjs.js";var t=e({PRIVACY:()=>r,VOORWAARDEN:()=>n}),n=`**Algemene voorwaarden** (concept, bijgewerkt 29 oktober 2026)
 
 1. **Wat de app is.** Een persoonlijke assistent voor agenda, taken, leren, mail en boodschappen, met de mogelijkheid
    om dingen te delen, samen aan projecten te werken en op de marktplaats iets aan te bieden of te boeken.

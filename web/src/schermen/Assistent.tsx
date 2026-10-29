@@ -12,13 +12,23 @@ import { Mascotte, type Stemming } from "../mascotte";
 import { alsBerichten, bewaar, bewarenAan, nieuwId, schoon, type Opgeslagen } from "../lib/geschiedenis";
 import { Gesprekken } from "./Gesprekken";
 import { Opmaak } from "../lib/opmaak";
+import { GEEN_INTERNET } from "../lib/net";
 import { BETAALWIJZE, LEVERING, bestellen, euro, onthouden, type Bestelling, type Product } from "../lib/winkelen";
 import { Bladen, ProductRij, type Blad } from "./Winkelen";
 
 type Bestelkaart = { b: Bestelling; status: "klaar" | "bezig" | "besteld"; fout?: string; bedrag?: number };
-type Beurt = { wie: "jij" | "assistent"; tekst: string; acties: Actie[]; fout?: boolean; keuze?: Keuze; gekozen?: number;
+type Beurt = { wie: "jij" | "assistent"; tekst: string; acties: Actie[]; fout?: boolean; opnieuw?: Herhaling; keuze?: Keuze;
+  gekozen?: number;
   producten?: Product[]; bestellingen?: Bestelkaart[]; bijlagen?: { naam: string; soort: Bijlagebestand["soort"] }[];
   grafieken?: Grafiek[] };
+
+// Een vraag die door de verbinding mislukte, met alles wat nodig is om hem met één tik opnieuw te stellen.
+type Herhaling = { vraag: string; gekozen?: string; bijlagen: Bijlagebestand[]; vanJou: boolean };
+
+// Wat je typt, blijft bewaard op dit apparaat tot je het verstuurt: ook als de app herlaadt of de verbinding wegvalt.
+const CONCEPT = "assistent.concept";
+const conceptLezen = () => { try { return sessionStorage.getItem(CONCEPT) ?? ""; } catch { return ""; } };
+const conceptBewaren = (t: string) => { try { if (t) sessionStorage.setItem(CONCEPT, t); else sessionStorage.removeItem(CONCEPT); } catch { /* privévenster */ } };
 
 // Het gesprek blijft staan zolang dit tabblad open is, ook als je even naar Vandaag gaat. Na elk antwoord gaat de
 // tekst ook naar je eerdere gesprekken (lib/geschiedenis), tenzij je dat uitzette. Niet op het apparaat.
@@ -53,7 +63,9 @@ type Props = { staat: Staat; vernieuw: () => void; teKopen?: Product | null; gek
 
 export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, voorafGebruikt, naarBestellingen }: Props) {
   const [beurten, setBeurten] = useState<Beurt[]>(gesprek.beurten);
-  const [invoer, setInvoer] = useState("");
+  const [invoer, setInvoer] = useState(conceptLezen);
+  useEffect(() => conceptBewaren(invoer), [invoer]);
+  const [herhaal, setHerhaal] = useState<Herhaling | null>(null);
   const [bezig, setBezig] = useState<string | null>(null);
   const [luistert, setLuistert] = useState(false);
   const [klaarNr, setKlaarNr] = useState(0);
@@ -209,7 +221,9 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
         terugzetten();
         gesprek.gebruikt -= extra;
         const status = (e as { status?: number }).status;
-        wijzig(plek, (b) => ({ ...b, fout: true, tekst: status === 429
+        const herhaling = status === 401 || status === 413 ? undefined : { vraag, gekozen, bijlagen, vanJou };
+        wijzig(plek, (b) => ({ ...b, fout: true, opnieuw: herhaling, tekst: navigator.onLine === false ? GEEN_INTERNET
+          : status === 429
           ? "Je hebt deze maand je ruimte voor de assistent gebruikt, of het is even te druk. Probeer het later opnieuw."
           : status === 401 ? "Log opnieuw in om verder te praten."
           : status === 413 ? "Dat is te veel in één keer. Begin een nieuw gesprek of stuur een kleiner bestand." : "De assistent is even niet bereikbaar. Probeer het zo opnieuw." }));
@@ -221,6 +235,21 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
       if (veranderd) vernieuw();
     }
   }
+
+  /** Een mislukte vraag opnieuw: de mislukte beurt (en je vraag erboven) gaan weg, daarna precies dezelfde vraag. */
+  function opnieuw(i: number) {
+    const h = beurten[i].opnieuw;
+    if (!h || bezig) return;
+    setBeurten((l) => l.slice(0, i - (h.vanJou ? 1 : 0)));
+    setHerhaal(h);
+  }
+
+  useEffect(() => {
+    if (!herhaal) return;
+    setHerhaal(null);
+    praat(herhaal.vraag, herhaal.gekozen, herhaal.bijlagen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [herhaal]);
 
   function verstuur(e: FormEvent) {
     e.preventDefault();
@@ -364,6 +393,10 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
               <Bol actief={i === beurten.length - 1 && bezig !== null} />
               <div className="flex min-w-0 flex-1 flex-col gap-3 pt-0.5">
                 {b.tekst && (b.fout ? <p className="text-rustig">{b.tekst}</p> : <Opmaak tekst={b.tekst} />)}
+                {b.opnieuw && i === beurten.length - 1 && !bezig && (
+                  <button onClick={() => opnieuw(i)}
+                    className="self-start rounded-full bg-vlak px-4 py-2 text-sm font-medium">Opnieuw proberen</button>
+                )}
                 {b.acties.length > 0 && (
                   <ul className="flex flex-col gap-2">
                     {b.acties.map((a, j) => <Kaartje key={j} actie={a} terug={() => terugdraaien(i, j)}
