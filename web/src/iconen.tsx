@@ -106,6 +106,8 @@ export const Scherm = (p: P) => (
 export const Fiets = (p: P) => (
   <svg {...basis} {...p}><circle cx="6" cy="16" r="4" /><circle cx="18" cy="16" r="4" /><path d="M6 16l4-8h5l3 8M10 8l2 8h-6M14 5h2" /></svg>
 );
+// Een hartslaglijn: sport en beweging.
+export const Hartslag = (p: P) => <svg {...basis} {...p}><path d="M3 12h4l2.5-6 5 12 2.5-6h4" /></svg>;
 export const Bal = (p: P) => (
   <svg {...basis} {...p}><circle cx="12" cy="12" r="9" /><path d="M3.5 9.5c5 1 12 1 17 0M3.5 14.5c5-1 12-1 17 0M12 3c-3 5-3 13 0 18M12 3c3 5 3 13 0 18" /></svg>
 );

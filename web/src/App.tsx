@@ -20,6 +20,7 @@ import type { Product } from "./lib/winkelen";
 import { deelCode } from "./lib/delen";
 import { boekAdres, boekingCode, verwerken } from "./lib/gasten";
 import { prikCode } from "./lib/prikken";
+import { terugkomst, vanzelf as sportVanzelf } from "./lib/sport";
 import { profielAdres } from "./lib/profielpagina";
 import { Vangnet } from "./vangnet";
 import { useOnline } from "./lib/net";
@@ -31,6 +32,8 @@ const GEDEELD = deelCode();
 // Afspraak maken zonder account (?boek=linknaam) en de eigen pagina van de gast (?boeking=code).
 const BOEK = boekAdres();
 const PROFIEL = profielAdres();
+// Terug van inloggen bij een sportapp (?state=gz....): meteen naar Sport en gezondheid, daar wordt het afgemaakt.
+const SPORT_TERUG = !!terugkomst();
 const BOEKING = boekingCode();
 // Stemmen op een datum via een gedeelde link (?prik=code), ook zonder account.
 const PRIK = prikCode();
@@ -89,7 +92,7 @@ export type { Staat };
 export default function App() {
   const [klaar, setKlaar] = useState(false);
   const [staat, setStaat] = useState<Staat | null>(null);
-  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL || CURSUS || CURSUSLINK ? "chat" : ZEG ? "assistent" : BANK ? "instellingen" : "vandaag");
+  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL || CURSUS || CURSUSLINK ? "chat" : ZEG ? "assistent" : BANK || SPORT_TERUG ? "instellingen" : "vandaag");
   const [voorafVraag, setVooraf] = useState(ZEG);
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [teKopen, setTeKopen] = useState<Product | null>(null);
@@ -100,7 +103,7 @@ export default function App() {
   const [voorChat, setVoorChat] = useState<Tab>("vandaag");
   // Een onderdeel dat je via "Je apps" opent; het getal laat Instellingen weten dat het opnieuw gevraagd is.
   const [startOnderdeel, setStartOnderdeel] = useState<{ naam: OnderdeelNaam; n: number } | null>(
-    BANK ? { naam: "budget", n: 1 } : null);
+    BANK ? { naam: "budget", n: 1 } : SPORT_TERUG ? { naam: "sport", n: 1 } : null);
   const setTab = (t: Tab) => {
     if (t === "instellingen") setVorige(tab === "instellingen" ? vorige : tab);
     else setStartOnderdeel(null);
@@ -171,6 +174,13 @@ export default function App() {
     const t = setTimeout(() => { momentopnameBewaren(staat).catch(() => {}); }, 800);
     return () => clearTimeout(t);
   }, [staat]);
+
+  // Trainingen, stappen en slaap uit gekoppelde sportapps op de achtergrond bijhalen (hooguit eens per 2 uur per app).
+  useEffect(() => {
+    if (!staat || SPORT_TERUG) return;
+    sportVanzelf(staat.data).then((n) => { if (n) herladen(); }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!staat]);
 
   // Oproepen komen overal in de app binnen, als dit apparaat al eens in de chat was.
   const ingelogd = !!staat;

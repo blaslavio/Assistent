@@ -10,6 +10,7 @@ import { Bestand, Bewerk, Boek, Grafiek, Hart, Kruis, Lijstje, Plus, Prullenbak,
 import { Beleggen } from "./Beleggen";
 import { kop } from "./instellingen-ui";
 import { Leren } from "./Leren";
+import { Sport } from "./Sport";
 import { Zakelijk } from "./Zakelijk";
 import { Huishoudens } from "./Huishouden";
 import { LijstVergelijken, ProductZoeken } from "./Prijsvergelijk";
@@ -41,6 +42,7 @@ export function Onderdeel({ naam, staat, vernieuw, terug, terugNaam, vraag }: { 
   vernieuw: () => Promise<void>; terug: () => void; terugNaam?: string; vraag: (tekst: string) => void }) {
   const titel = ONDERDELEN.find(([id]) => id === naam)![1];
   if (naam === "documenten") return <Documenten terug={terug} />;
+  if (naam === "sport") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Sport staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
   if (naam === "leren") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Leren staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
   if (naam === "budget") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Budget staat={staat} /></Scherm>;
   if (naam === "beleggen") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Beleggen staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
@@ -54,7 +56,7 @@ export function Onderdeel({ naam, staat, vernieuw, terug, terugNaam, vraag }: { 
 type Item = { id: number; tekst?: string; naam_product?: string; titel?: string; prijs?: number | null; gekocht?: boolean };
 const tekstVan = (i: Item) => i.tekst ?? i.naam_product ?? i.titel ?? "";
 
-function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documenten" | "budget" | "beleggen" | "leren" | "zakelijk" | "huishouden">; data: Gegevens;
+function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documenten" | "budget" | "beleggen" | "leren" | "sport" | "zakelijk" | "huishouden">; data: Gegevens;
   vernieuw: () => Promise<void> }) {
   const [invoer, setInvoer] = useState("");
   const [notitie, setNotitie] = useState<Item | null>(null);
