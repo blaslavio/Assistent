@@ -15,7 +15,9 @@ export function controleerProjectAi(gesprek: number) {
   if (aiGepauzeerd(gesprek)) throw new Error("Project-AI is op dit apparaat gepauzeerd. Hervat bewust via Privacy.");
 }
 export function privacyVoorbeeld(tekst: string) {
-  if (/-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----|\b(?:sk-ant-|sk_live_|sk_test_|sb_secret_)[A-Za-z0-9_-]{12,}/.test(tekst))
+  const sleutel=/-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----|\b(?:sk-ant-|sk-proj-|sk-svcacct-|sk_live_|sk_test_|sb_secret_|ghp_|gho_|ghs_|github_pat_)[A-Za-z0-9_-]{12,}|\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/;
+  const bearer=/(?:authorization\s*:\s*bearer|(?:access|refresh)[_-]?token\s*[:=])\s*["']?[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/i;
+  if (sleutel.test(tekst)||bearer.test(tekst))
     throw new Error("Mogelijke geheime sleutel gevonden. Verwijder die uit de geselecteerde bron voordat je AI gebruikt.");
   const vervangen = new Map<string, string>();
   const masker = (soort: string) => (waarde: string) => {

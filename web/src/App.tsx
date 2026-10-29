@@ -30,7 +30,7 @@ const BETAALD = adresWaarde("betaald");
 const ZEG = (adresWaarde("zeg") ?? "").trim().slice(0, 500);
 adresOpruimen("betaald", "zeg", "ochtend");
 if (BETAALD !== null) openVragen(BETAALD === "0" ? "Betalen is afgebroken. Je kunt het opnieuw proberen."
-  : "Gelukt. Je betaling is binnen en het geld staat vast tot je bevestigt dat alles goed is.");
+  : "Je bent terug van de betaalpagina. Controleer de actuele betaalstatus bij je bestelling.");
 // Alleen Vandaag zit in het eerste stuk van de app. De andere schermen komen los, en worden opgehaald zodra de app
 // even niets te doen heeft, zodat ze klaarstaan voordat je erop tikt. Claude laden we pas als je de assistent opent.
 const laden = {

@@ -18,12 +18,22 @@ function interval(a: Afspraak): [number, number] {
   if (tot <= van) throw new Error("Een afspraak heeft een ongeldige duur."); return [van,tot];
 }
 function eersteGat(van: number, tot: number, duur: number, bezet: [number,number][]) {
+  van=Math.ceil(van/60_000)*60_000;
   for (const [s,e] of [...bezet].sort((a,b)=>a[0]-b[0])) {
     if (e <= van || s >= tot) continue;
     if (s-van >= duur) return van;
-    van=Math.max(van,e);
+    van=Math.max(van,Math.ceil(e/60_000)*60_000);
   }
   return van+duur <= tot ? van : null;
+}
+// De app bewaart Nederlandse minuten zonder offset. Dubbele kloktijden mogen daar niet in terechtkomen.
+function bewaarbareMinuut(ms:number) {
+  try { return tijdInstant(nederlandseInstant(lokaleTijd(ms)))===ms; } catch { return false; }
+}
+function passendGat(van:number,tot:number,duur:number,bezet:[number,number][]) {
+  let plek=eersteGat(van,tot,duur,bezet);
+  while(plek!==null&&(!bewaarbareMinuut(plek)||!bewaarbareMinuut(plek+duur))) plek=eersteGat(plek+60_000,tot,duur,bezet);
+  return plek;
 }
 export function tijdVoorstellen(gesprek: number, plan: Feit, feiten: Feit[], ik: number, agenda: Afspraak[], nu=Date.now()): TijdRij[] {
   if (plan.actie.soort !== "aanpak" || !actueleAanpakken(plan.actie.doel!,feiten).some(p=>p.actie.sleutel===plan.actie.sleutel)) throw new Error("Deze aanpak is vervangen. Controleer de actuele aanpak.");
@@ -34,12 +44,13 @@ export function tijdVoorstellen(gesprek: number, plan: Feit, feiten: Feit[], ik:
   const bezet=new Map<number,[number,number][]>();
   // Een onleesbare agenda levert nooit stilzwijgend een bewezen vrij tijdvak op.
   bezet.set(ik,agenda.map(interval));
+  const gedeeldeTijden:{stap:string;eigenaar:number;van:number;tot:number}[]=[];
   // Alle gedeelde tijdvakken reserveren vóór nieuwe voorstellen, onafhankelijk van stapvolgorde.
   for (const stap of plan.actie.stappen ?? []) {
     if (!stap.eigenaar || stap.eigenaar === ik) continue;
     const familie = stapFamilie(plan, stap, feiten);
     const f = [...feiten].reverse().find(f => f.actie.soort === "staptijd" && f.actie.stap === stap.id && f.afzender === stap.eigenaar && familie.some(p => p.actie.sleutel === f.actie.doel));
-    if (f) { const blokken = bezet.get(stap.eigenaar) ?? []; blokken.push([tijdInstant(f.actie.van!), tijdInstant(f.actie.tot!)]); bezet.set(stap.eigenaar, blokken); }
+    if (f) { gedeeldeTijden.push({stap:stap.id,eigenaar:stap.eigenaar,van:tijdInstant(f.actie.van!),tot:tijdInstant(f.actie.tot!)}); const blokken = bezet.get(stap.eigenaar) ?? []; blokken.push([tijdInstant(f.actie.van!), tijdInstant(f.actie.tot!)]); bezet.set(stap.eigenaar, blokken); }
   }
   const over=[...plan.actie.stappen??[]];
   while(over.length) {
@@ -67,6 +78,7 @@ export function tijdVoorstellen(gesprek: number, plan: Feit, feiten: Feit[], ik:
       if(s.afhankelijkVan.some(id=>!einde.has(id))) problemen.push("een voorganger is nog niet uitvoerbaar");
       else if(s.afhankelijkVan.some(id=>v<einde.get(id)!)) problemen.push("begint voordat een voorganger eindigt");
       rij.voorwaardelijk=s.afhankelijkVan.some(id=>resultaat.get(id)?.voorwaardelijk || resultaat.get(id)?.reden.startsWith("Voorstel"));
+      if(!eigen&&gedeeldeTijden.some(b=>b.eigenaar===s.eigenaar&&b.stap!==s.id&&b.van<t&&b.tot>v)) problemen.push("overlap met een ander gedeeld projecttijdvak");
       if(eigen && agenda.some(a=>a!==eigen && (()=>{const [av,at]=interval(a);return av<t&&at>v;})())) problemen.push("overlap met een andere eigen afspraak");
       if(problemen.length) {
         rij.teControleren=true;rij.reden="Controleer bestaande tijd opnieuw: "+problemen.join("; ")+". Pas de afspraak of aanpak bewust aan.";
@@ -83,7 +95,7 @@ export function tijdVoorstellen(gesprek: number, plan: Feit, feiten: Feit[], ik:
     const gereserveerd=bezet.get(s.eigenaar)??[];
     for(const v of vensters.get(s.eigenaar)??[]) {
       const eind=Math.min(v.tot,deadline,nu+14*86400_000);
-      plaats=eersteGat(Math.max(v.van,vanaf),eind,s.minuten*60_000,gereserveerd);
+      plaats=passendGat(Math.max(v.van,vanaf),eind,s.minuten*60_000,gereserveerd);
       if(plaats!==null) break;
     }
     if(plaats===null) { rij.reden="Geen passend opgegeven tijdvak vóór de deadline; geef beschikbaarheid op of pas de aanpak aan"; continue; }

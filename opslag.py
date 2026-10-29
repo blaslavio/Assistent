@@ -986,13 +986,19 @@ def boodschappen_opruimen(alleen_gekocht: bool = True) -> None:
 LIJSTEN = ("kooplijst", "wenslijst", "notities", "diy", "vrije_tijd")
 
 
+def _controleer_lijst(naam: str) -> None:
+    """Een opslaggrens mag niet verdwijnen wanneer Python met -O wordt gestart."""
+    if not isinstance(naam, str) or naam not in LIJSTEN:
+        raise ValueError("Kies een geldige lijst.")
+
+
 def lijst(naam: str) -> list[dict]:
-    assert naam in LIJSTEN
+    _controleer_lijst(naam)
     return laden().get(naam, [])
 
 
 def lijst_toevoegen(naam: str, **velden) -> dict:
-    assert naam in LIJSTEN
+    _controleer_lijst(naam)
     with _slot:
         g = laden()
         item = {"id": _nieuw_id(g), "toegevoegd": date.today().isoformat(), **velden}
@@ -1002,7 +1008,7 @@ def lijst_toevoegen(naam: str, **velden) -> dict:
 
 
 def lijst_bijwerken(naam: str, item_id: int, **velden) -> dict | None:
-    assert naam in LIJSTEN
+    _controleer_lijst(naam)
     with _slot:
         g = laden()
         for item in g.get(naam, []):
@@ -1015,7 +1021,7 @@ def lijst_bijwerken(naam: str, item_id: int, **velden) -> dict | None:
 
 def lijst_weg(naam: str, item_id: int) -> dict | None:
     """Haalt een item van een lijst en geeft het terug (handig om het naar een andere lijst te verplaatsen)."""
-    assert naam in LIJSTEN
+    _controleer_lijst(naam)
     with _slot:
         g = laden()
         weg = next((i for i in g.get(naam, []) if i["id"] == item_id), None)
@@ -1026,8 +1032,21 @@ def lijst_weg(naam: str, item_id: int) -> dict | None:
 
 
 def verplaatsen(van: str, naar: str, item_id: int) -> None:
-    if item := lijst_weg(van, item_id):
-        lijst_toevoegen(naar, **{k: v for k, v in item.items() if k not in ("id", "toegevoegd")})
+    """Verplaats met één snapshot en één bevestigde opslag, zonder tussenliggende verwijdering."""
+    _controleer_lijst(van)
+    _controleer_lijst(naar)
+    if van == naar:
+        return
+    with _slot:
+        g = copy.deepcopy(laden())
+        item = next((i for i in g.get(van, []) if i["id"] == item_id), None)
+        if item is None:
+            return
+        nieuw = {"id": _nieuw_id(g), "toegevoegd": date.today().isoformat(),
+                 **{k: v for k, v in item.items() if k not in ("id", "toegevoegd")}}
+        g.setdefault(naar, []).append(nieuw)
+        g[van] = [i for i in g[van] if i["id"] != item_id]
+        opslaan(g)
 
 
 # --- Sportdoelen ----------------------------------------------------------
@@ -1841,7 +1860,8 @@ def namens(kanaal: str) -> str:
 
 
 def namens_instellen(kanaal: str, keuze: str) -> None:
-    assert keuze in NAMENS and kanaal in ("mail", "berichten")
+    if not isinstance(keuze, str) or keuze not in NAMENS or not isinstance(kanaal, str) or kanaal not in ("mail", "berichten"):
+        raise ValueError("Kies een geldige voorkeur voor mail of berichten.")
     instellingen_bijwerken(namens=instellingen().get("namens", {}) | {kanaal: keuze})
 
 

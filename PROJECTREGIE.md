@@ -55,7 +55,7 @@ Dit is geen permanente externe back-up: verwijderen van het gesprek, account of 
 
 ## Verificatie en uitrol
 
-De lokale verificatie omvat 170 Vitest-tests, beide TypeScript/Vite-builds 1.260 Python-tests zonder overgeslagen tests (waaronder 11 PostgreSQL-tests van het echte archiefschema en 25 veilige-opslagtests), plus 358 upstream-pytest-tests en 21 subtests. De productieafhankelijkhedenaudit meldt op dit uitvoermoment geen bekende kwetsbaarheden. De webtests gebruiken nagebootste transport-, AI- en betaalantwoorden; er zijn geen echte betalingen, boekingen, berichten of videogesprekken uitgevoerd. De bestaande productiereleasepoort voor verse E2E-bewijzen blijft ongewijzigd. Deze uitbreiding is nog niet live. Zie `UITROL.md`.
+De lokale verificatie omvat 177 Vitest-tests, beide TypeScript/Vite-builds 1.260 Python-tests zonder overgeslagen tests (waaronder 11 PostgreSQL-tests van het echte archiefschema en 25 veilige-opslagtests), plus 358 upstream-pytest-tests en 21 subtests. De productieafhankelijkhedenaudit meldt op dit uitvoermoment geen bekende kwetsbaarheden. De webtests gebruiken nagebootste transport-, AI- en betaalantwoorden; er zijn geen echte betalingen, boekingen, berichten of videogesprekken uitgevoerd. De bestaande productiereleasepoort voor verse E2E-bewijzen blijft ongewijzigd. Deze uitbreiding is nog niet live. Zie `UITROL.md`.
 
 ## Extra privacy en eenvoudige bediening
 
@@ -107,3 +107,5 @@ Dit kopieert geen software van die producten en biedt niet hun volledige functie
 - Herplanning weigert een gewijzigde bronafspraak, een veranderd tijdvoorstel, een externe agenda-afspraak of een afspraak die niet bij de eigen projectstap hoort. Ontbreekt een passend tijdvak of is een voorganger nog afhankelijk, pas dan eerst beschikbaarheid, deadline of aanpak aan. Er worden geen andere afspraken, uitnodigingen, betalingen, boekingen of reserveringen aangepast. Deel de nieuwe projecttijd desgewenst apart.
 
 Verificatie: **158 webtests** en beide TypeScript/Vite-builds. Nieuwe tests controleren sjabloonvalidatie, privacy van overgenomen velden, opslag/herhaling/verwijderen, JSON-veldvolgorde, bordrollen, voorgangers, vervangen aanpakken, werkdruktelling, preview vóór uitvoering en herplanning zonder gegevensverlies. Geen nieuwe database-migratie nodig voor deze vier toevoegingen.
+
+De nieuwste brede audit telt 177 webtests en beschrijft aanvullende plannings-, privacy- en opslagcorrecties. Zie [UITGEBREIDE_TESTCONTROLE.md](UITGEBREIDE_TESTCONTROLE.md).

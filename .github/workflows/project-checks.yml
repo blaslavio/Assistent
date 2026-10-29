@@ -2,7 +2,7 @@ name: Project privacy and integration
 on:
   push:
     branches: [develop]
-    paths: ['web/**', 'sql/project_archief.sql', 'test_project_archief.py', '.github/workflows/project-checks.yml']
+    paths: ['web/**', 'sql/project_archief.sql', 'test_project_archief.py', 'opslag.py', 'test_opslag_validatie.py', '.github/workflows/project-checks.yml']
   pull_request:
     branches: [develop, main]
   workflow_dispatch:
@@ -48,3 +48,18 @@ jobs:
       - name: Remove test database
         if: always()
         run: docker rm -f project-privacy-db
+
+  storage-boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ASSISTENT_LOKAAL: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install storage test dependency
+        run: python -m pip install httpx
+      - name: Validate storage boundaries and atomic moves
+        run: python -m unittest -v test_opslag_validatie

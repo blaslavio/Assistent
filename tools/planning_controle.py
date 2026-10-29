@@ -26,7 +26,7 @@ ONDERDELEN = {
     "werkcontrole": ["test_werkcontrole"],
     "focusplan": ["test_focusplan"],
     "controlegereedschap": ["test_controlegereedschap"],
-    "invoer": ["test_intenties"],
+    "invoer": ["test_intenties", "test_opslag_validatie"],
     "agenda": ["test_agendacontrole"],
     "dagplan": ["test_dagplan"],
     "herplanning": ["test_herplanning"],

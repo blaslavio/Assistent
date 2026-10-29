@@ -2,7 +2,7 @@
 
 20 families met ieder 5000 reproduceerbare synthetische gevallen bij standaardinstellingen. Controle van werkstromen en grenzen; geen 100.000 gevonden verbeterpunten en geen echte dienstinteracties. Brondata wordt niet gewijzigd.
 
-Seed: 10000020261028 · uitvoering: 2026-10-28T09:46:11.805638+00:00 · duur: 21.737 seconden.
+Seed: 10000020261028 · uitvoering: 2026-10-29T22:48:26.680100+00:00 · duur: 21.76 seconden.
 
 Uitkomsten: geslaagd: 100000
 
