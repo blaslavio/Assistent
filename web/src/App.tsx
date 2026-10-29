@@ -1,23 +1,17 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
-import { GeenToegang, adresOpruimen, adresWaarde, gegevensLaden, huidigeSessie, terugkomen, type Gebruiker,
-  type Gegevens } from "./api";
+import { GeenToegang, adresOpruimen, adresWaarde, gegevensLaden, huidigeSessie, momentopnameBewaren, opstarten, overstappen,
+  type Staat } from "./api";
 import { openVragen } from "./lib/bestellingen";
 import { Ballon, Kalender, Tandwiel, Vonk, Zon } from "./iconen";
 import Inloggen from "./schermen/Inloggen";
 import Vandaag from "./schermen/Vandaag";
-import Agenda from "./schermen/Agenda";
-import Instellingen from "./schermen/Instellingen";
 import { weergaveToepassen, type Weergave } from "./schermen/Algemeen";
-import Chat from "./schermen/Chat";
 import BelLaag from "./schermen/Bellen";
 import { luisteren } from "./lib/bellen";
 import { startenAlsBekend } from "./lib/chat";
 import type { Product } from "./lib/winkelen";
 import { deelCode } from "./lib/delen";
-import { GedeeldScherm } from "./schermen/Delen";
-import { BoekScherm, GastScherm } from "./schermen/Gasten";
 import { boekAdres, boekingCode, verwerken } from "./lib/gasten";
-import { PrikScherm } from "./schermen/Prikken";
 import { prikCode } from "./lib/prikken";
 import { Vangnet } from "./vangnet";
 
@@ -36,8 +30,28 @@ const ZEG = (adresWaarde("zeg") ?? "").trim().slice(0, 500);
 adresOpruimen("betaald", "zeg", "ochtend");
 if (BETAALD !== null) openVragen(BETAALD === "0" ? "Betalen is afgebroken. Je kunt het opnieuw proberen."
   : "Gelukt. Je betaling is binnen en het geld staat vast tot je bevestigt dat alles goed is.");
-// Claude laden we pas als je de assistent opent; zo start de app sneller.
+// Alleen Vandaag zit in het eerste stuk van de app. De andere schermen komen los, en worden opgehaald zodra de app
+// even niets te doen heeft, zodat ze klaarstaan voordat je erop tikt. Claude laden we pas als je de assistent opent.
+const laden = {
+  agenda: () => import("./schermen/Agenda"),
+  chat: () => import("./schermen/Chat"),
+  instellingen: () => import("./schermen/Instellingen"),
+};
+const Agenda = lazy(laden.agenda);
+const Chat = lazy(laden.chat);
+const Instellingen = lazy(laden.instellingen);
 const Assistent = lazy(() => import("./schermen/Assistent"));
+const GedeeldScherm = lazy(() => import("./schermen/Delen").then((m) => ({ default: m.GedeeldScherm })));
+const GastScherm = lazy(() => import("./schermen/Gasten").then((m) => ({ default: m.GastScherm })));
+const BoekScherm = lazy(() => import("./schermen/Gasten").then((m) => ({ default: m.BoekScherm })));
+const PrikScherm = lazy(() => import("./schermen/Prikken").then((m) => ({ default: m.PrikScherm })));
+
+function vooraf() {
+  const doe = () => Object.values(laden).forEach((l) => l().catch(() => {}));
+  const w = window as Window & { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => void };
+  if (w.requestIdleCallback) w.requestIdleCallback(doe, { timeout: 2500 });
+  else setTimeout(doe, 1200);
+}
 
 export type Tab = "vandaag" | "agenda" | "chat" | "assistent" | "instellingen";
 
@@ -49,16 +63,18 @@ const TABS: { id: Tab; naam: string; Icoon: typeof Zon }[] = [
   { id: "instellingen", naam: "Instellingen", Icoon: Tandwiel },
 ];
 
-export type Staat = { gebruiker: Gebruiker; data: Gegevens };
+export type { Staat };
 
 export default function App() {
   const [klaar, setKlaar] = useState(false);
   const [staat, setStaat] = useState<Staat | null>(null);
   const [tab, setTabRuw] = useState<Tab>(BETAALD !== null ? "chat" : ZEG ? "assistent" : "vandaag");
-  const [vooraf, setVooraf] = useState(ZEG);
+  const [voorafVraag, setVooraf] = useState(ZEG);
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [teKopen, setTeKopen] = useState<Product | null>(null);
   const [fout, setFout] = useState("");
+  // De vorige stand staat op het scherm terwijl het inloggen nog loopt (of zonder verbinding).
+  const [voorlopig, setVoorlopig] = useState(false);
 
   const [voorChat, setVoorChat] = useState<Tab>("vandaag");
   const setTab = (t: Tab) => {
@@ -67,22 +83,56 @@ export default function App() {
     setTabRuw(t);
   };
 
-  const laden = useCallback(async () => {
+  const herladen = useCallback(async () => {
     try {
       setStaat(await gegevensLaden());
+      setVoorlopig(false);
       setFout("");
+      overstappen().catch(() => {});
     } catch (e) {
       if (e instanceof GeenToegang) setStaat(null);
       else setFout("Even geen verbinding. Probeer het zo opnieuw.");
     }
   }, []);
 
-  useEffect(() => {
-    terugkomen().then(async (gelukt) => {
-      if (gelukt) await laden();
-      setKlaar(true);
+  // Bliksemstart: meteen de stand van de vorige keer, en zodra het inloggen met de sleutel van dit apparaat klaar is
+  // de nieuwste. Zonder verbinding blijft de vorige stand staan en proberen we het opnieuw als je weer online bent.
+  const starten = useCallback(() => {
+    let vers = false;
+    const { vorige, vers: nieuw } = opstarten();
+    vorige.then((v) => {
+      if (v && !vers) { setStaat((s) => s ?? v); setVoorlopig(true); setKlaar(true); }
     });
-  }, [laden]);
+    nieuw.then((n) => {
+      vers = true;
+      if (n === "offline") {
+        setFout("Even geen verbinding. Je ziet de stand van de vorige keer.");
+        return vorige.then((v) => { if (!v) setFout("Even geen verbinding. Probeer het zo opnieuw."); });
+      }
+      setVoorlopig(false);
+      setStaat(n);
+      setFout("");
+      if (n) overstappen().catch(() => {});
+    }, () => { vers = true; setVoorlopig(false); setStaat(null); }).finally(() => setKlaar(true));
+  }, []);
+
+  useEffect(() => {
+    starten();
+    vooraf();
+  }, [starten]);
+
+  useEffect(() => {
+    if (!fout || !klaar || huidigeSessie()) return;
+    window.addEventListener("online", starten, { once: true });
+    return () => window.removeEventListener("online", starten);
+  }, [fout, klaar, starten]);
+
+  // Wat je nu ziet, bewaren we versleuteld voor de volgende keer openen (alleen als je hier ingelogd blijft).
+  useEffect(() => {
+    if (!staat || !huidigeSessie()) return;
+    const t = setTimeout(() => { momentopnameBewaren(staat).catch(() => {}); }, 800);
+    return () => clearTimeout(t);
+  }, [staat]);
 
   // Oproepen komen overal in de app binnen, als dit apparaat al eens in de chat was.
   const ingelogd = !!staat;
@@ -101,12 +151,13 @@ export default function App() {
   const weergave = staat?.data.instellingen;
   useEffect(() => { weergaveToepassen((weergave ?? {}) as Weergave); }, [weergave]);
 
-  if (GEDEELD) return <GedeeldScherm code={GEDEELD} />;
-  if (BOEKING) return <GastScherm code={BOEKING} />;
-  if (BOEK) return <BoekScherm adres={BOEK} />;
-  if (PRIK) return <PrikScherm code={PRIK} />;
+  if (GEDEELD) return <Suspense fallback={null}><GedeeldScherm code={GEDEELD} /></Suspense>;
+  if (BOEKING) return <Suspense fallback={null}><GastScherm code={BOEKING} /></Suspense>;
+  if (BOEK) return <Suspense fallback={null}><BoekScherm adres={BOEK} /></Suspense>;
+  if (PRIK) return <Suspense fallback={null}><PrikScherm code={PRIK} /></Suspense>;
   if (!klaar) return <div className="h-full" />;
-  if (!staat || !huidigeSessie()) return <Inloggen opIngelogd={laden} />;
+  // Tijdens de bliksemstart is er nog geen sessie, maar wel de vorige stand: die laten we alvast zien.
+  if (!staat || (!huidigeSessie() && !voorlopig)) return <Inloggen opIngelogd={herladen} />;
 
   const scherm = {
     vandaag: <Vandaag staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} ga={setTab} />,
@@ -114,17 +165,17 @@ export default function App() {
     chat: <Chat staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
       verlaat={() => setTab(voorChat)} terugNaam={TABS.find((t) => t.id === voorChat)?.naam}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
-    assistent: <Suspense fallback={null}><Assistent staat={staat} vernieuw={laden} teKopen={teKopen}
-      gekocht={() => setTeKopen(null)} vooraf={vooraf} voorafGebruikt={() => setVooraf("")}
-      naarBestellingen={() => { openVragen(); setTab("chat"); }} /></Suspense>,
-    instellingen: <Instellingen staat={staat} vernieuw={laden} terug={() => setTab(vorige)} opUitgelogd={() => setStaat(null)}
+    assistent: <Assistent staat={staat} vernieuw={herladen} teKopen={teKopen}
+      gekocht={() => setTeKopen(null)} vooraf={voorafVraag} voorafGebruikt={() => setVooraf("")}
+      naarBestellingen={() => { openVragen(); setTab("chat"); }} />,
+    instellingen: <Instellingen staat={staat} vernieuw={herladen} terug={() => setTab(vorige)} opUitgelogd={() => setStaat(null)}
       setStaat={setStaat} vraag={(t) => { setVooraf(t); setTab("assistent"); }} />,
   }[tab];
 
   return (
     <div className="mx-auto flex h-full max-w-xl flex-col">
       {fout && <p role="alert" className="bg-vlak px-6 py-3 text-sm text-rustig">{fout}</p>}
-      <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}>{scherm}</Vangnet></div>
+      <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}><Suspense fallback={null}>{scherm}</Suspense></Vangnet></div>
       <Vangnet naam="bellen" klein><BelLaag /></Vangnet>
       {/* In de chat heeft de chat zijn eigen menu, zoals een aparte app; linksboven ga je terug. */}
       {tab !== "chat" && <nav aria-label="Hoofdmenu"

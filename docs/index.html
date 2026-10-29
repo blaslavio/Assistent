@@ -47,25 +47,55 @@ const opslag = { lees: (k) => { try { return localStorage.getItem(k); } catch (_
 const vast = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 let appAdres = "";
 
+// De nieuwe app staat hier naast (./app/) en start daar het snelst: zelfde adres, alles al op dit toestel. Alleen
+// onderdelen die nog in de vorige app zitten (en wie hier nog niet ingelogd is) gaan via het adres van die app.
+const NIEUW = ["zeg", "ochtend", "deel", "betaald", "boek", "boeking", "prik"];
+const GEREEDSCHAP = ["communicatiecentrum", "gereedschappen", "werkzoeken", "werkdossier", "werkbronnen", "taakplanning",
+  "planning-backup", "sjablonen", "activiteitenoverzicht", "bestandsgereedschap", "gegevenscontrole"];
+const venster = document.getElementById("app");
+const ingelogd = () => !!opslag.lees("assistent.apparaat");
+
+function nieuweApp(zoek) {
+  const doel = new URL("app/", location.href);
+  for (const [k, v] of zoek) if (NIEUW.includes(k)) doel.searchParams.set(k, v);
+  venster.src = doel.href;
+}
+
+function vorigeApp(doel) {
+  doel.searchParams.set("embed", "true");
+  doel.searchParams.set("schil", "1");
+  venster.src = doel.href;
+}
+
+// Een link (uit een melding) naar de vorige app: hoort hij eigenlijk bij de nieuwe, dan openen we die.
+function openen(link) {
+  const doel = new URL(link);
+  const rest = [...doel.searchParams.keys()].filter((k) => !["nieuw", "embed", "schil"].includes(k));
+  if (ingelogd() && rest.every((k) => NIEUW.includes(k))) nieuweApp(doel.searchParams);
+  else vorigeApp(doel);
+}
+
 async function laden() {
+  const zoek = new URLSearchParams(location.search);
+  const open = zoek.get("open");
+  const gereedschap = zoek.get("gereedschap");
   appAdres = opslag.lees("app_adres") || "";
+  const vorige = !ingelogd() || zoek.has("oud") || GEREEDSCHAP.includes(gereedschap) || !!open;
+  // Snelste weg: meteen de app, het adres van de vorige app halen we op de achtergrond.
+  if (!vorige) nieuweApp(zoek);
   try {
     const nieuw = await rpc("app_adres");
     if (nieuw) { appAdres = nieuw; opslag.bewaar("app_adres", nieuw); }
   } catch (_) {}
-  if (!appAdres) { document.getElementById("leeg").style.display = "block"; return; }
-  const open = new URLSearchParams(location.search).get("open");
-  let doel = new URL(appAdres + "/");
-  if (open && open.startsWith(appAdres + "/")) doel = new URL(open);
-  const gereedschap = new URLSearchParams(location.search).get("gereedschap");
-  if (["communicatiecentrum", "gereedschappen", "werkzoeken", "werkdossier", "werkbronnen", "taakplanning",
-       "planning-backup", "sjablonen", "activiteitenoverzicht", "bestandsgereedschap", "gegevenscontrole"].includes(gereedschap)) {
+  if (!vorige) return;
+  if (!appAdres) { nieuweApp(zoek); return; }
+  if (open && open.startsWith(appAdres + "/")) return openen(open);
+  const doel = new URL(appAdres + "/");
+  if (GEREEDSCHAP.includes(gereedschap)) {
     doel.searchParams.set("oud", "1");
     doel.searchParams.set("gereedschap", gereedschap);
-  }
-  doel.searchParams.set("embed", "true");
-  doel.searchParams.set("schil", "1");
-  document.getElementById("app").src = doel.href;
+  } else if (zoek.has("oud")) doel.searchParams.set("oud", "1");
+  vorigeApp(doel);
 }
 
 function balk(tekst, knop, actie) {
@@ -117,7 +147,16 @@ async function aanzetten(code, bron) {
 }
 
 window.addEventListener("message", (e) => {
-  if (!appAdres || e.origin !== appAdres || !e.data || e.data.soort !== "push-koppelen") return;
+  if (!appAdres || e.origin !== appAdres || !e.data) return;
+  // Overstappen: de app in de vorige app geeft een eenmalige code (2 minuten geldig) waarmee de app hier dit toestel
+  // onthoudt. Zo hoef je niet opnieuw in te loggen. Je wachtwoord en sessie komen hier niet langs.
+  if (e.data.soort === "overstap" && /^overstap\.[0-9a-f]{48}$/.test(e.data.code || "") && !ingelogd()) {
+    const doel = new URL("app/", location.href);
+    doel.searchParams.set("overstap", e.data.code);
+    venster.src = doel.href;
+    return;
+  }
+  if (e.data.soort !== "push-koppelen") return;
   const bron = e.source;
   if (!vast && /iPhone|iPad|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 0) {
     balk("Zet de app eerst op je beginscherm: tik op Deel en dan Zet op beginscherm.", "", null);
@@ -128,12 +167,7 @@ window.addEventListener("message", (e) => {
 });
 
 navigator.serviceWorker?.addEventListener("message", (e) => {
-  if (e.data?.soort === "open" && appAdres && String(e.data.link).startsWith(appAdres + "/")) {
-    const doel = new URL(e.data.link);
-    doel.searchParams.set("embed", "true");
-    doel.searchParams.set("schil", "1");
-    document.getElementById("app").src = doel.href;
-  }
+  if (e.data?.soort === "open" && appAdres && String(e.data.link).startsWith(appAdres + "/")) openen(e.data.link);
 });
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
