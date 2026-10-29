@@ -135,3 +135,4 @@ export const Ster = (p: P) => <svg {...basis} {...p}><path d="M12 3l2.7 5.6 6.1.
 export const Stemmen = (p: P) => (
   <svg {...basis} {...p}><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 3v4M16 3v4M9 14l2 2 4-4" /></svg>
 );
+export const Grafiek = (p: P) => <svg {...basis} {...p}><path d="M3 3v18h18" /><path d="M7 15l4-4 3 3 6-6" /></svg>;
