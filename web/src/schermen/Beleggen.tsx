@@ -120,7 +120,7 @@ export function Beleggen({ staat, vernieuw, vraag }: { staat: Staat; vernieuw: (
             {p && <p className="text-sm text-rustig">Ingelegd {euro(p.inleg)}</p>}
             {p && p.vandaag !== 0 && <p className="text-sm text-rustig">Sinds de vorige slotkoers {p.vandaag >= 0 ? "+" : "−"}{euro(Math.abs(p.vandaag))}</p>}
           </div>
-          <ul className="flex flex-col overflow-hidden rounded-[20px] bg-vlak">
+          <ul className="flex flex-col overflow-hidden rounded-3xl bg-vlak">
             {(p?.posities ?? inst.posities.map((x) => ({ ...x, koers: null, verloop: [] }) as unknown as Regel)).map((r) => (
               <li key={r.id} className="[&+li]:border-t [&+li]:border-lijn">
                 <button onClick={() => setBlad(r)} className="flex w-full items-center gap-3 px-4 py-3 text-left">

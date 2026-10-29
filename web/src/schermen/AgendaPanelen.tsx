@@ -288,7 +288,7 @@ export function MailPaneel({ staat, setStaat }: Props) {
   const ongelezen = (lijst ?? []).filter((m) => !m.gelezen).length;
   return (
     <div className="opkomen flex flex-col px-6 pb-10">
-      <div className="mb-4 rounded-[22px] bg-vlak p-4">
+      <div className="mb-4 rounded-3xl bg-vlak p-4">
         <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig">
           <Vonk className="size-4 text-accent" /> Samenvatting
           <span className="ml-auto font-normal normal-case tracking-normal">{ongelezen ? `${ongelezen} ongelezen` : ""}</span>
@@ -394,7 +394,7 @@ function UitJeMail({ lijst, staat, setStaat }: { lijst: Mail[]; staat: Staat; se
 
   const icoon = { taak: Vinkje, afspraak: Kalender, betalen: Euro };
   return (
-    <div className="mb-4 flex flex-col gap-3 rounded-[22px] border border-lijn p-4">
+    <div className="mb-4 flex flex-col gap-3 rounded-3xl border border-lijn p-4">
       {voorstel === undefined ? (
         <button onClick={kijken} disabled={bezig} className="flex items-center gap-3 text-left disabled:opacity-60">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent"><Vonk className="size-[18px]" /></span>

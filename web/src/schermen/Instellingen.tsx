@@ -151,7 +151,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
       </button>
       <h1 className="mt-4 mb-6 text-[32px] font-bold tracking-tight">Instellingen</h1>
 
-      <button onClick={() => setPagina("profiel")} className="flex w-full items-center gap-4 rounded-[20px] bg-vlak p-4 text-left">
+      <button onClick={() => setPagina("profiel")} className="flex w-full items-center gap-4 rounded-3xl bg-vlak p-4 text-left">
         <span className="flex size-14 items-center justify-center overflow-hidden rounded-full bg-white text-xl font-semibold dark:bg-black/40">
           {eigenFoto ? <img src={eigenFoto} alt="" className="size-full object-cover" /> : naam[0].toUpperCase()}
         </span>
@@ -219,7 +219,7 @@ function Groep({ titel, children }: { titel: string; children: ReactNode }) {
   return (
     <section className="mt-7">
       <h2 className={kop}>{titel}</h2>
-      <ul className="flex flex-col overflow-hidden rounded-[20px] bg-vlak">{children}</ul>
+      <ul className="flex flex-col overflow-hidden rounded-3xl bg-vlak">{children}</ul>
     </section>
   );
 }

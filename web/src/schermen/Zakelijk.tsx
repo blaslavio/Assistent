@@ -40,7 +40,7 @@ function Pillen<T extends string>({ opties, gekozen, kies }: { opties: readonly 
 }
 
 function Lijst({ children }: { children: ReactNode }) {
-  return <ul className="flex flex-col overflow-hidden rounded-[20px] bg-vlak">{children}</ul>;
+  return <ul className="flex flex-col overflow-hidden rounded-3xl bg-vlak">{children}</ul>;
 }
 const rij = "flex items-center gap-3 px-4 py-3 [&+li]:border-t [&+li]:border-lijn";
 
@@ -173,7 +173,7 @@ function LesKaart({ les, z, klaar, fout, open = false }: { les: Les; z: Zaak; kl
     try { await actie(); klaar(tekst); } catch (e) { fout(foutVan(e)); }
   }
   return (
-    <details open={open} className="group rounded-[20px] bg-vlak">
+    <details open={open} className="group rounded-3xl bg-vlak">
       <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate font-medium">{les.naam}</span>

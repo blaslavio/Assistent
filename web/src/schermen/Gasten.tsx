@@ -223,7 +223,7 @@ function Berichtenlijst({ berichten, ik, ander }: { berichten: GastBericht[]; ik
         const mijn = m.van === ik;
         return (
           <li key={m.id} className={`flex max-w-[85%] flex-col gap-0.5 ${mijn ? "self-end items-end" : "self-start"}`}>
-            <p className={`whitespace-pre-wrap break-words rounded-[20px] px-4 py-2.5 text-[15px] ${mijn ? "bg-accent text-white" : "bg-vlak"}`}>{m.tekst}</p>
+            <p className={`whitespace-pre-wrap break-words rounded-3xl px-4 py-2.5 text-[15px] ${mijn ? "bg-accent text-white" : "bg-vlak"}`}>{m.tekst}</p>
             <span className="px-2 text-[12px] text-zacht">{mijn ? "" : `${ander} · `}{tijdje(m.aangemaakt)}</span>
           </li>
         );

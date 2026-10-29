@@ -69,7 +69,7 @@ export function Feed({ mijn, begin, open, vernieuw, maken }: { mijn: Community[]
       )}
 
       {mijn.length === 0 && maken && (
-        <section className="mx-6 flex flex-col gap-3 rounded-[20px] bg-vlak p-5">
+        <section className="mx-6 flex flex-col gap-3 rounded-3xl bg-vlak p-5">
           <h3 className="text-lg font-semibold">Begin je eigen plek</h3>
           <p className="text-[15px] text-rustig">Een community is een groep met eigen kanalen en een feed. Versleuteld, zonder reclame, en jij bepaalt wie erin mag.</p>
           <div className="flex flex-wrap gap-2 text-sm">

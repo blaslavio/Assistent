@@ -135,7 +135,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
         {toon("afspraken") && straks && (
           <section>
             <h2 className={kop}>Straks</h2>
-            <div className="flex flex-col gap-1.5 rounded-[20px] bg-accent p-5 text-white">
+            <div className="flex flex-col gap-1.5 rounded-3xl bg-accent p-5 text-white">
               <p className="text-[13px] opacity-85">{hoeLang(moment(straks.start), eind(straks), nu) || uur(straks.start)}</p>
               <p className="text-xl font-semibold">{straks.titel}</p>
               <p className="text-sm opacity-85">
@@ -243,7 +243,7 @@ function AanDeSlag({ staat, setStaat, naarInstellingen, ga }: Omit<Props, "ga"> 
     try { setStaat({ ...staat, data: await instellingenBijwerken((i) => { i.aan_de_slag = "weg"; }) as typeof data }); } catch { /* later opnieuw */ }
   }
   return (
-    <section className="rounded-[20px] bg-vlak p-4">
+    <section className="rounded-3xl bg-vlak p-4">
       <div className="mb-3 flex items-center gap-3">
         <div className="flex flex-1 flex-col">
           <h2 className="font-semibold">Maak de app van jou</h2>
