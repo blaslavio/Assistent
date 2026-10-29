@@ -132,3 +132,6 @@ export const Raster = (p: P) => (
 );
 export const Klok = (p: P) => <svg {...basis} {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
 export const Ster = (p: P) => <svg {...basis} {...p}><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" /></svg>;
+export const Stemmen = (p: P) => (
+  <svg {...basis} {...p}><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 3v4M16 3v4M9 14l2 2 4-4" /></svg>
+);

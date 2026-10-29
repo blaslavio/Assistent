@@ -17,6 +17,8 @@ import { deelCode } from "./lib/delen";
 import { GedeeldScherm } from "./schermen/Delen";
 import { BoekScherm, GastScherm } from "./schermen/Gasten";
 import { boekAdres, boekingCode, verwerken } from "./lib/gasten";
+import { PrikScherm } from "./schermen/Prikken";
+import { prikCode } from "./lib/prikken";
 import { Vangnet } from "./vangnet";
 
 // Een gedeelde link (?deel=...) opent een pagina die je zonder inloggen kunt zien.
@@ -24,6 +26,8 @@ const GEDEELD = deelCode();
 // Afspraak maken zonder account (?boek=linknaam) en de eigen pagina van de gast (?boeking=code).
 const BOEK = boekAdres();
 const BOEKING = boekingCode();
+// Stemmen op een datum via een gedeelde link (?prik=code), ook zonder account.
+const PRIK = prikCode();
 
 // Terug van betalen bij Stripe (?betaald=...): meteen naar je bestellingen.
 const BETAALD = adresWaarde("betaald");
@@ -98,6 +102,7 @@ export default function App() {
   if (GEDEELD) return <GedeeldScherm code={GEDEELD} />;
   if (BOEKING) return <GastScherm code={BOEKING} />;
   if (BOEK) return <BoekScherm adres={BOEK} />;
+  if (PRIK) return <PrikScherm code={PRIK} />;
   if (!klaar) return <div className="h-full" />;
   if (!staat || !huidigeSessie()) return <Inloggen opIngelogd={laden} />;
 

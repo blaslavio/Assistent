@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { bijwerken, type Afspraak, type Taak } from "../api";
 import type { Staat } from "../App";
-import { Bel, Envelop, Kruis, Lijstje, Plus, Prullenbak, Terug } from "../iconen";
+import { Bel, Envelop, Kruis, Lijstje, Plus, Prullenbak, Stemmen, Terug } from "../iconen";
 import { HerinneringenPaneel, MailPaneel, TakenPaneel } from "./AgendaPanelen";
+import { PrikkenPaneel, stemrondes, teStemmen } from "./Prikken";
 import { mailsBewaard } from "../lib/mail";
 import { instellingen as feestInstellingen, kalender, type Dag } from "../lib/feestdagen";
 import { DAGEN_KORT, MAANDEN, dagTitel, datumTekst, heleDag, moment, plusDagen, uur, weekBegin } from "../lib/tijd";
@@ -17,9 +18,9 @@ const kleur = (a: Afspraak) => KLEUREN[a.soort ?? ""] ?? KLEUREN.afspraak;
 const SOORTEN = ["afspraak", "werk", "sport", "etentje", "uitgaan", "familie en vrienden", "gezondheid", "reizen"];
 
 type Weergave = "dag" | "week" | "maand";
-type Paneel = "mail" | "taken" | "herinneringen";
+type Paneel = "mail" | "taken" | "herinneringen" | "prikken";
 const PANELEN: [Paneel, string, typeof Bel][] = [["mail", "Mail", Envelop], ["taken", "Taken", Lijstje],
-  ["herinneringen", "Herinneringen", Bel]];
+  ["herinneringen", "Herinneringen", Bel], ["prikken", "Datum prikken", Stemmen]];
 const WEERGAVEN: [Weergave, string][] = [["dag", "Dag"], ["week", "Week"], ["maand", "Maand"]];
 const BEGIN_UUR = 0;
 const HOOGTE = 56; // pixels per uur in de dagweergave
@@ -44,7 +45,14 @@ export default function Agenda({ staat, setStaat }: Props) {
   const [nieuw, setNieuw] = useState(false);
   const [open, setOpen] = useState<Afspraak | null>(null);
   const [paneel, setPaneel] = useState<Paneel | null>(null);
+  const [telStemmen, setTelStemmen] = useState(0);
   const datum = new Date(`${gekozen}T12:00`);
+
+  // Stemrondes waarin je bent uitgenodigd en nog niet hebt gestemd: een bolletje op de knop.
+  useEffect(() => {
+    if (paneel) return;
+    stemrondes().then((l) => setTelStemmen(teStemmen(l))).catch(() => {});
+  }, [paneel]);
 
   function setWeergave(w: Weergave) {
     setWeergaveRuw(w);
@@ -113,7 +121,7 @@ export default function Agenda({ staat, setStaat }: Props) {
           )}
           <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Meer in je agenda">
             {PANELEN.map(([p, naam, Icoon]) => {
-              const telt = p === "taken" ? telTaken : p === "herinneringen" ? telHerinneringen : telMail;
+              const telt = p === "taken" ? telTaken : p === "herinneringen" ? telHerinneringen : p === "prikken" ? telStemmen : telMail;
               return (
                 <button key={p} onClick={() => setPaneel(paneel === p ? null : p)} aria-pressed={paneel === p} aria-label={naam}
                   className={`relative flex size-10 items-center justify-center rounded-full transition-colors ${paneel === p
@@ -152,6 +160,7 @@ export default function Agenda({ staat, setStaat }: Props) {
       {paneel === "mail" && <MailPaneel staat={staat} setStaat={setStaat} />}
       {paneel === "taken" && <TakenPaneel staat={staat} setStaat={setStaat} />}
       {paneel === "herinneringen" && <HerinneringenPaneel staat={staat} setStaat={setStaat} />}
+      {paneel === "prikken" && <PrikkenPaneel staat={staat} setStaat={setStaat} />}
       {!paneel && <div key={weergave} className="opkomen flex flex-1 flex-col">
       {weergave === "dag" && (
         <DagWeergave gekozen={gekozen} vandaag={vandaag} setGekozen={setGekozen} afspraken={afspraken} taken={taken} bijzonder={bijzonder}
