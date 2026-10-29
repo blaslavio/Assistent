@@ -3,6 +3,7 @@ import { GeenToegang, adresOpruimen, adresWaarde, gegevensLaden, huidigeSessie, 
   type Staat } from "./api";
 import { openVragen } from "./lib/bestellingen";
 import { winkelVragen } from "./lib/mijnwinkel";
+import { terugVanBank } from "./lib/bank";
 import { Ballon, Kalender, Tandwiel, Vonk, Zon } from "./iconen";
 import Inloggen from "./schermen/Inloggen";
 import Vandaag from "./schermen/Vandaag";
@@ -33,7 +34,9 @@ const BETAALD = adresWaarde("betaald");
 const ZEG = (adresWaarde("zeg") ?? "").trim().slice(0, 500);
 // Een gedeelde winkellink (?winkel=adres): die winkel opent in Chat › Winkel.
 const WINKEL = winkelVragen(adresWaarde("winkel") ?? "");
-adresOpruimen("betaald", "zeg", "ochtend", "winkel");
+// Terug van inloggen bij je bank (?code=...&state=...): de koppeling afmaken in Budget.
+const BANK = terugVanBank(adresWaarde("code"), adresWaarde("state"));
+adresOpruimen("betaald", "zeg", "ochtend", "winkel", "code", "state");
 if (BETAALD !== null) openVragen(BETAALD === "0" ? "Betalen is afgebroken. Je kunt het opnieuw proberen."
   : "Gelukt. Je betaling is binnen en het geld staat vast tot je bevestigt dat alles goed is.");
 // Alleen Vandaag zit in het eerste stuk van de app. De andere schermen komen los, en worden opgehaald zodra de app
@@ -74,7 +77,7 @@ export type { Staat };
 export default function App() {
   const [klaar, setKlaar] = useState(false);
   const [staat, setStaat] = useState<Staat | null>(null);
-  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL ? "chat" : ZEG ? "assistent" : "vandaag");
+  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL ? "chat" : ZEG ? "assistent" : BANK ? "instellingen" : "vandaag");
   const [voorafVraag, setVooraf] = useState(ZEG);
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [teKopen, setTeKopen] = useState<Product | null>(null);
@@ -84,7 +87,8 @@ export default function App() {
 
   const [voorChat, setVoorChat] = useState<Tab>("vandaag");
   // Een onderdeel dat je via "Je apps" opent; het getal laat Instellingen weten dat het opnieuw gevraagd is.
-  const [startOnderdeel, setStartOnderdeel] = useState<{ naam: OnderdeelNaam; n: number } | null>(null);
+  const [startOnderdeel, setStartOnderdeel] = useState<{ naam: OnderdeelNaam; n: number } | null>(
+    BANK ? { naam: "budget", n: 1 } : null);
   const setTab = (t: Tab) => {
     if (t === "instellingen") setVorige(tab === "instellingen" ? vorige : tab);
     else setStartOnderdeel(null);
