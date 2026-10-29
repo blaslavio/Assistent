@@ -6518,7 +6518,7 @@ def assistent_invoer() -> None:
 
 
 # Adreswaarden die de nieuwe app zelf afhandelt.
-NIEUWE_APP_ADRES = {"nieuw", "zeg", "ochtend", "deel", "betaald", "boek", "boeking"}
+NIEUWE_APP_ADRES = {"nieuw", "zeg", "ochtend", "deel", "betaald", "boek", "boeking", "prik"}
 
 
 def main() -> None:
