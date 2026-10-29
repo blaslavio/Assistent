@@ -1,5 +1,6 @@
 // Winkelen via de assistent: zoeken in de webshops in de app en op de marktplaats, en een bestelling klaarzetten.
 // De assistent bestelt nooit zelf. Hij zet een kaart klaar; pas als jij daar op Bestellen tikt, gaat de bestelling weg.
+import { opmaakVan, type Opmaak } from "./winkelopmaak";
 import { alsIk, rpc } from "../api";
 
 export type Product = {
@@ -79,18 +80,33 @@ export function productFoto(id: number) {
 }
 
 export type Winkel = { adres: string; naam: string; omschrijving: string; actie: string; verzendkosten: number | null;
-  gratis_vanaf: number | null; retour: string; winkeladres?: string; producten: Product[]; uitverkocht: Set<string> };
+  gratis_vanaf: number | null; retour: string; winkeladres?: string; producten: Product[]; uitverkocht: Set<string>;
+  kleur: string; opmaak: Opmaak; heeftBanner: boolean; banner?: string | null };
 
-export async function winkelBekijken(adres: string): Promise<Winkel> {
-  const w = await rpc<{ fout?: string; adres: string; naam: string; omschrijving?: string; actie?: string;
-    verzendkosten?: number | null; gratis_vanaf?: number | null; retour?: string; winkeladres?: string;
-    producten?: (WinkelRij & { uitverkocht: boolean })[] }>("winkel_bekijken", { p_adres: adres });
-  if (!w || w.fout) throw new Error(w?.fout || "Deze winkel kan ik nu niet openen.");
+type RuweWinkel = { fout?: string; geen_toegang?: boolean; adres: string; naam: string; omschrijving?: string; actie?: string;
+  verzendkosten?: number | null; gratis_vanaf?: number | null; retour?: string; winkeladres?: string; kleur?: string;
+  opmaak?: unknown; heeft_banner?: boolean; banner?: string | null; producten?: (WinkelRij & { uitverkocht: boolean })[] };
+
+function winkelUit(w: RuweWinkel): Winkel {
   const producten = (w.producten ?? []).map((p) => uitWinkel(p, w.naam, w.adres));
   return { adres: w.adres, naam: w.naam, omschrijving: w.omschrijving ?? "", actie: w.actie ?? "",
     verzendkosten: w.verzendkosten ?? null, gratis_vanaf: w.gratis_vanaf ?? null, retour: w.retour ?? "",
     winkeladres: w.winkeladres || undefined, producten,
-    uitverkocht: new Set((w.producten ?? []).filter((p) => p.uitverkocht).map((p) => `w${p.id}`)) };
+    uitverkocht: new Set((w.producten ?? []).filter((p) => p.uitverkocht).map((p) => `w${p.id}`)),
+    kleur: w.kleur || "#4f46e5", opmaak: opmaakVan(w.opmaak), heeftBanner: !!w.heeft_banner, banner: w.banner };
+}
+
+export async function winkelBekijken(adres: string): Promise<Winkel> {
+  const w = await rpc<RuweWinkel>("winkel_bekijken", { p_adres: adres });
+  if (!w || w.fout) throw new Error(w?.fout || "Deze winkel kan ik nu niet openen.");
+  return winkelUit(w);
+}
+
+/** Je eigen winkel zoals kopers hem zien, ook als hij nog dicht is. */
+export async function winkelVoorbeeld(): Promise<Winkel> {
+  const w = await alsIk<RuweWinkel>("winkel_voorbeeld");
+  if (!w || w.fout) throw new Error(w?.fout || "Het voorbeeld lukt nu niet.");
+  return winkelUit(w);
 }
 
 export type Verkoper = { naam: string; winkel?: { adres: string; naam: string }; sterren: number | null;

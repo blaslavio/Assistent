@@ -2,6 +2,7 @@
 // Alles blijft in de app; bestellen loopt via de assistent, die een kaart klaarzet waarop jij zelf tikt.
 import { useEffect, useState } from "react";
 import { Beeld, Kruis, Tas, Terug } from "../iconen";
+import { WinkelPagina } from "./WinkelPagina";
 import { LEVERING, euro, productFoto, verkoperBekijken, winkelBekijken, type Product, type Verkoper,
   type Winkel } from "../lib/winkelen";
 
@@ -149,22 +150,7 @@ const Laden = ({ fout }: { fout?: string }) => fout
 function WinkelBlad({ adres, open }: { adres: string; open: (b: Blad) => void }) {
   const { data: w, fout } = useLaden<Winkel>(() => winkelBekijken(adres), adres);
   if (!w) return <Laden fout={fout} />;
-  const verzending = w.verzendkosten === null ? "" : w.verzendkosten === 0 ? "Gratis verzending"
-    : `Verzenden ${euro(w.verzendkosten)}${w.gratis_vanaf ? `, gratis vanaf ${euro(w.gratis_vanaf)}` : ""}`;
-  return (
-    <>
-      <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold">{w.naam}</h2>
-        {w.omschrijving && <p className="text-[15px] text-rustig">{w.omschrijving}</p>}
-        {(verzending || w.winkeladres) && (
-          <span className="text-sm text-rustig">{[verzending, w.winkeladres].filter(Boolean).join(" · ")}</span>
-        )}
-      </div>
-      {w.actie && <p className="rounded-2xl bg-accent/10 px-4 py-2.5 text-[15px] font-medium text-accent">{w.actie}</p>}
-      <Raster producten={w.producten} uitverkocht={w.uitverkocht}
-        open={(p) => open({ soort: "product", p, uitverkocht: w.uitverkocht.has(p.sleutel) })} />
-    </>
-  );
+  return <WinkelPagina w={w} open={(p) => open({ soort: "product", p, uitverkocht: w.uitverkocht.has(p.sleutel) })} />;
 }
 
 function VerkoperBlad({ id, open }: { id: number; open: (b: Blad) => void }) {
