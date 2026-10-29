@@ -9,6 +9,8 @@ import { MascotteMetTip, afgevinktTekst, mascotteZeg } from "../mascotte";
 import { opVandaag, type Weergave } from "./Algemeen";
 import { Vraagbalk } from "./Vraagbalk";
 import { afhandelen, voorstel } from "../lib/voorstellen";
+import { voorJou, type Melding } from "../lib/voorjou";
+import { naar } from "../lib/naar";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
 import { weerNu, type Weer } from "../lib/weer";
 import { eerstvolgende, instellingen as feestInstellingen } from "../lib/feestdagen";
@@ -33,6 +35,17 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga, vraag }
     else setWeer(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.instellingen?.thuisadres, data.instellingen?.voorpagina]);
+
+  // Wat er elders in de app op je wacht; elke vijf minuten opnieuw, zodat het klopt zonder te verversen.
+  const [meldingen, setMeldingen] = useState<Melding[]>([]);
+  const perVijf = Math.floor(nu.getTime() / 300_000);
+  useEffect(() => {
+    if (!toon("voorjou")) { setMeldingen([]); return; }
+    let weg = false;
+    voorJou().then((m) => !weg && setMeldingen(m)).catch(() => {});
+    return () => { weg = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perVijf, data.instellingen?.voorpagina]);
 
   const vandaag = datumTekst(nu);
   const afspraken = useMemo(
@@ -171,6 +184,22 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga, vraag }
                   <span className="w-20 shrink-0 text-sm text-rustig">{new Date(a.start.slice(0, 10) + "T12:00")
                     .toLocaleDateString("nl-NL", { weekday: "short", day: "numeric" })}{heleDag(a.start) ? "" : ` ${uur(a.start)}`}</span>
                   <span className="min-w-0 truncate">{a.titel}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {meldingen.length > 0 && (
+          <section>
+            <h2 className={kop}>Voor jou</h2>
+            <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
+              {meldingen.map((m) => (
+                <li key={m.sleutel}>
+                  <button onClick={() => { m.eerst?.(); naar(m.naar); }} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+                    <span className="min-w-0 flex-1">{m.tekst}</span>
+                    <Terug className="size-4 shrink-0 rotate-180 text-zacht" />
+                  </button>
                 </li>
               ))}
             </ul>

@@ -34,7 +34,10 @@ function voorstellen(nu = new Date()): string[] {
     : uur < 17 ? ["Wat moet ik vandaag nog doen?", "Zoek een lunchplek in de buurt"]
     : ["Wat staat er morgen?", "Zet morgen een uur vrij voor mijn taken"];
   if (dag >= 4) lijst.push("Wat is er dit weekend te doen?");
-  return [...lijst, "Hoeveel heb ik deze maand uitgegeven?", "Zoek een tweedehands fiets onder de 150 euro"];
+  // De hulpmiddelen uit de vorige app (vergelijken, overhoren, stappenplan) doet de assistent nu zelf.
+  return [...lijst, "Hoeveel heb ik deze maand uitgegeven?", "Zoek een tweedehands fiets onder de 150 euro",
+    "Vergelijk twee stofzuigers onder de 300 euro voor me", "Overhoor me met vijf vragen over mijn leerdoel",
+    "Maak een stappenplan om een plank op te hangen"];
 }
 
 type Herkenning = {
