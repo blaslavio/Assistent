@@ -202,10 +202,10 @@ export type Community = { id: number; naam: string; omschrijving: string; rol: "
   eindigt?: string | null; na_afloop?: "herinnering" | "opheffen"; herinnering?: boolean; herinnering_sinds?: string | null;
   bewaard?: boolean; aangemaakt?: string };
 
-export async function overzicht() {
+export async function overzicht(ontvangstBijwerken = true) {
   const r = await rpc<{ gesprekken: Gesprek[]; communities?: Community[] }>("chat_gesprekken");
   const hoogste = Math.max(0, ...r.gesprekken.map((g) => g.laatste_id ?? 0));
-  if (hoogste) rpc("chat_ontvangen").catch(() => {});
+  if (hoogste && ontvangstBijwerken) rpc("chat_ontvangen").catch(() => {});
   return { gesprekken: r.gesprekken, communities: r.communities ?? [] };
 }
 

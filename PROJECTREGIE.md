@@ -1,6 +1,6 @@
 # Projectmotor: waarom → hoe → wanneer → als
 
-In **Chat → gesprek → Projectwerkruimte → Projectregie** staan de vier lagen bij elkaar. Gebruik **Voorstel** of de knop bij een chatbericht om eerst een doel, besluit, vraag of actie te bevestigen. Voorstellen zijn pas gedeeld na bevestiging; een AI-antwoord wordt nooit vanzelf een projectfeit.
+De rustige bediening staat in [BEDIENING.md](BEDIENING.md). Open **Projecten → werkruimte** of **Chat → gesprek → ＋ Meer in dit gesprek → Projectwerkruimte**. Onder **Samen aan het werk** staan de vier lagen bij elkaar. Gebruik **Toevoegen** of de knop bij een chatbericht om eerst een doel, besluit, vraag of actie te bevestigen. Voorstellen zijn pas gedeeld na bevestiging; een AI-antwoord wordt nooit vanzelf een projectfeit.
 
 ## Een complete werkroute
 
@@ -55,7 +55,7 @@ Dit is geen permanente externe back-up: verwijderen van het gesprek, account of 
 
 ## Verificatie en uitrol
 
-De lokale verificatie omvat 158 Vitest-tests, beide TypeScript/Vite-builds 1.260 Python-tests zonder overgeslagen tests (waaronder 11 PostgreSQL-tests van het echte archiefschema en 25 veilige-opslagtests), plus 358 upstream-pytest-tests en 21 subtests. De productieafhankelijkhedenaudit meldt op dit uitvoermoment geen bekende kwetsbaarheden. De webtests gebruiken nagebootste transport-, AI- en betaalantwoorden; er zijn geen echte betalingen, boekingen, berichten of videogesprekken uitgevoerd. De bestaande productiereleasepoort voor verse E2E-bewijzen blijft ongewijzigd. Deze uitbreiding is nog niet live. Zie `UITROL.md`.
+De lokale verificatie omvat 170 Vitest-tests, beide TypeScript/Vite-builds 1.260 Python-tests zonder overgeslagen tests (waaronder 11 PostgreSQL-tests van het echte archiefschema en 25 veilige-opslagtests), plus 358 upstream-pytest-tests en 21 subtests. De productieafhankelijkhedenaudit meldt op dit uitvoermoment geen bekende kwetsbaarheden. De webtests gebruiken nagebootste transport-, AI- en betaalantwoorden; er zijn geen echte betalingen, boekingen, berichten of videogesprekken uitgevoerd. De bestaande productiereleasepoort voor verse E2E-bewijzen blijft ongewijzigd. Deze uitbreiding is nog niet live. Zie `UITROL.md`.
 
 ## Extra privacy en eenvoudige bediening
 

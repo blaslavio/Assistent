@@ -1,3 +1,4 @@
+import HoofdNavigatie from "./schermen/HoofdNavigatie";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { GeenToegang, adresOpruimen, adresWaarde, gegevensLaden, huidigeSessie, momentopnameBewaren, opstarten, overstappen,
   type Staat } from "./api";
@@ -37,6 +38,7 @@ const laden = {
   chat: () => import("./schermen/Chat"),
   instellingen: () => import("./schermen/Instellingen"),
 };
+const Projecten = lazy(() => import("./schermen/Projecten"));
 const Agenda = lazy(laden.agenda);
 const Chat = lazy(laden.chat);
 const Instellingen = lazy(laden.instellingen);
@@ -53,10 +55,11 @@ function vooraf() {
   else setTimeout(doe, 1200);
 }
 
-export type Tab = "vandaag" | "agenda" | "chat" | "assistent" | "instellingen";
+export type Tab = "projecten" | "vandaag" | "agenda" | "chat" | "assistent" | "instellingen";
 
 const TABS: { id: Tab; naam: string; Icoon: typeof Zon }[] = [
   { id: "vandaag", naam: "Vandaag", Icoon: Zon },
+  { id: "projecten", naam: "Projecten", Icoon: Kalender },
   { id: "agenda", naam: "Agenda", Icoon: Kalender },
   { id: "chat", naam: "Chat", Icoon: Ballon },
   { id: "assistent", naam: "Assistent", Icoon: Vonk },
@@ -166,13 +169,16 @@ export default function App() {
       naarAssistent={() => setTab("assistent")} vernieuw={herladen} ga={setTab} naarProject={gesprek => {
         setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat");
       }} />,
+    projecten: <Projecten key={staat.gebruiker.id} staat={staat} naarChat={() => { setWerkGesprek(null); setTab("chat"); }} open={gesprek => {
+      setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat");
+    }} />,
     agenda: <Agenda staat={staat} setStaat={setStaat} />,
     chat: <Chat key={staat.gebruiker.id} werkGesprek={werkGesprek} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
       verlaat={() => setTab(voorChat)} terugNaam={TABS.find((t) => t.id === voorChat)?.naam}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
     assistent: <Assistent staat={staat} vernieuw={herladen} teKopen={teKopen}
       gekocht={() => setTeKopen(null)} vooraf={voorafVraag} voorafGebruikt={() => setVooraf("")}
-      naarBestellingen={() => { openVragen(); setTab("chat"); }} />,
+      naarBestellingen={() => { setWerkGesprek(null); openVragen(); setTab("chat"); }} />,
     instellingen: <Instellingen staat={staat} vernieuw={herladen} terug={() => setTab(vorige)} opUitgelogd={() => setStaat(null)}
       setStaat={setStaat} vraag={(t) => { setVooraf(t); setTab("assistent"); }} />,
   }[tab];
@@ -183,19 +189,7 @@ export default function App() {
       <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}><Suspense fallback={null}>{scherm}</Suspense></Vangnet></div>
       <Vangnet naam="bellen" klein><BelLaag naarProject={(gesprek) => { setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat"); }} /></Vangnet>
       {/* In de chat heeft de chat zijn eigen menu, zoals een aparte app; linksboven ga je terug. */}
-      {tab !== "chat" && <nav aria-label="Hoofdmenu"
-        className="flex shrink-0 justify-around border-t border-lijn pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)]">
-        {TABS.map(({ id, naam, Icoon }) => {
-          const actief = tab === id;
-          return (
-            <button key={id} onClick={() => setTab(id)} aria-current={actief ? "page" : undefined}
-              className={`flex min-w-14 flex-col items-center gap-1 text-[11px] ${actief ? "font-semibold text-inkt" : "text-zacht"}`}>
-              <Icoon />
-              {naam}
-            </button>
-          );
-        })}
-      </nav>}
+      {tab !== "chat" && <HoofdNavigatie actief={tab} kies={t => { if(t === "chat") setWerkGesprek(null); setTab(t); }} />}
     </div>
   );
 }

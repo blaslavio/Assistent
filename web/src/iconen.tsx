@@ -136,3 +136,7 @@ export const Stemmen = (p: P) => (
   <svg {...basis} {...p}><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 3v4M16 3v4M9 14l2 2 4-4" /></svg>
 );
 export const Grafiek = (p: P) => <svg {...basis} {...p}><path d="M3 3v18h18" /><path d="M7 15l4-4 3 3 6-6" /></svg>;
+
+export const Projectmap = (p: P) => (
+  <svg {...basis} {...p}><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" /><path d="M7 12h10M7 16h6" /></svg>
+);

@@ -814,6 +814,10 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat }: {
   const [g, setG] = useState<Gesprek | undefined>(begin);
   const [regels, setRegels] = useState<Regel[]>([]);
   const [invoer, setInvoer] = useState("");
+  const [extraOpen,setExtraOpen]=useState(!!projectOpen);
+  useEffect(()=>{if(projectOpen)setExtraOpen(true);},[projectOpen]);
+  useEffect(()=>{const openen=(e:Event)=>{if((e as CustomEvent).detail?.gesprek===id)setExtraOpen(true);};window.addEventListener("assistent-projectbron",openen);return()=>window.removeEventListener("assistent-projectbron",openen);},[id]);
+
   useEffect(()=>{
     const concept=(e:Event)=>{const d=(e as CustomEvent).detail;if(d?.gesprek!==id||typeof d.tekst!=="string"||!d.tekst.trim()||d.tekst.length>1500||/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(d.tekst))return;setInvoer(oud=>oud.trim()?oud:d.tekst);};
     window.addEventListener("assistent-chatconcept",concept);return()=>window.removeEventListener("assistent-chatconcept",concept);
@@ -929,8 +933,10 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat }: {
         </div>
       )}
 
+      {g?.status === "lid" && <details open={extraOpen} className="border-b border-lijn" onToggle={e=>{if(e.target===e.currentTarget)setExtraOpen(e.currentTarget.open);}}><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-medium">＋ Meer in dit gesprek</summary>
       {g?.soort === "twee" && g.status === "lid" && magSchrijven && !g.verdwijnen && g.leden.filter(l=>l.status==="lid"&&l.id!==ik).length===1 && <BetaalverzoekMaken gesprek={id} ander={g.leden.find(l=>l.status==="lid"&&l.id!==ik)!.id} vernieuw={bijwerken} />}
       {g?.status === "lid" && <ProjectWerkruimte beginOpen={projectOpen} gesprek={id} regels={regels} schrijven={magSchrijven} verdwijnend={!!g.verdwijnen} ik={ik} leden={g.leden} vernieuw={bijwerken} aiMogelijk={!g.alleen_beheer} staat={staat} setData={data => setStaat?.(oud => oud ? { ...oud, data } : oud)} />}
+      </details>}
       <main className="flex flex-1 flex-col gap-1 px-4 py-4" aria-live="polite">
         {regels.filter(r => !["project", "projectactie"].includes(r.bericht?.t ?? "")).map((r, i, zichtbaar) => {
           const mijn = r.afzender === ik;

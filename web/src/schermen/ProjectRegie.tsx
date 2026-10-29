@@ -1,3 +1,4 @@
+import ProjectNavigatie from "./ProjectNavigatie";
 import ProjectBord from "./ProjectBord";
 import ProjectWerkdruk from "./ProjectWerkdruk";
 import { stapStatusVoorstel } from "../lib/projectwerk";
@@ -15,7 +16,7 @@ import { assistentContext, bronStatus, isAfgerond, nieuwFeit, oefenplanning, ove
 import { taakVoorstel, taakUitvoeren, taakResultaat, type DagActie } from "../lib/dagacties";
 import { leesProjectbericht, projectLezen, type Werkbestand } from "../lib/project";
 
-const DELEN = ["Overzicht", "Bord", "Werkdruk", "Hoe", "Wanneer", "Als", "Voorstel", "Wijzigingen", "Oefenen", "Overdracht", "Privacy", "Assistent"];
+const SOORTLABEL:Record<string,string>={kennis:"Notitie",besluit:"Besluit",actie:"Actie",vraag:"Vraag",aandacht:"Samen bekijken",aanpak:"Stappenplan",stapstatus:"Voortgang",werkvenster:"Beschikbaarheid",staptijd:"Projecttijd",toestemming:"AI-toestemming",bereikbaar:"Bereikbaarheid",afgerond:"Afronding"};
 const datum = (t: string) => new Date(t).toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" });
 const download = (tekst: string, naam: string) => {
   const url = URL.createObjectURL(new Blob([tekst], { type: "text/plain;charset=utf-8" }));
@@ -31,6 +32,8 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
   const feiten = useMemo(() => projectFeiten(regels), [regels]);
   const namen = new Map(leden.map(l => [l.id, l.naam]));
   const actieveLeden = [...new Set(leden.filter(l => l.status === "lid").map(l => l.id))];
+  const [toonFeiten,setToonFeiten]=useState(false);
+  const voorstelElement=useRef<HTMLDivElement>(null);
   const [deel, setDeel] = useState("Overzicht");
   const [doelFocus, setDoelFocus] = useState<string>();
   const voorkeurSleutel = `assistent.projectwerkstand.${huidigeSessie()?.naam ?? ""}.${gesprek}`;
@@ -43,6 +46,7 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
   const [minuten, setMinuten] = useState(30);
   const [wie, setWie] = useState(0);
   const [pending, setPending] = useState<ProjectActie | null>(null);
+  useEffect(()=>{if(pending)voorstelElement.current?.focus();},[pending?.sleutel]);
   const [onzeker, setOnzeker] = useState(false);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState("");
@@ -129,23 +133,23 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
     <p>{bronStatus(f.actie.bron, regels, bestanden)}</p>
   </div>;
 
-  return <section className="mt-3 border-t border-lijn pt-3" aria-label="Projectregie">
-    <h3 className="font-semibold">Projectregie</h3>
-    <p className="mt-1 text-sm text-rustig">Kennis, besluiten en acties zijn expliciet bevestigd. De afzender en bron blijven zichtbaar. Alleen geladen, leesbare geschiedenis telt mee.</p>
+  return <section className="mt-3 border-t border-lijn pt-3" aria-label="Projectwerk">
+    <h3 className="font-semibold">Samen aan het werk</h3>
+    <p className="mt-1 text-sm text-rustig">Gedeeld met {actieveLeden.length} {actieveLeden.length===1?"deelnemer":"deelnemers"} in dit gesprek. Bekijk je volgende stap of voeg iets toe.</p>
     <div className="mt-3 rounded-xl bg-vlak p-3"><p className="font-medium">{privacyPauze ? "Project-AI gepauzeerd op dit apparaat" : "Project-AI vraagt altijd toestemming"}</p>
       <button className="min-h-11 text-accent" onClick={() => { const aan = !privacyPauze; pauzeerProjectAi(gesprek, aan); setPrivacyPauze(aan); aiVerzoek.current?.abort(); setAiVoorbeeld(null); setAiAkkoord(false); setAiResultaat(""); setMelding(aan ? "Nieuwe project-AI-aanvragen zijn geblokkeerd in deze sessie op dit apparaat. Eerder verstuurde gegevens kunnen niet worden teruggehaald; gedeelde toestemming trek je apart in via Privacy." : "Project-AI hervat. Toestemming en een nieuw gecontroleerd voorbeeld blijven nodig."); }}>{privacyPauze ? "Project-AI hervatten" : "Project-AI pauzeren"}</button>
       <button className="min-h-11 px-3 text-accent" onClick={() => setDeel("Privacy")}>Wie mag wat?</button>
     </div>
+    <details className="mt-3"><summary className="min-h-11 cursor-pointer text-sm text-rustig">Mijn weergave</summary>
     <label className="mt-3 block">Mijn werkstand
       <select value={werkstand} onChange={e => { setWerkstand(e.target.value); try { localStorage.setItem(voorkeurSleutel, e.target.value); } catch { setFout("Deze werkstand geldt nu voor dit scherm; opslaan op dit apparaat lukte niet."); } }} className="ml-2 min-h-11 rounded-xl bg-vlak p-2">
         {["Vandaag", "Samenwerken", "Ondernemen"].map(x => <option key={x}>{x}</option>)}
       </select>
-    </label>
-    <nav aria-label="Projectonderdelen" className="my-3 flex flex-wrap gap-2">{DELEN.map(x =>
-      <button key={x} onClick={() => setDeel(x)} aria-pressed={deel === x} className={`min-h-11 rounded-xl px-3 ${deel === x ? "bg-accent text-white" : "bg-vlak"}`}>{x}{x === "Wijzigingen" ? ` (${veranderingen.length})` : ""}</button>)}</nav>
+    </label></details>
+    <ProjectNavigatie deel={deel} kies={setDeel} wijzigingen={veranderingen.length} />
     {fout && <p role="alert">{fout}</p>}{melding && <p role="status">{melding}</p>}
-    {pending && <div className="my-3 rounded-xl border border-lijn p-3" aria-label="Projectvoorstel controleren">
-      <p className="font-semibold">Controleer {pending.soort}</p><p className="whitespace-pre-wrap break-words">{pending.tekst}</p>
+    {pending && <div ref={voorstelElement} tabIndex={-1} role="region" className="my-3 rounded-xl border border-lijn p-3" aria-label="Projectvoorstel controleren">
+      <p className="font-semibold">Controleer {SOORTLABEL[pending.soort]??pending.soort}</p><p className="whitespace-pre-wrap break-words">{pending.tekst}</p>
       {pending.stappen?.map(s => <div key={s.id} className="my-2 rounded-xl bg-vlak p-2"><strong>{s.titel}</strong><p>Klaar als: {s.klaarAls}</p><p>{s.minuten} minuten · {s.eigenaar ? namen.get(s.eigenaar) ?? `Deelnemer ${s.eigenaar}` : "Nog niet toegewezen"}</p><p>Afhankelijk van: {s.afhankelijkVan.length ? s.afhankelijkVan.map(id => pending.stappen?.find(x => x.id === id)?.titel ?? id).join(", ") : "geen"}</p>{s.alternatief && <p>Alternatief: {s.alternatief}</p>}</div>)}
       {pending.geldigMinuten && <p>Toestemming: {pending.geldigMinuten} minuten. Eerdere toestemming wordt eerst ingetrokken; oudere appversies blijven daardoor geblokkeerd.</p>}
       {pending.uiterlijk && <p>Deadline: {datum(pending.uiterlijk)}</p>}
@@ -160,7 +164,10 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
     {deel === "Wanneer" && <ProjectWanneer doelVoorstel={doelFocus} gesprek={gesprek} feiten={feiten} ik={ik} personen={namen} staat={staat} setData={setData} schrijven={schrijven && !pending} voorstel={voorbereiden} />}
     {deel === "Als" && <ProjectAls doelVoorstel={doelFocus} gesprek={gesprek} feiten={feiten} staat={staat} setData={setData} planning={doel => { setDoelFocus(doel); setDeel("Wanneer"); }} />}
     {deel === "Overzicht" && <>
+      {!feiten.some(f=>["actie","besluit","vraag"].includes(f.actie.soort))&&schrijven&&<button disabled={!!pending} className="mb-3 min-h-11 rounded-xl bg-accent px-4 text-white" onClick={()=>{setSoort("actie");setDeel("Voorstel");}}>Begin met een doel</button>}
       <ProjectKompas feiten={feiten} namen={namen} ik={ik} vandaag={werkstand === "Vandaag"} open={(deel, doel) => { setDoelFocus(doel); setDeel(deel); }} />
+      <button className="min-h-11 text-accent" aria-expanded={toonFeiten} onClick={()=>setToonFeiten(!toonFeiten)}>Notities, besluiten en acties ({overzicht.length})</button>
+      <div hidden={!toonFeiten}>
       <h4 className="font-medium">{werkstand === "Vandaag" ? "Mijn volgende acties" : werkstand === "Ondernemen" ? "Besluiten en projectkennis" : "Samen aan het werk"}</h4>
       {overzicht.map(f => <article key={f.bericht} className="mt-2 rounded-xl bg-vlak p-3">
           <p className="text-xs text-rustig">{f.actie.soort}{isAfgerond(f, feiten) ? " · afgerond" : ""}</p>
@@ -174,18 +181,20 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
           }}>Als eigen taak voorbereiden</button>}
         </article>)}
       {!feiten.some(f => ["kennis", "besluit", "actie", "vraag"].includes(f.actie.soort)) && <p className="text-sm text-rustig">Nog geen bevestigde projectfeiten. Maak een voorstel of kies een chatbericht als bron.</p>}
-      <h4 className="mt-4 font-medium">Gezamenlijk aandachtspunt</h4>
+      </div>
+      {feiten.some(f=>f.actie.soort==="aandacht"&&nu>=Date.parse(f.tijd)&&nu-Date.parse(f.tijd)<5*60_000)&&<h4 className="mt-4 font-medium">Gezamenlijk aandachtspunt</h4>}
       {feiten.filter(f => f.actie.soort === "aandacht" && nu >= Date.parse(f.tijd) && nu - Date.parse(f.tijd) < 5 * 60_000).slice(-3).map(f => <div key={f.bericht}>{f.actie.tekst}{bronRegel(f)}</div>)}
-      <h4 className="mt-4 font-medium">Bereikbaarheidskompas</h4>
+      <details className="mt-3"><summary className="min-h-11 cursor-pointer text-sm text-rustig">Beschikbaarheid van het team</summary>
       <p className="text-xs text-rustig">Een gedeelde werkafspraak voor vier uur, geen online-detectie en geen wijziging van pushmeldingen.</p>
       {actieveLeden.map(id => { const f = [...feiten].reverse().find(f => f.afzender === id && f.actie.soort === "bereikbaar");
         return <p key={id}>{namen.get(id)}: {f && nu >= Date.parse(f.tijd) && nu - Date.parse(f.tijd) < 4 * 3600_000 ? f.actie.keuze : "niet opgegeven"}</p>; })}
       {schrijven && <div className="flex flex-wrap gap-2">{["beschikbaar", "focus", "urgent", "afwezig"].map(keuze => <button className="min-h-11 rounded-xl bg-vlak px-3" key={keuze} disabled={!!pending}
         onClick={() => voorbereiden(nieuwFeit("bereikbaar", `Mijn werkafspraak: ${keuze} (vier uur).`, { soort: "eigen" }, { keuze }))}>{keuze}</button>)}</div>}
+      </details>
     </>}
     {deel === "Voorstel" && <form onSubmit={bereid} className="flex flex-col gap-3">
       <label>Soort voorstel<select value={soort} onChange={e => setSoort(e.target.value as Soort)} disabled={!!pending || !schrijven} className="ml-2 min-h-11 bg-vlak p-2">
-        {["kennis", "besluit", "actie", "vraag", "aandacht"].map(s => <option key={s}>{s}</option>)}
+        {["kennis", "besluit", "actie", "vraag", "aandacht"].map(s => <option key={s} value={s}>{SOORTLABEL[s]??s}</option>)}
       </select></label>
       <label>Projecttekst<textarea rows={4} maxLength={1500} value={tekst} disabled={!!pending || !schrijven} onChange={e => setTekst(e.target.value)} className="mt-1 w-full rounded-xl bg-vlak p-3" /></label>
       <p className="text-sm">Bron: {bronStatus(bron, regels, bestanden)}</p>

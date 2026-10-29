@@ -28,7 +28,7 @@ Vandaag is verbeterd: een nieuwe taak, afronden en de keuze uit een dagvoorstel 
 
 ## Verificatie en publicatie
 
-Alle 158 Vitest-tests slagen, inclusief twee gelijktijdige Yjs-documenten, omgekeerde ontvangstvolgorde, dubbele pakketten, verloren antwoord, invoer tijdens verzending, emoji/IME, accountisolatie, kanaalrechten, verdwijnende gesprekken, compacte belbediening en dagelijkse acties. `npm run build` bouwt beide varianten en controleert TypeScript. `npm audit --omit=dev` meldt op dit uitvoermoment geen bekende kwetsbaarheden; dat is geen algemene beveiligingsgarantie.
+Alle 170 Vitest-tests slagen, inclusief twee gelijktijdige Yjs-documenten, omgekeerde ontvangstvolgorde, dubbele pakketten, verloren antwoord, invoer tijdens verzending, emoji/IME, accountisolatie, kanaalrechten, verdwijnende gesprekken, compacte belbediening en dagelijkse acties. `npm run build` bouwt beide varianten en controleert TypeScript. `npm audit --omit=dev` meldt op dit uitvoermoment geen bekende kwetsbaarheden; dat is geen algemene beveiligingsgarantie.
 
 ```sh
 cd web
@@ -42,3 +42,5 @@ Tests gebruiken nagebootst chattransport en belstatus. De echte encryptie gebrui
 ## Projectregie en chatbetalingen
 
 De tien projectuitbreidingen, de lagen waarom/hoe/wanneer/als en de koppeling met bestaande betaal-, boekings- en reserveringsformulieren staan beschreven in [PROJECTREGIE.md](PROJECTREGIE.md).
+
+De compacte navigatie en nieuwe ingang Projecten staan uitgelegd in [BEDIENING.md](BEDIENING.md).

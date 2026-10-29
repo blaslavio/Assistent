@@ -1,5 +1,7 @@
 # Mijn assistent
 
+De ontwikkelversie heeft drie vaste ingangen: Vandaag, Chat en Projecten. Overige functies staan onder Meer. Zie [BEDIENING.md](BEDIENING.md).
+
 Projectwerkruimte, de projectmotor (waarom/hoe/wanneer/als) en chatbetaalverzoeken: zie [PROJECTREGIE.md](PROJECTREGIE.md) voor gebruik, privacy en de uitrolvoorwaarden. Deze uitbreiding is nog niet live.
 
 Een persoonlijke assistent die je in Safari op je iPad of telefoon gebruikt. Je praat er gewoon Nederlands mee.

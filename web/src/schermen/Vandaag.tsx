@@ -21,6 +21,7 @@ type Props = { staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () 
 export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssistent, vernieuw, ga, naarProject }: Props) {
   const [nu, setNu] = useState(() => new Date());
   const [weer, setWeer] = useState<Weer | null>(null);
+  const [alleTaken, setAlleTaken] = useState(false);
   const [invoer, setInvoer] = useState("");
   const [actie, setActie] = useState<DagActie | null>(null);
   const [voorstelKeuze, setVoorstelKeuze] = useState<{ voorstel: Voorstel; optie: number; basis: unknown } | null>(null);
@@ -52,8 +53,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
   const rest = afspraken.filter((a) => a !== straks && !(eind(a) && eind(a)! < nu));
   const taken = data.taken
     .filter((t) => !t.klaar)
-    .sort((a, b) => (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999"))
-    .slice(0, 5);
+    .sort((a, b) => (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999"));
 
   // De komende dagen: wat er na vandaag aankomt, zodat je vooruit kunt kijken zonder de agenda te openen.
   const komend = useMemo(() => {
@@ -277,11 +277,11 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
             <p className="text-rustig">Geen open taken.</p>
           ) : (
             <ul>
-              {taken.map((t) => (
+              {(alleTaken ? taken : taken.slice(0, 3)).map((t) => (
                 <li key={t.id}>
                   <label className="flex items-center gap-3.5 py-2.5">
                     <input type="checkbox" checked={false} disabled={!!actie || !!voorstelKeuze || bezig || !!gekozen} className="size-[22px] accent-accent" onChange={() => afvinken(t.id)} />
-                    <span>{t.titel}</span>
+                    <span className="min-w-0 flex-1 break-words">{t.titel}</span>
                     {t.deadline && t.deadline.slice(0, 10) < vandaag && <span className="text-sm text-red-600 dark:text-red-400">te laat</span>}
                   </label>
                   <ProjectHerkomst taak={t} open={naarProject} />
@@ -289,6 +289,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
               ))}
             </ul>
           )}
+          {taken.length > 3 && <button className="min-h-11 text-accent" aria-expanded={alleTaken} onClick={() => setAlleTaken(!alleTaken)}>{alleTaken ? "Toon mijn drie eerstvolgende taken" : `Bekijk alle ${taken.length} taken`}</button>}
         </section>}
       </main>
 
