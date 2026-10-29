@@ -4,6 +4,7 @@ import type { Staat } from "../App";
 import { Bel, Envelop, Kruis, Lijstje, Plus, Prullenbak, Terug } from "../iconen";
 import { HerinneringenPaneel, MailPaneel, TakenPaneel } from "./AgendaPanelen";
 import { mailsBewaard } from "../lib/mail";
+import { instellingen as feestInstellingen, kalender, type Dag } from "../lib/feestdagen";
 import { DAGEN_KORT, MAANDEN, dagTitel, datumTekst, heleDag, moment, plusDagen, uur, weekBegin } from "../lib/tijd";
 
 // Dezelfde kleuren per soort als in de oude app.
@@ -66,6 +67,12 @@ export default function Agenda({ staat, setStaat }: Props) {
     }
     return { afspraken, taken };
   }, [staat.data.afspraken, staat.data.taken]);
+
+  // Feestdagen, vakanties en brugdagen rond de gekozen dag. Uitgerekend, niet bewaard.
+  const feest = feestInstellingen(staat.data);
+  const bijzonder = useMemo(() => kalender(feest, datumTekst(plusDagen(datum, -45)), datumTekst(plusDagen(datum, 45))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [feest.land, feest.extra, feest.regio, gekozen.slice(0, 7)]);
 
   function verschuif(n: number) {
     if (n === 0) return setGekozen(vandaag);
@@ -147,14 +154,14 @@ export default function Agenda({ staat, setStaat }: Props) {
       {paneel === "herinneringen" && <HerinneringenPaneel staat={staat} setStaat={setStaat} />}
       {!paneel && <div key={weergave} className="opkomen flex flex-1 flex-col">
       {weergave === "dag" && (
-        <DagWeergave gekozen={gekozen} vandaag={vandaag} setGekozen={setGekozen} afspraken={afspraken} taken={taken}
+        <DagWeergave gekozen={gekozen} vandaag={vandaag} setGekozen={setGekozen} afspraken={afspraken} taken={taken} bijzonder={bijzonder}
           open={setOpen} />
       )}
       {weergave === "week" && (
-        <WeekWeergave gekozen={gekozen} vandaag={vandaag} afspraken={afspraken} taken={taken} naarDag={naarDag} open={setOpen} />
+        <WeekWeergave gekozen={gekozen} vandaag={vandaag} afspraken={afspraken} taken={taken} bijzonder={bijzonder} naarDag={naarDag} open={setOpen} />
       )}
       {weergave === "maand" && (
-        <MaandWeergave gekozen={gekozen} vandaag={vandaag} afspraken={afspraken} taken={taken} naarDag={naarDag} />
+        <MaandWeergave gekozen={gekozen} vandaag={vandaag} afspraken={afspraken} taken={taken} bijzonder={bijzonder} naarDag={naarDag} />
       )}
       </div>}
 
@@ -166,15 +173,35 @@ export default function Agenda({ staat, setStaat }: Props) {
   );
 }
 
-type Lijsten = { afspraken: Map<string, Afspraak[]>; taken: Map<string, Taak[]> };
+type Lijsten = { afspraken: Map<string, Afspraak[]>; taken: Map<string, Taak[]>; bijzonder: Map<string, Dag[]> };
 
-function DagWeergave({ gekozen, vandaag, setGekozen, afspraken, taken, open }: Lijsten & {
+// Feestdag rood (vrij), vakantie amber, brugdag groen, de rest (Moederdag, Sinterklaas) roze.
+const DAGKLEUR: Record<Dag["soort"], string> = {
+  feestdag: "bg-red-500/10 text-red-700 dark:text-red-300", vakantie: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  brugdag: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300", extra: "bg-pink-500/10 text-pink-700 dark:text-pink-300",
+};
+const vrijeDag = (b: Map<string, Dag[]>, t: string) => (b.get(t) ?? []).some((d) => d.vrij);
+
+function DagLabels({ dagen }: { dagen: Dag[] }) {
+  return <>{dagen.map((d) => (
+    <span key={d.naam} className={`flex items-center gap-2 rounded-xl px-3 py-2 text-[15px] font-medium ${DAGKLEUR[d.soort]}`}>
+      {d.naam}
+      <span className="ml-auto text-[13px] font-normal opacity-80">
+        {d.soort === "vakantie" && d.tot ? `t/m ${Number(d.tot.slice(8, 10))}/${Number(d.tot.slice(5, 7))}`
+          : d.soort === "feestdag" ? (d.vrij ? "Vrij" : "Feestdag") : d.soort === "brugdag" ? "Tip" : ""}
+      </span>
+    </span>
+  ))}</>;
+}
+
+function DagWeergave({ gekozen, vandaag, setGekozen, afspraken, taken, bijzonder, open }: Lijsten & {
   gekozen: string; vandaag: string; setGekozen: (d: string) => void; open: (a: Afspraak) => void }) {
   const dagen = Array.from({ length: 7 }, (_, i) => plusDagen(weekBegin(new Date(`${gekozen}T12:00`)), i));
   const lijst = afspraken.get(gekozen) ?? [];
   const heleDagen = lijst.filter((a) => heleDag(a.start));
   const metTijd = lijst.filter((a) => !heleDag(a.start));
   const takenNu = taken.get(gekozen) ?? [];
+  const labels = bijzonder.get(gekozen) ?? [];
   const rooster = useRef<HTMLDivElement>(null);
   const [nu, setNu] = useState(() => new Date());
 
@@ -203,7 +230,7 @@ function DagWeergave({ gekozen, vandaag, setGekozen, afspraken, taken, open }: L
             <button key={t} onClick={() => setGekozen(t)} aria-pressed={actief} aria-label={dagTitel(d)}
               className={`flex h-16 flex-col items-center justify-center gap-0.5 rounded-2xl ${actief ? "bg-accent text-white" : ""}`}>
               <span className="text-[11px] opacity-70">{DAGEN_KORT[d.getDay()]}</span>
-              <span className={`text-[17px] font-semibold ${t === vandaag && !actief ? "text-accent" : ""}`}>{d.getDate()}</span>
+              <span className={`text-[17px] font-semibold ${t === vandaag && !actief ? "text-accent" : !actief && vrijeDag(bijzonder, t) ? "text-red-600 dark:text-red-400" : ""}`}>{d.getDate()}</span>
               <span className={`size-1 rounded-full ${druk ? (actief ? "bg-white" : "bg-accent") : ""}`} />
             </button>
           );
@@ -213,8 +240,9 @@ function DagWeergave({ gekozen, vandaag, setGekozen, afspraken, taken, open }: L
       <h2 className="px-6 pb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig">
         {dagTitel(new Date(`${gekozen}T12:00`))}
       </h2>
-      {(heleDagen.length > 0 || takenNu.length > 0) && (
+      {(heleDagen.length > 0 || takenNu.length > 0 || labels.length > 0) && (
         <div className="flex flex-col gap-1.5 px-6 pb-3">
+          <DagLabels dagen={labels} />
           {heleDagen.map((a) => (
             <button key={a.id} onClick={() => open(a)} className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-[15px] font-medium text-white"
               style={{ background: kleur(a) }}>{a.titel}<span className="ml-auto text-[13px] opacity-80">Hele dag</span></button>
@@ -269,7 +297,7 @@ function DagWeergave({ gekozen, vandaag, setGekozen, afspraken, taken, open }: L
   );
 }
 
-function WeekWeergave({ gekozen, vandaag, afspraken, taken, naarDag, open }: Lijsten & {
+function WeekWeergave({ gekozen, vandaag, afspraken, taken, bijzonder, naarDag, open }: Lijsten & {
   gekozen: string; vandaag: string; naarDag: (d: string) => void; open: (a: Afspraak) => void }) {
   const dagen = Array.from({ length: 7 }, (_, i) => datumTekst(plusDagen(weekBegin(new Date(`${gekozen}T12:00`)), i)));
   return (
@@ -283,10 +311,13 @@ function WeekWeergave({ gekozen, vandaag, afspraken, taken, naarDag, open }: Lij
             <button onClick={() => naarDag(d)} aria-label={dagTitel(dag)}
               className={`flex w-12 shrink-0 flex-col items-center self-start rounded-2xl py-1 ${d === vandaag ? "bg-accent text-white" : ""}`}>
               <span className="text-[11px] opacity-70">{DAGEN_KORT[dag.getDay()]}</span>
-              <span className="text-xl font-semibold">{dag.getDate()}</span>
+              <span className={`text-xl font-semibold ${d !== vandaag && vrijeDag(bijzonder, d) ? "text-red-600 dark:text-red-400" : ""}`}>{dag.getDate()}</span>
             </button>
             <div className="flex min-w-0 flex-1 flex-col gap-1.5 pt-0.5">
-              {lijst.length === 0 && t.length === 0 && <span className="py-2 text-[15px] text-zacht">Vrij</span>}
+              {(bijzonder.get(d) ?? []).map((x) => (
+                <span key={x.naam} className={`truncate rounded-lg px-2.5 py-1 text-[13px] font-medium ${DAGKLEUR[x.soort]}`}>{x.naam}</span>
+              ))}
+              {lijst.length === 0 && t.length === 0 && !bijzonder.has(d) && <span className="py-2 text-[15px] text-zacht">Vrij</span>}
               {lijst.map((a) => (
                 <button key={a.id} onClick={() => open(a)} className="flex items-center gap-2.5 rounded-xl bg-vlak px-3 py-2 text-left">
                   <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: kleur(a) }} />
@@ -311,7 +342,7 @@ function WeekWeergave({ gekozen, vandaag, afspraken, taken, naarDag, open }: Lij
   );
 }
 
-function MaandWeergave({ gekozen, vandaag, afspraken, taken, naarDag }: Lijsten & {
+function MaandWeergave({ gekozen, vandaag, afspraken, taken, bijzonder, naarDag }: Lijsten & {
   gekozen: string; vandaag: string; naarDag: (d: string) => void }) {
   const g = new Date(`${gekozen}T12:00`);
   const eerste = new Date(g.getFullYear(), g.getMonth(), 1);
@@ -334,9 +365,14 @@ function MaandWeergave({ gekozen, vandaag, afspraken, taken, naarDag }: Lijsten 
           return (
             <button key={t} onClick={() => naarDag(t)} aria-label={`${dagTitel(d)}${lijst.length ? `, ${lijst.length} gepland` : ""}`}
               className={`flex min-h-[84px] min-w-0 flex-col gap-0.5 border-r border-b border-lijn/70 p-1 text-left ${buiten ? "opacity-40" : ""}`}>
-              <span className={`mx-auto flex size-6 items-center justify-center rounded-full text-[13px] font-semibold ${t === vandaag ? "bg-accent text-white" : ""}`}>
+              <span className={`mx-auto flex size-6 items-center justify-center rounded-full text-[13px] font-semibold ${t === vandaag ? "bg-accent text-white" : vrijeDag(bijzonder, t) ? "text-red-600 dark:text-red-400" : ""}`}>
                 {d.getDate()}
               </span>
+              {(bijzonder.get(t) ?? []).filter((x) => x.soort !== "vakantie" || x.van === t || d.getDate() === 1).slice(0, 1).map((x) => (
+                <span key={x.naam} className={`truncate rounded px-1 text-[10px] leading-4 font-medium ${DAGKLEUR[x.soort]}`}>
+                  {x.soort === "brugdag" ? "Brugdag" : x.naam}
+                </span>
+              ))}
               {lijst.slice(0, 3).map((a) => (
                 <span key={a.id} className="truncate rounded px-1 text-[10px] leading-4 font-medium text-white" style={{ background: kleur(a) }}>
                   {a.titel}
