@@ -20,6 +20,7 @@ import type { Product } from "./lib/winkelen";
 import { deelCode } from "./lib/delen";
 import { boekAdres, boekingCode, verwerken } from "./lib/gasten";
 import { prikCode } from "./lib/prikken";
+import { profielAdres } from "./lib/profielpagina";
 import { Vangnet } from "./vangnet";
 import { useOnline } from "./lib/net";
 import { postGevraagd, postVragen } from "./lib/feed";
@@ -29,6 +30,7 @@ const PostBlad = lazy(() => import("./schermen/Feed").then((m) => ({ default: m.
 const GEDEELD = deelCode();
 // Afspraak maken zonder account (?boek=linknaam) en de eigen pagina van de gast (?boeking=code).
 const BOEK = boekAdres();
+const PROFIEL = profielAdres();
 const BOEKING = boekingCode();
 // Stemmen op een datum via een gedeelde link (?prik=code), ook zonder account.
 const PRIK = prikCode();
@@ -61,6 +63,7 @@ const Instellingen = lazy(laden.instellingen);
 const Assistent = lazy(() => import("./schermen/Assistent"));
 const GedeeldScherm = lazy(() => import("./schermen/Delen").then((m) => ({ default: m.GedeeldScherm })));
 const GastScherm = lazy(() => import("./schermen/Gasten").then((m) => ({ default: m.GastScherm })));
+const ProfielScherm = lazy(() => import("./schermen/ProfielPagina").then((m) => ({ default: m.ProfielScherm })));
 const BoekScherm = lazy(() => import("./schermen/Gasten").then((m) => ({ default: m.BoekScherm })));
 const PrikScherm = lazy(() => import("./schermen/Prikken").then((m) => ({ default: m.PrikScherm })));
 
@@ -200,6 +203,7 @@ export default function App() {
   if (GEDEELD) return <Suspense fallback={null}><GedeeldScherm code={GEDEELD} /></Suspense>;
   if (BOEKING) return <Suspense fallback={null}><GastScherm code={BOEKING} /></Suspense>;
   if (BOEK) return <Suspense fallback={null}><BoekScherm adres={BOEK} /></Suspense>;
+  if (PROFIEL) return <Suspense fallback={null}><ProfielScherm adres={PROFIEL} /></Suspense>;
   if (PRIK) return <Suspense fallback={null}><PrikScherm code={PRIK} /></Suspense>;
   if (!klaar) return <div className="h-full" />;
   // Tijdens de bliksemstart is er nog geen sessie, maar wel de vorige stand: die laten we alvast zien.
