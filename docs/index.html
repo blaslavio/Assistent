@@ -80,7 +80,7 @@ async function laden() {
   const open = zoek.get("open");
   const gereedschap = zoek.get("gereedschap");
   appAdres = opslag.lees("app_adres") || "";
-  const vorige = !ingelogd() || zoek.has("oud") || GEREEDSCHAP.includes(gereedschap) || !!open;
+  const vorige = zoek.has("oud") || GEREEDSCHAP.includes(gereedschap) || !!open;
   // Snelste weg: meteen de app, het adres van de vorige app halen we op de achtergrond.
   if (!vorige) nieuweApp(zoek);
   try {

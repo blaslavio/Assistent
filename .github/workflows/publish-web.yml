@@ -1,0 +1,63 @@
+name: Publish web interface
+on:
+  push:
+    branches: [develop]
+    paths: ['web/**', 'docs/**', '.github/workflows/publish-web.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages-interface
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm test
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+      - name: Identify published interface
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, os
+          from datetime import datetime, timezone
+          Path('docs/.nojekyll').touch()
+          Path('docs/app/publicatie.json').write_text(json.dumps({
+              'commit': os.environ['GITHUB_SHA'],
+              'branch': os.environ['GITHUB_REF_NAME'],
+              'built_at': datetime.now(timezone.utc).isoformat(),
+              'scope': 'web-interface',
+              'server_release_verified': False,
+          }), encoding='utf-8')
+          PY
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check Pages configuration
+        uses: actions/configure-pages@v5
+      - name: Publish interface
+        id: deployment
+        uses: actions/deploy-pages@v4

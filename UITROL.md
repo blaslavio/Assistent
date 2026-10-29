@@ -4,6 +4,8 @@ Doel: de lokale verbeteringen uit deze sessie toevoegen aan de actuele `main`, i
 
 ## Status
 
+Voor het publiceren van de nieuwe interface is nu `.github/workflows/publish-web.yml` toegevoegd. De vereiste eenmalige Pages-instelling en de scheiding tussen frontendpublicatie en serverrelease staan in [PUBLICEREN.md](PUBLICEREN.md). De huidige GitHub-integratie krijgt HTTP 403 op het activeren van Pages; er is dus nog geen bevestigde openbare publicatie.
+
 De geïntegreerde ontwikkelversie wordt samengevoegd op `develop`. `main` en de productieomgeving worden hierbij niet gepubliceerd. De laatste samenvoeging behoudt snelstart, beleggen en zakelijk beheer naast de projectmotor; 112 webtests en beide webbuilds slagen.
 
 De code en gebouwde webbestanden staan klaar. **Deze release is nog niet live.** GitHub-toegang werkt; een productiebeheerverbinding met Supabase en Streamlit ontbreekt in deze omgeving. De aanwezigheid van `mijn_gegevens_veilig_bewaren` kon niet uit het publieke API-schema worden vastgesteld. De publiek beschikbare app-URL is `https://eisreyyrtvlgtjpqiyhpm2.streamlit.app`.
