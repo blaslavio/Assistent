@@ -153,4 +153,4 @@
 .minder-beweging .mascotte, .minder-beweging .mascotte-lijf, .minder-beweging .mascotte-ogen { animation: none !important; }
 
 /* Toetsenbord open: de balken onderin maken plaats, zoals in WhatsApp. */
-.toetsenbord-open nav[aria-label=Hoofdmenu], .toetsenbord-open nav[aria-label=Chat] { display: none !important; }
+.toetsenbord-open nav[aria-label=Hoofdmenu], .toetsenbord-open nav[data-appmenu] { display: none !important; }
