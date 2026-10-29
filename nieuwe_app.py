@@ -12,9 +12,42 @@ import streamlit as st
 MAP = Path(__file__).parent / "nieuwe_app"
 
 JS = """
+// De pagina van de app (ruim een megabyte) bewaart de browser per versie. Alleen bij een nieuwe versie, of de eerste
+// keer, vraagt hij de pagina op; daarna start de app meteen uit de eigen opslag.
+const DB = () => new Promise((ok, mis) => {
+  const r = indexedDB.open("nieuweApp", 1);
+  r.onupgradeneeded = () => r.result.createObjectStore("pagina");
+  r.onsuccess = () => ok(r.result);
+  r.onerror = () => mis(r.error);
+});
+async function lees(versie) {
+  const db = await DB();
+  return new Promise((ok) => {
+    const v = db.transaction("pagina").objectStore("pagina").get("laatste");
+    v.onsuccess = () => ok(v.result && v.result.versie === versie ? v.result.html : null);
+    v.onerror = () => ok(null);
+  });
+}
+async function bewaar(versie, html) {
+  const db = await DB();
+  db.transaction("pagina", "readwrite").objectStore("pagina").put({ versie, html }, "laatste");
+}
+
 export default function (component) {
-  const { data } = component;
-  if (!data || !data.html || window.__nieuweApp) return;
+  const { data, setTriggerValue } = component;
+  if (!data || window.__nieuweApp) return;
+  if (data.html) {
+    bewaar(data.versie, data.html).catch(() => {});
+    return starten(data.html);
+  }
+  if (window.__nieuweAppVraagt === data.versie) return;
+  window.__nieuweAppVraagt = data.versie;
+  const vraag = () => setTriggerValue("nodig", true);
+  lees(data.versie).then((html) => (html ? starten(html) : vraag())).catch(vraag);
+}
+
+function starten(html) {
+  if (window.__nieuweApp) return;
   // Op een iPhone zoomt Safari in als je in een klein invulveld tikt, en dan verschuift het scherm. Dat zetten we uit.
   let kijk = document.querySelector('meta[name="viewport"]');
   if (!kijk) { kijk = document.createElement("meta"); kijk.name = "viewport"; document.head.appendChild(kijk); }
@@ -24,7 +57,7 @@ export default function (component) {
   venster.setAttribute("allow", "microphone; camera; autoplay; clipboard-read; clipboard-write; fullscreen; geolocation; web-share");
   venster.style.cssText = "position:fixed;inset:0;width:100vw;height:100dvh;border:0;z-index:2147483000;"
     + "background:" + (matchMedia("(prefers-color-scheme: dark)").matches ? "#0b0b0e" : "#ffffff");
-  venster.srcdoc = data.html.replace("__OUDE_APP__", JSON.stringify(location.origin + "/"));
+  venster.srcdoc = html.replace("__OUDE_APP__", JSON.stringify(location.origin + "/"));
   document.body.appendChild(venster);
   window.__nieuweApp = venster;
   // Het scherm staat vast: de pagina eronder scrollt nooit mee, ook niet als het toetsenbord opent. Het venster
@@ -80,4 +113,12 @@ def toon() -> None:
         return
     st.markdown("<style>header, footer, [data-testid='stToolbar'] {display:none !important}</style>",
                 unsafe_allow_html=True)
-    _onderdeel(key="nieuwe_app", data={"html": _pagina((MAP / "app.js").stat().st_mtime)})
+    versie = (MAP / "app.js").stat().st_mtime
+    # Alleen de versie, tenzij de browser de pagina nog niet heeft (dan vraagt hij erom met "nodig").
+    vol = st.session_state.pop("nieuwe_app_nodig", False)
+    data = {"versie": str(versie), "html": _pagina(versie) if vol else None}
+    _onderdeel(key="nieuwe_app", data=data, on_nodig_change=_nodig)
+
+
+def _nodig() -> None:
+    st.session_state["nieuwe_app_nodig"] = True
