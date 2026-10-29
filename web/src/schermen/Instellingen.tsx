@@ -8,7 +8,7 @@ import { euro } from "../lib/winkelen";
 import { MailKoppelen } from "./AgendaPanelen";
 import { BoekpaginaInstellen, MailVersturen } from "./Gasten";
 import type { Staat } from "../App";
-import { Boek, Envelop, Euro, Grafiek, Huis, Kalender, Lijstje, Persoon, Schuiven, Slot, Terug, Vonk, Vraag, Winkelpand } from "../iconen";
+import { Boek, Hartslag, Envelop, Euro, Grafiek, Huis, Kalender, Lijstje, Persoon, Schuiven, Slot, Terug, Vonk, Vraag, Winkelpand } from "../iconen";
 import { Schakelaar, kop } from "./instellingen-ui";
 import { Account, Beveiliging, Techniek } from "./Beveiliging";
 import { ONDERDELEN, Onderdeel, type OnderdeelNaam } from "./Onderdelen";
@@ -201,12 +201,13 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
         <Rij icoon={Winkelpand} kleur="#475569" titel="Zakelijk" uitleg="Rooster, klanten en boekhouding" open={() => setOnderdeel("zakelijk")} />
       </Groep>
 
-      <Groep titel="Leren">
+      <Groep titel="Leren en sport">
         <Rij icoon={Boek} kleur="#0284c7" titel="Leren" uitleg={ONDERDEEL_UITLEG.leren} open={() => setOnderdeel("leren")} />
+        <Rij icoon={Hartslag} kleur="#16a34a" titel="Sport en gezondheid" uitleg={ONDERDEEL_UITLEG.sport} open={() => setOnderdeel("sport")} />
       </Groep>
 
       <Groep titel="Lijsten en documenten">
-        {ONDERDELEN.filter(([id]) => id !== "budget" && id !== "beleggen" && id !== "leren" && id !== "zakelijk").map(([id, titel, Icoon]) => (
+        {ONDERDELEN.filter(([id]) => id !== "budget" && id !== "beleggen" && id !== "leren" && id !== "sport" && id !== "zakelijk").map(([id, titel, Icoon]) => (
           <Rij key={id} icoon={Icoon} kleur="#14866d" titel={titel} uitleg={ONDERDEEL_UITLEG[id] ?? ""} open={() => setOnderdeel(id)} />
         ))}
       </Groep>
@@ -236,7 +237,8 @@ function Groep({ titel, children }: { titel: string; children: ReactNode }) {
   );
 }
 
-const ONDERDEEL_UITLEG: Record<string, string> = { leren: "Elke dag een beetje, met herhalen en overhoren", boodschappen: "Wat je nog moet halen", kooplijst: "Wat je wilt kopen, met prijs",
+const ONDERDEEL_UITLEG: Record<string, string> = { leren: "Elke dag een beetje, met herhalen en overhoren",
+  sport: "Trainingen, doelen, Strava en Apple Gezondheid", boodschappen: "Wat je nog moet halen", kooplijst: "Wat je wilt kopen, met prijs",
   wenslijst: "Cadeau-ideeën en wensen", notities: "Snel iets opschrijven", documenten: "Brieven en teksten, ook als Word of PDF" };
 
 function Rij({ icoon: Icoon, kleur, titel, uitleg, open }: { icoon: (p: { className?: string }) => ReactNode; kleur: string;
