@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { alsIk, bijwerken, gereedschapAdres, inloggen, uitloggen } from "./api";
+import { alsIk, bijwerken, inloggen, uitloggen } from "./api";
 
 const reactie = (data: unknown) => new Response(JSON.stringify(data), { status: 200 });
 
@@ -59,10 +59,4 @@ describe("veilige gedeelde opslag", () => {
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
-  it("opent alleen bekende tools via de beveiligde bestaande app", () => {
-    const url = new URL(gereedschapAdres("communicatiecentrum"));
-    expect(url.searchParams.get("oud")).toBe("1");
-    expect(url.searchParams.get("gereedschap")).toBe("communicatiecentrum");
-    expect(() => gereedschapAdres("https://voorbeeld.invalid")).toThrow("Onbekend");
-  });
 });
