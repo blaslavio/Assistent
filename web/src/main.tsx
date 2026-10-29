@@ -5,7 +5,9 @@ import App from "./App";
 import { Vangnet, foutenVolgen } from "./vangnet";
 import { versieVolgen } from "./versie";
 import { schermVastzetten } from "./vastScherm";
+import { netVolgen } from "./lib/net";
 
+netVolgen();
 foutenVolgen();
 versieVolgen();
 schermVastzetten();

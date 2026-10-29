@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { alsIk, bijwerken, inloggen, uitloggen } from "./api";
+import { alsIk, bijwerken, inloggen, rpc, uitloggen } from "./api";
 
 const reactie = (data: unknown) => new Response(JSON.stringify(data), { status: 200 });
 
@@ -59,4 +59,22 @@ describe("veilige gedeelde opslag", () => {
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
+});
+
+describe("haperende verbinding", () => {
+  it("probeert een lezende functie één keer opnieuw, een schrijvende niet", async () => {
+    const lezen = vi.fn().mockRejectedValueOnce(new TypeError("Load failed")).mockResolvedValueOnce(reactie({ ok: 1 }));
+    vi.stubGlobal("fetch", lezen);
+    expect(await rpc("mijn_gegevens")).toEqual({ ok: 1 });
+    expect(lezen).toHaveBeenCalledTimes(2);
+    const schrijven = vi.fn().mockRejectedValue(new TypeError("Load failed"));
+    vi.stubGlobal("fetch", schrijven);
+    await expect(rpc("taak_toevoegen")).rejects.toMatchObject({ status: 0 });
+    expect(schrijven).toHaveBeenCalledTimes(1);
+  });
+
+  it("zegt in gewone taal wat er misging", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 503 })));
+    await expect(rpc("iets")).rejects.toThrow(/storing/);
+  });
 });
