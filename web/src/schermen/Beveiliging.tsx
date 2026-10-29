@@ -8,6 +8,7 @@ import {
   otpauth, base32, overalUitloggen, profielBijwerken, tweeStapBevestigen, tweeStapStarten, tweeStapUitzetten,
   wachtwoordGelekt, type Apparaat, type Beveiliging as Stand,
 } from "../lib/beveiliging";
+import { codeSturen, mailBevestigen, mailIngesteld } from "../lib/aanmelden";
 import { PRIVACY, VOORWAARDEN } from "../lib/teksten";
 import { kop } from "./instellingen-ui";
 
@@ -297,6 +298,7 @@ export function Account({ gebruiker, vernieuw, opUitgelogd }: { gebruiker: Gebru
   return <>
     {!gebruiker.naam && <Gebruikersnaam vernieuw={vernieuw} />}
     <Mailadres huidig={gebruiker.email ?? ""} vernieuw={vernieuw} />
+    {gebruiker.email && <MailBevestigen email={gebruiker.email} bevestigd={!!gebruiker.email_bevestigd} vernieuw={vernieuw} />}
     <Wachtwoord />
     <Blok titel="Je gegevens">
       <ul className="flex flex-col divide-y divide-lijn overflow-hidden rounded-2xl bg-vlak">
@@ -349,6 +351,44 @@ function Mailadres({ huidig, vernieuw }: { huidig: string; vernieuw: () => Promi
     opslaan={async (v) => { await mailadresInstellen(v); await vernieuw(); return "Bewaard"; }} />;
 }
 
+/** Je mailadres bevestigen met een code. Alleen als de app mails kan versturen. */
+function MailBevestigen({ email, bevestigd, vernieuw }: { email: string; bevestigd: boolean; vernieuw: () => Promise<void> }) {
+  const [kan, setKan] = useState(false);
+  const [gestuurd, setGestuurd] = useState(false);
+  const [code, setCode] = useState("");
+  const [melding, setMelding] = useState<{ tekst: string; fout: boolean } | null>(null);
+  useEffect(() => { mailIngesteld().then(setKan); }, []);
+  if (bevestigd) return melding && !melding.fout ? <Melding tekst={melding.tekst} /> : null;
+  if (!kan) return null;
+  async function doe(werk: () => Promise<string>) {
+    setMelding(null);
+    try { setMelding({ tekst: await werk(), fout: false }); } catch (f) { setMelding({ tekst: foutTekst(f), fout: true }); }
+  }
+  return (
+    <Blok titel="Mailadres bevestigen">
+      <p className="px-1 text-[15px] text-rustig">Nog niet bevestigd. Zo weet je zeker dat een herstelcode bij jou aankomt.</p>
+      {!gestuurd ? (
+        <button className={`${knop} self-start`} onClick={() => doe(async () => {
+          const r = await codeSturen();
+          if (r.bevestigd) { await vernieuw(); return "Je mailadres is al bevestigd."; }
+          setGestuurd(true);
+          return `Er staat een code in je mail (${email}).`;
+        })}>Stuur code</button>
+      ) : (
+        <form className="flex gap-2" onSubmit={(e) => {
+          e.preventDefault();
+          doe(async () => { await mailBevestigen(code); await vernieuw(); return "Je mailadres is bevestigd."; });
+        }}>
+          <input inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)}
+            aria-label="Code uit de mail" placeholder="Code uit de mail" className={`${veld} flex-1`} />
+          <button disabled={code.replace(/\D/g, "").length < 6} className={knop}>Bevestig</button>
+        </form>
+      )}
+      {melding && <Melding tekst={melding.tekst} fout={melding.fout} />}
+    </Blok>
+  );
+}
+
 function Wachtwoord() {
   return <Formulier titel="Nieuw wachtwoord" label="Minstens 10 tekens" type="password" autoComplete="new-password"
     uitleg="Na een nieuw wachtwoord worden je andere apparaten uitgelogd."
@@ -395,7 +435,7 @@ function Verwijderen({ opUitgelogd }: { opUitgelogd: () => void }) {
 }
 
 /** De teksten gebruiken een klein beetje opmaak: **vet**, genummerde punten en alinea's. */
-function Opmaak({ tekst }: { tekst: string }) {
+export function Opmaak({ tekst }: { tekst: string }) {
   const vet = (regel: string) => regel.split(/\*\*(.+?)\*\*/g).map((d, i) => (i % 2 ? <b key={i}>{d}</b> : <Fragment key={i}>{d}</Fragment>));
   const blokken = tekst.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
   return (
