@@ -177,7 +177,8 @@ export default function App() {
   if (!staat || (!huidigeSessie() && !voorlopig)) return <Inloggen opIngelogd={herladen} />;
 
   const scherm = {
-    vandaag: <Vandaag staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} ga={setTab} />,
+    vandaag: <Vandaag staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} ga={setTab}
+      vraag={(t) => { setVooraf(t); setTab("assistent"); }} />,
     agenda: <Agenda staat={staat} setStaat={setStaat} />,
     chat: <Chat staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
       verlaat={() => setTab(voorChat)} terugNaam={TABS.find((t) => t.id === voorChat)?.naam}

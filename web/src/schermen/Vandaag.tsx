@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { bijwerken, instellingenBijwerken, type Afspraak } from "../api";
 import type { Staat, Tab } from "../App";
 import { dagenVan } from "../lib/club";
@@ -7,6 +7,7 @@ import { gekoppeld } from "../lib/mail";
 import { KeuzeKaart } from "../keuzekaart";
 import { MascotteMetTip, afgevinktTekst, mascotteZeg } from "../mascotte";
 import { opVandaag, type Weergave } from "./Algemeen";
+import { Vraagbalk } from "./Vraagbalk";
 import { afhandelen, voorstel } from "../lib/voorstellen";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
 import { weerNu, type Weer } from "../lib/weer";
@@ -14,13 +15,13 @@ import { eerstvolgende, instellingen as feestInstellingen } from "../lib/feestda
 
 const kop = "mb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig";
 
-type Props = { staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () => void; ga?: (t: Tab) => void };
+type Props = { staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () => void; ga?: (t: Tab) => void;
+  vraag?: (tekst: string) => void };
 
-export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props) {
+export default function Vandaag({ staat, setStaat, naarInstellingen, ga, vraag }: Props) {
   const [nu, setNu] = useState(() => new Date());
   const [weer, setWeer] = useState<Weer | null>(null);
-  const [invoer, setInvoer] = useState("");
-  const { data, gebruiker } = staat;
+    const { data, gebruiker } = staat;
   const toon = (k: string) => opVandaag((data.instellingen ?? {}) as Weergave, k);
 
   useEffect(() => {
@@ -91,20 +92,6 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
       // Ingeplande focusblokken voor deze taak die nog moeten komen, zijn niet meer nodig.
       const nu = nuTekst();
       g.afspraken = g.afspraken.filter((a) => (a as { taak_id?: number }).taak_id !== id || a.start < nu);
-    });
-    setStaat({ ...staat, data: nieuw });
-  }
-
-  async function toevoegen(e: FormEvent) {
-    e.preventDefault();
-    const titel = invoer.trim();
-    if (!titel) return;
-    setInvoer("");
-    mascotteZeg(/\b(morgen|maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|zondag|\d{1,2}[:.u])/i.test(titel)
-      ? "Staat erop. Wil je het met een tijd in je agenda? Vraag het de assistent." : "Staat op je lijst.");
-    const nieuw = await bijwerken((g) => {
-      g.taken.push({ id: g.volgend_id, titel, deadline: null, klaar: false });
-      g.volgend_id += 1;
     });
     setStaat({ ...staat, data: nieuw });
   }
@@ -210,23 +197,13 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
         </section>}
       </main>
 
-      {toon("taken") && <form onSubmit={toevoegen} className="sticky bottom-0 bg-white px-4 pb-3 pt-2 dark:bg-[#0b0b0e]">
-        <label className="flex h-13 items-center gap-2.5 rounded-full bg-vlak pr-2 pl-5">
-          <span className="sr-only">Nieuwe taak</span>
-          <input value={invoer} onChange={(e) => setInvoer(e.target.value)} placeholder="Nieuwe taak"
-            className="flex-1 bg-transparent outline-none placeholder:text-zacht" />
-          <button aria-label="Toevoegen" disabled={!invoer.trim()}
-            className="flex size-10 items-center justify-center rounded-full bg-inkt text-white disabled:opacity-30 dark:text-black">
-            <Plus className="size-5" />
-          </button>
-        </label>
-      </form>}
+      <Vraagbalk staat={staat} setStaat={setStaat} vraag={vraag} />
     </div>
   );
 }
 
 /** Vier eerste stappen voor een nieuw account. Verdwijnt vanzelf als alles klaar is, of als je hem wegtikt. */
-function AanDeSlag({ staat, setStaat, naarInstellingen, ga }: Omit<Props, "ga"> & { ga?: (t: Tab) => void }) {
+function AanDeSlag({ staat, setStaat, naarInstellingen, ga }: Omit<Props, "ga" | "vraag"> & { ga?: (t: Tab) => void }) {
   const { data, gebruiker } = staat;
   const inst = (data.instellingen ?? {}) as Record<string, unknown>;
   if (inst.aan_de_slag === "weg") return null;
