@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Bal, Ballon, Bewerk, Boek, Dubbelvink, Fiets, Gereedschap, Huis, Kind, Penseel, Raster as RasterIcoon, Scherm, Shirt, Truck, Winkelpand, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
+import { Meer, Bal, Ballon, Bewerk, Boek, Dubbelvink, Fiets, Gereedschap, Huis, Kind, Penseel, Raster as RasterIcoon, Scherm, Shirt, Truck, Winkelpand, Tas, Mensen, Persoon, Pijl, Plus, Slot, Tandwiel, Telefoon, Terug, Video, Vinkje, Zoek } from "../iconen";
 import { JouwAanbod } from "./Delen";
 import { Berichten, Feed, Schrijven } from "./Feed";
 import { GastGesprekScherm, GastenLijst } from "./Gasten";
@@ -7,7 +7,7 @@ import { gesprekken as gastGesprekken, type GastGesprek } from "../lib/gasten";
 import { feedInstelling } from "../lib/feed";
 import Bestellingen from "./Bestellingen";
 import { isGevraagd, lijst as bestellingenLijst, openGevraagd, wachtOpMij } from "../lib/bestellingen";
-import { VERDWIJNEN, verdwijnenInstellen, antwoorden, berichten, community, communityAntwoorden, communityDeelnemen,
+import { VERDWIJNEN, communityTijdelijk, isHerinnering, verdwijnenInstellen, antwoorden, berichten, community, communityAntwoorden, communityDeelnemen,
   communityMaken, communityUitnodigen, contacten, gesprekNaam, kortTekst, nieuwGesprek, overzicht, starten, versturen,
   voorbeeld, type Community, type Contact, type Deelnemer, type Gesprek, type Regel } from "../lib/chat";
 import { bellen, kan as kanBellen, luisteren } from "../lib/bellen";
@@ -18,6 +18,8 @@ import { StoryRij } from "./Stories";
 import { Verkopen } from "./Verkopen";
 import { useEigenFoto } from "./Profiel";
 import { CommunityBeheer } from "./CommunityBeheer";
+import { EindeKiezen, OpruimBlad, opruimTekst } from "./CommunityOpruimen";
+import { Onderblad } from "./Onderblad";
 import { Bladen, Raster, type Blad } from "./Winkelen";
 import { rpc } from "../api";
 import { zoeken, type Filter, type Product } from "../lib/winkelen";
@@ -251,16 +253,58 @@ function Communitys({ lijst, open, vernieuw, staat }: { lijst: Community[]; open
   if (weergave === "feed") return (
     <>
       {keuze}
-      <Feed mijn={lijst.filter((c) => c.status === "lid")} begin={begin} open={open} vernieuw={vernieuw}
+      <Feed mijn={lijst.filter((c) => c.status === "lid" && !c.herinnering)} begin={begin} open={open} vernieuw={vernieuw}
         maken={() => { setStartBlad(true); setWeergave("groepen"); }} />
     </>
   );
-  return <>{keuze}<Groepen lijst={lijst} open={open} vernieuw={vernieuw} startBlad={startBlad} /></>;
+  return <>{keuze}<Groepen lijst={lijst} open={open} vernieuw={vernieuw} startBlad={startBlad} afspraken={staat.data.afspraken} /></>;
 }
 
-function Groepen({ lijst, open, vernieuw, startBlad = false }: { lijst: Community[]; open: (id: number) => void;
-  vernieuw: () => Promise<void>; startBlad?: boolean }) {
+function Groepen({ lijst, open, vernieuw, startBlad = false, afspraken }: { lijst: Community[]; open: (id: number) => void;
+  vernieuw: () => Promise<void>; startBlad?: boolean; afspraken: Staat["data"]["afspraken"] }) {
   const [blad, setBlad] = useState(startBlad);
+  const [opties, setOpties] = useState<Community | null>(null);
+  const [toonBewaard, setToonBewaard] = useState(false);
+  const actief = lijst.filter((c) => !isHerinnering(c));
+  const bewaard = lijst.filter(isHerinnering);
+  const rij = (c: Community) => {
+    const nieuw = c.kanalen.reduce((n, k) => n + k.ongelezen, 0);
+    const extra = opruimTekst(c);
+    return (
+      <li key={c.id}>
+        {c.status === "uitgenodigd" ? (
+          <div className="flex items-center gap-3 rounded-2xl px-3 py-2.5">
+            <Rondje naam={c.naam} id={-1000 - c.id} groot />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate font-medium">{c.naam}</span>
+              <span className="truncate text-sm text-rustig">Uitnodiging{c.door ? ` van ${c.door}` : ""}{extra ? ` · ${extra}` : ""}</span>
+            </span>
+            <button onClick={() => antwoord(c.id, "nee")} className="h-9 rounded-full bg-vlak px-3 text-sm">Nee</button>
+            <button onClick={() => antwoord(c.id, "ja")} className="h-9 rounded-full bg-accent px-3 text-sm font-medium text-white">Doe mee</button>
+          </div>
+        ) : (
+          <div className="flex items-center rounded-2xl hover:bg-vlak">
+            <button onClick={() => open(c.id)} className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left ${isHerinnering(c) ? "opacity-70" : ""}`}>
+              <Rondje naam={c.naam} id={-1000 - c.id} groot />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className={`truncate ${nieuw ? "font-semibold" : "font-medium"}`}>{c.naam}</span>
+                <span className="truncate text-sm text-rustig">
+                  {extra || `${c.leden} ${c.leden === 1 ? "lid" : "leden"} · ${c.kanalen.length} ${c.kanalen.length === 1 ? "kanaal" : "kanalen"}`}
+                </span>
+              </span>
+              {nieuw > 0 && (
+                <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white">{nieuw}</span>
+              )}
+            </button>
+            <button onClick={() => setOpties(c)} aria-label={`Opties voor ${c.naam}`}
+              className="flex size-10 shrink-0 items-center justify-center rounded-full text-rustig hover:bg-black/5 dark:hover:bg-white/10">
+              <Meer className="size-5" />
+            </button>
+          </div>
+        )}
+      </li>
+    );
+  };
   const [fout, setFout] = useState("");
   async function antwoord(id: number, a: "ja" | "nee") {
     setFout("");
@@ -285,67 +329,39 @@ function Groepen({ lijst, open, vernieuw, startBlad = false }: { lijst: Communit
       {fout && <p role="alert" className="px-6 pb-2 text-sm text-red-600 dark:text-red-400">{fout}</p>}
       {lijst.length > 0 && (
         <ul className="flex flex-col px-3">
-          {lijst.map((c) => {
-            const nieuw = c.kanalen.reduce((n, k) => n + k.ongelezen, 0);
-            return (
-              <li key={c.id}>
-                {c.status === "uitgenodigd" ? (
-                  <div className="flex items-center gap-3 rounded-2xl px-3 py-2.5">
-                    <Rondje naam={c.naam} id={-1000 - c.id} groot />
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate font-medium">{c.naam}</span>
-                      <span className="truncate text-sm text-rustig">Uitnodiging{c.door ? ` van ${c.door}` : ""}</span>
-                    </span>
-                    <button onClick={() => antwoord(c.id, "nee")} className="h-9 rounded-full bg-vlak px-3 text-sm">Nee</button>
-                    <button onClick={() => antwoord(c.id, "ja")} className="h-9 rounded-full bg-accent px-3 text-sm font-medium text-white">Doe mee</button>
-                  </div>
-                ) : (
-                  <button onClick={() => open(c.id)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left hover:bg-vlak">
-                    <Rondje naam={c.naam} id={-1000 - c.id} groot />
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className={`truncate ${nieuw ? "font-semibold" : "font-medium"}`}>{c.naam}</span>
-                      <span className="truncate text-sm text-rustig">
-                        {c.leden} {c.leden === 1 ? "lid" : "leden"} · {c.kanalen.length} {c.kanalen.length === 1 ? "kanaal" : "kanalen"}
-                      </span>
-                    </span>
-                    {nieuw > 0 && (
-                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white">{nieuw}</span>
-                    )}
-                  </button>
-                )}
-              </li>
-            );
-          })}
+          {actief.map(rij)}
           <li>
             <button onClick={() => setBlad(true)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-accent hover:bg-vlak">
               <span className="flex size-12 items-center justify-center rounded-full bg-vlak"><Plus className="size-5" /></span>
               <span className="font-medium">Nieuwe community of code</span>
             </button>
           </li>
+          {bewaard.length > 0 && (
+            <li className="mt-3">
+              <button onClick={() => setToonBewaard(!toonBewaard)} aria-expanded={toonBewaard}
+                className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-rustig">
+                <span>Herinneringen en bewaard · {bewaard.length}</span>
+                <Terug className={`size-4 transition-transform ${toonBewaard ? "rotate-90" : "-rotate-90"}`} />
+              </button>
+            </li>
+          )}
+          {toonBewaard && bewaard.map(rij)}
         </ul>
       )}
-      {blad && <CommunityBlad sluit={() => setBlad(false)} klaar={async (id) => { setBlad(false); await vernieuw(); open(id); }} />}
+      {opties && <OpruimBlad c={opties} afspraken={afspraken} sluit={() => setOpties(null)}
+        klaar={async () => { setOpties(null); await vernieuw(); }} />}
+      {blad && <CommunityBlad afspraken={afspraken} sluit={() => setBlad(false)} klaar={async (id) => { setBlad(false); await vernieuw(); open(id); }} />}
     </>
-  );
-}
-
-function Onderblad({ titel, sluit, children }: { titel: string; sluit: () => void; children: ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/30" onClick={sluit}>
-      <div role="dialog" aria-label={titel} onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[85%] w-full max-w-xl flex-col gap-4 overflow-y-auto rounded-t-[28px] bg-white px-6 pt-3 pb-[max(env(safe-area-inset-bottom),24px)] dark:bg-[#16161a]">
-        <span className="mx-auto h-1 w-10 shrink-0 rounded-full bg-lijn" />
-        <h2 className="text-xl font-semibold">{titel}</h2>
-        {children}
-      </div>
-    </div>
   );
 }
 
 const veld = "h-12 w-full rounded-2xl bg-vlak px-4 outline-none placeholder:text-zacht";
 
-function CommunityBlad({ sluit, klaar }: { sluit: () => void; klaar: (id: number) => void }) {
+function CommunityBlad({ sluit, klaar, afspraken }: { sluit: () => void; klaar: (id: number) => void;
+  afspraken: Staat["data"]["afspraken"] }) {
   const [soort, setSoort] = useState<"maken" | "code">("maken");
+  const [tijdelijk, setTijdelijk] = useState(false);
+  const [nieuw, setNieuw] = useState<number | null>(null);
   const [naam, setNaam] = useState("");
   const [over, setOver] = useState("");
   const [code, setCode] = useState("");
@@ -356,13 +372,24 @@ function CommunityBlad({ sluit, klaar }: { sluit: () => void; klaar: (id: number
     setFout("");
     setBezig(true);
     try {
-      klaar((soort === "maken" ? await communityMaken(naam.trim(), over.trim()) : await communityDeelnemen(code)).id);
+      const id = (soort === "maken" ? await communityMaken(naam.trim(), over.trim()) : await communityDeelnemen(code)).id;
+      if (soort === "maken" && tijdelijk) setNieuw(id);
+      else klaar(id);
     } catch (er) {
       setFout(foutVan(er));
     } finally {
       setBezig(false);
     }
   }
+  if (nieuw !== null) return (
+    <Onderblad titel="Tijdelijke community" sluit={() => klaar(nieuw)}>
+      <EindeKiezen afspraken={afspraken} eigenaar kies={async (e) => {
+        try { if (e) await communityTijdelijk(nieuw, e.eindigt, e.naAfloop); } catch (er) { setFout(foutVan(er)); return; }
+        klaar(nieuw);
+      }} />
+      {fout && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{fout}</p>}
+    </Onderblad>
+  );
   return (
     <Onderblad titel="Community" sluit={sluit}>
       <div className="grid grid-cols-2 gap-1 rounded-full bg-vlak p-1">
@@ -378,6 +405,13 @@ function CommunityBlad({ sluit, klaar }: { sluit: () => void; klaar: (id: number
               aria-label="Naam" className={veld} />
             <input value={over} onChange={(e) => setOver(e.target.value)} maxLength={300} placeholder="Waar gaat het over? (mag leeg)"
               aria-label="Omschrijving" className={veld} />
+            <label className="flex items-center justify-between gap-3 rounded-2xl bg-vlak px-4 py-3">
+              <span className="flex flex-col">
+                <span className="font-medium">Tijdelijk</span>
+                <span className="text-[13px] text-rustig">Voor een uitje of feest. Eindigt vanzelf.</span>
+              </span>
+              <input type="checkbox" checked={tijdelijk} onChange={(e) => setTijdelijk(e.target.checked)} className="size-5 accent-[var(--color-accent)]" />
+            </label>
             <p className="text-[13px] text-rustig">Je krijgt meteen de kanalen mededelingen en algemeen.</p>
           </>
         ) : (
@@ -421,6 +455,11 @@ function CommunityScherm({ c, openKanaal, vernieuw, terug }: { c: Community; ope
         <h1 className="text-2xl font-bold tracking-tight">{c.naam}</h1>
         {c.omschrijving && <p className="text-[15px] text-rustig">{c.omschrijving}</p>}
         <p className="text-sm text-zacht">{c.leden} {c.leden === 1 ? "lid" : "leden"}{c.openbaar ? " · openbaar" : ""}</p>
+        {(c.herinnering || c.eindigt) && (
+          <p className="mt-1 rounded-full bg-vlak px-3 py-1 text-[13px] text-rustig">
+            {c.herinnering ? `${opruimTekst(c)}. Alles is terug te lezen.` : opruimTekst(c)}
+          </p>
+        )}
       </div>
       <h2 className="px-6 pb-1 text-sm font-medium text-rustig">Kanalen</h2>
       <ul className="flex flex-col px-3">
@@ -441,7 +480,7 @@ function CommunityScherm({ c, openKanaal, vernieuw, terug }: { c: Community; ope
       </ul>
       <h2 className="px-6 pt-5 pb-2 text-sm font-medium text-rustig">Feed</h2>
       <div className="flex flex-col gap-4 pb-8">
-        <Schrijven mijn={[c]} vast={c.id} geplaatst={() => setOpnieuw((n) => n + 1)} />
+        {!c.herinnering && <Schrijven mijn={[c]} vast={c.id} geplaatst={() => setOpnieuw((n) => n + 1)} />}
         <Berichten keuze={keuze} community={c.id} leeg="Nog geen berichten. Schrijf als eerste iets." />
       </div>
       {leden && <LedenBlad c={c} sluit={() => setLeden(false)} weg={async () => { setLeden(false); await vernieuw(); terug(); }} />}

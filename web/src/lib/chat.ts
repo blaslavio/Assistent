@@ -198,7 +198,9 @@ export const mijnApparaat = () => ik?.apparaat ?? 0;
 
 export type Kanaal = { id: number; naam: string; alleen_beheer: boolean; laatst?: string; ongelezen: number };
 export type Community = { id: number; naam: string; omschrijving: string; rol: "eigenaar" | "beheerder" | "lid";
-  status: "lid" | "uitgenodigd"; door?: string; leden: number; kanalen: Kanaal[]; openbaar?: boolean };
+  status: "lid" | "uitgenodigd"; door?: string; leden: number; kanalen: Kanaal[]; openbaar?: boolean;
+  eindigt?: string | null; na_afloop?: "herinnering" | "opheffen"; herinnering?: boolean; herinnering_sinds?: string | null;
+  bewaard?: boolean; aangemaakt?: string };
 
 export async function overzicht() {
   const r = await rpc<{ gesprekken: Gesprek[]; communities?: Community[] }>("chat_gesprekken");
@@ -245,6 +247,14 @@ export const communityInstellen = (id: number, p: { titel?: string; omschrijving
   nieuwe_code?: boolean; opheffen?: boolean }) =>
   rpc("chat_community_instellen", { p_community: id, p_titel: p.titel ?? null, p_omschrijving: p.omschrijving ?? null,
     p_code_aan: p.code_aan ?? null, p_nieuwe_code: p.nieuwe_code ?? false, p_opheffen: p.opheffen ?? false });
+// Opruimen zonder iets kwijt te raken: tijdelijk (met einddatum), herinnering (alleen-lezen) of voor jezelf bewaren.
+export const communityTijdelijk = (id: number, eindigt: Date | null, naAfloop: "herinnering" | "opheffen") =>
+  rpc("community_tijdelijk", { p_community: id, p_eindigt: eindigt?.toISOString() ?? null, p_na_afloop: naAfloop });
+export const communityHerinnering = (id: number, aan: boolean) => rpc("community_herinnering", { p_community: id, p_aan: aan });
+export const communityBewaren = (id: number, aan: boolean) => rpc("community_bewaren", { p_community: id, p_aan: aan });
+/** In de lijst met herinneringen in plaats van bij je actieve community's. */
+export const isHerinnering = (c: Community) => Boolean(c.herinnering || c.bewaard);
+
 export type LidActie = "beheerder" | "lid" | "eigenaar" | "verwijderen" | "weren";
 export const communityLid = (id: number, wie: number, actie: LidActie) =>
   rpc("chat_community_lid", { p_community: id, p_wie: wie, p_actie: actie });
