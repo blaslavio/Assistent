@@ -7,7 +7,7 @@ import { euro } from "../lib/winkelen";
 import { MailKoppelen } from "./AgendaPanelen";
 import { BoekpaginaInstellen, MailVersturen } from "./Gasten";
 import type { Staat } from "../App";
-import { Boek, Envelop, Euro, Huis, Kalender, Lijstje, Persoon, Schuiven, Slot, Terug, Vonk, Vraag } from "../iconen";
+import { Boek, Envelop, Euro, Grafiek, Huis, Kalender, Lijstje, Persoon, Schuiven, Slot, Terug, Vonk, Vraag, Winkelpand } from "../iconen";
 import { Schakelaar, kop } from "./instellingen-ui";
 import { Account, Beveiliging, Techniek } from "./Beveiliging";
 import { ONDERDELEN, Onderdeel, type OnderdeelNaam } from "./Onderdelen";
@@ -170,6 +170,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
       <Groep titel="Geld">
         <Rij icoon={Euro} kleur="#e08a1e" titel="Betalingen" uitleg="Overzicht, kopersbescherming en uitbetalen" open={() => setPagina("betalingen")} />
         <Rij icoon={Lijstje} kleur="#c2571a" titel="Budget" uitleg="Uitgaven en afschriften" open={() => setOnderdeel("budget")} />
+        <Rij icoon={Grafiek} kleur="#0f766e" titel="Beleggen" uitleg="Je portefeuille, markten en volglijst" open={() => setOnderdeel("beleggen")} />
       </Groep>
 
       <Groep titel="Koppelingen">
@@ -184,12 +185,16 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
         <Rij icoon={Vonk} kleur="#4f46e5" titel="Assistent" uitleg="Naam, toon en hoe hij antwoordt" open={() => setPagina("assistent")} />
       </Groep>
 
+      <Groep titel="Werk">
+        <Rij icoon={Winkelpand} kleur="#475569" titel="Zakelijk" uitleg="Rooster, klanten en boekhouding" open={() => setOnderdeel("zakelijk")} />
+      </Groep>
+
       <Groep titel="Leren">
         <Rij icoon={Boek} kleur="#0284c7" titel="Leren" uitleg={ONDERDEEL_UITLEG.leren} open={() => setOnderdeel("leren")} />
       </Groep>
 
       <Groep titel="Lijsten en documenten">
-        {ONDERDELEN.filter(([id]) => id !== "budget" && id !== "leren").map(([id, titel, Icoon]) => (
+        {ONDERDELEN.filter(([id]) => id !== "budget" && id !== "beleggen" && id !== "leren" && id !== "zakelijk").map(([id, titel, Icoon]) => (
           <Rij key={id} icoon={Icoon} kleur="#14866d" titel={titel} uitleg={ONDERDEEL_UITLEG[id] ?? ""} open={() => setOnderdeel(id)} />
         ))}
       </Groep>

@@ -4,11 +4,13 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import { alsIk, bijwerken, instellingenBijwerken, type Gegevens } from "../api";
 import { AfschriftFout, afschriftLezen, categorieRaden, decoderen, metSleutels } from "../lib/afschrift";
 import type { Staat } from "../App";
-import { Bestand, Bewerk, Boek, Hart, Kruis, Lijstje, Plus, Prullenbak, Tas, Terug } from "../iconen";
+import { Bestand, Bewerk, Boek, Grafiek, Hart, Kruis, Lijstje, Plus, Prullenbak, Tas, Terug, Winkelpand } from "../iconen";
+import { Beleggen } from "./Beleggen";
 import { kop } from "./instellingen-ui";
 import { Leren } from "./Leren";
+import { Zakelijk } from "./Zakelijk";
 
-export type OnderdeelNaam = "boodschappen" | "kooplijst" | "wenslijst" | "notities" | "documenten" | "budget" | "leren";
+export type OnderdeelNaam = "boodschappen" | "kooplijst" | "wenslijst" | "notities" | "documenten" | "budget" | "beleggen" | "leren" | "zakelijk";
 
 export const ONDERDELEN: [OnderdeelNaam, string, typeof Tas][] = [
   ["boodschappen", "Boodschappen", Tas],
@@ -17,7 +19,9 @@ export const ONDERDELEN: [OnderdeelNaam, string, typeof Tas][] = [
   ["notities", "Notities", Bewerk],
   ["documenten", "Documenten", Bestand],
   ["budget", "Budget", Lijstje],
+  ["beleggen", "Beleggen", Grafiek],
   ["leren", "Leren", Boek],
+  ["zakelijk", "Zakelijk", Winkelpand],
 ];
 
 const foutVan = (e: unknown) => (e instanceof Error && e.message ? e.message : "Dat lukte niet. Probeer het opnieuw.");
@@ -45,6 +49,8 @@ export function Onderdeel({ naam, staat, vernieuw, terug, vraag }: { naam: Onder
   if (naam === "documenten") return <Documenten terug={terug} />;
   if (naam === "leren") return <Scherm titel={titel} terug={terug}><Leren staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
   if (naam === "budget") return <Scherm titel={titel} terug={terug}><Budget staat={staat} /></Scherm>;
+  if (naam === "beleggen") return <Scherm titel={titel} terug={terug}><Beleggen staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
+  if (naam === "zakelijk") return <Scherm titel={titel} terug={terug}><Zakelijk staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
   return <Scherm titel={titel} terug={terug}><Lijst naam={naam} data={staat.data} vernieuw={vernieuw} /></Scherm>;
 }
 
@@ -53,7 +59,7 @@ export function Onderdeel({ naam, staat, vernieuw, terug, vraag }: { naam: Onder
 type Item = { id: number; tekst?: string; naam_product?: string; titel?: string; prijs?: number | null; gekocht?: boolean };
 const tekstVan = (i: Item) => i.tekst ?? i.naam_product ?? i.titel ?? "";
 
-function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documenten" | "budget" | "leren">; data: Gegevens;
+function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documenten" | "budget" | "beleggen" | "leren" | "zakelijk">; data: Gegevens;
   vernieuw: () => Promise<void> }) {
   const [invoer, setInvoer] = useState("");
   const [notitie, setNotitie] = useState<Item | null>(null);

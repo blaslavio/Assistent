@@ -3,11 +3,15 @@
 export const SUPABASE = import.meta.env.VITE_SUPABASE ?? "https://lnjsekmlpjyiwdlzcowa.supabase.co";
 export const SLEUTEL = "sb_publishable_Bq-K3J6yt0-B-mHWYj-tnQ_DWD0c9KX";
 const APPARAAT_SLEUTEL = "assistent.apparaat";
+// Zo bewaarde de vorige app (Streamlit) zijn apparaatsleutel. Op dat adres kent de nieuwe app je daarmee ook meteen.
+const VORIGE_SLEUTEL = "mijn-assistent-apparaat";
+const apparaatToken = () => lees(APPARAAT_SLEUTEL) ?? lees(VORIGE_SLEUTEL);
 // Waar de huidige app staat: naast de nieuwe op GitHub Pages, of het adres van de Streamlit-app als de nieuwe app daar
 // in een pagina draait.
 export const OUDE_APP = (globalThis as { OUDE_APP?: string }).OUDE_APP ?? "../";
 
 export class GeenToegang extends Error {}
+import * as snelstart from "./lib/snelstart";
 
 export async function rpc<T = unknown>(functie: string, parameters: Record<string, unknown> = {}): Promise<T> {
   const r = await fetch(`${SUPABASE}/rest/v1/rpc/${functie}`, {
@@ -15,17 +19,20 @@ export async function rpc<T = unknown>(functie: string, parameters: Record<strin
     headers: { apikey: SLEUTEL, "Content-Type": "application/json" },
     body: JSON.stringify(parameters),
   });
-  if (!r.ok) throw new Error(`Even geen verbinding (${r.status}).`);
+  if (!r.ok) throw Object.assign(new Error(`Even geen verbinding (${r.status}).`), { status: r.status });
   return r.status === 204 ? (null as T) : r.json();
 }
 
 export type Sessie = { naam: string; token: string };
 
 let sessie: Sessie | null = null;
+// Tijdens de bliksemstart staat de vorige stand al op het scherm terwijl het inloggen nog loopt; wie dan al iets
+// vraagt, wacht daarop. Lukte het niet door de verbinding, dan is dat een verbindingsfout en geen uitlogreden.
+let sessieWacht: Promise<unknown> | null = null;
+let startZonderVerbinding = false;
 
 function zetSessie(nieuw: Sessie | null) {
   sessie = nieuw;
-  // Werkruimtes kunnen privéschetsen direct opruimen, ook bij verlopen toegang.
   if (typeof window !== "undefined") window.dispatchEvent(new Event("assistent-sessie"));
 }
 
@@ -34,6 +41,8 @@ export function huidigeSessie() {
 }
 
 export async function alsIk<T = Record<string, unknown>>(functie: string, parameters: Record<string, unknown> = {}) {
+  if (!sessie && sessieWacht) await sessieWacht;
+  if (!sessie && startZonderVerbinding) throw new Error("Even geen verbinding. Probeer het zo opnieuw.");
   if (!sessie) throw new GeenToegang();
   const account = sessie;
   const antwoord = await rpc<T>(functie, { ...parameters, p_naam: account.naam, p_wachtwoord: account.token });
@@ -84,33 +93,99 @@ export async function inloggen(naam: string, wachtwoord: string, code = "", onth
   return a;
 }
 
-/** Weer ingelogd met de sleutel die dit apparaat bewaarde. */
-export async function terugkomen(): Promise<boolean> {
-  const token = lees(APPARAAT_SLEUTEL);
-  if (!token) return false;
-  try {
-    const a = await rpc<Inlogantwoord>("apparaat_inloggen", { p_token: token, p_apparaat: apparaatNaam() });
-    if (a.token) {
-      zetSessie({ naam: a.naam ?? "", token: a.token });
-      return true;
+export type Staat = { gebruiker: Gebruiker; data: Gegevens };
+
+/**
+ * Bliksemstart. `vorige` geeft meteen de stand van de vorige keer (versleuteld op dit apparaat), `vers` logt weer in
+ * met de sleutel van dit apparaat en haalt in één keer de nieuwste gegevens op: de stand, null (opnieuw inloggen)
+ * of "offline" (geen verbinding; de vorige stand blijft staan).
+ */
+export function opstarten(): { vorige: Promise<Staat | null>; vers: Promise<Staat | null | "offline"> } {
+  const overstap = new URLSearchParams(location.search).get("overstap");
+  if (overstap) {
+    adresOpruimen("overstap");
+    const vers = overstapInwisselen(overstap).then((gelukt) => (gelukt ? opstarten().vers : null));
+    sessieWacht = vers.catch(() => null).finally(() => { sessieWacht = null; });
+    return { vorige: Promise.resolve(null), vers };
+  }
+  const token = apparaatToken();
+  if (!token) return { vorige: Promise.resolve(null), vers: Promise.resolve(null) };
+  const account = snelstart.accountVan(token).catch(() => "");
+  const vorige = account.then((a) => (a ? snelstart.lezen(a) : null));
+  startZonderVerbinding = false;
+  const vers = (async (): Promise<Staat | null | "offline"> => {
+    let a: Inlogantwoord & { gegevens?: RuweGegevens };
+    try {
+      try {
+        a = await rpc("apparaat_start", { p_token: token, p_apparaat: apparaatNaam() });
+      } catch (e) {
+        // Een database zonder apparaat_start (nog niet bijgewerkt): de oude weg, in twee stappen.
+        if ((e as { status?: number }).status !== 404) throw e;
+        a = await rpc("apparaat_inloggen", { p_token: token, p_apparaat: apparaatNaam() });
+      }
+    } catch {
+      startZonderVerbinding = true;
+      return "offline";
     }
+    if (!a.token) {
+      schrijf(APPARAAT_SLEUTEL, null);
+      schrijf(VORIGE_SLEUTEL, null);
+      await snelstart.wissen();
+      return null;
+    }
+    zetSessie({ naam: a.naam ?? "", token: a.token });
+    if (a.gegevens && !(a.gegevens as { geen_toegang?: boolean }).geen_toegang) return netjes(a.gegevens);
+    return gegevensLaden();
+  })();
+  sessieWacht = vers.catch(() => null).finally(() => { sessieWacht = null; });
+  return { vorige, vers };
+}
+
+async function overstapInwisselen(code: string) {
+  if (!/^overstap\.[0-9a-f]{48}$/.test(code)) return false;
+  try {
+    const r = await rpc<{ token?: string }>("overstap_inwisselen", { p_code: code, p_apparaat: apparaatNaam() });
+    if (r.token) schrijf(APPARAAT_SLEUTEL, r.token);
+    return !!r.token;
   } catch {
     return false;
   }
-  schrijf(APPARAAT_SLEUTEL, null);
-  return false;
+}
+
+/**
+ * In de app op het adres van de vorige app, binnen de web-app op het beginscherm: geef die web-app een eenmalige code,
+ * zodat de app daar (sneller, ander adres) je meteen kent. Alleen als je hier ingelogd blijft, en alleen naar dat adres.
+ */
+export async function overstappen() {
+  if (!/^https?:\/\//.test(OUDE_APP) || adresWaarde("schil") !== "1" || !apparaatToken() || !sessie) return;
+  if (overgestapt) return;
+  overgestapt = true;
+  const r = await alsIk<{ code?: string }>("overstap_code");
+  if (!r.code) return;
+  window.top?.postMessage({ soort: "overstap", code: r.code }, "https://blaslavio.github.io");
+}
+let overgestapt = false;
+
+/** Voor de volgende keer openen; alleen als je op dit apparaat ingelogd blijft. */
+export async function momentopnameBewaren(s: Staat) {
+  const token = apparaatToken();
+  if (!token || !sessie) return;
+  await snelstart.bewaren(s, await snelstart.accountVan(token));
 }
 
 export async function uitloggen() {
-  const token = lees(APPARAAT_SLEUTEL);
   try {
-    if (token) await rpc("apparaat_vergeten", { p_token: token });
+    for (const token of new Set([lees(APPARAAT_SLEUTEL), lees(VORIGE_SLEUTEL)])) {
+      if (token) await rpc("apparaat_vergeten", { p_token: token });
+    }
     if (sessie) await alsIk("uitloggen");
   } catch {
     /* lokaal uitloggen lukt altijd */
   }
   schrijf(APPARAAT_SLEUTEL, null);
+  schrijf(VORIGE_SLEUTEL, null);
   zetSessie(null);
+  await snelstart.wissen();
 }
 
 // --- Gegevens ----------------------------------------------------------------------------------------------------
@@ -127,8 +202,13 @@ export type Gegevens = {
 export type Gebruiker = { id: number; naam: string | null; weergavenaam?: string; email?: string; foto?: string;
   heeft_foto?: boolean; foto_zichtbaar?: string; over?: string };
 
+type RuweGegevens = { gebruiker: Gebruiker; data: Partial<Gegevens> };
+
 export async function gegevensLaden(): Promise<{ gebruiker: Gebruiker; data: Gegevens }> {
-  const a = await alsIk<{ gebruiker: Gebruiker; data: Partial<Gegevens> }>("mijn_gegevens");
+  return netjes(await alsIk<RuweGegevens>("mijn_gegevens"));
+}
+
+function netjes(a: RuweGegevens): { gebruiker: Gebruiker; data: Gegevens } {
   const data = { taken: [], afspraken: [], contacten: [], leerdoelen: [], sportdoelen: [], volgend_id: 1,
     ...(a.data ?? {}) } as Gegevens;
   // Oudere gegevens kunnen een lijst missen of iets anders bevatten; dan begint die lijst leeg.
@@ -207,7 +287,7 @@ export function adresOpruimen(...namen: string[]) {
 
 /** Na "overal uitloggen" krijgt dit apparaat een nieuwe sleutel, zodat je hier ingelogd blijft. */
 export async function ditApparaatOnthouden() {
-  if (!lees(APPARAAT_SLEUTEL)) return;
+  if (!apparaatToken()) return;
   const r = await alsIk<{ token?: string }>("apparaat_onthouden", { p_apparaat: apparaatNaam() });
-  if (r.token) schrijf(APPARAAT_SLEUTEL, r.token);
+  if (r.token) { schrijf(APPARAAT_SLEUTEL, r.token); schrijf(VORIGE_SLEUTEL, null); }
 }

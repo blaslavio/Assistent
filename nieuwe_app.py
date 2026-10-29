@@ -48,7 +48,7 @@ _onderdeel = st.components.v2.component("nieuweapp", html="<span></span>", js=JS
 
 
 @st.cache_data(show_spinner=False)
-def _pagina(_versie: float) -> str:
+def _pagina(versie: float) -> str:  # versie (mtime) telt mee in de cache: nieuwe build, nieuwe pagina
     js = (MAP / "app.js").read_text(encoding="utf-8").replace("</script", "<\\/script")
     css = (MAP / "app.css").read_text(encoding="utf-8").replace("</style", "<\\/style")
     return f"""<!doctype html>

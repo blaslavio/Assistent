@@ -1,0 +1,203 @@
+{
+ "posities": [
+  {
+   "id": "a",
+   "symbool": "ASML.AS",
+   "naam": "ASML",
+   "aantal": 3,
+   "aankoopprijs": 600,
+   "soort": "EQUITY"
+  },
+  {
+   "id": "b",
+   "symbool": "VWRL.AS",
+   "naam": "Vanguard All-World",
+   "aantal": 20,
+   "aankoopprijs": 100,
+   "soort": "ETF"
+  },
+  {
+   "id": "c",
+   "symbool": "AAPL",
+   "naam": "Apple",
+   "aantal": 5,
+   "aankoopprijs": 150
+  },
+  {
+   "id": "d",
+   "symbool": "ONB",
+   "naam": "Onbekend",
+   "aantal": 2,
+   "aankoopprijs": 10,
+   "eigen_koers": 12
+  },
+  {
+   "id": "e",
+   "symbool": "BTC-EUR",
+   "naam": "Bitcoin",
+   "aantal": 0.05,
+   "aankoopprijs": 40000
+  }
+ ],
+ "koersen": {
+  "ASML.AS": {
+   "prijs": 700,
+   "valuta": "EUR",
+   "vandaag_pct": 1.2,
+   "maand_pct": 3,
+   "verloop": [
+    1,
+    2
+   ],
+   "soort": "EQUITY"
+  },
+  "VWRL.AS": {
+   "prijs": 110,
+   "valuta": "EUR",
+   "vandaag_pct": -0.5,
+   "maand_pct": 1,
+   "verloop": [],
+   "soort": "ETF"
+  },
+  "AAPL": {
+   "prijs": 200,
+   "valuta": "USD",
+   "vandaag_pct": 2,
+   "maand_pct": null,
+   "verloop": [],
+   "soort": "EQUITY"
+  },
+  "ONB": null,
+  "BTC-EUR": {
+   "prijs": 60000,
+   "valuta": "EUR",
+   "vandaag_pct": null,
+   "maand_pct": 5,
+   "verloop": [],
+   "soort": "CRYPTOCURRENCY"
+  },
+  "EURUSD=X": {
+   "prijs": 1.1,
+   "valuta": "USD",
+   "vandaag_pct": 0,
+   "maand_pct": 0,
+   "verloop": [],
+   "soort": "CURRENCY"
+  }
+ },
+ "verwacht": {
+  "posities": [
+   {
+    "id": "a",
+    "symbool": "ASML.AS",
+    "naam": "ASML",
+    "aantal": 3,
+    "aankoopprijs": 600,
+    "soort": "EQUITY",
+    "inleg": 1800,
+    "koers": 700,
+    "eigen": false,
+    "vandaag_pct": 1.2,
+    "maand_pct": 3,
+    "verloop": [
+     1,
+     2
+    ],
+    "waarde": 2100,
+    "resultaat": 300,
+    "resultaat_pct": 16.67,
+    "aandeel_pct": 25.5
+   },
+   {
+    "id": "b",
+    "symbool": "VWRL.AS",
+    "naam": "Vanguard All-World",
+    "aantal": 20,
+    "aankoopprijs": 100,
+    "soort": "ETF",
+    "inleg": 2000,
+    "koers": 110,
+    "eigen": false,
+    "vandaag_pct": -0.5,
+    "maand_pct": 1,
+    "verloop": [],
+    "waarde": 2200,
+    "resultaat": 200,
+    "resultaat_pct": 10.0,
+    "aandeel_pct": 26.7
+   },
+   {
+    "id": "c",
+    "symbool": "AAPL",
+    "naam": "Apple",
+    "aantal": 5,
+    "aankoopprijs": 150,
+    "inleg": 750,
+    "koers": 181.8182,
+    "eigen": false,
+    "soort": "EQUITY",
+    "vandaag_pct": 2,
+    "maand_pct": null,
+    "verloop": [],
+    "waarde": 909.09,
+    "resultaat": 159.09,
+    "resultaat_pct": 21.21,
+    "aandeel_pct": 11.0
+   },
+   {
+    "id": "d",
+    "symbool": "ONB",
+    "naam": "Onbekend",
+    "aantal": 2,
+    "aankoopprijs": 10,
+    "eigen_koers": 12,
+    "inleg": 20,
+    "koers": 12.0,
+    "eigen": true,
+    "soort": "",
+    "vandaag_pct": null,
+    "maand_pct": null,
+    "verloop": [],
+    "waarde": 24.0,
+    "resultaat": 4.0,
+    "resultaat_pct": 20.0,
+    "aandeel_pct": 0.3
+   },
+   {
+    "id": "e",
+    "symbool": "BTC-EUR",
+    "naam": "Bitcoin",
+    "aantal": 0.05,
+    "aankoopprijs": 40000,
+    "inleg": 2000.0,
+    "koers": 60000,
+    "eigen": false,
+    "soort": "CRYPTOCURRENCY",
+    "vandaag_pct": null,
+    "maand_pct": 5,
+    "verloop": [],
+    "waarde": 3000.0,
+    "resultaat": 1000.0,
+    "resultaat_pct": 50.0,
+    "aandeel_pct": 36.4
+   }
+  ],
+  "waarde": 8233.09,
+  "inleg": 6570.0,
+  "resultaat": 1663.09,
+  "resultaat_pct": 25.31,
+  "vandaag": 31.67,
+  "spreiding": {
+   "Aandeel": 3009.09,
+   "Indexfonds (ETF)": 2200,
+   "Overig": 24.0,
+   "Crypto": 3000.0
+  },
+  "let_op": [
+   "Bitcoin is 36% van je portefeuille. Veel in één belegging maakt je gevoeliger voor tegenvallers.",
+   "Meer dan een vijfde zit in crypto. Dat kan hard op en neer gaan."
+  ],
+  "zonder_koers": [],
+  "uitleg": "Dit is uitleg, geen persoonlijk financieel advies. Beleggen kent risico's: je kunt (een deel van) je inleg verliezen. De app koopt of verkoopt nooit iets."
+ }
+}

@@ -6517,8 +6517,9 @@ def assistent_invoer() -> None:
         assistent_opdracht(vraag)
 
 
-# Adreswaarden die de nieuwe app zelf afhandelt.
-NIEUWE_APP_ADRES = {"nieuw", "zeg", "ochtend", "deel", "betaald", "boek", "boeking", "prik"}
+# Adreswaarden die de nieuwe app zelf afhandelt. "schil": geopend vanuit de web-app op het beginscherm; die toont de
+# nieuwe app, die je daar meteen laat overstappen naar de snelle versie op het adres van de web-app.
+NIEUWE_APP_ADRES = {"nieuw", "zeg", "ochtend", "deel", "betaald", "boek", "boeking", "prik", "schil"}
 
 
 def main() -> None:

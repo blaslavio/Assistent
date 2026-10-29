@@ -1,8 +1,10 @@
 # Release: werkstromen, communicatie en ontwerp
 
-Doel: de lokale verbeteringen uit deze sessie toevoegen aan de actuele `main`, inclusief het bestaande nieuwe React-ontwerp. De projectuitbreiding is bijgewerkt met `main` op `2cade0e`, inclusief de nieuwe navigatie en de bestaande productiereleasepoort voor actuele E2E-bewijzen.
+Doel: de lokale verbeteringen uit deze sessie toevoegen aan de actuele `main`, inclusief het bestaande nieuwe React-ontwerp. De projectuitbreiding is bijgewerkt met `main` op `54b052a`, inclusief de nieuwe navigatie en de bestaande productiereleasepoort voor actuele E2E-bewijzen.
 
 ## Status
+
+De geïntegreerde ontwikkelversie wordt samengevoegd op `develop`. `main` en de productieomgeving worden hierbij niet gepubliceerd. De laatste samenvoeging behoudt snelstart, beleggen en zakelijk beheer naast de projectmotor; 112 webtests en beide webbuilds slagen.
 
 De code en gebouwde webbestanden staan klaar. **Deze release is nog niet live.** GitHub-toegang werkt; een productiebeheerverbinding met Supabase en Streamlit ontbreekt in deze omgeving. De aanwezigheid van `mijn_gegevens_veilig_bewaren` kon niet uit het publieke API-schema worden vastgesteld. De publiek beschikbare app-URL is `https://eisreyyrtvlgtjpqiyhpm2.streamlit.app`.
 
