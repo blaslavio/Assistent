@@ -55,7 +55,7 @@ Dit is geen permanente externe back-up: verwijderen van het gesprek, account of 
 
 ## Verificatie en uitrol
 
-De lokale verificatie omvat 127 Vitest-tests, beide TypeScript/Vite-builds 1.260 Python-tests zonder overgeslagen tests (waaronder 11 PostgreSQL-tests van het echte archiefschema en 25 veilige-opslagtests), plus 358 upstream-pytest-tests en 21 subtests. De productieafhankelijkhedenaudit meldt op dit uitvoermoment geen bekende kwetsbaarheden. De webtests gebruiken nagebootste transport-, AI- en betaalantwoorden; er zijn geen echte betalingen, boekingen, berichten of videogesprekken uitgevoerd. De bestaande productiereleasepoort voor verse E2E-bewijzen blijft ongewijzigd. Deze uitbreiding is nog niet live. Zie `UITROL.md`.
+De lokale verificatie omvat 136 Vitest-tests, beide TypeScript/Vite-builds 1.260 Python-tests zonder overgeslagen tests (waaronder 11 PostgreSQL-tests van het echte archiefschema en 25 veilige-opslagtests), plus 358 upstream-pytest-tests en 21 subtests. De productieafhankelijkhedenaudit meldt op dit uitvoermoment geen bekende kwetsbaarheden. De webtests gebruiken nagebootste transport-, AI- en betaalantwoorden; er zijn geen echte betalingen, boekingen, berichten of videogesprekken uitgevoerd. De bestaande productiereleasepoort voor verse E2E-bewijzen blijft ongewijzigd. Deze uitbreiding is nog niet live. Zie `UITROL.md`.
 
 ## Extra privacy en eenvoudige bediening
 
@@ -73,3 +73,13 @@ Waarom deze keuzes: schermprivacy helpt tijdens samenwerken en schermdelen; kort
 Lokaal geslaagd: **127 webtests en beide TypeScript/Vite-builds**. De aanvullende tests controleren maskering, sleutelblokkade, pauze/accountisolatie, afbreken van AI-aanvragen, korte looptijd, compatibele intrekking, afschermen met behoud van invoer, gerichte dienstcontrole en veilig verwijderen.
 
 `.github/workflows/project-checks.yml` voegt webtests/builds en de bestaande geïsoleerde PostgreSQL-archieftests toe aan ontwikkelpushes en pull requests. Deze wijziging verandert geen productiedatabase en publiceert geen productieapp.
+
+## Projectkompas en hercontrole van bestaande tijden
+
+Het overzicht begint met **Wat is de volgende stap?**: doel, afgeronde stappen, eerstvolgende uitvoerbare stap, verantwoordelijke, resultaatcriterium, deadline en blokkades. Vanuit een doel openen Hoe, Wanneer en Als met dat doel geselecteerd. Bij meerdere actuele aanpakken wordt geen route automatisch gekozen. De werkstand Vandaag beperkt het kompas tot eigen relevante acties/stappen. Het kompas maakt geen nieuwe projectfeiten en voert niets uit.
+
+Bestaande eigen en gedeelde projecttijden worden opnieuw gecontroleerd wanneer je Wanneer gebruikt. Een tijdvak dat te kort is voor de actuele duur, voorbij de deadline ligt, is verstreken zonder bevestigd resultaat of niet aansluit op de voorgangers krijgt **Controleer bestaande tijd opnieuw**. Voor eigen afspraken wordt bovendien overlap met de appagenda gecontroleerd. Zo’n tijdvak telt niet als bevestigde basis voor opvolgers en kan niet als passende eigen projecttijd worden gedeeld. De bestaande afspraak wordt niet automatisch gewijzigd of verwijderd; pas deze bewust aan in Agenda of wijzig de aanpak.
+
+Gedeelde tijden van andere deelnemers blijven beperkte verklaringen: hun overige agenda wordt niet gelezen. Nieuwe voorstellen vermijden wel de bekende gedeelde tijdvakken, ongeacht de volgorde van de stappenlijst. Bij een wijziging van de geladen projectfeiten of eigen agenda verdwijnen de oude getoonde tijdvoorstellen; vraag dan een nieuwe berekening. Agendaopslag blijft apart bevestigen en opnieuw controleren.
+
+Nieuwste lokale controle: **136 webtests en beide appbuilds geslaagd**. Negen extra tests controleren gewijzigde duur, passend aangepast tijdvak, deadline, voorgangers, overlap, verstreken tijden, gedeelde tijdvakken en het kompas. Geen productiewijzigingen.

@@ -1,3 +1,4 @@
+import ProjectKompas from "./ProjectKompas";
 import { aiGepauzeerd, controleerProjectAi, pauzeerProjectAi, privacyVoorbeeld } from "../lib/projectprivacy";
 import ProjectHoe from "./ProjectHoe";
 import ProjectWanneer from "./ProjectWanneer";
@@ -28,6 +29,7 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
   const namen = new Map(leden.map(l => [l.id, l.naam]));
   const actieveLeden = [...new Set(leden.filter(l => l.status === "lid").map(l => l.id))];
   const [deel, setDeel] = useState("Overzicht");
+  const [doelFocus, setDoelFocus] = useState<string>();
   const voorkeurSleutel = `assistent.projectwerkstand.${huidigeSessie()?.naam ?? ""}.${gesprek}`;
   const [werkstand, setWerkstand] = useState(() => { try { const v = localStorage.getItem(voorkeurSleutel); return v && ["Vandaag", "Samenwerken", "Ondernemen"].includes(v) ? v : "Samenwerken"; } catch { return "Samenwerken"; } });
   const [nu, setNu] = useState(Date.now());
@@ -142,10 +144,11 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
       <button disabled={bezig || !schrijven} className="min-h-11 text-accent" onClick={bevestig}>{bezig ? "Delen…" : onzeker ? "Dezelfde projectopdracht opnieuw proberen" : "Bevestig en deel met project"}</button>
       <button disabled={bezig} className="min-h-11 px-3" onClick={() => { setPending(null); setOnzeker(false); }}>Sluiten</button>
     </div>}
-    {deel === "Hoe" && <ProjectHoe feiten={feiten} ik={ik} personen={namen} schrijven={schrijven && !pending} voorstel={voorbereiden} />}
-    {deel === "Wanneer" && <ProjectWanneer gesprek={gesprek} feiten={feiten} ik={ik} personen={namen} staat={staat} setData={setData} schrijven={schrijven && !pending} voorstel={voorbereiden} />}
-    {deel === "Als" && <ProjectAls gesprek={gesprek} feiten={feiten} staat={staat} setData={setData} planning={() => setDeel("Wanneer")} />}
+    {deel === "Hoe" && <ProjectHoe doelVoorstel={doelFocus} feiten={feiten} ik={ik} personen={namen} schrijven={schrijven && !pending} voorstel={voorbereiden} />}
+    {deel === "Wanneer" && <ProjectWanneer doelVoorstel={doelFocus} gesprek={gesprek} feiten={feiten} ik={ik} personen={namen} staat={staat} setData={setData} schrijven={schrijven && !pending} voorstel={voorbereiden} />}
+    {deel === "Als" && <ProjectAls doelVoorstel={doelFocus} gesprek={gesprek} feiten={feiten} staat={staat} setData={setData} planning={doel => { setDoelFocus(doel); setDeel("Wanneer"); }} />}
     {deel === "Overzicht" && <>
+      <ProjectKompas feiten={feiten} namen={namen} ik={ik} vandaag={werkstand === "Vandaag"} open={(deel, doel) => { setDoelFocus(doel); setDeel(deel); }} />
       <h4 className="font-medium">{werkstand === "Vandaag" ? "Mijn volgende acties" : werkstand === "Ondernemen" ? "Besluiten en projectkennis" : "Samen aan het werk"}</h4>
       {overzicht.map(f => <article key={f.bericht} className="mt-2 rounded-xl bg-vlak p-3">
           <p className="text-xs text-rustig">{f.actie.soort}{isAfgerond(f, feiten) ? " · afgerond" : ""}</p>

@@ -33,3 +33,36 @@ it("verwijdert persoonlijke regels idempotent en beschermt intussen gewijzigde r
  const {bewaarAlsRegel,verwijderAlsRegel}=await import("./projectals");const {root}=basis();const r:AlsRegel={id:crypto.randomUUID(),gesprek:8,waarom:root.actie.sleutel,modus:"alle",voorwaarden:[{soort:"betaling_bevestigd",bron:"42"}],vervolg:"planning"};
  const g=gegevens();bewaarAlsRegel(g,r);expect(()=>verwijderAlsRegel(g,{...r,vervolg:"betaling"})).toThrow("gewijzigd");verwijderAlsRegel(g,r);verwijderAlsRegel(g,r);expect(g.projectRegels).toEqual([]);
 });
+describe("hercontrole van bestaande projecttijden",()=>{
+ const afspraak=(plan:Feit,s:Stap,start="2026-10-29T10:00",einde="2026-10-29T10:30")=>({id:1,titel:s.titel,start,einde,projectplanning:{gesprek:8,aanpak:plan.actie.sleutel,stap:s.id,opdracht:crypto.randomUUID()}} as Afspraak);
+ it("neemt een oud halfuur niet over als de stap nu een uur duurt en blokkeert opvolgers",()=>{
+   const {plan,a,feiten}=basis();const nieuw=f(nieuwFeit("aanpak","Een uur nodig",{soort:"eigen"},{doel:plan.actie.doel,vervangt:plan.actie.sleutel,stappen:plan.actie.stappen!.map(s=>s.id===a.id?{...s,minuten:60}:s)}),4);
+   const agenda=[afspraak(plan,a)],vooraf=JSON.stringify(agenda);const r=tijdVoorstellen(8,nieuw,[...feiten,nieuw],1,agenda,nu);
+   expect(r[0].teControleren).toBe(true);expect(r[0].reden).toContain("te kort");expect(r[1].van).toBeUndefined();expect(JSON.stringify(agenda)).toBe(vooraf);
+ });
+ it("accepteert de bestaande afspraak weer als de gebruiker hem passend heeft aangepast",()=>{
+   const {plan,a,feiten}=basis();const nieuw=f(nieuwFeit("aanpak","Een uur nodig",{soort:"eigen"},{doel:plan.actie.doel,vervangt:plan.actie.sleutel,stappen:[{...a,minuten:60}]}),4);
+   const r=tijdVoorstellen(8,nieuw,[...feiten,nieuw],1,[afspraak(plan,a,"2026-10-29T10:00","2026-10-29T11:00")],nu)[0];expect(r.teControleren).not.toBe(true);expect(r.reden).toBe("Al in je eigen agenda");
+ });
+ it("blokkeert bestaande tijden voorbij een nieuwe deadline",()=>{
+   const {plan,a,feiten}=basis();const nieuw=f(nieuwFeit("aanpak","Eerder klaar",{soort:"eigen"},{doel:plan.actie.doel,vervangt:plan.actie.sleutel,stappen:[a],uiterlijk:"2026-10-29T09:15:00Z"}),4);
+   const r=tijdVoorstellen(8,nieuw,[...feiten,nieuw],1,[afspraak(plan,a)],nu)[0];expect(r.teControleren).toBe(true);expect(r.reden).toContain("deadline");
+ });
+ it("weigert een bestaand tijdvak vóór de huidige voorganger eindigt",()=>{
+   const {plan,a,b,feiten}=basis();const agenda=[afspraak(plan,a,"2026-10-29T11:00","2026-10-29T11:30"),{...afspraak(plan,b,"2026-10-29T10:00","2026-10-29T10:30"),id:2}];
+   const r=tijdVoorstellen(8,plan,feiten,1,agenda,nu);expect(r[1].teControleren).toBe(true);expect(r[1].reden).toContain("voorganger eindigt");
+ });
+ it("hercontroleert overlap met andere afspraken en verstreken tijden",()=>{
+   const {plan,a,feiten}=basis();const agenda=[afspraak(plan,a),{id:2,titel:"Tussengekomen",start:"2026-10-29T10:15",einde:"2026-10-29T11:00"} as Afspraak];
+   expect(tijdVoorstellen(8,plan,feiten,1,agenda,nu)[0].reden).toContain("overlap");expect(tijdVoorstellen(8,plan,feiten,1,[afspraak(plan,a)],nu+4*3600000)[0].reden).toContain("verstreken");
+ });
+ it("past dezelfde duurcontrole toe op tijden van een andere deelnemer",()=>{
+   const {plan,a,feiten}=basis();const delen=f(nieuwFeit("staptijd","Mijn tijd",{soort:"eigen"},{doel:plan.actie.sleutel,stap:a.id,afspraak:1,van:"2026-10-29T09:00:00Z",tot:"2026-10-29T09:15:00Z"}),4);
+   const r=tijdVoorstellen(8,plan,[...feiten,delen],2,[],nu)[0];expect(r.teControleren).toBe(true);expect(r.reden).toContain("te kort");
+ });
+ it("vermijdt overlap met gedeelde tijden, ook als die later in de staplijst staan",()=>{
+   const {root,a,feiten}=basis();const vrij=stap(),plan=f(nieuwFeit("aanpak","Twee losse stappen",{soort:"eigen"},{doel:root.actie.sleutel,stappen:[vrij,a]}),6);
+   const gedeeld=f(nieuwFeit("staptijd","Mijn tijd",{soort:"eigen"},{doel:plan.actie.sleutel,stap:a.id,afspraak:1,van:"2026-10-29T09:00:00Z",tot:"2026-10-29T09:30:00Z"}),7);
+   const r=tijdVoorstellen(8,plan,[...feiten,plan,gedeeld],2,[],nu);expect(r[0].van).toBe("2026-10-29T09:30:00.000Z");
+ });
+});

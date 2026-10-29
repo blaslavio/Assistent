@@ -3,7 +3,7 @@ import type { Feit } from "./projectregie";
 import { actueleAanpakken, stapFamilie, stapStand, type Stap } from "./projectplan";
 import { lokaleTijd, nederlandseInstant, tijdInstant } from "./projecttijd";
 
-export type TijdRij = { stap: Stap; persoon?: number; van?: string; tot?: string; reden: string; voorwaardelijk: boolean; afspraak?: Afspraak };
+export type TijdRij = { stap: Stap; persoon?: number; van?: string; tot?: string; reden: string; voorwaardelijk: boolean; teControleren?: boolean; afspraak?: Afspraak };
 type AgendaBron = { projectplanning?: { gesprek: number; aanpak: string; stap: string; opdracht: string } };
 const iso = (n: number) => new Date(n).toISOString();
 const tijd = (s: string) => /(?:Z|[+-]\d{2}:\d{2})$/.test(s) ? tijdInstant(s) : tijdInstant(nederlandseInstant(s));
@@ -34,6 +34,13 @@ export function tijdVoorstellen(gesprek: number, plan: Feit, feiten: Feit[], ik:
   const bezet=new Map<number,[number,number][]>();
   // Een onleesbare agenda levert nooit stilzwijgend een bewezen vrij tijdvak op.
   bezet.set(ik,agenda.map(interval));
+  // Alle gedeelde tijdvakken reserveren vóór nieuwe voorstellen, onafhankelijk van stapvolgorde.
+  for (const stap of plan.actie.stappen ?? []) {
+    if (!stap.eigenaar || stap.eigenaar === ik) continue;
+    const familie = stapFamilie(plan, stap, feiten);
+    const f = [...feiten].reverse().find(f => f.actie.soort === "staptijd" && f.actie.stap === stap.id && f.afzender === stap.eigenaar && familie.some(p => p.actie.sleutel === f.actie.doel));
+    if (f) { const blokken = bezet.get(stap.eigenaar) ?? []; blokken.push([tijdInstant(f.actie.van!), tijdInstant(f.actie.tot!)]); bezet.set(stap.eigenaar, blokken); }
+  }
   const over=[...plan.actie.stappen??[]];
   while(over.length) {
     const i=over.findIndex(s=>s.afhankelijkVan.every(id=>resultaat.has(id)));
@@ -53,9 +60,19 @@ export function tijdVoorstellen(gesprek: number, plan: Feit, feiten: Feit[], ik:
     if(eigen || (gedeeld && s.eigenaar!==ik)) {
       const [v,t]=eigen?interval(eigen):[tijdInstant(gedeeld!.actie.van!),tijdInstant(gedeeld!.actie.tot!)];
       rij.van=iso(v);rij.tot=iso(t);rij.afspraak=eigen;
+      const problemen: string[] = [];
+      if(t-v < s.minuten*60_000) problemen.push(`te kort voor ${s.minuten} minuten werk`);
+      if(plan.actie.uiterlijk&&t>tijdInstant(plan.actie.uiterlijk)) problemen.push("buiten de actuele deadline");
+      if(t<=nu) problemen.push("tijdvak verstreken, resultaat nog niet bevestigd");
+      if(s.afhankelijkVan.some(id=>!einde.has(id))) problemen.push("een voorganger is nog niet uitvoerbaar");
+      else if(s.afhankelijkVan.some(id=>v<einde.get(id)!)) problemen.push("begint voordat een voorganger eindigt");
+      rij.voorwaardelijk=s.afhankelijkVan.some(id=>resultaat.get(id)?.voorwaardelijk || resultaat.get(id)?.reden.startsWith("Voorstel"));
+      if(eigen && agenda.some(a=>a!==eigen && (()=>{const [av,at]=interval(a);return av<t&&at>v;})())) problemen.push("overlap met een andere eigen afspraak");
+      if(problemen.length) {
+        rij.teControleren=true;rij.reden="Controleer bestaande tijd opnieuw: "+problemen.join("; ")+". Pas de afspraak of aanpak bewust aan.";
+        continue;
+      }
       rij.reden=eigen?"Al in je eigen agenda":"Tijd door verantwoordelijke in het project bevestigd; diens agenda niet ingezien";
-      if(plan.actie.uiterlijk&&t>tijdInstant(plan.actie.uiterlijk)) rij.reden+=" · buiten de actuele deadline";
-      if(t<=nu) rij.reden+=" · tijdvak verstreken, resultaat nog controleren";
       einde.set(s.id,t);continue;
     }
     if(s.afhankelijkVan.some(id=>!einde.has(id))) { rij.reden="Een voorganger is nog niet uitvoerbaar"; continue; }

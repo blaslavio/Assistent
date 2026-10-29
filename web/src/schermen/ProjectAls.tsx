@@ -8,8 +8,8 @@ import { projectFeiten, type Feit } from "../lib/projectregie";
 import { actueleAanpakken } from "../lib/projectplan";
 import { nederlandseInstant } from "../lib/projecttijd";
 
-export default function ProjectAls({gesprek,feiten,staat,setData,planning}:{gesprek:number;feiten:Feit[];staat?:Staat;setData?:(g:Staat["data"])=>void;planning:()=>void}) {
-  const [waarom,setWaarom]=useState("");const [aanpak,setAanpak]=useState("");const [modus,setModus]=useState<"alle"|"een">("alle");
+export default function ProjectAls({gesprek,feiten,staat,setData,planning,doelVoorstel}:{doelVoorstel?:string;gesprek:number;feiten:Feit[];staat?:Staat;setData?:(g:Staat["data"])=>void;planning:(doel?:string)=>void}) {
+  const [waarom,setWaarom]=useState(doelVoorstel??"");const [aanpak,setAanpak]=useState("");const [modus,setModus]=useState<"alle"|"een">("alle");
   const [voorwaarden,setVoorwaarden]=useState<Conditie[]>([{soort:"betaling_bevestigd",bron:""}]);const [vervolg,setVervolg]=useState<Vervolg>("planning");
   const [pending,setPending]=useState<AlsRegel|null>(null);const [fout,setFout]=useState("");const [bezig,setBezig]=useState(false);const slot=useRef(false);
   const [bewijzen,setBewijzen]=useState<DienstBewijs[]>([]);const [vers,setVers]=useState<Feit[]>([]);const [gecontroleerd,setGecontroleerd]=useState(false);
@@ -49,7 +49,7 @@ export default function ProjectAls({gesprek,feiten,staat,setData,planning}:{gesp
     {regels.map(r=>{const b=beoordeelAls(r,gecontroleerd?vers:feiten,gecontroleerd?bewijzen:[]);return <article key={r.id} className="rounded-xl bg-vlak p-3"><p className="font-medium">{doelen.find(f=>f.actie.sleutel===r.waarom)?.actie.tekst??"Projectdoel ontbreekt"}</p><p>{gecontroleerd?b.status:"Nog niet gecontroleerd"} · {r.vervolg}</p><ul className="text-sm">{b.uitleg.map((x,i)=><li key={i}>{x}</li>)}</ul>
       <button disabled={!gecontroleerd||b.status!=="voldaan"||bezig} className="min-h-11 text-accent" onClick={()=>{
         if(beoordeelAls(r,vers,bewijzen).status!=="voldaan"){setFout("Controleer de voorwaarden opnieuw; dienstinformatie kan zijn verlopen.");return;}
-        if(r.vervolg==="planning")planning();
+        if(r.vervolg==="planning")planning(r.waarom);
         else if(r.vervolg==="betaling")window.dispatchEvent(new CustomEvent("assistent-projectdienst",{detail:{gesprek,dienst:"betaling"}}));
         else if(r.vervolg==="boeking"||r.vervolg==="reservering")window.location.assign(gereedschapAdres(r.vervolg==="boeking"?"boekingen":"buurt"));
         else if(r.vervolg==="chatconcept")setConcept(`Vervolg voor: ${doelen.find(f=>f.actie.sleutel===r.waarom)?.actie.tekst??"projectdoel"}`);

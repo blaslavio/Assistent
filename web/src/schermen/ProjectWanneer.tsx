@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { bijwerken, huidigeSessie } from "../api";
 import type { Staat } from "../App";
 import { projectRegelsVers } from "../lib/chat";
@@ -8,14 +8,15 @@ import { lokaleTijd, nederlandseInstant } from "../lib/projecttijd";
 import { tijdVoorstellen, tijdVastleggen, type TijdPoging, type TijdRij } from "../lib/projectwanneer";
 
 const toon = (s: string) => new Date(s).toLocaleString("nl-NL",{timeZone:"Europe/Amsterdam"});
-export default function ProjectWanneer({ gesprek, feiten, ik, personen, staat, setData, schrijven, voorstel }: {
-  gesprek:number;feiten:Feit[];ik:number;personen:Map<number,string>;staat?:Staat;setData?:(g:Staat["data"])=>void;
+export default function ProjectWanneer({ gesprek, feiten, ik, personen, staat, setData, schrijven, voorstel, doelVoorstel }: {
+  doelVoorstel?:string;gesprek:number;feiten:Feit[];ik:number;personen:Map<number,string>;staat?:Staat;setData?:(g:Staat["data"])=>void;
   schrijven:boolean;voorstel:(a:ProjectActie)=>void;
 }) {
   const plannen=feiten.filter(f=>f.actie.soort==="aanpak"&&actueleAanpakken(f.actie.doel!,feiten).some(p=>p.actie.sleutel===f.actie.sleutel));
-  const [planId,setPlanId]=useState(""); const plan=plannen.find(p=>p.actie.sleutel===planId);
+  const [planId,setPlanId]=useState(()=>{const opties=plannen.filter(p=>p.actie.doel===doelVoorstel);return opties.length===1?opties[0].actie.sleutel:"";}); const plan=plannen.find(p=>p.actie.sleutel===planId);
   const [van,setVan]=useState("");const [tot,setTot]=useState("");const [deadline,setDeadline]=useState("");
   const [rijen,setRijen]=useState<TijdRij[]|null>(null);const [fout,setFout]=useState("");const [melding,setMelding]=useState("");
+  useEffect(()=>{setRijen(null);},[feiten,planId,staat?.data.afspraken]);
   const slot=useRef(false);
   const [pending,setPending]=useState<TijdPoging|null>(null);const [bezig,setBezig]=useState(false);
   return <section aria-label="Wanneer voeren we het uit" className="flex flex-col gap-3">
@@ -42,7 +43,7 @@ export default function ProjectWanneer({ gesprek, feiten, ik, personen, staat, s
       {r.voorwaardelijk&&<p className="text-sm">Voorwaardelijk: een voorganger is nog niet bevestigd ingepland.</p>}
       {plan&&r.persoon===ik&&r.van&&r.tot&&!r.afspraak&&!r.voorwaardelijk&&r.reden.startsWith("Voorstel")&&staat&&setData&&<button className="min-h-11 text-accent" disabled={!!pending||bezig}
         onClick={()=>setPending({opdracht:crypto.randomUUID(),gesprek,aanpak:plan.actie.sleutel,stap:r.stap.id,van:r.van!,tot:r.tot!})}>Eigen agendavoorstel controleren</button>}
-      {plan&&r.afspraak&&r.van&&r.tot&&schrijven&&<button className="min-h-11 text-accent" onClick={()=>voorstel(nieuwFeit("staptijd",`Mijn eigen tijdvak voor ${r.stap.titel}: ${toon(r.van!)} – ${toon(r.tot!)}.`,{soort:"eigen"},{doel:plan.actie.sleutel,stap:r.stap.id,van:r.van,tot:r.tot,afspraak:Number(r.afspraak!.id)}))}>Bevestigde eigen tijd apart delen met project</button>}
+      {plan&&r.afspraak&&r.van&&r.tot&&schrijven&&!r.teControleren&&!r.voorwaardelijk&&<button className="min-h-11 text-accent" onClick={()=>voorstel(nieuwFeit("staptijd",`Mijn eigen tijdvak voor ${r.stap.titel}: ${toon(r.van!)} – ${toon(r.tot!)}.`,{soort:"eigen"},{doel:plan.actie.sleutel,stap:r.stap.id,van:r.van,tot:r.tot,afspraak:Number(r.afspraak!.id)}))}>Bevestigde eigen tijd apart delen met project</button>}
     </article>)}
     {pending&&<div className="rounded-xl border border-lijn p-3"><p>Vastleggen in je eigen agenda: {toon(pending.van)} – {toon(pending.tot)}. Projectregels en appagenda worden opnieuw gecontroleerd. Er worden geen uitnodigingen verstuurd.</p>
       <button disabled={bezig} className="min-h-11 text-accent" onClick={async()=>{

@@ -28,7 +28,7 @@ Vandaag is verbeterd: een nieuwe taak, afronden en de keuze uit een dagvoorstel 
 
 ## Verificatie en publicatie
 
-Alle 127 Vitest-tests slagen, inclusief twee gelijktijdige Yjs-documenten, omgekeerde ontvangstvolgorde, dubbele pakketten, verloren antwoord, invoer tijdens verzending, emoji/IME, accountisolatie, kanaalrechten, verdwijnende gesprekken, compacte belbediening en dagelijkse acties. `npm run build` bouwt beide varianten en controleert TypeScript. `npm audit --omit=dev` meldt op dit uitvoermoment geen bekende kwetsbaarheden; dat is geen algemene beveiligingsgarantie.
+Alle 136 Vitest-tests slagen, inclusief twee gelijktijdige Yjs-documenten, omgekeerde ontvangstvolgorde, dubbele pakketten, verloren antwoord, invoer tijdens verzending, emoji/IME, accountisolatie, kanaalrechten, verdwijnende gesprekken, compacte belbediening en dagelijkse acties. `npm run build` bouwt beide varianten en controleert TypeScript. `npm audit --omit=dev` meldt op dit uitvoermoment geen bekende kwetsbaarheden; dat is geen algemene beveiligingsgarantie.
 
 ```sh
 cd web
