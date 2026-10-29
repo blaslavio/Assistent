@@ -5,6 +5,7 @@ import { Bel, Envelop, Kruis, Lijstje, Plus, Prullenbak, Stemmen, Terug } from "
 import { HerinneringenPaneel, MailPaneel, TakenPaneel } from "./AgendaPanelen";
 import { PrikkenPaneel, stemrondes, teStemmen } from "./Prikken";
 import { mailsBewaard } from "../lib/mail";
+import { dagenVan } from "../lib/club";
 import { instellingen as feestInstellingen, kalender, type Dag } from "../lib/feestdagen";
 import { DAGEN_KORT, MAANDEN, dagTitel, datumTekst, heleDag, moment, plusDagen, uur, weekBegin } from "../lib/tijd";
 
@@ -62,10 +63,8 @@ export default function Agenda({ staat, setStaat }: Props) {
   // Afspraken en taken met een datum, per dag.
   const { afspraken, taken } = useMemo(() => {
     const afspraken = new Map<string, Afspraak[]>();
-    for (const a of staat.data.afspraken) {
-      const d = a.start.slice(0, 10);
-      afspraken.set(d, [...(afspraken.get(d) ?? []), a]);
-    }
+    for (const a of staat.data.afspraken)
+      for (const d of dagenVan(a, vandaag)) afspraken.set(d, [...(afspraken.get(d) ?? []), a]);
     for (const lijst of afspraken.values()) lijst.sort((a, b) => a.start.localeCompare(b.start));
     const taken = new Map<string, Taak[]>();
     for (const t of staat.data.taken) {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { bijwerken, instellingenBijwerken, type Afspraak } from "../api";
 import type { Staat, Tab } from "../App";
+import { dagenVan } from "../lib/club";
 import { Camera, Envelop, Huis, Kalender, Kruis, Persoon, Plus, Terug, Vinkje } from "../iconen";
 import { gekoppeld } from "../lib/mail";
 import { KeuzeKaart } from "../keuzekaart";
@@ -34,7 +35,7 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props
 
   const vandaag = datumTekst(nu);
   const afspraken = useMemo(
-    () => data.afspraken.filter((a) => a.start.slice(0, 10) === vandaag).sort((a, b) => a.start.localeCompare(b.start)),
+    () => data.afspraken.filter((a) => dagenVan(a, vandaag).includes(vandaag)).sort((a, b) => a.start.localeCompare(b.start)),
     [data.afspraken, vandaag],
   );
   const eind = (a: Afspraak) => (a.einde ? moment(a.einde) : null);
