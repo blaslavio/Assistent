@@ -1,14 +1,40 @@
-import { useRef, useState } from "react";
+// Het dok onderin: drie vaste plekken (standaard Vandaag, Agenda en Chat). Welke drie, kies je zelf in
+// Instellingen › Weergave. Al het andere bereik je via je foto linksonder (Instellingen) of door het de assistent te vragen.
 import type { Tab } from "../App";
-import { Ballon, Kalender, Meer, Projectmap, Tandwiel, Vonk, Zon } from "../iconen";
-const HOOFD=[{id:"vandaag",naam:"Vandaag",Icoon:Zon},{id:"chat",naam:"Chat",Icoon:Ballon},{id:"projecten",naam:"Projecten",Icoon:Projectmap}] as const;
-const EXTRA=[{id:"agenda",naam:"Agenda",Icoon:Kalender},{id:"assistent",naam:"Assistent",Icoon:Vonk},{id:"instellingen",naam:"Instellingen",Icoon:Tandwiel}] as const;
-export default function HoofdNavigatie({actief,kies}:{actief:Tab;kies:(t:Tab)=>void}){
- const [meer,setMeer]=useState(false);const knop=useRef<HTMLButtonElement>(null);
- return <nav aria-label="Hoofdmenu" className="relative shrink-0 border-t border-lijn bg-white px-3 pt-2 pb-[max(env(safe-area-inset-bottom),12px)] dark:bg-[#0b0b0e]" onKeyDown={e=>{if(e.key==="Escape"&&meer){setMeer(false);knop.current?.focus();}}}>
-   {meer&&<div className="mb-3 rounded-2xl border border-lijn bg-vlak p-2" aria-label="Meer onderdelen">{EXTRA.map(({id,naam,Icoon})=><button key={id} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left" aria-current={actief===id?"page":undefined} onClick={()=>{setMeer(false);kies(id);}}><Icoon className="size-5"/>{naam}</button>)}</div>}
-   <div className="grid grid-cols-4 gap-2">{HOOFD.map(({id,naam,Icoon})=><button key={id} aria-current={actief===id?"page":undefined} className={`flex min-h-12 flex-col items-center gap-1 text-xs ${actief===id?"font-semibold text-accent":"text-rustig"}`} onClick={()=>{setMeer(false);kies(id);}}><Icoon className="size-5"/>{naam}</button>)}
-    <button ref={knop} aria-expanded={meer} aria-label="Meer onderdelen" className={`flex min-h-12 flex-col items-center gap-1 text-xs ${EXTRA.some(x=>x.id===actief)?"font-semibold text-accent":"text-rustig"}`} onClick={()=>setMeer(!meer)}><Meer className="size-5"/>Meer</button>
-   </div>
- </nav>;
+import { Ballon, Kalender, Projectmap, Zon } from "../iconen";
+
+export const DOK_KEUZES: { id: Tab; naam: string; Icoon: typeof Zon }[] = [
+  { id: "vandaag", naam: "Vandaag", Icoon: Zon },
+  { id: "agenda", naam: "Agenda", Icoon: Kalender },
+  { id: "chat", naam: "Chat", Icoon: Ballon },
+  { id: "projecten", naam: "Projecten", Icoon: Projectmap },
+];
+export const DOK_STANDAARD: Tab[] = ["vandaag", "agenda", "chat"];
+
+/** De drie plekken uit je instellingen, in vaste volgorde; onbekende of te weinig keuzes vullen we aan. */
+export function dokVan(gekozen: unknown): Tab[] {
+  const lijst = Array.isArray(gekozen) ? gekozen.filter((t): t is Tab => DOK_KEUZES.some((k) => k.id === t)) : [];
+  const uniek = [...new Set(lijst)].slice(0, 3);
+  for (const t of DOK_STANDAARD) if (uniek.length < 3 && !uniek.includes(t)) uniek.push(t);
+  return DOK_KEUZES.filter((k) => uniek.includes(k.id)).map((k) => k.id);
+}
+
+export default function HoofdNavigatie({ actief, kies, tabs = DOK_STANDAARD }: { actief: Tab; kies: (t: Tab) => void; tabs?: Tab[] }) {
+  return (
+    <nav aria-label="Hoofdmenu" data-dok
+      className="grid shrink-0 grid-cols-3 px-6 pt-1.5 pb-[max(env(safe-area-inset-bottom),10px)]">
+      {DOK_KEUZES.filter((k) => tabs.includes(k.id)).map(({ id, naam, Icoon }) => {
+        const aan = actief === id;
+        return (
+          <button key={id} onClick={() => kies(id)} aria-current={aan ? "page" : undefined}
+            className={`flex min-h-12 flex-col items-center justify-center gap-1 text-[11px] ${aan ? "font-semibold text-inkt" : "text-zacht"}`}>
+            <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${aan ? "bg-vlak" : ""}`}>
+              <Icoon className="size-[22px]" />
+            </span>
+            {naam}
+          </button>
+        );
+      })}
+    </nav>
+  );
 }

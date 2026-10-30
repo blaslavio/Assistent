@@ -2,12 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { bijwerken, instellingenBijwerken, type Afspraak } from "../api";
 import type { Staat, Tab } from "../App";
 import { dagenVan } from "../lib/club";
-import { Camera, Envelop, Huis, Kalender, Kruis, Persoon, Plus, Terug, Vinkje } from "../iconen";
+import { Camera, Envelop, Huis, Kalender, Kruis, Plus, Terug, Vinkje } from "../iconen";
 import { gekoppeld } from "../lib/mail";
 import { KeuzeKaart } from "../keuzekaart";
 import { MascotteMetTip, afgevinktTekst, mascotteZeg } from "../mascotte";
 import { opVandaag, type Weergave } from "./Algemeen";
-import { Vraagbalk } from "./Vraagbalk";
 import { afhandelen, voorstel } from "../lib/voorstellen";
 import { voorJou, type Melding } from "../lib/voorjou";
 import { naar } from "../lib/naar";
@@ -24,7 +23,7 @@ const kop = "mb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rus
 type Props = { staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () => void; ga?: (t: Tab) => void;
   vraag?: (tekst: string) => void };
 
-export default function Vandaag({ staat, setStaat, naarInstellingen, ga, vraag }: Props) {
+export default function Vandaag({ staat, setStaat, naarInstellingen, ga }: Props) {
   const [nu, setNu] = useState(() => new Date());
   const [weer, setWeer] = useState<Weer | null>(null);
     const { data, gebruiker } = staat;
@@ -116,10 +115,6 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga, vraag }
           </p>
           <h1 className="text-[32px] font-bold tracking-tight">{groet(nu)}</h1>
         </div>
-        <button onClick={naarInstellingen} aria-label="Instellingen"
-          className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-vlak text-rustig">
-          {gebruiker.foto ? <img src={gebruiker.foto} alt="" className="size-full object-cover" /> : <Persoon className="size-5" />}
-        </button>
       </header>
 
       <main className="flex flex-1 flex-col gap-7 px-6 py-4">
@@ -233,7 +228,6 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, ga, vraag }
         </section>}
       </main>
 
-      <Vraagbalk staat={staat} setStaat={setStaat} vraag={vraag} />
     </div>
   );
 }
