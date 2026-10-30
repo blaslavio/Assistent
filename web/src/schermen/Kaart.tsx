@@ -41,9 +41,9 @@ export function Kaart({ midden, zet, punten, gekozen, kies, ik }: Props) {
     const m=kaart.current;if(!m)return;
     const markers: maplibregl.Marker[]=[];
     for(const w of punten){
-      const aan=gekozen===w;
+      const aan=gekozen===w||!!(w.plekId&&w.plekId===gekozen?.plekId);
       const knop=document.createElement("button");knop.type="button";knop.setAttribute("aria-label",w.naam);knop.setAttribute("aria-pressed",String(aan));
-      knop.className=`relative flex size-10 items-center justify-center rounded-full border-2 border-white shadow-lg ${w.app?"bg-accent":"bg-[#64748b]"} ${aan?"ring-2 ring-accent ring-offset-2":""}`;
+      knop.className=`relative flex size-10 items-center justify-center rounded-full border-2 border-white shadow-lg ${w.prive?"bg-[#0f766e]":w.app?"bg-accent":"bg-[#64748b]"} ${aan?"ring-2 ring-accent ring-offset-2":""}`;
       const teken=document.createElement("span");teken.className="text-sm font-semibold text-white";teken.textContent=w.app?"◆":"•";knop.appendChild(teken);
       if(aan){const label=document.createElement("span");label.className="absolute left-1/2 top-full mt-2 max-w-44 -translate-x-1/2 truncate rounded-full bg-white px-3 py-1.5 text-xs font-medium text-inkt shadow dark:bg-[#26262b]";label.textContent=w.naam;knop.appendChild(label);}
       knop.addEventListener("click",()=>kiesRef.current(w));

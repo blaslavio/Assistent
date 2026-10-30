@@ -1,8 +1,5 @@
 name: Publish web interface
 on:
-  push:
-    branches: [develop]
-    paths: ['web/**', 'docs/**', '.github/workflows/publish-web.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -11,10 +8,13 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'

@@ -1,7 +1,7 @@
 // Gedeelde geografie, winkelzoeking en navigatielinks. De vectorkaart zelf gebruikt MapLibre en OpenFreeMap;
 // de omliggende winkels en adreszoeking gebruiken de bestaande OpenStreetMap-diensten.
 export type Punt = { lat: number; lon: number };
-export type KaartWinkel = Punt & { naam: string; soort: string; adres?: string; app: boolean; producten?: number };
+export type KaartWinkel = Punt & { naam: string; soort: string; adres?: string; app: boolean; producten?: number; prive?: boolean; plekId?: string; winkelAdres?: string };
 
 export const TEGEL = 256;
 export const STANDAARD: Punt = { lat: 52.09, lon: 5.12 };
@@ -24,7 +24,7 @@ export function afstand(a: Punt, b: Punt) {
   const r = 6371000, rad = Math.PI / 180;
   const dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
-  return 2 * r * Math.asin(Math.sqrt(h));
+  return 2 * r * Math.asin(Math.sqrt(Math.max(0, Math.min(1, h))));
 }
 
 export const afstandTekst = (m: number) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1).replace(".", ",")} km`);
@@ -91,10 +91,10 @@ export async function zoekPlek(adres: string): Promise<(Punt & { naam: string })
 export type RouteApp = "apple" | "google" | "waze";
 export type Reiswijze = "auto" | "lopen" | "fiets" | "ov";
 /** Een echte navigatie-app berekent afstand, verkeer en reistijd; de app deelt alleen de gekozen bestemming. */
-export function routeLink(w: Punt & { naam: string }, app: RouteApp = "apple", wijze: Reiswijze = "auto") {
+export function routeLink(w: Punt & { naam: string; prive?: boolean }, app: RouteApp = "apple", wijze: Reiswijze = "auto") {
   if (!Number.isFinite(w.lat) || !Number.isFinite(w.lon) || Math.abs(w.lat)>90 || Math.abs(w.lon)>180) throw new Error("Ongeldige bestemming.");
   const co = `${w.lat},${w.lon}`;
   if (app === "waze") return `https://waze.com/ul?ll=${co}&navigate=yes`;
   if (app === "google") return `https://www.google.com/maps/dir/?api=1&destination=${co}&travelmode=${({auto:"driving",lopen:"walking",fiets:"bicycling",ov:"transit"})[wijze]}`;
-  return `https://maps.apple.com/?daddr=${co}&q=${encodeURIComponent(w.naam)}&dirflg=${({auto:"d",lopen:"w",fiets:"b",ov:"r"})[wijze]}`;
+  return `https://maps.apple.com/?daddr=${co}&q=${encodeURIComponent(w.prive ? "Bestemming" : w.naam)}&dirflg=${({auto:"d",lopen:"w",fiets:"b",ov:"r"})[wijze]}`;
 }

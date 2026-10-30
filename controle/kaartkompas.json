@@ -1,0 +1,45 @@
+{
+  "time_utc": "2026-10-30T09:54:02.790254+00:00",
+  "canonical_branch": "main",
+  "canonical_workspace": "/workspace/Assistent",
+  "editable_interface": "web/src",
+  "worktree_count": 1,
+  "local_checks": {
+    "web_tests": 270,
+    "web_test_files": 58,
+    "route_property_scenarios": 1000,
+    "route_seed": 30102026,
+    "release_evidence_tests": 9,
+    "production_builds": 2,
+    "npm_known_vulnerabilities": 0
+  },
+  "source_sha256": {
+    "web/src/lib/kaartkompas.ts": "dfed753889b7fecf30f6cbe843c4741b4ba8998ab10c97f1acfb26931db75a3f",
+    "web/src/lib/kaartkompas.test.ts": "550115b529ec8afba1a7ee15885802e8b1e92fec3fde3c13c6231eca33e62ef6",
+    "web/src/schermen/KaartKompas.tsx": "3d2a5ed507bbb59913253ec92621d1306f323897c657270bed3981ee290dc379",
+    "web/src/schermen/KaartKompas.test.tsx": "45ac214689fdeefa3124526ed5aed7f19b70373ada44667fc6fffa90b023819b",
+    "web/src/lib/kaart.ts": "a146b4efdee93a66538b37ee035362f779f3cce3f18e6d6345b8cad602430722",
+    "web/src/lib/naar.ts": "3ea556580883159d3edaec5cf3855c84135ec528586865790544cabe072fc9c4",
+    "web/src/schermen/WinkelKaart.tsx": "ae338cda2e28bade68ec7377b82cdb52999eef690d3bae888a48fed5fc051cbd",
+    "web/src/schermen/Chat.tsx": "f031643993a16c282c32f7524a9954099055c43658a3c14f3494a496e6f00986",
+    "web/src/schermen/Agenda.tsx": "6989d892829c5bf2b9bf3998ea2c738edddab1d01e1357f67e23372000e02f6d",
+    ".github/workflows/project-checks.yml": "191ffeb05fc05452f2b2aeaf1b14fec10d9f7d36f2f3cd2645ff6c7f1d9c13aa",
+    ".github/workflows/publish-web.yml": "62e028710407f45893e6657fd8ef7893970d99385a5af48ce3add3b6c4506893"
+  },
+  "runtime_policy": {
+    "one_map_renderer": true,
+    "one_estimator": true,
+    "manual_travel_time_fields": false,
+    "existing_account_storage_only": true,
+    "payment_runtime_unchanged": true,
+    "azure_runtime_unchanged": true
+  },
+  "historical_proposals_reviewed": [
+    114,
+    117,
+    156,
+    161
+  ],
+  "real_traffic_or_timetable_data": false,
+  "live_production_certified": false
+}

@@ -1,6 +1,8 @@
 # Integratie en lancering
 
-De ontwikkeltak is op 30 oktober 2026 gecombineerd met de actuele hoofdversie, inclusief de rustigere instellingen uit PR #167. Veel projectfunctionaliteit was al via squash-PR #162 opgenomen; deze integratie brengt ook de ontwikkelgeschiedenis en resterende verbeteringen samen.
+De actuele applicatie heeft één werklijn: `main`, in `/workspace/Assistent`. De bewerkbare interface staat in `web/src`; `docs/app` en `nieuwe_app` worden uit dezelfde bron gegenereerd. De broncode van de app en beide bundels worden gezamenlijk getest.
+
+De kaart gebruikt één renderer en één eigen reisschattingsmodel. De tijdscontrole hergebruikt dezelfde tijdzonefuncties als de projectplanning; zij maakt geen afspraken, boekingen of betalingen aan.
 
 ## Gecombineerde werking
 
