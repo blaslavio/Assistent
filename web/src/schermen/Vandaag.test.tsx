@@ -84,3 +84,17 @@ describe("Vandaag bevestigen en terugvinden", () => {
 it("toont eerst drie taken maar houdt de volledige takenlijst bereikbaar",()=>{
  const init=begin();init.data.instellingen={aan_de_slag:"weg"};init.data.taken=Array.from({length:7},(_,i)=>({id:i+1,titel:`Taak ${i+1}`,klaar:false}));render(<Scherm init={init}/>);expect(screen.getAllByRole("checkbox")).toHaveLength(3);expect(screen.queryByRole("checkbox",{name:"Taak 7"})).toBeNull();fireEvent.click(screen.getByText("Bekijk alle 7 taken"));expect(screen.getAllByRole("checkbox")).toHaveLength(7);fireEvent.click(screen.getByText("Toon mijn drie eerstvolgende taken"));expect(screen.getAllByRole("checkbox")).toHaveLength(3);expect(bijwerken).not.toHaveBeenCalled();
 });
+
+it("houdt de profielchecklist ingeklapt en opent de eerstvolgende afspraak in de agenda", () => {
+  const init = begin();
+  const morgen = new Date(); morgen.setHours(0, 0, 0, 0);
+  const datum = `${morgen.getFullYear()}-${String(morgen.getMonth()+1).padStart(2,"0")}-${String(morgen.getDate()).padStart(2,"0")}`;
+  init.data.afspraken.push({id:1,titel:"Volgende afspraak",start:`${datum}T00:01`,einde:`${datum}T23:59:59`});
+  const ga = vi.fn();
+  render(<Vandaag staat={init} setStaat={() => {}} naarInstellingen={() => {}} ga={ga}/>);
+  const summary = screen.getByText("Profiel verder instellen");
+  expect(summary.closest("details")?.open).toBe(false);
+  fireEvent.click(screen.getByRole("button", {name:"Open agenda: Volgende afspraak"}));
+  expect(ga).toHaveBeenCalledWith("agenda");
+  expect(bijwerken).not.toHaveBeenCalled();
+});

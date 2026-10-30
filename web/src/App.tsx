@@ -75,10 +75,19 @@ const BoekScherm = lazy(() => import("./schermen/Gasten").then((m) => ({ default
 const PrikScherm = lazy(() => import("./schermen/Prikken").then((m) => ({ default: m.PrikScherm })));
 
 function vooraf() {
-  const doe = () => Object.values(laden).forEach((l) => l().catch(() => {}));
-  const w = window as Window & { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => void };
-  if (w.requestIdleCallback) w.requestIdleCallback(doe, { timeout: 2500 });
-  else setTimeout(doe, 1200);
+  const w = window as Window & {
+    requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  const verbinding = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  if (verbinding?.saveData || /(^|-)2g$/.test(verbinding?.effectiveType ?? "")) return () => {};
+  const doe = () => { if (!document.hidden) Object.values(laden).forEach(l => l().catch(() => {})); };
+  if (w.requestIdleCallback && w.cancelIdleCallback) {
+    const id = w.requestIdleCallback(doe, { timeout: 2500 });
+    return () => w.cancelIdleCallback?.(id);
+  }
+  const id = setTimeout(doe, 1200);
+  return () => clearTimeout(id);
 }
 
 export type Tab = "projecten" | "vandaag" | "agenda" | "chat" | "assistent" | "instellingen";
@@ -161,7 +170,7 @@ export default function App() {
 
   useEffect(() => {
     starten();
-    vooraf();
+    return vooraf();
   }, [starten]);
 
   // Een gedeeld bericht (?post=id) opent over de app zodra je bent ingelogd.
@@ -263,7 +272,7 @@ export default function App() {
           <button onClick={() => (huidigeSessie() ? herladen() : starten())}
             className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white">Opnieuw</button>
         </div>}
-      <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}><Suspense fallback={null}>{scherm}</Suspense></Vangnet></div>
+      <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}><Suspense fallback={<p role="status" className="px-6 py-8 text-rustig">Scherm laden…</p>}>{scherm}</Suspense></Vangnet></div>
       <Vangnet naam="bellen" klein><BelLaag naarProject={(gesprek) => { setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat"); }} /></Vangnet>
       <MascotteFeest />
       {gedeeldePost !== null && huidigeSessie() && (

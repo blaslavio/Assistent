@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { bijwerken, instellingenBijwerken, type Afspraak } from "../api";
 import type { Staat, Tab } from "../App";
 import { dagenVan } from "../lib/club";
@@ -12,11 +12,12 @@ import { voorJou, type Melding } from "../lib/voorjou";
 import { naar } from "../lib/naar";
 import { dagInZin, weekBeeld } from "../lib/week";
 import { vastleggen, zonderResultaat } from "../lib/sport";
-import { HoeGingHet } from "./Sport";
 import { dagTitel, datumTekst, groet, heleDag, hoeLang, moment, nuTekst, uur } from "../lib/tijd";
 import { weerNu, type Weer } from "../lib/weer";
 import { gelijk, taakVoorstel, taakUitvoeren, taakResultaat, type DagActie } from "../lib/dagacties";
 import { eerstvolgende, instellingen as feestInstellingen } from "../lib/feestdagen";
+
+const HoeGingHet = lazy(() => import("./Sport").then(m => ({ default: m.HoeGingHet })));
 
 const kop = "mb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig";
 
@@ -39,25 +40,30 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
   const toon = (k: string) => opVandaag((data.instellingen ?? {}) as Weergave, k);
 
   useEffect(() => {
-    const t = setInterval(() => setNu(new Date()), 60_000);
-    return () => clearInterval(t);
+    const ververs = () => { if (!document.hidden) setNu(new Date()); };
+    const t = setInterval(ververs, 60_000);
+    document.addEventListener("visibilitychange", ververs);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", ververs); };
   }, []);
   useEffect(() => {
-    if (toon("weer")) weerNu(data.instellingen?.thuisadres ?? "").then(setWeer);
-    else setWeer(null);
+    let weg = false;
+    setWeer(null);
+    if (toon("weer")) weerNu(data.instellingen?.thuisadres ?? "").then(w => { if (!weg) setWeer(w); });
+    return () => { weg = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.instellingen?.thuisadres, data.instellingen?.voorpagina]);
+  }, [gebruiker.id, data.instellingen?.thuisadres, data.instellingen?.voorpagina]);
 
   // Wat er elders in de app op je wacht; elke vijf minuten opnieuw, zodat het klopt zonder te verversen.
   const [meldingen, setMeldingen] = useState<Melding[]>([]);
   const perVijf = Math.floor(nu.getTime() / 300_000);
   useEffect(() => {
     if (!toon("voorjou")) { setMeldingen([]); return; }
+    if (document.hidden) return;
     let weg = false;
     voorJou(gebruiker).then((m) => !weg && setMeldingen(m)).catch(() => {});
     return () => { weg = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [perVijf, data.instellingen?.voorpagina]);
+  }, [gebruiker.id, perVijf, data.instellingen?.voorpagina]);
 
   const vandaag = datumTekst(nu);
   const afspraken = useMemo(
@@ -67,9 +73,8 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
   const eind = (a: Afspraak) => (a.einde ? moment(a.einde) : null);
   const straks = afspraken.find((a) => !heleDag(a.start) && (eind(a) ?? moment(a.start)) > nu);
   const rest = afspraken.filter((a) => a !== straks && !(eind(a) && eind(a)! < nu));
-  const taken = data.taken
-    .filter((t) => !t.klaar)
-    .sort((a, b) => (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999"));
+  const taken = useMemo(() => data.taken.filter(t => !t.klaar)
+    .sort((a, b) => (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999")), [data.taken]);
 
   // De komende dagen: wat er na vandaag aankomt, zodat je vooruit kunt kijken zonder de agenda te openen.
   const komend = useMemo(() => {
@@ -227,13 +232,13 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
         {toon("afspraken") && straks && (
           <section>
             <h2 className={kop}>Straks</h2>
-            <div className="flex flex-col gap-1.5 rounded-3xl bg-accent p-5 text-white">
+            <button type="button" onClick={() => ga?.("agenda")} aria-label={`Open agenda: ${straks.titel}`} className="flex w-full flex-col gap-1.5 rounded-3xl bg-accent p-5 text-left text-white">
               <p className="text-[13px] opacity-85">{hoeLang(moment(straks.start), eind(straks), nu) || uur(straks.start)}</p>
               <p className="text-xl font-semibold">{straks.titel}</p>
               <p className="text-sm opacity-85">
                 {uur(straks.start)}{straks.einde ? ` – ${uur(straks.einde)}` : ""}{straks.locatie ? ` · ${straks.locatie}` : ""}
               </p>
-            </div>
+            </button>
           </section>
         )}
 
@@ -254,10 +259,10 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
         {toon("afspraken") && !straks && rest.length === 0 && <p className="text-rustig">Niets meer in je agenda vandaag.</p>}
 
         {zonderResultaat(data, nu).slice(0, 1).map((a) => (
-          <HoeGingHet key={a.id} a={a} bewaar={async (r) => {
+          <Suspense key={a.id} fallback={null}><HoeGingHet a={a} bewaar={async (r) => {
             setStaat({ ...staat, data: await bijwerken((g) => { vastleggen(g, a.id, r); }) });
             mascotteZeg(r.gevoel >= 4 ? "Lekker bezig! Staat erin." : "Goed dat je ging. Staat erin.");
-          }} />
+          }} /></Suspense>
         ))}
 
         {toon("afspraken") && (komend.length > 0 || feest) && (
@@ -380,6 +385,8 @@ function AanDeSlag({ staat, setStaat, naarInstellingen, ga }: Omit<Props, "ga" |
       <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-lijn">
         <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${(gedaan / stappen.length) * 100}%` }} />
       </div>
+      <details>
+        <summary className="min-h-11 cursor-pointer py-3 font-medium text-accent">Profiel verder instellen</summary>
       <ul className="flex flex-col">
         {stappen.map(({ klaar, icoon: Icoon, titel, uitleg, doe }) => (
           <li key={titel}>
@@ -395,6 +402,7 @@ function AanDeSlag({ staat, setStaat, naarInstellingen, ga }: Omit<Props, "ga" |
           </li>
         ))}
       </ul>
+      </details>
     </section>
   );
 }
