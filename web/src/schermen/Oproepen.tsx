@@ -184,6 +184,7 @@ export function Oproepen({ ik, lijst, instellingen, sluitInstellingen, bewaard, 
       <p className="flex items-center gap-1.5 px-6 text-[13px] text-zacht"><Slot className="size-3.5 shrink-0" /> Gesprekken gaan versleuteld rechtstreeks tussen jullie toestellen. Wij horen en zien niets.</p>
 
       {plannen && <Plannen ik={ik} mensen={mensen} gekozen={plannen === "kies" ? null : plannen} sluit={() => setPlannen(null)}
+        zoekIemand={() => { setPlannen(null); zoekIemand(); }}
         bewaard={(g, tekst) => { bewaard(g); setPlannen(null); setMelding(tekst); }} />}
       {instellingen && <BelInstellingen v={v} sluit={sluitInstellingen} />}
     </div>
@@ -217,8 +218,8 @@ function Blad({ titel, sluit, children }: { titel: string; sluit: () => void; ch
 }
 
 /** Een belafspraak: komt in je agenda, zodat je er op tijd aan herinnerd wordt en niemand voor niets belt. */
-function Plannen({ ik, mensen, gekozen, sluit, bewaard }: { ik: number; mensen: Gesprek[]; gekozen: Gesprek | null;
-  sluit: () => void; bewaard: (g: Gegevens, tekst: string) => void }) {
+function Plannen({ ik, mensen, gekozen, sluit, zoekIemand, bewaard }: { ik: number; mensen: Gesprek[]; gekozen: Gesprek | null;
+  sluit: () => void; zoekIemand: () => void; bewaard: (g: Gegevens, tekst: string) => void }) {
   const morgen = new Date(Date.now() + 864e5);
   const [wie, setWie] = useState(gekozen?.id ?? mensen[0]?.id ?? 0);
   const [dag, setDag] = useState(datumTekst(morgen));
@@ -250,7 +251,10 @@ function Plannen({ ik, mensen, gekozen, sluit, bewaard }: { ik: number; mensen: 
   return (
     <Blad titel="Belafspraak" sluit={sluit}>
       <p className="text-rustig">Spreek een moment af, dan zie je het in je agenda en bel je niet midden in iemands avondeten.</p>
-      {!mensen.length ? <p className="text-rustig">Begin eerst een gesprek onder Chats.</p> : <>
+      {!mensen.length ? <>
+        <p className="text-rustig">Je hebt nog niemand om mee af te spreken. Begin eerst een gesprek.</p>
+        <button onClick={zoekIemand} className="h-12 self-start rounded-full bg-accent px-6 font-medium text-white">Zoek iemand</button>
+      </> : <>
         <label className="flex flex-col gap-2"><span className={kop}>Met wie</span>
           <select value={wie} onChange={(e) => setWie(Number(e.target.value))} className={veld}>
             {mensen.map((x) => <option key={x.id} value={x.id}>{gesprekNaam(x, ik)}</option>)}
