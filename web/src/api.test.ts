@@ -90,4 +90,17 @@ describe("haperende verbinding", () => {
     expect(r.bestanden.size).toBe(0);
     expect(werkruimte(42).bestanden.size).toBe(0);
   });
+
+  it("wist tijdelijke gedeelde projecttekst direct bij uitloggen", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(reactie({ token: "sessie", naam: "alice" }))
+      .mockResolvedValueOnce(reactie(true)));
+    await inloggen("alice", "test-only", "", false);
+    const { bestandMaken, werkruimte } = await import("./lib/project");
+    const r = werkruimte(42);
+    bestandMaken(42, "privé.md", "Niet meenemen naar volgend account");
+    expect(r.bestanden.size).toBe(1);
+    await uitloggen();
+    expect(r.bestanden.size).toBe(0);
+    expect(werkruimte(42).bestanden.size).toBe(0);
+  });
 });

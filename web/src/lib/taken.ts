@@ -24,14 +24,14 @@ export function volgendeDatum(d: string, herhaal: Herhaal, vandaag = datumTekst(
 }
 
 /** Vinkt een taak af in de gegevens. Komt hij terug, dan staat de volgende er meteen bij. */
-export function afvinkenIn(g: Gegevens, id: number, nu = new Date()): Taak | null {
+export function afvinkenIn(g: Gegevens, id: number, nu = new Date(), behoudAfspraken = false): Taak | null {
   const taak = g.taken.find((t) => t.id === id);
   if (!taak || taak.klaar) return null;
   taak.klaar = true;
   (taak as Taak & { klaar_op?: string }).klaar_op = nuTekst(nu);
   // Ingeplande focusblokken voor deze taak die nog moeten komen, zijn niet meer nodig.
   const tekst = nuTekst(nu);
-  g.afspraken = g.afspraken.filter((a) => (a as { taak_id?: number }).taak_id !== id || a.start < tekst);
+  if (!behoudAfspraken) g.afspraken = g.afspraken.filter((a) => (a as { taak_id?: number }).taak_id !== id || a.start < tekst);
   if (!taak.herhaal) return null;
   const vandaag = datumTekst(nu);
   const nieuw: Taak = { ...taak, id: g.volgend_id, klaar: false,
