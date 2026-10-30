@@ -1,6 +1,7 @@
 // Algemene instellingen: hoe de app eruitziet, wat er op Vandaag staat, en een idee of probleem melden.
 import { useEffect, useState } from "react";
 import { DOK_KEUZES, dokVan } from "./HoofdNavigatie";
+import { DELEN, chatDelenVan, type Deel } from "./chatdelen";
 import type { Tab } from "../App";
 import { alsIk } from "../api";
 import { Schakelaar, kop } from "./instellingen-ui";
@@ -80,6 +81,7 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
     </div>
     <Feestdagen inst={inst} bewaar={bewaar} />
     <Dok inst={inst} bewaar={bewaar} />
+    <ChatRij inst={inst} bewaar={bewaar} />
     <section className="flex flex-col gap-2">
       <h2 className={kop}>Op Vandaag</h2>
       {VANDAAG.map(([k, label, uitleg]) => (
@@ -117,6 +119,28 @@ function Dok({ inst, bewaar }: { inst: Weergave; bewaar: (aanpassen: (i: Record<
         })}
       </div>
       <p className="mt-2 px-1 text-[13px] text-rustig">Drie plekken. Kies je een andere, dan maakt de oudste keuze plaats.</p>
+    </fieldset>
+  );
+}
+
+/** Welke onderdelen in de rij bovenin Chat staan. Chats staat er altijd; Bellen zit ook als knop rechtsboven. */
+function ChatRij({ inst, bewaar }: { inst: Weergave; bewaar: (aanpassen: (i: Record<string, unknown>) => void) => void }) {
+  const gekozen = chatDelenVan((inst as Record<string, unknown>).chatdelen);
+  const wissel = (id: Deel) => bewaar((i) => {
+    i.chatdelen = gekozen.includes(id) ? gekozen.filter((d) => d !== id) : [...gekozen, id];
+  });
+  return (
+    <fieldset>
+      <legend className={kop}>Bovenin Chat</legend>
+      <div className="flex flex-wrap gap-2">
+        {DELEN.filter(([k]) => k !== "chats").map(([k, naam]) => (
+          <button key={k} type="button" aria-pressed={gekozen.includes(k)} onClick={() => wissel(k)}
+            className={`h-10 rounded-full px-4 text-[14px] ${gekozen.includes(k) ? "bg-inkt font-semibold text-white dark:text-black" : "bg-vlak text-rustig"}`}>
+            {naam}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 px-1 text-[13px] text-rustig">Minder is rustiger. Bellen vind je ook rechtsboven bij Chats.</p>
     </fieldset>
   );
 }

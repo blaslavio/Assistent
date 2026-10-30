@@ -28,6 +28,7 @@ import { CommunityBeheer } from "./CommunityBeheer";
 import { EindeKiezen, OpruimBlad, opruimTekst } from "./CommunityOpruimen";
 import { Onderblad } from "./Onderblad";
 import { AppKop, AppMenu, type MenuItem } from "./AppMenu";
+import { DELEN, chatDelenVan, type Deel } from "./chatdelen";
 import { ClubAgenda } from "./ClubAgenda";
 import type { Gegevens } from "../api";
 import { Bladen, Raster, type Blad } from "./Winkelen";
@@ -39,9 +40,6 @@ import type { Staat } from "../App";
 
 const WinkelKaart = lazy(() => import("./WinkelKaart").then((m) => ({ default: m.WinkelKaart })));
 
-type Deel = "chats" | "communitys" | "projecten" | "winkel" | "oproepen";
-const DELEN: [Deel, string, typeof Ballon][] = [["chats", "Chats", Ballon], ["communitys", "Community's", Mensen],
-  ["projecten", "Projecten", Projectmap], ["winkel", "Winkel", Tas], ["oproepen", "Bellen", Telefoon]];
 const Projecten = lazy(() => import("./Projecten"));
 
 function bewaardDeel(): Deel {
@@ -145,16 +143,25 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
   const ongelezenChats = lijst.reduce((n, g) => n + (g.ongelezen ? 1 : 0), 0) + gasten.filter((g) => g.ongelezen).length;
   const ongelezenGroepen = groepen.reduce((n, c) => n + (c.status === "uitgenodigd" ? 1
     : c.kanalen.reduce((m, k) => m + k.ongelezen, 0) > 0 ? 1 : 0), 0);
-  const actie = deel === "chats" && !nieuw ? { label: "Nieuw gesprek", icoon: <Bewerk className="size-5" />, doe: () => setNieuw(true) }
-    : deel === "oproepen" ? { label: "Belinstellingen", icoon: <Tandwiel className="size-5" />, doe: () => setBelInst(true) }
-    : null;
+  const acties = deel === "chats" && !nieuw ? [{ label: "Bellen", icoon: <Telefoon className="size-5" />, doe: () => setDeel("oproepen") },
+      { label: "Nieuw gesprek", icoon: <Bewerk className="size-5" />, doe: () => setNieuw(true) }]
+    : deel === "oproepen" ? [{ label: "Belinstellingen", icoon: <Tandwiel className="size-5" />, doe: () => setBelInst(true) }]
+    : [];
+  const zichtbaar = chatDelenVan(staat.data.instellingen?.chatdelen);
+  // Een onderdeel dat niet in je rij staat (zoals Bellen via de knop), opent als losse pagina met één stap terug.
+  const rij = zichtbaar.includes(deel) ? DELEN.filter(([k]) => zichtbaar.includes(k)) : [];
 
   return (
     <div className="flex min-h-full flex-col">
       <AppKop titel={DELEN.find(([k]) => k === deel)?.[1] ?? "Chat"}
-        rechts={actie && (
-          <button onClick={actie.doe} aria-label={actie.label}
-            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-vlak">{actie.icoon}</button>
+        terug={!zichtbaar.includes(deel) ? () => setDeel("chats") : undefined} terugNaam="Chats"
+        rechts={acties.length > 0 && (
+          <span className="flex shrink-0 gap-2">
+            {acties.map((a) => (
+              <button key={a.label} onClick={a.doe} aria-label={a.label}
+                className="flex size-10 items-center justify-center rounded-full bg-vlak">{a.icoon}</button>
+            ))}
+          </span>
         )} />
       {fout && <p className="px-6 text-rustig">{fout}</p>}
       {deel === "chats" && nieuw && (
@@ -172,9 +179,9 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
       {deel === "projecten" && <Suspense fallback={null}>
         <Projecten ingebed staat={staat} open={(g) => { setProjectVan(g); setOpen(g); }} naarChat={() => setDeel("chats")} />
       </Suspense>}
-      <AppMenu naam="Chat" actief={deel} kies={setDeel}
-        items={DELEN.map(([k, naam, Icoon]) => [k, naam, Icoon,
-          k === "chats" ? ongelezenChats : k === "communitys" ? ongelezenGroepen : 0] as MenuItem<Deel>)} />
+      {rij.length > 1 && <AppMenu naam="Chat" actief={deel} kies={setDeel}
+        items={rij.map(([k, naam, Icoon]) => [k, naam, Icoon,
+          k === "chats" ? ongelezenChats : k === "communitys" ? ongelezenGroepen : 0] as MenuItem<Deel>)} />}
     </div>
   );
 }
@@ -599,11 +606,21 @@ function WinkelApp({ start, melding, adres, thuisadres, bestel, terug }: { start
   useEffect(() => {
     bestellingenLijst().then((l) => setWacht(l.filter(wachtOpMij).length)).catch(() => {});
   }, [deel]);
-  const items: MenuItem<WinkelDeelNaam>[] = [["ontdekken", "Ontdekken", Zoek], ["verkopen", "Verkopen", Plus],
-    ["bestellingen", "Bestellingen", Tas, wacht]];
+  // Eén scherm: zoeken en kopen. Verkopen en Bestellingen zijn knoppen rechtsboven, met één stap terug naar de winkel.
+  const knop = "relative flex size-10 items-center justify-center rounded-full bg-vlak";
   return (
     <div className="flex min-h-full flex-col">
-      <AppKop terug={terug} terugNaam="Chat" titel={deel === "ontdekken" ? "Winkel" : items.find(([k]) => k === deel)![1]} />
+      <AppKop terug={deel === "ontdekken" ? terug : () => setDeel("ontdekken")} terugNaam={deel === "ontdekken" ? "Chat" : "Winkel"}
+        titel={deel === "ontdekken" ? "Winkel" : deel === "verkopen" ? "Verkopen" : "Bestellingen"}
+        rechts={deel === "ontdekken" && (
+          <span className="flex shrink-0 gap-2">
+            <button onClick={() => setDeel("verkopen")} aria-label="Verkopen" className={knop}><Plus className="size-5" /></button>
+            <button onClick={() => setDeel("bestellingen")} aria-label={wacht ? `Bestellingen, ${wacht} wachten op jou` : "Bestellingen"} className={knop}>
+              <Tas className="size-5" />
+              {wacht > 0 && <span className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[11px] font-semibold text-white">{wacht}</span>}
+            </button>
+          </span>
+        )} />
       {deel === "ontdekken" && <WinkelDeel key={`${bijgewerkt}-${openWinkel}`} bestel={bestel} verkoop={() => setVerkopen(true)}
         winkel={openWinkel} thuisadres={thuisadres} />}
       {deel === "verkopen" && (
@@ -620,7 +637,6 @@ function WinkelApp({ start, melding, adres, thuisadres, bestel, terug }: { start
         </div>
       )}
       {deel === "bestellingen" && <Bestellingen melding={deel === start ? melding : undefined} />}
-      <AppMenu naam="Winkel" items={items} actief={deel} kies={setDeel} />
       {verkopen && <Verkopen sluit={() => setVerkopen(false)}
         geplaatst={() => { setVerkopen(false); setBijgewerkt((n) => n + 1); }} />}
     </div>
