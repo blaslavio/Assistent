@@ -6,13 +6,14 @@
 //
 // Wie je bent, staat in de kop x-api-key: "abo." + base64(JSON [naam, wachtwoord of sessie]).
 
-import { type Azure, openaiAntwoord } from "./openai.ts";
+import { openaiAntwoord } from "./openai.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const ANTHROPIC_API = Deno.env.get("ANTHROPIC_API") ?? "https://api.anthropic.com";
 const OPENAI_MODEL = "gpt-5.4";
-const MODELLEN = new Set(["claude-opus-5-5", OPENAI_MODEL]);
+const AZURE_MODEL = "azure-gpt-5-mini";
+const MODELLEN = new Set(["claude-opus-5-5", OPENAI_MODEL, AZURE_MODEL]);
 const MAX_GROOTTE = 20_000_000;
 
 async function rpc(functie: string, parameters: Record<string, unknown> = {}) {
@@ -83,6 +84,30 @@ function wieBenJe(sleutel: string): [string, string] | null {
   }
 }
 
+// Azure OpenAI uit de secrets van de functie. null = niet ingesteld.
+export function azureInstelling(env = (k: string) => Deno.env.get(k)) {
+  const endpoint = (env("AZURE_OPENAI_ENDPOINT") ?? "").trim();
+  const key = (env("AZURE_OPENAI_API_KEY") ?? "").trim();
+  const deployment = (env("AZURE_OPENAI_DEPLOYMENT") ?? "").trim();
+  if (!endpoint && !key && !deployment) return null;
+  // Conservatieve interne budgetreservering, geen Azure-factuurtarief. Tarieven kunnen via secrets.
+  const inputSetting = env("AZURE_INPUT_EUR_PER_MILLION");
+  const outputSetting = env("AZURE_OUTPUT_EUR_PER_MILLION");
+  const input = inputSetting ? Number(inputSetting) : 1;
+  const output = outputSetting ? Number(outputSetting) : 5;
+  if (!endpoint || !key || !deployment || !Number.isFinite(input) || input <= 0 || !Number.isFinite(output) || output <= 0) {
+    return { fout: "Azure AI is nog niet volledig geconfigureerd." };
+  }
+  let host: URL;
+  try { host = new URL(endpoint); } catch { return { fout: "Ongeldig Azure-endpoint." }; }
+  if (host.protocol !== "https:" || !host.hostname.endsWith(".openai.azure.com") ||
+      host.username || host.password || host.port || host.search || host.hash ||
+      !["", "/", "/openai/v1", "/openai/v1/"].includes(host.pathname)) {
+    return { fout: "Ongeldig Azure-endpoint." };
+  }
+  return { url: `https://${host.hostname}/openai/v1/responses`, key, deployment, input, output };
+}
+
 export async function verwerk(verzoek: Request): Promise<Response> {
   if (verzoek.method !== "POST") return new Response("alleen POST", { status: 405 });
   if (!new URL(verzoek.url).pathname.endsWith("/v1/messages")) return fout(404, "Onbekend adres.", "not_found_error");
@@ -101,13 +126,19 @@ export async function verwerk(verzoek: Request): Promise<Response> {
 
     const claudeSleutel = Deno.env.get("ANTHROPIC_API_KEY") || toegang.sleutel;
     const openaiSleutel = Deno.env.get("OPENAI_API_KEY") || toegang.openai_sleutel;
-    const azure: Azure = { endpoint: Deno.env.get("AZURE_OPENAI_ENDPOINT") ?? "", key: Deno.env.get("AZURE_OPENAI_API_KEY") ?? "",
-      deployment: Deno.env.get("AZURE_OPENAI_DEPLOYMENT") ?? "" };
-    const metAzure = !!(azure.endpoint && azure.key && azure.deployment);
+    const azure = azureInstelling();
+    // Zonder Claude-sleutel gaat de assistent naar Azure als dat is ingesteld, anders naar OpenAI.
+    if (body.model === AZURE_MODEL || (!claudeSleutel && body.model !== OPENAI_MODEL && (azure || !openaiSleutel))) {
+      if (!azure) return fout(503, "Azure AI is nog niet volledig geconfigureerd.", "api_error");
+      if ("fout" in azure) return fout(503, azure.fout, "api_error");
+      return await openaiAntwoord(body, azure.key, azure.deployment,
+        (euro) => rpc("ai_gebruik_bij", { p_gebruiker: id, p_euro: euro }),
+        { endpoint: azure.url, inputPerMillion: azure.input, outputPerMillion: azure.output, searchCost: 0 });
+    }
     if (body.model === OPENAI_MODEL || !claudeSleutel) {
-      if (!openaiSleutel && !metAzure) return fout(503, "De ChatGPT-sleutel is nog niet ingesteld.", "api_error");
+      if (!openaiSleutel) return fout(503, "De ChatGPT-sleutel is nog niet ingesteld.", "api_error");
       return await openaiAntwoord(body, openaiSleutel, OPENAI_MODEL,
-        (euro) => rpc("ai_gebruik_bij", { p_gebruiker: id, p_euro: euro }), metAzure ? azure : undefined);
+        (euro) => rpc("ai_gebruik_bij", { p_gebruiker: id, p_euro: euro }));
     }
 
     const kop: Record<string, string> = { "x-api-key": claudeSleutel, "content-type": "application/json",
