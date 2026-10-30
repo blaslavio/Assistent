@@ -20,3 +20,5 @@ Controleer vóór het delen van de link:
 De workflow publiceert alleen statische webbestanden. Hij past geen productiedatabase aan, verandert de Streamlit-app niet en bewijst geen werking van login, mail, betalingen of boekingen. Het publicatiemanifest vermeldt daarom expliciet `server_release_verified: false`.
 
 Voor de volledige serverrelease blijven de productiebeheerverbinding, migraties (waaronder `sql/project_archief.sql`) en de verse productie-E2E-bewijzen uit `UITROL.md` vereist. De bestaande release-evidence-controle wordt niet verwijderd of als geslaagd voorgesteld.
+
+Voor **Vakantie en verblijf** is daarnaast `sql/vakantie_verhuur.sql` nodig; de particuliere verhuur-RPC’s zijn zonder die migratie niet actief. Zie [VAKANTIES.md](VAKANTIES.md) voor het onderscheid tussen privéplannen, reserveringen en betalingen.

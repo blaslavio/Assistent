@@ -1,0 +1,49 @@
+{
+  "gemaakt_op": "2026-10-30T12:56:15.367034+00:00",
+  "scope": "ontwikkeling, geen productiecertificering",
+  "webtests": {
+    "geslaagd": 289,
+    "bestanden": 62
+  },
+  "database": {
+    "bestaande_integratietests_geslaagd": 25,
+    "nieuwe_verhuurtests_geslaagd": 20,
+    "omgeving": "geïsoleerde PostgreSQL 17, daadwerkelijke migratie en RPCs",
+    "gelijktijdigheid": [
+      "twee bevestigingen",
+      "bevestiging en datumblokkade"
+    ]
+  },
+  "release_evidence_tests_geslaagd": 9,
+  "builds": [
+    "statische webinterface",
+    "enkele Streamlit-bundel"
+  ],
+  "mobiele_fixture": {
+    "breedte": 390,
+    "hoogte": 844,
+    "schermen": [
+      "reisplan",
+      "verhuur",
+      "aanbieden"
+    ],
+    "horizontale_overloop": false,
+    "productiegegevens": false
+  },
+  "productiemigratie_toegepast": false,
+  "betalingen_voor_verblijven": false,
+  "bron_sha256": {
+    "web/src/lib/vakantie.ts": "2257795ff4065524ca2e503bc5ef501b279307495fd58d63c12f42d86b05bb5c",
+    "web/src/lib/verhuur.ts": "3ac74e7cc6c5a00619bd8e71d282b500f0e4a6dc5ca23f75af29a5fd576c5aa8",
+    "web/src/lib/assistent.ts": "755bc5aa8c2d6cdcb03abd6309622a549fd497a63ceffb93637182391c68a715",
+    "web/src/lib/club.ts": "f87e985b8d79296d7a1e5ffda75c7ce63354c16cc1ed78297408286ceaab05ca",
+    "web/src/lib/naar.ts": "9126d6c291ec441cfefe4419c4f1ff9936758bc31d427cc6a3020582dd16b595",
+    "web/src/schermen/Vakanties.tsx": "4adc51c756a363ad986ad7c4acd48dce11d0e7277d49f30b2af519de014c560c",
+    "web/src/schermen/Verblijven.tsx": "86af1e9a3a9c4e4ef2fb97041803b52161b2289b40b4823d58d667f8485d9472",
+    "web/src/schermen/Agenda.tsx": "6a54c545650e4228200760bfb717e18863b9b9f94291b9363ff1292921c06baa",
+    "web/src/schermen/Instellingen.tsx": "76c49270a6b60a150cc583c4851ba54c03fbfc4d570d8a33c771546eba3f1102",
+    "sql/vakantie_verhuur.sql": "fcbac570b743f89c74eb350cc34e0b5b67a157c0b43f308918493db611d6a44e",
+    "test_vakantie_verhuur.py": "24ac400bc68051eaf04a181b389b53ad73cbac8fe1f80f90cab74e5a13ff9575",
+    ".github/workflows/project-checks.yml": "2eacfdf09a0769e64d592cf107b843af15bc88f3bbc4b5ebc511725f701b70e6"
+  }
+}

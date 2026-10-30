@@ -15,3 +15,7 @@ Geen geheimen in de code: de repository is openbaar. Sleutels staan alleen in de
 De samengebrachte instellingen, externe aanmelding, evenementen, winkelcontact en vectorkaart staan beschreven in [NIEUWE_FUNCTIES.md](NIEUWE_FUNCTIES.md), inclusief vereiste servermigraties en providerinstellingen.
 
 Werk uitsluitend in `/workspace/Assistent` met `main` als actuele basis. De eigen kaartlogica en het waarom staan in [KAARTKOMPAS.md](KAARTKOMPAS.md).
+
+## Vakantie en particulier verblijf
+
+Via Agenda → Vakantie en verblijf kun je privévakanties plannen, begroten en voorbereiden, en particulier een woning aanbieden of een reserveringsaanvraag doen. Zie [VAKANTIES.md](VAKANTIES.md) voor de functies, migratie en grenzen van deze eerste versie.

@@ -83,6 +83,8 @@ Werkwijze:
   sportdoel_maken. Geef geen medisch advies; bij pijn of klachten verwijs je naar een huisarts of fysiotherapeut.
 - Mail: met mail_bekijken lees je de inbox. Een antwoord of nieuwe mail zet je klaar met mail_opstellen; de gebruiker
   verstuurt zelf. Schrijf nooit iets wat je niet zeker weet (data, bedragen, toezeggingen).
+- Vakantie en particuliere verhuur: open vakantie_openen voor privéplannen, verblijf zoeken en je woning aanbieden.
+  Boek, bevestig of betaal nooit zelf een verblijf. De gebruiker controleert de aanvraag en voorwaarden in dat scherm.
 - Datum prikken: wil de gebruiker met anderen een moment kiezen, kijk eerst in de agenda en maak dan met datum_prikken
   een stemronde met 2 tot 6 vrije momenten. De gebruiker deelt de link zelf. Met stemrondes_bekijken zie je de stand.
 - Groepen en club: zegt de gebruiker dat hij ziek, geblesseerd of op vakantie is, meld hem dan met afmelden af (vraag
@@ -100,6 +102,7 @@ const tekst = (beschrijving: string) => ({ type: "string", description: beschrij
 
 type Hulpmiddel = { name: string; description: string; input_schema: Schema };
 const LIJST: Hulpmiddel[] = [
+  { name: "vakantie_openen", description: "Open Vakantie en verblijf in de agenda. Voor een vakantieplan, particuliere woning aanbieden of verblijf zoeken. Reserveert niets en leest geen privéplannen voor AI.", input_schema: { type: "object", properties: {} } },
   {
     name: "agenda_bekijken", description: "Toon afspraken in een periode.",
     input_schema: { type: "object", properties: { van: tekst("Begindatum JJJJ-MM-DD."),
@@ -540,6 +543,10 @@ export function uitgavenOverzicht(regels: Regel[]) {
 export async function uitvoeren(naam: string, v: Record<string, unknown>): Promise<Uitkomst> {
   const s = (k: string) => (typeof v[k] === "string" ? (v[k] as string).trim() : "");
   switch (naam) {
+    case "vakantie_openen": {
+      const { vakantiesOpenen } = await import("./naar"); vakantiesOpenen();
+      return { resultaat: "Vakantie en verblijf geopend. De gebruiker kan daar een plan maken of een reserveringsaanvraag controleren. Er is niets geboekt of betaald." };
+    }
     case "agenda_bekijken": {
       const { data } = await gegevensLaden();
       const lijst = data.afspraken.filter((a) => s("van") <= a.start.slice(0, 10) && a.start.slice(0, 10) <= s("tot"));
@@ -992,6 +999,7 @@ export function zonderLabels(t: string) {
 }
 
 export const BEZIG: Record<string, string> = {
+  vakantie_openen: "Opent Vakantie en verblijf",
   agenda_bekijken: "Kijkt in je agenda", taken_bekijken: "Kijkt naar je taken", afspraak_toevoegen: "Zet het in je agenda",
   afspraak_verwijderen: "Haalt het uit je agenda", taak_toevoegen: "Zet het op je lijst", taak_afronden: "Vinkt af",
   onthouden: "Onthoudt dit", vergeten: "Vergeet dit", keuze_voorleggen: "Zet de keuzes klaar",

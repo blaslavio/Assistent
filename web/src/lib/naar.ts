@@ -22,6 +22,12 @@ export function gevraagdePagina() {
   return p;
 }
 
+export function vakantiesOpenen() {
+  try { sessionStorage.setItem("assistent.agendapaneel", "vakanties"); } catch { /* alleen deze weergave */ }
+  window.dispatchEvent(new Event("agenda-vakanties"));
+  naar({ tab: "agenda" });
+}
+
 export function evenementenOpenen() {
   try { sessionStorage.setItem("assistent.agendapaneel", "evenementen"); } catch { /* alleen deze weergave */ }
   window.dispatchEvent(new Event("agenda-evenementen"));

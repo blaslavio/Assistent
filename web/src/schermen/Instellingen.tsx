@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { alsIk, bijwerken, instellingenBijwerken, uitloggen } from "../api";
 import { gekoppeld } from "../lib/mail";
-import { kaartOpenen, evenementenOpenen, gevraagdePagina } from "../lib/naar";
+import { kaartOpenen, evenementenOpenen, vakantiesOpenen, gevraagdePagina } from "../lib/naar";
 import { betaalStatus, lijst as bestellingenLijst, klaar, platformInstellen, stand, verkoperAanmelden, type BetaalStatus,
   type Bestelling } from "../lib/bestellingen";
 import { euro } from "../lib/winkelen";
@@ -170,6 +170,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
     { id: "planning", titel: "Planning en koppelingen", uitleg: "Mail, boekingspagina en thuisadres", icoon: Kalender, kleur: "#2f80ed", rijen: [
       { titel: "Mail", uitleg: gekoppeld(staat.data) ? "Mailbox gekoppeld" : "Koppel je mailbox", open: () => setPagina("mail"), icoon: Envelop },
       { titel: "Kaart en routes", uitleg: "Bestemming zoeken, winkels en navigeren", open: kaartOpenen, icoon: Huis },
+      { titel: "Vakantie en verblijf", uitleg: "Reisplannen, particuliere verhuur en reserveringsaanvragen", open: vakantiesOpenen, icoon: Kalender },
       { titel: "Evenementen", uitleg: "Organiseren, deelnemers, tijden en evenementpagina", open: evenementenOpenen, icoon: Kalender },
       { titel: "Boekingspagina", uitleg: "Afspraken laten inplannen en reserveren", open: () => setPagina("afspraken"), icoon: Kalender },
       { titel: "Thuis", uitleg: "Adres voor weer en reistijden", open: () => setPagina("thuis"), icoon: Huis },

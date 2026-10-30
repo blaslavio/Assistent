@@ -129,7 +129,7 @@ export function dagenVan(a: Afspraak, vandaag = datumTekst(new Date())) {
   const eind = (a as Afspraak & { doorlopend?: boolean }).doorlopend ? (vandaag > begin ? vandaag : begin)
     : a.einde && a.einde.length === 10 && a.einde > begin ? a.einde : begin;
   const uit: string[] = [];
-  for (let d = new Date(`${begin}T12:00`); uit.length < 60; d = plusDagen(d, 1)) {
+  for (let d = new Date(`${begin}T12:00`); uit.length < 366; d = plusDagen(d, 1)) {
     const t = datumTekst(d);
     if (t > eind) break;
     uit.push(t);

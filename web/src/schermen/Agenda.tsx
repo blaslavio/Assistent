@@ -1,9 +1,10 @@
 import { KaartVouw } from "../iconen";
 import { kaartBestemmingOpenen, kaartOpenen } from "../lib/naar";
 import Evenementen from "./Evenementen";
+const Vakanties = lazy(() => import("./Vakanties"));
 import { evenementVerwijzing } from "../lib/evenementen";
 import InstellingenKnop from "./InstellingenKnop";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { bijwerken, type Afspraak, type Taak } from "../api";
 import type { Staat } from "../App";
 import { Bel, Envelop, Kalender, Kruis, Lijstje, Plus, Prullenbak, Stemmen, Terug } from "../iconen";
@@ -24,9 +25,9 @@ const kleur = (a: Afspraak) => KLEUREN[a.soort ?? ""] ?? KLEUREN.afspraak;
 const SOORTEN = ["afspraak", "werk", "sport", "etentje", "uitgaan", "familie en vrienden", "gezondheid", "reizen"];
 
 type Weergave = "dag" | "week" | "maand";
-type Paneel = "mail" | "taken" | "herinneringen" | "prikken" | "evenementen";
+type Paneel = "mail" | "taken" | "herinneringen" | "prikken" | "evenementen" | "vakanties";
 const PANELEN: [Paneel, string, typeof Bel][] = [["taken", "Taken", Lijstje],
-  ["herinneringen", "Herinneringen", Bel], ["mail", "Mail", Envelop], ["prikken", "Datum prikken", Stemmen], ["evenementen", "Evenementen", Kalender]];
+  ["herinneringen", "Herinneringen", Bel], ["mail", "Mail", Envelop], ["prikken", "Datum prikken", Stemmen], ["evenementen", "Evenementen", Kalender], ["vakanties", "Vakantie en verblijf", Kalender]];
 const WEERGAVEN: [Weergave, string][] = [["dag", "Dag"], ["week", "Week"], ["maand", "Maand"]];
 const BEGIN_UUR = 0;
 const HOOGTE = 56; // pixels per uur in de dagweergave
@@ -62,6 +63,7 @@ export default function Agenda({ staat, setStaat }: Props) {
   const [open, setOpen] = useState<Afspraak | null>(null);
   const [paneel, setPaneel] = useState<Paneel | null>(bewaardPaneel);
   useEffect(() => { const open = () => setPaneel("evenementen"); window.addEventListener("agenda-evenementen", open); return () => window.removeEventListener("agenda-evenementen", open); }, []);
+  useEffect(() => { const open = () => setPaneel("vakanties"); window.addEventListener("agenda-vakanties", open); return () => window.removeEventListener("agenda-vakanties", open); }, []);
   const [telStemmen, setTelStemmen] = useState(0);
   const datum = new Date(`${gekozen}T12:00`);
 
@@ -185,6 +187,7 @@ export default function Agenda({ staat, setStaat }: Props) {
       {paneel === "mail" && <MailPaneel staat={staat} setStaat={setStaat} />}
       {paneel === "taken" && <TakenPaneel staat={staat} setStaat={setStaat} naarMail={() => kiesPaneel("mail")} />}
       {paneel === "herinneringen" && <HerinneringenPaneel staat={staat} setStaat={setStaat} />}
+      {paneel === "vakanties" && <Suspense fallback={<p role="status" className="px-6">Vakantie laden…</p>}><Vakanties key={staat.gebruiker.id} staat={staat} setStaat={setStaat} /></Suspense>}
       {paneel === "evenementen" && <Evenementen staat={staat} setStaat={setStaat} />}
       {paneel === "prikken" && <PrikkenPaneel staat={staat} setStaat={setStaat} />}
       {!paneel && <div key={weergave} className="opkomen flex flex-1 flex-col">
