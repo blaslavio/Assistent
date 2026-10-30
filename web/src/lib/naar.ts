@@ -38,3 +38,12 @@ export function gevraagdGesprek() { const id = gesprekGevraagd; gesprekGevraagd 
 let kaartVerzoek = false;
 export function kaartOpenen() { kaartVerzoek = true; window.dispatchEvent(new Event("kaart-openen")); naar({ tab: "chat" }); }
 export function kaartGevraagd() { const v = kaartVerzoek; kaartVerzoek = false; return v; }
+// Een afspraakadres blijft alleen in geheugen totdat het kaartscherm het overneemt.
+let kaartBestemming: string | null = null;
+export function kaartBestemmingOpenen(adres: string) {
+  const tekst=adres.trim();
+  if(!tekst||tekst.length>300||/[\p{Cc}\p{Cs}]/u.test(tekst))return;
+  kaartBestemming=tekst;kaartOpenen();
+}
+export function kaartBestemmingLezen(){const p=kaartBestemming;kaartBestemming=null;return p;}
+if(typeof window!=="undefined")window.addEventListener("assistent-sessie",()=>{kaartBestemming=null;gesprekGevraagd=null;kaartVerzoek=false;});

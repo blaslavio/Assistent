@@ -1,10 +1,10 @@
 name: Project privacy and integration
 on:
   push:
-    branches: [develop]
+    branches: [main]
     paths: ['web/**', 'sql/project_archief.sql', 'test_project_archief.py', 'test_nieuwe_integraties.py', 'sql/extern_inloggen.sql', 'sql/winkel_contact.sql', 'sql/evenementpagina.sql', 'sql/community_agenda.sql', 'os_release_evidence.py', 'tests/test_os_release_evidence.py', '.github/workflows/project-checks.yml']
   pull_request:
-    branches: [develop, main]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read

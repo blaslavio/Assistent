@@ -1,5 +1,5 @@
 import { KaartVouw } from "../iconen";
-import { kaartOpenen } from "../lib/naar";
+import { kaartBestemmingOpenen, kaartOpenen } from "../lib/naar";
 import Evenementen from "./Evenementen";
 import { evenementVerwijzing } from "../lib/evenementen";
 import InstellingenKnop from "./InstellingenKnop";
@@ -537,6 +537,7 @@ function AfspraakBlad({ a, sluit, weg }: { a: Afspraak; sluit: () => void; weg: 
         {a.notitie && <p className="mt-2 whitespace-pre-line text-rustig">{a.notitie}</p>}
       </div>
       {fout && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{fout}</p>}
+      {a.locatie?.trim()&&<button onClick={()=>{kaartBestemmingOpenen(a.locatie!);sluit();}} className="min-h-11 rounded-full bg-vlak px-4 font-medium">Locatie klaarzetten op kaart</button>}
       {a.extern ? (
         <p className="text-sm text-rustig">Deze afspraak komt uit een gekoppelde agenda. Wijzig hem daar.</p>
       ) : (

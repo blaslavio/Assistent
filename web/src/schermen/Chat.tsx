@@ -136,7 +136,7 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
     return <Gesprekscherm key={open} id={open} ik={ik} begin={g} projectOpen={werkGesprek?.id === open || projectVan === open} staat={staat} setStaat={setStaat} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
   }
   if (openGast !== null) return <GastGesprekScherm boeking={openGast} terug={() => { setOpenGast(null); laden().catch(() => {}); }} />;
-  if (winkel) return <WinkelApp key={winkel.ronde} start={winkel.deel} melding={winkel.melding} adres={winkel.adres}
+  if (winkel) return <WinkelApp staat={staat} setData={data=>setStaat?.(s=>s&&s.gebruiker.id===staat.gebruiker.id?{...s,data}:s)} key={winkel.ronde} start={winkel.deel} melding={winkel.melding} adres={winkel.adres}
     thuisadres={staat?.data.instellingen?.thuisadres} bestel={bestel} terug={() => setWinkel(null)} />;
   if (openCommunity !== null && ik !== null) {
     const c = groepen.find((x) => x.id === openCommunity);
@@ -602,7 +602,7 @@ const chip = (aan: boolean) => `flex h-9 shrink-0 items-center gap-1.5 rounded-f
 type WinkelDeelNaam = "ontdekken" | "verkopen" | "bestellingen" | "kaart";
 
 /** De winkel als eigen app: ontdekken, zelf verkopen en je bestellingen, met een eigen menu onderin. */
-function WinkelApp({ start, melding, adres, thuisadres, bestel, terug }: { start: WinkelDeelNaam; melding?: string;
+function WinkelApp({ start, melding, adres, thuisadres, bestel, terug, staat, setData }: { staat:Staat;setData:(g:Gegevens)=>void; start: WinkelDeelNaam; melding?: string;
   adres?: string; thuisadres?: string; bestel: (p: Product) => void; terug: () => void }) {
   const [deel, setDeel] = useState<WinkelDeelNaam>(start);
   const [openWinkel, setOpenWinkel] = useState(adres);
@@ -628,7 +628,7 @@ function WinkelApp({ start, melding, adres, thuisadres, bestel, terug }: { start
             </button>
           </span>
         )} />
-      {(deel === "ontdekken" || deel === "kaart") && <WinkelDeel key={deel} kaart={deel === "kaart"} bestel={bestel} verkoop={() => setVerkopen(true)}
+      {(deel === "ontdekken" || deel === "kaart") && <WinkelDeel staat={staat} setData={setData} key={deel} kaart={deel === "kaart"} bestel={bestel} verkoop={() => setVerkopen(true)}
         winkel={openWinkel} thuisadres={thuisadres} />}
       {deel === "verkopen" && (
         <div className="flex flex-col gap-5 px-6 pb-8">
@@ -650,7 +650,7 @@ function WinkelApp({ start, melding, adres, thuisadres, bestel, terug }: { start
   );
 }
 
-function WinkelDeel({ bestel, verkoop, winkel, thuisadres, kaart }: { bestel: (p: Product) => void; verkoop: () => void;
+function WinkelDeel({ bestel, verkoop, winkel, thuisadres, kaart, staat, setData }: { staat:Staat;setData:(g:Gegevens)=>void; bestel: (p: Product) => void; verkoop: () => void;
   winkel?: string; thuisadres?: string; kaart?: boolean }) {
   const [zoek, setZoek] = useState("");
   const [term, setTerm] = useState("");
@@ -689,7 +689,7 @@ function WinkelDeel({ bestel, verkoop, winkel, thuisadres, kaart }: { bestel: (p
       </div>
       {bron === "winkels" && !zoekt && (
         <Suspense fallback={<p className="bezig-tekst py-6 text-[15px] text-rustig">Kaart laden</p>}>
-          <WinkelKaart winkels={winkels} thuisadres={thuisadres} open={(a) => setStapel([{ soort: "winkel", adres: a }])} />
+          <WinkelKaart staat={staat} setData={setData} winkels={winkels} thuisadres={thuisadres} open={(a) => setStapel([{ soort: "winkel", adres: a }])} />
         </Suspense>
       )}
       {!zoekt && bron !== "winkels" && (

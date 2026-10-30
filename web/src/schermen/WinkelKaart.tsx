@@ -1,3 +1,8 @@
+import type { Staat } from "../App";
+import type { Gegevens } from "../api";
+import { kaartBestemmingLezen } from "../lib/naar";
+import { geldigPunt, leesPlekken } from "../lib/kaartkompas";
+import KaartKompas, { plekOpKaart } from "./KaartKompas";
 // Winkels op de kaart: winkels in de app (groot, in je accentkleur) en andere winkels in de buurt uit OpenStreetMap.
 import { useEffect, useMemo, useState } from "react";
 import { Kaart } from "./Kaart";
@@ -7,14 +12,15 @@ import { STANDAARD, afstand, afstandTekst, routeLink, samenvoegen, winkelsInBuur
 export type AppWinkel = { adres: string; naam: string; lat?: number | null; lon?: number | null; producten?: number;
   winkeladres?: string };
 
-export function WinkelKaart({ winkels, thuisadres, open }: { winkels: AppWinkel[]; thuisadres?: string;
+export function WinkelKaart({ winkels, thuisadres, open, staat, setData }: { staat:Staat;setData:(g:Gegevens)=>void; winkels: AppWinkel[]; thuisadres?: string;
   open: (adres: string) => void }) {
   const [midden, setMidden] = useState<Punt | null>(null);
   const [ik, setIk] = useState<Punt | null>(null);
   const [thuis, setThuis] = useState<Punt | null>(null);
   const [osm, setOsm] = useState<KaartWinkel[]>([]);
   const [gekozen, setGekozen] = useState<KaartWinkel | null>(null);
-  const [zoek, setZoek] = useState("");
+  const [kaartDoel] = useState(kaartBestemmingLezen);
+  const [zoek, setZoek] = useState(kaartDoel??"");
   const [zoekt, setZoekt] = useState(false);
   const [routeApp, setRouteApp] = useState<RouteApp>("google");
   const [reiswijze, setReiswijze] = useState<Reiswijze>("auto");
@@ -22,8 +28,8 @@ export function WinkelKaart({ winkels, thuisadres, open }: { winkels: AppWinkel[
 
   useEffect(() => {
     let weg = false;
-    const zet = (p: Punt) => { if (!weg) { setMidden(p); setThuis(p); } };
-    zoekPlek(thuisadres ?? "").then((p) => zet(p ?? STANDAARD)).catch(() => zet(STANDAARD));
+    const zet = (p: Punt|null) => { if (!weg) { setMidden(p??STANDAARD); setThuis(p); } };
+    zoekPlek(thuisadres ?? "").then(zet).catch(() => zet(null));
     return () => { weg = true; };
   }, [thuisadres]);
 
@@ -37,15 +43,19 @@ export function WinkelKaart({ winkels, thuisadres, open }: { winkels: AppWinkel[
     return () => { weg = true; clearTimeout(t); };
   }, [midden]);
 
-  const app = useMemo(() => winkels.flatMap((w): KaartWinkel[] => w.lat != null && w.lon != null
-    ? [{ lat: w.lat, lon: w.lon, naam: w.naam, soort: "In de app", adres: w.winkeladres || w.adres, app: true, producten: w.producten }]
+  const app = useMemo(() => winkels.flatMap((w): KaartWinkel[] => w.lat != null && w.lon != null && geldigPunt({lat:w.lat,lon:w.lon})
+    ? [{ lat: w.lat, lon: w.lon, naam: w.naam, soort: "In de app", adres: w.winkeladres || w.adres, app: true, producten: w.producten, winkelAdres:w.adres }]
     : []), [winkels]);
-  const alle = useMemo(() => (thuis ? samenvoegen(app, osm, ik ?? thuis) : []), [app, osm, ik, thuis]);
+  const alle = useMemo(() => midden ? samenvoegen(app, osm.filter(geldigPunt), ik??thuis??midden) : [], [app,osm,ik,thuis,midden]);
+  const eigen = useMemo(()=>{try{return leesPlekken(staat.data).map(plekOpKaart);}catch{return[];}},[staat.data]);
+  const punten=[...alle,...eigen];
+  if(gekozen&&!punten.some(p=>p===gekozen||(p.plekId&&p.plekId===gekozen.plekId)))punten.push(gekozen);
 
   function bijMij() {
     if (!navigator.geolocation) { setMelding("Je plek is op dit apparaat niet beschikbaar."); return; }
     navigator.geolocation.getCurrentPosition((p) => {
       const plek = { lat: p.coords.latitude, lon: p.coords.longitude };
+      if(!geldigPunt(plek)){setMelding("Je apparaat gaf geen geldige locatie. Kies zelf een vertrekplek op de kaart.");return;}
       setIk(plek);
       setMidden(plek);
     }, () => setMelding("Je plek delen staat uit. Je kunt de kaart ook zelf verschuiven."), { timeout: 8000 });
@@ -56,17 +66,19 @@ export function WinkelKaart({ winkels, thuisadres, open }: { winkels: AppWinkel[
   const vanaf = ik ?? thuis ?? midden;
   return (
     <section className="flex flex-col gap-3" aria-label="Winkelkaart">
+      {kaartDoel&&<p className="text-xs text-rustig">Je afspraakadres staat klaar. Pas na Zoek wordt dit adres met OpenStreetMap gedeeld.</p>}
       <form className="flex gap-2 rounded-2xl border border-lijn bg-vlak p-2" onSubmit={async e => {
         e.preventDefault(); if (zoekt || !zoek.trim()) return; setZoekt(true); setMelding("");
-        try { const p = await zoekPlek(zoek); if (!p) setMelding("Geen bestemming gevonden. Voeg een plaats of land toe."); else { setMidden(p); setGekozen({ ...p, naam: zoek.trim(), soort: "Bestemming", app: false }); } }
+        try { const p = await zoekPlek(zoek); if (!p) setMelding("Geen bestemming gevonden. Voeg een plaats of land toe."); else { setMidden(p); setGekozen({ ...p, naam: zoek.trim().slice(0,120), soort: "Bestemming", app: false, prive:true }); } }
         catch { setMelding("Bestemming zoeken lukt niet. Probeer opnieuw."); } finally { setZoekt(false); }
-      }}><input aria-label="Zoek bestemming wereldwijd" placeholder="Waar wil je heen? Adres, plaats of land" value={zoek} onChange={e=>setZoek(e.target.value)} className="h-11 min-w-0 flex-1 bg-transparent px-2 outline-none" />
+      }}><input aria-label="Zoek bestemming wereldwijd" placeholder="Waar wil je heen? Adres, plaats of land" maxLength={300} value={zoek} onChange={e=>setZoek(e.target.value)} className="h-11 min-w-0 flex-1 bg-transparent px-2 outline-none" />
         <button disabled={zoekt || !zoek.trim()} className="h-11 rounded-full bg-accent px-4 text-sm font-medium text-white disabled:opacity-50">{zoekt ? "Zoeken…" : "Zoek"}</button></form>
-      <Kaart midden={midden} zet={setMidden} punten={alle} gekozen={gekozen} kies={setGekozen} ik={ik} />
+      <Kaart midden={midden} zet={setMidden} punten={punten} gekozen={gekozen} kies={setGekozen} ik={ik} />
       <div className="flex items-center gap-2">
         <button onClick={bijMij} className="h-9 rounded-full bg-vlak px-4 text-sm font-medium">Bij mij</button>
-        <span className="text-[13px] text-rustig">{app.length > 0 ? "Grote punten zijn winkels in de app." : "Sleep om rond te kijken."}</span>
+        <span className="text-[13px] text-rustig">{!ik&&!thuis?"Afstanden vanaf het kaartmidden. Kies een vertrekpunt voor je plan.":app.length > 0 ? "Grote punten zijn winkels in de app." : "Sleep om rond te kijken."}</span>
       </div>
+      {gekozen&&<p className="text-xs text-rustig">{gekozen.prive?"Eigen gekozen privébestemming. Alleen de coördinaten gaan mee bij navigeren.":gekozen.app?"Winkel uit de app. Bekijk de winkel voor actuele productinformatie.":"Bron: OpenStreetMap. Openingstijden, voorraad en bereikbaarheid zijn niet live gecontroleerd."}</p>}
       {gekozen && <div className="flex flex-col gap-3 rounded-3xl border border-lijn p-4">
         <div className="flex gap-2"><label className="flex-1 text-xs text-rustig">Navigatie-app<select aria-label="Navigatie-app" value={routeApp} onChange={e=>setRouteApp(e.target.value as RouteApp)} className="mt-1 h-11 w-full rounded-2xl bg-vlak px-3 text-sm text-inkt"><option value="google">Google Maps</option><option value="apple">Apple Kaarten</option><option value="waze">Waze (auto)</option></select></label>
           <label className="flex-1 text-xs text-rustig">Reizen met<select aria-label="Reizen met" disabled={routeApp === "waze"} value={routeApp === "waze" ? "auto" : reiswijze} onChange={e=>setReiswijze(e.target.value as Reiswijze)} className="mt-1 h-11 w-full rounded-2xl bg-vlak px-3 text-sm text-inkt"><option value="auto">Auto</option><option value="lopen">Lopen</option><option value="fiets">Fiets</option><option value="ov">Openbaar vervoer</option></select></label></div>
@@ -83,7 +95,7 @@ export function WinkelKaart({ winkels, thuisadres, open }: { winkels: AppWinkel[
             </span>
           </span>
           {gekozen.app ? (
-            <button onClick={() => { const w = winkels.find((x) => x.naam === gekozen.naam && x.lat === gekozen.lat); if (w) open(w.adres); }}
+            <button onClick={() => { if(gekozen.winkelAdres)open(gekozen.winkelAdres); }}
               className="h-10 shrink-0 rounded-full bg-accent px-4 text-sm font-medium text-white">Bekijken</button>
           ) : (
             <a href={routeLink(gekozen, routeApp, reiswijze)} target="_blank" rel="noreferrer"
@@ -91,6 +103,7 @@ export function WinkelKaart({ winkels, thuisadres, open }: { winkels: AppWinkel[
           )}
         </div>
       )}
+      <KaartKompas reiswijze={routeApp==="waze"?"auto":reiswijze} staat={staat} setData={setData} gekozen={gekozen} vanaf={ik??thuis} kies={p=>{setGekozen(p);setMidden({lat:p.lat,lon:p.lon});}} />
       {melding && <p role="status" className="px-1 text-[13px] text-rustig">{melding}</p>}
       {alle.length > 0 && (
         <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak" aria-label="Dichtbij">

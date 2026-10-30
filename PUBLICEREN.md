@@ -1,12 +1,12 @@
 # De nieuwe webinterface publiceren
 
-De geteste interface staat op `develop`. De oude Streamlit-link is geen bewijs dat deze versie gepubliceerd is. Het doeladres voor de nieuwe interface is `https://blaslavio.github.io/Assistent/app/`, maar dat adres is pas bruikbaar na een bevestigde Pages-publicatie.
+De actuele interface wordt uitsluitend uit `main` gebouwd. De vaste werkmap is `/workspace/Assistent`; `web/src` is de bewerkbare interfacebron. De oude Streamlit-link is geen bewijs dat deze versie gepubliceerd is. Het doeladres voor de nieuwe interface is `https://blaslavio.github.io/Assistent/app/`, maar dat adres is pas bruikbaar na een bevestigde Pages-publicatie.
 
 ## Eenmalige GitHub-instelling
 
 Open `https://github.com/blaslavio/Assistent/settings/pages` en kies onder **Build and deployment → Source** voor **GitHub Actions**. De huidige integratie krijgt HTTP 403 op het inschakelen van Pages en kan deze instelling niet zelf activeren. De officiële configure-pages-action kan een uitgeschakelde site ook niet met alleen GITHUB_TOKEN activeren.
 
-Na inschakelen kan de workflow **Publish web interface** opnieuw worden uitgevoerd. Hij controleert de webtests, bouwt beide varianten en publiceert `docs/`. De rootpagina opent standaard de nieuwe interface; bestaande oude gereedschappen blijven via hun expliciete route bereikbaar.
+Na inschakelen kan de workflow **Publish web interface** handmatig op `main` worden uitgevoerd. Een uitvoering vanaf een andere ref publiceert niet. Hij controleert de webtests, bouwt beide varianten en publiceert `docs/`. De rootpagina opent standaard de nieuwe interface; bestaande oude gereedschappen blijven via hun expliciete route bereikbaar.
 
 Controleer vóór het delen van de link:
 
