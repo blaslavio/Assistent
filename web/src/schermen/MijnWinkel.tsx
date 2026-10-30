@@ -1,3 +1,6 @@
+import { contactBewaren, controleerContact, standaardContact } from "../lib/winkelcontact";
+import WinkelContactInstellen from "./WinkelContact";
+import { instellingenOpenen } from "../lib/naar";
 // Je eigen winkel in de app: in een paar stappen opzetten, producten erin zetten, openen en delen.
 import { useCallback, useEffect, useState } from "react";
 import { Onderblad } from "./Onderblad";
@@ -21,6 +24,7 @@ export function MijnWinkel({ bekijk }: { bekijk: (adres: string) => void }) {
   const [g, setG] = useState<Gegevens | null>(null);
   const [fout, setFout] = useState("");
   const [bouwen, setBouwen] = useState(false);
+  const [contact, setContact] = useState(false);
   const [instellen, setInstellen] = useState(false);
   const [melding, setMelding] = useState("");
   const [ontwerpen, setOntwerpen] = useState<"bewerken" | "voorbeeld" | null>(null);
@@ -98,6 +102,7 @@ export function MijnWinkel({ bekijk }: { bekijk: (adres: string) => void }) {
           <Schakelaar label="Winkel open" uitleg={w.open ? "Iedereen kan bij je kopen." : "Alleen jij ziet je winkel."}
             aan={w.open} zet={openZetten} />
           <div className="flex flex-wrap gap-2">
+            <button onClick={() => setContact(true)} className={zachteKnop + " bg-white dark:bg-black/30"}>Betalen en contact</button>
             <button onClick={() => setOntwerpen("bewerken")} className={zachteKnop + " bg-white dark:bg-black/30"}>Ontwerpen</button>
             <button onClick={() => setOntwerpen("voorbeeld")} className={zachteKnop + " bg-white dark:bg-black/30"}>Voorbeeld</button>
             {w.open && <button onClick={delen} className={zachteKnop + " bg-white dark:bg-black/30"}>Delen</button>}
@@ -114,6 +119,7 @@ export function MijnWinkel({ bekijk }: { bekijk: (adres: string) => void }) {
         setOntwerpen(null);
         if (bewaard) setMelding("Ontwerp bewaard.");
       }} />}
+      {contact && <WinkelContactInstellen sluit={() => setContact(false)} />}
       {instellen && <Instellen w={w} sluit={() => setInstellen(false)} klaar={() => { setInstellen(false); laden(); }} />}
     </section>
   );
@@ -121,6 +127,7 @@ export function MijnWinkel({ bekijk }: { bekijk: (adres: string) => void }) {
 
 /** Een winkel beginnen in drie korte stappen: naam, kleur, een zin over wat je verkoopt. */
 function Bouwer({ g, sluit, klaar }: { g: Gegevens; sluit: () => void; klaar: () => void }) {
+  const [contactV, setContactV] = useState(standaardContact);
   const [naam, setNaam] = useState("");
   const [adres, setAdres] = useState("");
   const [adresZelf, setAdresZelf] = useState(false);
@@ -134,9 +141,14 @@ function Bouwer({ g, sluit, klaar }: { g: Gegevens; sluit: () => void; klaar: ()
     setBezig(true);
     setFout("");
     try {
+      const contact = controleerContact(contactV);
       if (g.niveau === "particulier") await verkoperWorden();
       await winkelBewaren({ adres: link, naam: naam.trim(), omschrijving: omschrijving.trim(), kleur, verzendkosten: 0,
         gratis_vanaf: null, retour: "", open: false });
+      if (JSON.stringify(contact) !== JSON.stringify(standaardContact())) {
+        try { await contactBewaren(contact); }
+        catch { throw new Error("Je winkel is gesloten aangemaakt, maar de contactopties zijn niet bewaard. Probeer opnieuw of stel ze later in bij Betalen en contact."); }
+      }
       klaar();
     } catch (e) {
       setFout(foutVan(e));
@@ -175,6 +187,12 @@ function Bouwer({ g, sluit, klaar }: { g: Gegevens; sluit: () => void; klaar: ()
         <textarea value={omschrijving} onChange={(e) => setOmschrijving(e.target.value)} maxLength={2000} rows={2}
           placeholder="Eén of twee zinnen" className="w-full rounded-2xl bg-vlak px-4 py-3 outline-none focus:ring-2 focus:ring-accent" />
       </label>
+      <details className="rounded-2xl border border-lijn p-4"><summary className="cursor-pointer font-medium">Contact voor je winkel kiezen</summary>
+        <div className="mt-3 flex flex-col gap-3"><p className="text-sm text-rustig">Deze gegevens worden zichtbaar als je winkel open is. Leeg laten betekent verbergen.</p>
+          <label className="flex gap-3"><input type="checkbox" checked={contactV.chat} onChange={e=>setContactV(v=>({...v,chat:e.target.checked}))}/>Chat via de app</label>
+          {([['email','Contactmailadres'],['telefoon','Telefoon'],['whatsapp','WhatsApp met landcode'],['website','Website (https)']] as const).map(([key,label])=><label key={key} className="flex flex-col gap-1 text-sm">{label}<input className={veld} value={contactV[key]} onChange={e=>setContactV(v=>({...v,[key]:e.target.value}))}/></label>)}
+        </div>
+      </details>
       {g.niveau === "particulier" && (
         <p className="px-1 text-[13px] text-rustig">Je account wordt Verkoper. Daarvoor is een e-mailadres nodig.</p>
       )}
@@ -182,6 +200,7 @@ function Bouwer({ g, sluit, klaar }: { g: Gegevens; sluit: () => void; klaar: ()
       <button onClick={maken} disabled={bezig || !naam.trim() || link.length < 3} className={knop}>
         {bezig ? "Bezig..." : "Maak mijn winkel"}
       </button>
+      <button onClick={() => instellingenOpenen("betalingen")} className={zachteKnop}>Betalingen instellen</button>
       <p className="px-1 text-[13px] text-rustig">Je winkel blijft dicht tot je hem zelf opent.</p>
     </Onderblad>
   );

@@ -1,3 +1,4 @@
+import WinkelContactPubliek from "./WinkelContactPubliek";
 // Een winkel zoals kopers hem zien, in de stijl en volgorde die de eigenaar koos. Ook gebruikt voor het voorbeeld
 // tijdens het ontwerpen, met de opmaak die je nog aan het maken bent.
 import { useEffect, useState, type ReactNode } from "react";
@@ -98,6 +99,7 @@ export function WinkelPagina({ w, opmaak = w.opmaak, banner, open }: Props) {
       {w.actie && <p className="rounded-2xl px-4 py-2.5 text-[15px] font-medium text-white" style={{ background: w.kleur }}>
         {w.actie}</p>}
       {opmaak.volgorde.map((d) => delen[d] ? <div key={d}>{delen[d]}</div> : null)}
+      <WinkelContactPubliek adres={w.adres} />
       {w.retour && <p className="text-[13px] text-rustig">Retour: {w.retour}</p>}
     </div>
   );

@@ -1,3 +1,8 @@
+import { KaartVouw } from "../iconen";
+import { kaartOpenen } from "../lib/naar";
+import Evenementen from "./Evenementen";
+import { evenementVerwijzing } from "../lib/evenementen";
+import InstellingenKnop from "./InstellingenKnop";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { bijwerken, type Afspraak, type Taak } from "../api";
 import type { Staat } from "../App";
@@ -19,9 +24,9 @@ const kleur = (a: Afspraak) => KLEUREN[a.soort ?? ""] ?? KLEUREN.afspraak;
 const SOORTEN = ["afspraak", "werk", "sport", "etentje", "uitgaan", "familie en vrienden", "gezondheid", "reizen"];
 
 type Weergave = "dag" | "week" | "maand";
-type Paneel = "mail" | "taken" | "herinneringen" | "prikken";
+type Paneel = "mail" | "taken" | "herinneringen" | "prikken" | "evenementen";
 const PANELEN: [Paneel, string, typeof Bel][] = [["taken", "Taken", Lijstje],
-  ["herinneringen", "Herinneringen", Bel], ["mail", "Mail", Envelop], ["prikken", "Datum prikken", Stemmen]];
+  ["herinneringen", "Herinneringen", Bel], ["mail", "Mail", Envelop], ["prikken", "Datum prikken", Stemmen], ["evenementen", "Evenementen", Kalender]];
 const WEERGAVEN: [Weergave, string][] = [["dag", "Dag"], ["week", "Week"], ["maand", "Maand"]];
 const BEGIN_UUR = 0;
 const HOOGTE = 56; // pixels per uur in de dagweergave
@@ -36,6 +41,7 @@ function bewaardeWeergave(): Weergave {
 }
 
 function bewaardPaneel(): Paneel | null {
+  if (evenementVerwijzing()) return "evenementen";
   try {
     const p = sessionStorage.getItem("assistent.agendapaneel");
     return PANELEN.some(([x]) => x === p) ? (p as Paneel) : null;
@@ -55,6 +61,7 @@ export default function Agenda({ staat, setStaat }: Props) {
   const [nieuw, setNieuw] = useState(false);
   const [open, setOpen] = useState<Afspraak | null>(null);
   const [paneel, setPaneel] = useState<Paneel | null>(bewaardPaneel);
+  useEffect(() => { const open = () => setPaneel("evenementen"); window.addEventListener("agenda-evenementen", open); return () => window.removeEventListener("agenda-evenementen", open); }, []);
   const [telStemmen, setTelStemmen] = useState(0);
   const datum = new Date(`${gekozen}T12:00`);
 
@@ -132,10 +139,11 @@ export default function Agenda({ staat, setStaat }: Props) {
               </h1>
             </button>
           )}
+          <div className="flex gap-2"><button onClick={kaartOpenen} aria-label="Kaart en routes" className="flex size-10 items-center justify-center rounded-full bg-vlak"><KaartVouw className="size-5" /></button><InstellingenKnop pagina={paneel === "mail" ? "mail" : "afspraken"} label={paneel === "mail" ? "Mail instellen" : "Boekingspagina instellen"} />
           {!paneel && (
             <button onClick={() => setNieuw(true)} aria-label="Nieuwe afspraak"
               className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Plus className="size-5" /></button>
-          )}
+          )}</div>
         </div>
         {/* Altijd dezelfde rij met namen: je ziet waar je bent en tikt zo terug naar je agenda. */}
         <div role="tablist" aria-label="Onderdelen van je agenda" className="-mx-6 flex gap-1.5 overflow-x-auto px-6 [scrollbar-width:none]">
@@ -177,6 +185,7 @@ export default function Agenda({ staat, setStaat }: Props) {
       {paneel === "mail" && <MailPaneel staat={staat} setStaat={setStaat} />}
       {paneel === "taken" && <TakenPaneel staat={staat} setStaat={setStaat} naarMail={() => kiesPaneel("mail")} />}
       {paneel === "herinneringen" && <HerinneringenPaneel staat={staat} setStaat={setStaat} />}
+      {paneel === "evenementen" && <Evenementen staat={staat} setStaat={setStaat} />}
       {paneel === "prikken" && <PrikkenPaneel staat={staat} setStaat={setStaat} />}
       {!paneel && <div key={weergave} className="opkomen flex flex-1 flex-col">
       {weergave === "dag" && (

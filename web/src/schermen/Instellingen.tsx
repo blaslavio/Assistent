@@ -1,14 +1,14 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { alsIk, bijwerken, instellingenBijwerken, uitloggen } from "../api";
 import { gekoppeld } from "../lib/mail";
-import { gevraagdePagina } from "../lib/naar";
+import { kaartOpenen, evenementenOpenen, gevraagdePagina } from "../lib/naar";
 import { betaalStatus, lijst as bestellingenLijst, klaar, platformInstellen, stand, verkoperAanmelden, type BetaalStatus,
   type Bestelling } from "../lib/bestellingen";
 import { euro } from "../lib/winkelen";
 import { MailKoppelen } from "./AgendaPanelen";
 import { BoekpaginaInstellen, MailVersturen } from "./Gasten";
 import type { Staat } from "../App";
-import { Boek, Hartslag, Envelop, Euro, Grafiek, Huis, Kalender, Lijstje, Persoon, Schuiven, Slot, Terug, Vonk, Vraag, Winkelpand } from "../iconen";
+import { Boek, Envelop, Euro, Grafiek, Huis, Kalender, Lijstje, Persoon, Schuiven, Slot, Terug, Vonk, Vraag, Winkelpand } from "../iconen";
 import { Schakelaar, kop } from "./instellingen-ui";
 import { Account, Beveiliging, Techniek } from "./Beveiliging";
 import { ONDERDELEN, Onderdeel, type OnderdeelNaam } from "./Onderdelen";
@@ -49,7 +49,8 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
     return () => window.removeEventListener("instellingen-pagina", open);
   }, []);
   const [bezig, setBezig] = useState(false);
-  const [toonExtra, setToonExtra] = useState(false);
+  const [categorie, setCategorie] = useState<string | null>(null);
+  const [zoek, setZoek] = useState("");
   const [melding, setMelding] = useState("");
   const g = staat.gebruiker;
   const [eigenFoto] = useEigenFoto(g);
@@ -125,8 +126,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
             ))}
           </ul>
         )}
-        <p className="mt-2 px-1 text-sm text-rustig">Wat je de assistent vraagt, gaat naar Anthropic (Claude) om te beantwoorden.
-          Anthropic gebruikt het niet om te trainen.</p>
+        <p className="mt-2 px-1 text-sm text-rustig">Je vragen worden verwerkt door de ingestelde AI-dienst: Claude of Azure OpenAI. Deel alleen gegevens die nodig zijn voor je vraag.</p>
       </section>
       <Techniek />
     </>);
@@ -157,79 +157,63 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
       waarde={inst.thuisadres ?? ""} bewaar={(v) => bewaar((i) => { i.thuisadres = v.trim(); })} />
   </>);
 
+  const groepen = [
+    { id: "account", titel: "Account en privacy", uitleg: "Profiel, aanmelding en beveiliging", icoon: Slot, kleur: "#3a8f5c", rijen: [
+      { titel: "Profiel", uitleg: "Naam, foto en openbare profielpagina", open: () => setPagina("profiel"), icoon: Persoon },
+      { titel: "Account", uitleg: "Mailadres, wachtwoord en inloggen", open: () => setPagina("account"), icoon: Persoon },
+      { titel: "Privacy en beveiliging", uitleg: "Tweestapsverificatie, apparaten en geheugen", open: () => setPagina("privacy"), icoon: Slot },
+    ] },
+    { id: "app", titel: "App en assistent", uitleg: "Weergave en persoonlijke voorkeuren", icoon: Schuiven, kleur: "#4f46e5", rijen: [
+      { titel: "Weergave", uitleg: "Kleur, tekstgrootte, navigatie en Vandaag", open: () => setPagina("algemeen"), icoon: Schuiven },
+      { titel: "Assistent", uitleg: "Naam, toon, antwoorden en AI-koppeling", open: () => setPagina("assistent"), icoon: Vonk },
+    ] },
+    { id: "planning", titel: "Planning en koppelingen", uitleg: "Mail, boekingspagina en thuisadres", icoon: Kalender, kleur: "#2f80ed", rijen: [
+      { titel: "Mail", uitleg: gekoppeld(staat.data) ? "Mailbox gekoppeld" : "Koppel je mailbox", open: () => setPagina("mail"), icoon: Envelop },
+      { titel: "Kaart en routes", uitleg: "Bestemming zoeken, winkels en navigeren", open: kaartOpenen, icoon: Huis },
+      { titel: "Evenementen", uitleg: "Organiseren, deelnemers, tijden en evenementpagina", open: evenementenOpenen, icoon: Kalender },
+      { titel: "Boekingspagina", uitleg: "Afspraken laten inplannen en reserveren", open: () => setPagina("afspraken"), icoon: Kalender },
+      { titel: "Thuis", uitleg: "Adres voor weer en reistijden", open: () => setPagina("thuis"), icoon: Huis },
+    ] },
+    { id: "geld", titel: "Geld en werk", uitleg: "Betalen, budget, beleggen en zakelijk", icoon: Euro, kleur: "#c2571a", rijen: [
+      { titel: "Betalingen", uitleg: "Bestellingen, kopersbescherming en uitbetalen", open: () => setPagina("betalingen"), icoon: Euro },
+      { titel: "Budget", uitleg: "Uitgaven en afschriften", open: () => setOnderdeel("budget"), icoon: Lijstje },
+      { titel: "Beleggen", uitleg: "Portefeuille, markten en volglijst", open: () => setOnderdeel("beleggen"), icoon: Grafiek },
+      { titel: "Zakelijk", uitleg: "Rooster, klanten en boekhouding", open: () => setOnderdeel("zakelijk"), icoon: Winkelpand },
+    ] },
+    { id: "apps", titel: "Mijn apps", uitleg: "Lijsten, documenten, leren en gezondheid", icoon: Boek, kleur: "#14866d", rijen:
+      ONDERDELEN.filter(([id]) => !["budget", "beleggen", "zakelijk"].includes(id)).map(([id, titel, icoon]) =>
+        ({ titel, uitleg: ONDERDEEL_UITLEG[id] ?? titel, icoon, open: () => setOnderdeel(id) })),
+    },
+  ];
+  const term = zoek.trim().toLocaleLowerCase("nl");
+  const gekozenGroep = groepen.find(g => g.id === categorie);
+  const resultaten = [...groepen.flatMap(g => g.rijen.map(r => ({ ...r, kleur: g.kleur, groep: g.titel }))),
+    { titel: "Idee of probleem", uitleg: "Hulp en feedback", icoon: Vraag, kleur: "#0e9fb3", groep: "Hulp", open: () => setPagina("idee") }]
+    .filter(r => `${r.titel} ${r.uitleg} ${r.groep}`.toLocaleLowerCase("nl").includes(term));
   return (
     <div className="px-6 pt-12 pb-10">
-      <button onClick={terug} className="-ml-2 flex h-10 items-center gap-1 pr-3 text-rustig">
-        <Terug className="size-5" /> Terug
+      <button onClick={() => { if (categorie || zoek) { setCategorie(null); setZoek(""); } else terug(); }} className="-ml-2 flex h-10 items-center gap-1 pr-3 text-rustig">
+        <Terug className="size-5" /> {categorie || zoek ? "Instellingen" : "Terug"}
       </button>
-      <h1 className="mt-4 mb-6 text-[32px] font-bold tracking-tight">Instellingen</h1>
-
-      <button onClick={() => setPagina("profiel")} className="flex w-full items-center gap-4 rounded-3xl bg-vlak p-4 text-left">
-        <span className="flex size-14 items-center justify-center overflow-hidden rounded-full bg-white text-xl font-semibold dark:bg-black/40">
+      <h1 className="mt-4 mb-4 text-[32px] font-bold tracking-tight">{gekozenGroep?.titel ?? "Instellingen"}</h1>
+      {!categorie && !term && <button onClick={() => setPagina("profiel")} className="mb-5 flex w-full items-center gap-3 rounded-2xl bg-vlak p-3 text-left">
+        <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white dark:bg-black/40">
           {eigenFoto ? <img src={eigenFoto} alt="" className="size-full object-cover" /> : naam[0].toUpperCase()}
-        </span>
-        <span className="flex flex-col">
-          <span className="text-lg font-semibold">{naam}</span>
-          <span className="text-sm text-rustig">{g.naam ? `@${g.naam}` : "Profiel bewerken"}</span>
-        </span>
-        <Terug className="ml-auto size-5 shrink-0 rotate-180 text-zacht" />
-      </button>
-
-      <Groep titel="Account">
-        <Rij icoon={Persoon} kleur="#5b6cf0" titel="Account" uitleg="Mailadres en wachtwoord" open={() => setPagina("account")} />
-        <Rij icoon={Slot} kleur="#3a8f5c" titel="Privacy en beveiliging" uitleg="Tweestapsverificatie, apparaten, wat de assistent weet" open={() => setPagina("privacy")} />
-      </Groep>
-
-      <Groep titel="Geld">
-        <Rij icoon={Euro} kleur="#e08a1e" titel="Betalingen" uitleg="Overzicht, kopersbescherming en uitbetalen" open={() => setPagina("betalingen")} />
-        <Rij icoon={Lijstje} kleur="#c2571a" titel="Budget" uitleg="Uitgaven en afschriften" open={() => setOnderdeel("budget")} />
-        <Rij icoon={Grafiek} kleur="#0f766e" titel="Beleggen" uitleg="Je portefeuille, markten en volglijst" open={() => setOnderdeel("beleggen")} />
-      </Groep>
-
-      <Groep titel="Koppelingen">
-        <Rij icoon={Envelop} kleur="#2f80ed" titel="Mail" uitleg={gekoppeld(staat.data) ? "Gekoppeld" : "Koppel je mailbox"} open={() => setPagina("mail")} />
-        <Rij icoon={Kalender} kleur="#d64545" titel="Boekingspagina" uitleg={inst.boekpagina ? "Staat aan" : "Laat mensen zonder account een afspraak inplannen"}
-          open={() => setPagina("afspraken")} />
-        <Rij icoon={Huis} kleur="#8a6cd6" titel="Thuis" uitleg={inst.thuisadres || "Adres voor het weer en reistijden"} open={() => setPagina("thuis")} />
-      </Groep>
-
-      <Groep titel="App">
-        <Rij icoon={Schuiven} kleur="#6b7280" titel="Weergave" uitleg="Kleur, tekstgrootte, wat er op Vandaag staat" open={() => setPagina("algemeen")} />
-        <Rij icoon={Vonk} kleur="#4f46e5" titel="Assistent" uitleg="Naam, toon en hoe hij antwoordt" open={() => setPagina("assistent")} />
-      </Groep>
-
-      <Groep titel="Werk">
-        <Rij icoon={Winkelpand} kleur="#475569" titel="Zakelijk" uitleg="Rooster, klanten en boekhouding" open={() => setOnderdeel("zakelijk")} />
-      </Groep>
-
-      <button type="button" aria-expanded={toonExtra} onClick={() => setToonExtra((v) => !v)} className="mt-7 flex w-full items-center justify-between rounded-2xl bg-vlak px-4 py-3 text-left font-medium">
-        <span>Meer instellingen en apps</span><span className="text-sm text-rustig">{toonExtra ? "Minder tonen" : "Tonen"}</span>
-      </button>
-      {toonExtra && <>
-      <Groep titel="Leren en sport">
-        <Rij icoon={Boek} kleur="#0284c7" titel="Leren" uitleg={ONDERDEEL_UITLEG.leren} open={() => setOnderdeel("leren")} />
-        <Rij icoon={Hartslag} kleur="#16a34a" titel="Sport en gezondheid" uitleg={ONDERDEEL_UITLEG.sport} open={() => setOnderdeel("sport")} />
-      </Groep>
-
-      <Groep titel="Lijsten en documenten">
-        {ONDERDELEN.filter(([id]) => id !== "budget" && id !== "beleggen" && id !== "leren" && id !== "sport" && id !== "zakelijk").map(([id, titel, Icoon]) => (
-          <Rij key={id} icoon={Icoon} kleur="#14866d" titel={titel} uitleg={ONDERDEEL_UITLEG[id] ?? ""} open={() => setOnderdeel(id)} />
-        ))}
-      </Groep>
-
+        </span><span className="min-w-0 flex-1 truncate font-medium">{naam}</span><span className="text-sm text-rustig">Profiel</span>
+      </button>}
+      <label className="block"><span className="sr-only">Zoek in instellingen en apps</span>
+        <input type="search" value={zoek} onChange={e => { setZoek(e.target.value); setCategorie(null); }} placeholder="Zoek een instelling of app"
+          className="h-12 w-full rounded-2xl bg-vlak px-4" />
+      </label>
+      {term ? <>
+        <p role="status" className="mt-4 text-sm text-rustig">{resultaten.length ? `${resultaten.length} gevonden` : "Niets gevonden. Probeer bijvoorbeeld privacy, mail of budget."}</p>
+        <Groep titel="Zoekresultaten">{resultaten.map(r => <Rij key={r.titel} {...r} uitleg={`${r.groep} · ${r.uitleg}`} />)}</Groep>
+      </> : gekozenGroep ? <Groep titel={gekozenGroep.uitleg}>{gekozenGroep.rijen.map(r => <Rij key={r.titel} {...r} kleur={gekozenGroep.kleur} />)}</Groep>
+      : <>
+        <Groep titel="Wat wil je aanpassen?">{groepen.map(g => <Rij key={g.id} titel={g.titel} uitleg={g.uitleg} icoon={g.icoon} kleur={g.kleur} open={() => setCategorie(g.id)} />)}</Groep>
+        <button onClick={() => setPagina("idee")} className="mt-5 min-h-11 text-sm text-accent">Hulp of een idee doorgeven</button>
       </>}
-      <Groep titel="Hulp">
-        <Rij icoon={Vraag} kleur="#0e9fb3" titel="Idee of probleem" uitleg="Zeg wat beter kan en volg wat ermee gebeurt" open={() => setPagina("idee")} />
-      </Groep>
-
-      <button
-        onClick={async () => {
-          await uitloggen();
-          opUitgelogd();
-        }}
-        className="mt-8 h-12 w-full rounded-2xl bg-vlak font-medium text-red-600 dark:text-red-400">
-        Uitloggen
-      </button>
+      <button onClick={async () => { await uitloggen(); opUitgelogd(); }} className="mt-8 h-12 w-full rounded-2xl bg-vlak font-medium text-red-600 dark:text-red-400">Uitloggen</button>
     </div>
   );
 }

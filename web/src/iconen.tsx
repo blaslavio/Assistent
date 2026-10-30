@@ -145,3 +145,5 @@ export const Delen = (p: P) => (
 export const Projectmap = (p: P) => (
   <svg {...basis} {...p}><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" /><path d="M7 12h10M7 16h6" /></svg>
 );
+
+export const KaartVouw = (p: P) => <svg {...basis} {...p}><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6zM9 3v15M15 6v15" /></svg>;

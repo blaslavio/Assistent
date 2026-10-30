@@ -6,10 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && vite build --mode enkel",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepare": "node scripts/kaartwerker.mjs",
+    "predev": "node scripts/kaartwerker.mjs",
+    "pretest": "node scripts/kaartwerker.mjs",
+    "prebuild": "node scripts/kaartwerker.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
+    "@supabase/auth-js": "^2.118.0",
+    "maplibre-gl": "^6.16.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "yjs": "^13.6.33"
@@ -20,6 +26,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
+    "esbuild": "^0.28.2",
     "jsdom": "29.1.1",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",

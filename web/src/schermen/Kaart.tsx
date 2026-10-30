@@ -1,91 +1,63 @@
-// Een eenvoudige kaart met eigen code: OpenStreetMap-tegels, slepen om te schuiven, knoppen om in en uit te zoomen,
-// en punten om op te tikken. Genoeg voor de winkelkaart, zonder grote kaartbibliotheek.
-import { useEffect, useRef, useState, type PointerEvent as PE } from "react";
-import { TEGEL, naarPixel, naarPunt, type KaartWinkel, type Punt } from "../lib/kaart";
+import workerBron from "../kaartwerker.bundel";
+/** Moderne vectorkaart; OpenFreeMap levert de stijl en gegevens zonder gebruikerssleutel. */
+import { useEffect, useRef, useState } from "react";
+import * as maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import type { KaartWinkel, Punt } from "../lib/kaart";
 
-const MIN = 11, MAX = 18;
-
-export function Kaart({ midden, zet, punten, gekozen, kies, ik }: { midden: Punt; zet: (p: Punt) => void;
-  punten: KaartWinkel[]; gekozen: KaartWinkel | null; kies: (w: KaartWinkel) => void; ik?: Punt | null }) {
-  const [zoom, setZoom] = useState(15);
-  const vak = useRef<HTMLDivElement>(null);
-  const [maat, setMaat] = useState({ b: 360, h: 320 });
-  const sleep = useRef<{ x: number; y: number; midden: { x: number; y: number }; bewogen: boolean } | null>(null);
-  const [verschuiving, setVerschuiving] = useState({ x: 0, y: 0 });
-
+const stijl = () => `https://tiles.openfreemap.org/styles/${document.documentElement.classList.contains("dark") ? "dark" : "positron"}`;
+type Props = { midden: Punt; zet: (p: Punt) => void; punten: KaartWinkel[]; gekozen: KaartWinkel | null;
+  kies: (w: KaartWinkel) => void; ik?: Punt | null };
+export function Kaart({ midden, zet, punten, gekozen, kies, ik }: Props) {
+  const vak = useRef<HTMLDivElement>(null), kaart = useRef<maplibregl.Map | null>(null);
+  const zetRef = useRef(zet), kiesRef = useRef(kies), begin = useRef(midden);
+  zetRef.current = zet; kiesRef.current = kies;
+  const [melding, setMelding] = useState("");
   useEffect(() => {
-    const el = vak.current;
-    if (!el) return;
-    const meet = () => setMaat({ b: el.clientWidth, h: el.clientHeight });
-    meet();
-    const o = new ResizeObserver(meet);
-    o.observe(el);
-    return () => o.disconnect();
+    if (!vak.current) return;
+    let m: maplibregl.Map;
+    const workerURL=URL.createObjectURL(new Blob([workerBron],{type:"text/javascript"}));
+    maplibregl.setWorkerUrl(workerURL);
+    try {
+      m = new maplibregl.Map({ container: vak.current, style: stijl(), center: [begin.current.lon,begin.current.lat],
+        zoom: 14, minZoom: 1, maxZoom: 19, maxPitch: 0, dragRotate: false, pitchWithRotate: false,
+        attributionControl: { compact: true }, canvasContextAttributes: { antialias: true } });
+    } catch { URL.revokeObjectURL(workerURL); setMelding("Dit apparaat kan de kaart niet tekenen. Gebruik de lijst of open je navigatie-app."); return; }
+    kaart.current = m;
+    m.getCanvas().setAttribute("aria-label", "Interactieve kaart. Gebruik pijltjestoetsen en plus of min; op je telefoon kun je slepen en knijpen.");
+    m.on("moveend", () => { const c=m.getCenter(); zetRef.current({lat:Math.max(-85,Math.min(85,c.lat)),lon:((c.lng+180)%360+360)%360-180}); });
+    m.on("error", () => setMelding("Niet alle kaartgegevens konden laden. De lijst en routeknoppen blijven beschikbaar."));
+    const kijken = new MutationObserver(() => { setMelding(""); m.setStyle(stijl()); });
+    kijken.observe(document.documentElement,{attributes:true,attributeFilter:["class"]});
+    const maat = new ResizeObserver(() => m.resize()); maat.observe(vak.current);
+    return () => { kijken.disconnect(); maat.disconnect(); m.remove(); URL.revokeObjectURL(workerURL); kaart.current=null; };
   }, []);
-
-  const m = naarPixel(midden, zoom);
-  const cx = m.x - verschuiving.x, cy = m.y - verschuiving.y;
-  const links = cx - maat.b / 2, boven = cy - maat.h / 2;
-  const aantal = 2 ** zoom;
-  const tegels: { x: number; y: number; tx: number; ty: number }[] = [];
-  for (let ty = Math.floor(boven / TEGEL); ty <= Math.floor((boven + maat.h) / TEGEL); ty++)
-    for (let tx = Math.floor(links / TEGEL); tx <= Math.floor((links + maat.b) / TEGEL); tx++)
-      if (ty >= 0 && ty < aantal) tegels.push({ x: tx * TEGEL - links, y: ty * TEGEL - boven, tx: ((tx % aantal) + aantal) % aantal, ty });
-
-  function omlaag(e: PE) {
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-    sleep.current = { x: e.clientX, y: e.clientY, midden: { x: cx, y: cy }, bewogen: false };
-  }
-  function beweeg(e: PE) {
-    const s = sleep.current;
-    if (!s) return;
-    const dx = e.clientX - s.x, dy = e.clientY - s.y;
-    if (Math.abs(dx) + Math.abs(dy) > 4) s.bewogen = true;
-    setVerschuiving({ x: dx, y: dy });
-  }
-  function los() {
-    const s = sleep.current;
-    sleep.current = null;
-    if (!s?.bewogen) { setVerschuiving({ x: 0, y: 0 }); return; }
-    setVerschuiving({ x: 0, y: 0 });
-    zet(naarPunt(cx, cy, zoom));
-  }
-
-  const opKaart = (p: Punt) => {
-    const q = naarPixel(p, zoom);
-    return { x: q.x - links, y: q.y - boven };
-  };
-  const zichtbaar = (q: { x: number; y: number }) => q.x > -20 && q.y > -20 && q.x < maat.b + 20 && q.y < maat.h + 20;
-  const zoomKnop = "flex size-10 items-center justify-center rounded-full bg-white text-xl shadow dark:bg-[#26262b]";
-
-  return (
-    <div ref={vak} className="relative h-80 touch-none select-none overflow-hidden rounded-3xl bg-[#e8e4dc] dark:bg-[#2a2a2e]"
-      onPointerDown={omlaag} onPointerMove={beweeg} onPointerUp={los} onPointerCancel={los} aria-label="Kaart met winkels" role="application">
-      {tegels.map((t) => (
-        <img key={`${zoom}/${t.tx}/${t.ty}/${t.x}`} src={`https://tile.openstreetmap.org/${zoom}/${t.tx}/${t.ty}.png`} alt=""
-          draggable={false} className="pointer-events-none absolute dark:brightness-[.75] dark:contrast-[1.1]"
-          style={{ left: t.x, top: t.y, width: TEGEL, height: TEGEL }} />
-      ))}
-      {ik && (() => { const q = opKaart(ik); return zichtbaar(q) && (
-        <span aria-label="Jij" className="absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#1d4ed8] shadow"
-          style={{ left: q.x, top: q.y }} />); })()}
-      {[...punten].reverse().map((w, i) => {
-        const q = opKaart(w);
-        if (!zichtbaar(q)) return null;
-        const aan = gekozen === w;
-        return (
-          <button key={`${w.naam}-${i}`} onPointerDown={(e) => e.stopPropagation()} onClick={() => kies(w)} aria-label={w.naam}
-            aria-pressed={aan}
-            className={`absolute -translate-x-1/2 -translate-y-full rounded-full border-2 border-white shadow ${w.app ? "size-6 bg-accent" : "size-4 bg-[#6b7280]"} ${aan ? "z-10 scale-125 ring-2 ring-accent" : ""}`}
-            style={{ left: q.x, top: q.y }} />
-        );
-      })}
-      <div className="absolute right-3 top-3 flex flex-col gap-2" onPointerDown={(e) => e.stopPropagation()}>
-        <button onClick={() => setZoom((z) => Math.min(MAX, z + 1))} aria-label="Inzoomen" className={zoomKnop}>+</button>
-        <button onClick={() => setZoom((z) => Math.max(MIN, z - 1))} aria-label="Uitzoomen" className={zoomKnop}>−</button>
-      </div>
-      <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" onPointerDown={(e) => e.stopPropagation()}
-        className="absolute bottom-0 right-0 rounded-tl-lg bg-white/80 px-1.5 text-[10px] text-black/70">© OpenStreetMap</a>
+  useEffect(() => {
+    const m=kaart.current;if(!m)return;
+    const c=m.getCenter();
+    if (Math.abs(c.lat-midden.lat)>1e-6 || Math.abs(c.lng-midden.lon)>1e-6) m.easeTo({center:[midden.lon,midden.lat],duration:matchMedia("(prefers-reduced-motion: reduce)").matches?0:350});
+  }, [midden.lat,midden.lon]);
+  useEffect(() => {
+    const m=kaart.current;if(!m)return;
+    const markers: maplibregl.Marker[]=[];
+    for(const w of punten){
+      const aan=gekozen===w;
+      const knop=document.createElement("button");knop.type="button";knop.setAttribute("aria-label",w.naam);knop.setAttribute("aria-pressed",String(aan));
+      knop.className=`relative flex size-10 items-center justify-center rounded-full border-2 border-white shadow-lg ${w.app?"bg-accent":"bg-[#64748b]"} ${aan?"ring-2 ring-accent ring-offset-2":""}`;
+      const teken=document.createElement("span");teken.className="text-sm font-semibold text-white";teken.textContent=w.app?"◆":"•";knop.appendChild(teken);
+      if(aan){const label=document.createElement("span");label.className="absolute left-1/2 top-full mt-2 max-w-44 -translate-x-1/2 truncate rounded-full bg-white px-3 py-1.5 text-xs font-medium text-inkt shadow dark:bg-[#26262b]";label.textContent=w.naam;knop.appendChild(label);}
+      knop.addEventListener("click",()=>kiesRef.current(w));
+      markers.push(new maplibregl.Marker({element:knop}).setLngLat([w.lon,w.lat]).addTo(m));
+    }
+    if(ik){const p=document.createElement("span");p.setAttribute("aria-label","Jouw locatie");p.className="size-5 rounded-full border-[3px] border-white bg-blue-600 shadow-lg ring-8 ring-blue-500/15";markers.push(new maplibregl.Marker({element:p}).setLngLat([ik.lon,ik.lat]).addTo(m));}
+    return()=>markers.forEach(marker=>marker.remove());
+  },[punten,gekozen,ik]);
+  return <div className="relative overflow-hidden rounded-[28px] border border-lijn bg-vlak shadow-sm">
+    <div ref={vak} className="h-[min(55dvh,480px)] min-h-80" aria-label="Kaart met winkels" />
+    <div className="absolute right-3 top-3 flex flex-col gap-2">
+      <button onClick={()=>kaart.current?.zoomIn()} aria-label="Inzoomen" className="flex size-11 items-center justify-center rounded-full bg-white text-xl text-inkt shadow-lg dark:bg-[#26262b]">+</button>
+      <button onClick={()=>kaart.current?.zoomOut()} aria-label="Uitzoomen" className="flex size-11 items-center justify-center rounded-full bg-white text-xl text-inkt shadow-lg dark:bg-[#26262b]">−</button>
     </div>
-  );
+    {melding&&<p role="status" className="absolute bottom-8 left-3 right-3 rounded-2xl bg-white/95 p-3 text-xs text-inkt shadow dark:bg-[#26262b]">{melding}</p>}
+  </div>;
 }

@@ -16,3 +16,8 @@ describe("club", () => {
     expect(ritten(a)).toEqual({ plekken: 3, mee: 2, over: 1 });
   });
 });
+
+it("weigert evenementen zonder geldige eindtijd vóór een netwerkaanvraag", async()=>{
+ const {bewaren}=await import("./club");
+ for(const tijden of [{start:"2030-01-01T10:00"},{start:"2030-01-01T10:00",einde:"2030-01-01T09:00"},{start:"ongeldig",einde:"2030-01-01T12:00"}])expect(()=>bewaren(1,{soort:"evenement",titel:"Feest",...tijden})).toThrow();
+});

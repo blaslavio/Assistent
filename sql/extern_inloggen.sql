@@ -1,3 +1,4 @@
+begin;
 -- Inloggen met Google, Apple of Microsoft (Supabase Auth). De app stuurt je naar de aanbieder; daarna wisselt de
 -- app de code in voor een Supabase-sleutel en roept public.inloggen_extern aan mét die sleutel. Postgres leest dan
 -- zelf wie je bent (auth.jwt()), dus de app kan niet voor iemand anders inloggen.
@@ -19,16 +20,23 @@ declare
   v_basis text;
   g private.gebruikers;
 begin
-  if v_uid is null or v_aanbieder not in ('google', 'apple', 'azure') then
+  if v_uid is null or coalesce(v_aanbieder,'') not in ('google', 'apple', 'azure') then
     return jsonb_build_object('fout', 'Inloggen lukte niet. Probeer het opnieuw.');
   end if;
-  select * into g from private.gebruikers where auth_id = v_uid;
-  if g.id is null and v_email <> '' and coalesce((v_meta ->> 'email_verified')::boolean, true) then
-    select * into g from private.gebruikers where lower(email) = v_email order by id limit 1;
+  -- Alleen door Supabase bevestigde mail uit de serveradministratie; gebruikersmetadata is wijzigbaar.
+  select lower(trim(u.email)) into v_email from auth.users u where u.id = v_uid and u.email_confirmed_at is not null;
+  if coalesce(v_email, '') = '' then
+    return jsonb_build_object('fout', 'Bevestig eerst je mailadres of log in met wachtwoord en code.');
+  end if;
+  select * into g from private.gebruikers where auth_id = v_uid for update;
+  if g.id is null and v_email <> ''  then
+    select * into g from private.gebruikers where lower(email) = v_email order by id limit 1 for update;
     if g.id is not null then
+      if g.geblokkeerd or g.verwijderd then
+        return jsonb_build_object('fout', 'Dit account kan niet meer inloggen.');
+      end if;
       if g.totp_aan then
-        return jsonb_build_object('fout', 'Je account heeft tweestapsverificatie. Log in met je wachtwoord en code. '
-                                          'Daarna kun je ook zo inloggen.');
+        return jsonb_build_object('fout', 'Je account heeft tweestapsverificatie. Gebruik je wachtwoord en code om in te loggen.');
       end if;
       if g.auth_id is not null then
         return jsonb_build_object('fout', 'Dit account is al gekoppeld aan een andere aanmelding.');
@@ -58,6 +66,9 @@ begin
     returning * into g;
     insert into public.gegevens (id, data) values (g.id, '{}'::jsonb) on conflict (id) do nothing;
   end if;
+  if g.totp_aan then
+    return jsonb_build_object('fout', 'Log in met je wachtwoord en tweestapscode.');
+  end if;
   if g.geblokkeerd or g.verwijderd then
     return jsonb_build_object('fout', 'Dit account kan niet meer inloggen.');
   end if;
@@ -68,3 +79,11 @@ end; $$;
 
 revoke all on function public.inloggen_extern(text, boolean) from public, anon;
 grant execute on function public.inloggen_extern(text, boolean) to authenticated;
+
+-- Alleen deze geharde versie maakt de browserknoppen beschikbaar.
+create or replace function public.externe_aanmelding_status()
+returns jsonb language sql immutable set search_path to '' as $$ select '{"versie":1}'::jsonb $$;
+revoke all on function public.externe_aanmelding_status() from public;
+grant execute on function public.externe_aanmelding_status() to anon, authenticated;
+notify pgrst, 'reload schema';
+commit;
