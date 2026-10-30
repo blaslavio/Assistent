@@ -6,7 +6,7 @@
 //
 // Wie je bent, staat in de kop x-api-key: "abo." + base64(JSON [naam, wachtwoord of sessie]).
 
-import { openaiAntwoord } from "./openai.ts";
+import { type Azure, openaiAntwoord } from "./openai.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -101,10 +101,13 @@ export async function verwerk(verzoek: Request): Promise<Response> {
 
     const claudeSleutel = Deno.env.get("ANTHROPIC_API_KEY") || toegang.sleutel;
     const openaiSleutel = Deno.env.get("OPENAI_API_KEY") || toegang.openai_sleutel;
+    const azure: Azure = { endpoint: Deno.env.get("AZURE_OPENAI_ENDPOINT") ?? "", key: Deno.env.get("AZURE_OPENAI_API_KEY") ?? "",
+      deployment: Deno.env.get("AZURE_OPENAI_DEPLOYMENT") ?? "" };
+    const metAzure = !!(azure.endpoint && azure.key && azure.deployment);
     if (body.model === OPENAI_MODEL || !claudeSleutel) {
-      if (!openaiSleutel) return fout(503, "De ChatGPT-sleutel is nog niet ingesteld.", "api_error");
+      if (!openaiSleutel && !metAzure) return fout(503, "De ChatGPT-sleutel is nog niet ingesteld.", "api_error");
       return await openaiAntwoord(body, openaiSleutel, OPENAI_MODEL,
-        (euro) => rpc("ai_gebruik_bij", { p_gebruiker: id, p_euro: euro }));
+        (euro) => rpc("ai_gebruik_bij", { p_gebruiker: id, p_euro: euro }), metAzure ? azure : undefined);
     }
 
     const kop: Record<string, string> = { "x-api-key": claudeSleutel, "content-type": "application/json",
