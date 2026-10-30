@@ -1,5 +1,5 @@
 -- Onafhankelijk, append-only archief van versleutelde projectsnapshots.
--- Vereist chat.sql en chat_community.sql. Geen automatische uitrol.
+-- Vereist chat.sql en chat_community.sql. In productie gezet als migratie project_archief (30 oktober 2026).
 begin;
 create table if not exists private.project_archief (
   id bigint generated always as identity primary key,
@@ -14,6 +14,8 @@ create table if not exists private.project_archief (
   unique (gesprek, opdracht)
 );
 create index if not exists project_archief_bestand on private.project_archief (gesprek, bestand, id desc);
+create index if not exists project_archief_afzender_fk on private.project_archief (afzender);
+create index if not exists project_archief_apparaat_fk on private.project_archief (apparaat);
 alter table private.project_archief enable row level security;
 revoke all on private.project_archief from public, anon, authenticated;
 
@@ -29,7 +31,7 @@ begin
     and (l.status = 'weg' or private.chat_geblokkeerd(v_id, l.gebruiker))) then return null; end if;
   return v_id;
 end; $$;
-revoke all on function private.project_toegang(text,text,bigint,boolean) from public;
+revoke all on function private.project_toegang(text,text,bigint,boolean) from public, anon, authenticated;
 
 create or replace function public.project_archief_bewaren(p_naam text, p_wachtwoord text, p_gesprek bigint,
   p_bestand uuid, p_opdracht uuid, p_apparaat bigint, p_inhoud text, p_iv text, p_epk jsonb, p_sleutels jsonb, p_handtekening text)
