@@ -1,3 +1,4 @@
+import InstellingenKnop from "./InstellingenKnop";
 import type Anthropic from "@anthropic-ai/sdk";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Staat } from "../App";
@@ -360,6 +361,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
           <h1 className="text-[28px] font-bold tracking-tight">Assistent</h1>
         </div>
         <div className="flex gap-2">
+          <InstellingenKnop pagina="assistent" label="Assistent instellen" />
           <button onClick={() => setGeschiedenis(true)} aria-label="Eerdere gesprekken"
             className="flex size-10 items-center justify-center rounded-full bg-vlak">
             <Klok className="size-5" />

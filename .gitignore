@@ -3,3 +3,6 @@ data/
 __pycache__/
 .venv/
 *.whl
+
+# De kaartwerker wordt bij installeren, testen en bouwen uit de vergrendelde dependency gemaakt.
+web/src/kaartwerker.bundel.ts

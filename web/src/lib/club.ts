@@ -5,7 +5,7 @@ import { datumTekst, nuTekst, plusDagen } from "./tijd";
 import { metZone } from "./prikken";
 
 export type Soort = "training" | "wedstrijd" | "evenement" | "vergadering" | "anders";
-export const SOORTEN: [Soort, string][] = [["training", "Training"], ["wedstrijd", "Wedstrijd"], ["evenement", "Uitje"],
+export const SOORTEN: [Soort, string][] = [["training", "Training"], ["wedstrijd", "Wedstrijd"], ["evenement", "Evenement"],
   ["vergadering", "Vergadering"], ["anders", "Anders"]];
 export type Antwoord = "ja" | "nee" | "misschien";
 export type Reden = "ziek" | "blessure" | "vakantie" | "werk" | "anders" | "afwezig";
@@ -41,6 +41,10 @@ export type Nieuw = { soort: Soort; titel: string; start: string; einde?: string
 
 /** Tijden komen binnen als "2026-11-02T19:00" (lokaal) en gaan met tijdzone naar de database. */
 export function bewaren(community: number, a: Nieuw, id: number | null = null, weken = 0) {
+  const geldig = (t: string) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(t) && Number.isFinite(Date.parse(t)) && nuTekst(new Date(t)) === t;
+  if (!geldig(a.start) || (a.einde && !geldig(a.einde))) throw new Error("Kies een geldige begin- en eindtijd.");
+  if (a.soort === "evenement" && !a.einde) throw new Error("Geef het evenement een eindtijd.");
+  if (a.einde && Date.parse(a.einde) <= Date.parse(a.start)) throw new Error("Het einde moet na het begin liggen.");
   const z = (t?: string) => (t ? metZone(t.slice(0, 16)) : null);
   return ik<{ ok: true; ids: number[] }>("community_activiteit_bewaren", { p_community: community, p_id: id, p_weken: weken,
     p_gegevens: { ...a, start: z(a.start), einde: z(a.einde), verzamelen: z(a.verzamelen) } });

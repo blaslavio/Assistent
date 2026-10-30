@@ -232,6 +232,9 @@ begin
     return jsonb_build_object('fout', 'Die datum of tijd klopt niet.');
   end;
   if v_start is null then return jsonb_build_object('fout', 'Kies een datum en tijd.'); end if;
+  if g->>'soort' = 'evenement' and (v_einde is null or v_einde <= v_start) then
+    return jsonb_build_object('fout', 'Geef het evenement een eindtijd na het begin.');
+  end if;
   if v_einde is not null and v_einde < v_start then return jsonb_build_object('fout', 'Het einde ligt voor het begin.'); end if;
   if v_verz is not null and (v_verz > v_start or v_verz < v_start - interval '1 day') then
     return jsonb_build_object('fout', 'Verzamelen moet op dezelfde dag voor het begin zijn.');

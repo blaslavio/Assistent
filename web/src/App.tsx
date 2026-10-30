@@ -1,3 +1,4 @@
+import { isExterneTerugkomst } from "./lib/externAanmelden";
 import HoofdNavigatie, { dokVan } from "./schermen/HoofdNavigatie";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { GeenToegang, adresOpruimen, adresWaarde, gegevensLaden, huidigeSessie, momentopnameBewaren, opstarten, overstappen,
@@ -29,6 +30,7 @@ import { postGevraagd, postVragen } from "./lib/feed";
 const PostBlad = lazy(() => import("./schermen/Feed").then((m) => ({ default: m.PostBlad })));
 
 // Een gedeelde link (?deel=...) opent een pagina die je zonder inloggen kunt zien.
+const EXTERN_TERUG = isExterneTerugkomst();
 const GEDEELD = deelCode();
 // Afspraak maken zonder account (?boek=linknaam) en de eigen pagina van de gast (?boeking=code).
 const BOEK = boekAdres();
@@ -138,6 +140,7 @@ export default function App() {
   // Bliksemstart: meteen de stand van de vorige keer, en zodra het inloggen met de sleutel van dit apparaat klaar is
   // de nieuwste. Zonder verbinding blijft de vorige stand staan en proberen we het opnieuw als je weer online bent.
   const starten = useCallback(() => {
+    if (EXTERN_TERUG) { setStaat(null); setKlaar(true); return; }
     let vers = false;
     const { vorige, vers: nieuw } = opstarten();
     vorige.then((v) => {
@@ -211,6 +214,7 @@ export default function App() {
   useEffect(() => {
     const ga = (e: Event) => {
       const b = (e as CustomEvent<Bestemming>).detail;
+      if (b.tab === "instellingen" && !b.onderdeel) setStartOnderdeel(null);
       if (b.onderdeel) setStartOnderdeel((o) => ({ naam: b.onderdeel!, n: (o?.n ?? 0) + 1 }));
       setTab(b.tab);
     };

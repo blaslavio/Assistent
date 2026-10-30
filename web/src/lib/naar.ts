@@ -9,13 +9,32 @@ export function naar(b: Bestemming) {
 }
 
 // Een pagina binnen Instellingen openen (bijvoorbeeld Account), ook als Instellingen al open staat.
-let gevraagd: string | null = null;
-export function instellingenOpenen(pagina: string) {
+export type InstellingenPagina = "algemeen" | "idee" | "profiel" | "account" | "assistent" | "privacy" | "thuis" | "mail" | "betalingen" | "afspraken";
+let gevraagd: InstellingenPagina | null = null;
+export function instellingenOpenen(pagina: InstellingenPagina) {
   gevraagd = pagina;
   window.dispatchEvent(new CustomEvent<string>("instellingen-pagina", { detail: pagina }));
+  naar({ tab: "instellingen" });
 }
 export function gevraagdePagina() {
   const p = gevraagd;
   gevraagd = null;
   return p;
 }
+
+export function evenementenOpenen() {
+  try { sessionStorage.setItem("assistent.agendapaneel", "evenementen"); } catch { /* alleen deze weergave */ }
+  window.dispatchEvent(new Event("agenda-evenementen"));
+  naar({ tab: "agenda" });
+}
+let gesprekGevraagd: number | null = null;
+export function chatOpenen(id: number) {
+  if (!Number.isSafeInteger(id) || id < 1) return;
+  gesprekGevraagd = id;
+  window.dispatchEvent(new Event("chat-open"));
+  naar({ tab: "chat" });
+}
+export function gevraagdGesprek() { const id = gesprekGevraagd; gesprekGevraagd = null; return id; }
+let kaartVerzoek = false;
+export function kaartOpenen() { kaartVerzoek = true; window.dispatchEvent(new Event("kaart-openen")); naar({ tab: "chat" }); }
+export function kaartGevraagd() { const v = kaartVerzoek; kaartVerzoek = false; return v; }

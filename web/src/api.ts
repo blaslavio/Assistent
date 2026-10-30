@@ -114,7 +114,7 @@ export async function inloggen(naam: string, wachtwoord: string, code = "", onth
 
 /** Na inloggen, een nieuw account of een herstelcode: de sessie gebruiken en dit apparaat onthouden. */
 export async function sessieStarten(naam: string, token: string, onthouden = true) {
-  sessie = { naam, token };
+  zetSessie({ naam, token });
   if (onthouden) {
     const r = await alsIk<{ token?: string }>("apparaat_onthouden", { p_apparaat: apparaatNaam() });
     if (r.token) schrijf(APPARAAT_SLEUTEL, r.token);

@@ -1,3 +1,4 @@
+import { evenementBekijken, evenementLink } from "../lib/evenementen";
 // Agenda in een community: trainingen, wedstrijden en uitjes. Met één tik zeg je of je komt; afmelden (ziek,
 // blessure, vakantie) zet je in één keer af voor alles in die periode en zet het ook in je eigen agenda.
 import { useCallback, useEffect, useState, type FormEvent } from "react";
@@ -19,15 +20,22 @@ const dag = (iso: string) => new Date(iso);
 const kort = (d: string) => new Date(`${d}T12:00`).toLocaleDateString("nl-NL", { weekday: "short", day: "numeric", month: "short" });
 const TAKEN = ["Rijden", "Bardienst", "Shirts wassen", "Fluiten", "Ballen meenemen", "Fruit", "Opbouwen", "Opruimen"];
 
-type Props = { c: Community; bijgewerkt?: (g: Gegevens) => void };
+type Props = { c: Community; bijgewerkt?: (g: Gegevens) => void; beginSoort?: Soort; evenement?: number };
 
-export function ClubAgenda({ c, bijgewerkt }: Props) {
+export function ClubAgenda({ c, bijgewerkt, beginSoort = "training", evenement }: Props) {
   const [data, setData] = useState<Agenda | null>(null);
   const [mijn, setMijn] = useState<MijnAfwezig[]>([]);
   const [melding, setMelding] = useState("");
   const [probleem, setProbleem] = useState("");
   const [open, setOpen] = useState<number | null>(null);
   const [maken, setMaken] = useState<Activiteit | "nieuw" | null>(null);
+  const [paginaEvent, setPaginaEvent] = useState<Activiteit | null>(null);
+  useEffect(() => {
+    let actief = true;
+    if (evenement) evenementBekijken(c.id, evenement).then(a => { if (actief) { setPaginaEvent(a); setOpen(a.id); } })
+      .catch(() => { if (actief) setProbleem("Deze evenementpagina is niet beschikbaar of is verwijderd."); });
+    return () => { actief = false; };
+  }, [c.id, evenement]);
   const [afmelden, setAfmelden] = useState(false);
   const beheer = c.rol === "eigenaar" || c.rol === "beheerder";
 
@@ -48,13 +56,14 @@ export function ClubAgenda({ c, bijgewerkt }: Props) {
     try {
       await actie();
       if (gelukt) setMelding(gelukt);
+      if (evenement) { try { setPaginaEvent(await evenementBekijken(c.id, evenement)); } catch { setPaginaEvent(null); } }
       await laden();
     } catch (e) {
       setProbleem(fout(e));
     }
   }
 
-  const gekozen = data?.activiteiten.find((a) => a.id === open) ?? null;
+  const gekozen = data?.activiteiten.find((a) => a.id === open) ?? (paginaEvent?.id === open ? paginaEvent : null);
   const anderen = (data?.afwezig ?? []).filter((x) => !x.van_mij);
   const perDag = new Map<string, Activiteit[]>();
   for (const a of data?.activiteiten ?? []) {
@@ -71,7 +80,7 @@ export function ClubAgenda({ c, bijgewerkt }: Props) {
           <button onClick={() => setAfmelden(true)} className="h-11 flex-1 rounded-2xl bg-vlak text-[15px] font-medium">Afmelden</button>
         )}
         <button onClick={() => setMaken("nieuw")} className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-2xl bg-accent/10 text-[15px] font-medium text-accent dark:text-accent-donker">
-          <Plus className="size-4" /> Nieuw
+          <Plus className="size-4" /> {beginSoort === "evenement" ? "Evenement organiseren" : "Nieuw"}
         </button>
       </div>
       {melding && <p role="status" className="rounded-2xl bg-vlak px-4 py-3 text-[15px]">{melding}</p>}
@@ -97,7 +106,7 @@ export function ClubAgenda({ c, bijgewerkt }: Props) {
       ))}
       {gekozen && <Details a={gekozen} c={c} beheer={beheer} sluit={() => setOpen(null)} doe={doe}
         bewerk={() => { setMaken(gekozen); setOpen(null); }} bijgewerkt={bijgewerkt} />}
-      {maken && <Maken c={c} oud={maken === "nieuw" ? null : maken} sluit={() => setMaken(null)}
+      {maken && <Maken c={c} beginSoort={beginSoort} oud={maken === "nieuw" ? null : maken} sluit={() => setMaken(null)}
         klaar={(t) => { setMaken(null); setMelding(t); laden(); }} />}
       {afmelden && <Afmelden c={c} sluit={() => setAfmelden(false)}
         klaar={(t, g) => { setAfmelden(false); setMelding(t); bijgewerkt?.(g); laden(); }} />}
@@ -160,6 +169,7 @@ function Details({ a, c, beheer, sluit, doe, bewerk, bijgewerkt }: { a: Activite
   const [plaatsen, setPlaatsen] = useState(mijnRit?.plaatsen || 3);
   const [zeker, setZeker] = useState(false);
   const [tekst, setTekst] = useState("");
+  const [verwijderBezig, setVerwijderBezig] = useState(false);
   const groepen: [string, typeof a.antwoorden][] = [["Komen", a.antwoorden.filter((l) => l.antwoord === "ja")],
     ["Misschien", a.antwoorden.filter((l) => l.antwoord === "misschien")], ["Kunnen niet", a.antwoorden.filter((l) => l.antwoord === "nee")],
     ["Nog geen antwoord", a.antwoorden.filter((l) => !l.antwoord)]];
@@ -173,11 +183,13 @@ function Details({ a, c, beheer, sluit, doe, bewerk, bijgewerkt }: { a: Activite
 
   return (
     <Onderblad titel={a.titel} sluit={sluit}>
-      <p className="-mt-3 text-[15px] text-rustig">{dagTitel(dag(a.start))}, {tijden(a)}<br />{onderTitel(a)}</p>
+      <p className="-mt-3 text-[15px] text-rustig">{dagTitel(dag(a.start))}, {tijden(a)}{a.einde && datumTekst(dag(a.start)) !== datumTekst(dag(a.einde)) ? ` · tot ${dagTitel(dag(a.einde))}` : ""}<br />{onderTitel(a)}</p>
+      {a.einde && Date.parse(a.einde) < Date.now() && <p className="text-sm text-rustig">Dit evenement is afgelopen.</p>}
       {a.notitie && <p className="whitespace-pre-wrap text-[15px]">{a.notitie}</p>}
       {a.uitslag && <p className="font-medium">Uitslag {a.uitslag}</p>}
       <div className="flex flex-wrap gap-2">
         <button onClick={agenda} className={pil(false)}>In mijn agenda</button>
+        <button onClick={async () => { try { const url = evenementLink(c.id, a.id); if (navigator.share) await navigator.share({ title: a.titel, url }); else { await navigator.clipboard.writeText(url); setTekst("Link naar evenementpagina gekopieerd. Alleen groepsleden kunnen deze openen."); } } catch { setTekst("Delen lukte niet. Probeer het opnieuw."); } }} className={pil(false)}>Deel evenementpagina</button>
         {a.mag_bewerken && <button onClick={bewerk} className={pil(false)}>Aanpassen</button>}
         {a.mag_bewerken && <button onClick={() => setZeker(true)} className={pil(false)}>Weghalen</button>}
       </div>
@@ -186,8 +198,8 @@ function Details({ a, c, beheer, sluit, doe, bewerk, bijgewerkt }: { a: Activite
         <div className="flex flex-col gap-2 rounded-2xl bg-vlak p-3">
           <p className="text-sm">Weghalen voor iedereen?</p>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => { doe(() => weg(a.id)); sluit(); }} className="h-9 rounded-full bg-red-600 px-4 text-sm font-medium text-white">Alleen deze</button>
-            {a.reeks && <button onClick={() => { doe(() => weg(a.id, true)); sluit(); }} className="h-9 rounded-full bg-red-600 px-4 text-sm font-medium text-white">Deze en de volgende</button>}
+            <button disabled={verwijderBezig} onClick={async () => { setVerwijderBezig(true); try { await weg(a.id); await doe(async () => {}, "Evenement verwijderd."); sluit(); } catch { setTekst("Verwijderen lukte niet. Het evenement is nog niet als verwijderd bevestigd."); } finally { setVerwijderBezig(false); } }} className="h-9 rounded-full bg-red-600 px-4 text-sm font-medium text-white">Alleen deze</button>
+            {a.reeks && <button disabled={verwijderBezig} onClick={async () => { setVerwijderBezig(true); try { await weg(a.id, true); await doe(async () => {}, "Reeks verwijderd."); sluit(); } catch { setTekst("Verwijderen lukte niet. Probeer opnieuw."); } finally { setVerwijderBezig(false); } }} className="h-9 rounded-full bg-red-600 px-4 text-sm font-medium text-white">Deze en de volgende</button>}
             <button onClick={() => setZeker(false)} className="h-9 px-3 text-sm">Toch niet</button>
           </div>
         </div>
@@ -267,11 +279,12 @@ function Details({ a, c, beheer, sluit, doe, bewerk, bijgewerkt }: { a: Activite
   );
 }
 
-function Maken({ c, oud, sluit, klaar }: { c: Community; oud: Activiteit | null; sluit: () => void; klaar: (t: string) => void }) {
+function Maken({ c, oud, sluit, klaar, beginSoort }: { beginSoort?: Soort; c: Community; oud: Activiteit | null; sluit: () => void; klaar: (t: string) => void }) {
   const morgen = datumTekst(plusDagen(new Date(), 1));
-  const [soort, setSoort] = useState<Soort>(oud?.soort ?? "training");
+  const [soort, setSoort] = useState<Soort>(oud?.soort ?? beginSoort ?? "training");
   const [titel, setTitel] = useState(oud?.titel ?? "");
   const [datum, setDatum] = useState(oud ? lokaal(oud.start).slice(0, 10) : morgen);
+  const [eindDatum, setEindDatum] = useState(oud?.einde ? lokaal(oud.einde).slice(0, 10) : oud ? lokaal(oud.start).slice(0, 10) : morgen);
   const [van, setVan] = useState(oud ? lokaal(oud.start).slice(11) : "19:00");
   const [tot, setTot] = useState(oud?.einde ? lokaal(oud.einde).slice(11) : "20:30");
   const [verzamelen, setVerzamelen] = useState(oud?.verzamelen ? lokaal(oud.verzamelen).slice(11) : "");
@@ -293,7 +306,7 @@ function Maken({ c, oud, sluit, klaar }: { c: Community; oud: Activiteit | null;
     e.preventDefault();
     setBezig(true);
     setProbleem("");
-    const a: Nieuw = { soort, titel: naam, start: `${datum}T${van}`, einde: tot && tot > van ? `${datum}T${tot}` : undefined,
+    const a: Nieuw = { soort, titel: naam, start: `${datum}T${van}`, einde: tot ? `${eindDatum}T${tot}` : undefined,
       verzamelen: verzamelen && verzamelen < van ? `${datum}T${verzamelen}` : undefined, plaats: plaats.trim(), notitie: notitie.trim(),
       tegenstander: soort === "wedstrijd" ? tegen.trim() : "", thuis: soort === "wedstrijd" ? thuis : null, taken, afgelast, uitslag: uitslag.trim() };
     try {
@@ -319,10 +332,11 @@ function Maken({ c, oud, sluit, klaar }: { c: Community; oud: Activiteit | null;
         )}
         <input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder={naam} aria-label="Naam" maxLength={120} className={veld} />
         <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-          <input type="date" value={datum} onChange={(e) => setDatum(e.target.value)} aria-label="Datum" className={`${veld} min-w-0`} />
+          <input type="date" value={datum} onChange={(e) => { if (eindDatum === datum) setEindDatum(e.target.value); setDatum(e.target.value); }} aria-label="Datum" className={`${veld} min-w-0`} />
           <input type="time" value={van} onChange={(e) => setVan(e.target.value)} aria-label="Begin" className={`${veld} w-24 px-2`} />
           <input type="time" value={tot} onChange={(e) => setTot(e.target.value)} aria-label="Einde" className={`${veld} w-24 px-2`} />
         </div>
+        <label className="flex flex-col gap-1 text-sm">Einddatum<input type="date" value={eindDatum} onChange={e => setEindDatum(e.target.value)} aria-label="Einddatum" className={veld} /></label>
         {soort === "wedstrijd" && (
           <label className="flex items-center justify-between gap-3 text-[15px]">Verzamelen om
             <input type="time" value={verzamelen} onChange={(e) => setVerzamelen(e.target.value)} aria-label="Verzamelen" className={`${veld} w-28 px-2`} />

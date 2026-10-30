@@ -1,5 +1,5 @@
-// De winkelkaart: winkels in de app en winkels uit OpenStreetMap in de buurt. Eigen rekenwerk voor de kaarttegels,
-// zodat er geen kaartbibliotheek nodig is. Kaart en winkels komen van OpenStreetMap (vrij te gebruiken, met vermelding).
+// Gedeelde geografie, winkelzoeking en navigatielinks. De vectorkaart zelf gebruikt MapLibre en OpenFreeMap;
+// de omliggende winkels en adreszoeking gebruiken de bestaande OpenStreetMap-diensten.
 export type Punt = { lat: number; lon: number };
 export type KaartWinkel = Punt & { naam: string; soort: string; adres?: string; app: boolean; producten?: number };
 
@@ -15,8 +15,8 @@ export function naarPixel(p: Punt, zoom: number) {
 
 export function naarPunt(x: number, y: number, zoom: number): Punt {
   const schaal = TEGEL * 2 ** zoom;
-  const n = Math.PI - (2 * Math.PI * y) / schaal;
-  return { lat: (180 / Math.PI) * Math.atan(Math.sinh(n)), lon: (x / schaal) * 360 - 180 };
+  const n = Math.PI - (2 * Math.PI * Math.max(0, Math.min(schaal, y))) / schaal;
+  return { lat: (180 / Math.PI) * Math.atan(Math.sinh(n)), lon: (((x / schaal) * 360) % 360 + 360) % 360 - 180 };
 }
 
 /** Afstand in meters tussen twee plekken. */
@@ -79,12 +79,22 @@ export async function winkelsInBuurt(p: Punt, meter = 1500): Promise<KaartWinkel
 /** Een adres omzetten naar een plek op de kaart (OpenStreetMap Nominatim). */
 export async function zoekPlek(adres: string): Promise<(Punt & { naam: string }) | null> {
   if (!adres.trim()) return null;
-  const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=nl,be&q=${encodeURIComponent(adres)}`);
+  const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(adres)}`);
   if (!r.ok) return null;
   const [eerste] = (await r.json()) as { lat: string; lon: string; display_name: string }[];
-  return eerste ? { lat: +eerste.lat, lon: +eerste.lon, naam: eerste.display_name } : null;
+  if (!eerste) return null;
+  const lat = Number(eerste.lat), lon = Number(eerste.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat)>90 || Math.abs(lon)>180) return null;
+  return { lat, lon, naam: eerste.display_name };
 }
 
-/** Route in de kaarten-app van de telefoon (Apple Kaarten op iPhone en iPad). */
-export const routeLink = (w: KaartWinkel) =>
-  `https://maps.apple.com/?daddr=${w.lat},${w.lon}&q=${encodeURIComponent(w.naam)}`;
+export type RouteApp = "apple" | "google" | "waze";
+export type Reiswijze = "auto" | "lopen" | "fiets" | "ov";
+/** Een echte navigatie-app berekent afstand, verkeer en reistijd; de app deelt alleen de gekozen bestemming. */
+export function routeLink(w: Punt & { naam: string }, app: RouteApp = "apple", wijze: Reiswijze = "auto") {
+  if (!Number.isFinite(w.lat) || !Number.isFinite(w.lon) || Math.abs(w.lat)>90 || Math.abs(w.lon)>180) throw new Error("Ongeldige bestemming.");
+  const co = `${w.lat},${w.lon}`;
+  if (app === "waze") return `https://waze.com/ul?ll=${co}&navigate=yes`;
+  if (app === "google") return `https://www.google.com/maps/dir/?api=1&destination=${co}&travelmode=${({auto:"driving",lopen:"walking",fiets:"bicycling",ov:"transit"})[wijze]}`;
+  return `https://maps.apple.com/?daddr=${co}&q=${encodeURIComponent(w.naam)}&dirflg=${({auto:"d",lopen:"w",fiets:"b",ov:"r"})[wijze]}`;
+}

@@ -21,3 +21,13 @@ describe("kaart", () => {
     expect(l.map((x) => x.naam + (x.app ? "*" : ""))).toEqual(["Bakkerij De Zon*", "Slager", "Bakkerij De Zon"]);
   });
 });
+
+it("maakt veilige lange-afstandroutes per app en vervoermiddel",async()=>{
+ const {routeLink}=await import("./kaart");const p={lat:41.9,lon:12.5,naam:"Rome & centrum"};
+ expect(routeLink(p,"google","ov")).toContain("travelmode=transit");expect(routeLink(p,"apple","lopen")).toContain("dirflg=w");
+ expect(routeLink(p,"waze")).toContain("navigate=yes");expect(()=>routeLink({...p,lat:NaN})).toThrow();expect(()=>routeLink({...p,lon:181})).toThrow();
+});
+
+it("houdt wereldwijde kaartverplaatsing binnen geldige coördinaten",()=>{
+ for(const x of [-1000000,0,1000000])for(const y of [-1000000,1000000]){const p=naarPunt(x,y,2);expect(p.lat).toBeGreaterThanOrEqual(-86);expect(p.lat).toBeLessThanOrEqual(86);expect(p.lon).toBeGreaterThanOrEqual(-180);expect(p.lon).toBeLessThan(180);}
+});

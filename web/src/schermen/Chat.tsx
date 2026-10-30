@@ -1,3 +1,6 @@
+import { KaartVouw } from "../iconen";
+import { kaartOpenen, kaartGevraagd, gevraagdGesprek } from "../lib/naar";
+import InstellingenKnop from "./InstellingenKnop";
 import { BetaalverzoekMaken, ChatBetaalkaart } from "./ChatBetaling";
 import ProjectWerkruimte from "./ProjectWerkruimte";
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -62,7 +65,7 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
   const [lijst, setLijst] = useState<Gesprek[]>([]);
   const [groepen, setGroepen] = useState<Community[]>([]);
   const [voorbeelden, setVoorbeelden] = useState<Record<number, string>>({});
-  const [open, setOpen] = useState<number | null>(null);
+  const [open, setOpen] = useState<number | null>(gevraagdGesprek);
   const [openCommunity, setOpenCommunity] = useState<number | null>(null);
   const [gasten, setGasten] = useState<GastGesprek[]>([]);
   const [openGast, setOpenGast] = useState<number | null>(null);
@@ -70,7 +73,7 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
   const [fout, setFout] = useState("");
   const [deel, setDeelRuw] = useState<Deel>(bewaardDeel);
   // Winkel opent als eigen app; terug van betalen (?betaald=) meteen bij Bestellingen.
-  const [winkel, setWinkel] = useState<{ deel: WinkelDeelNaam; melding?: string; adres?: string } | null>(() => {
+  const [winkel, setWinkel] = useState<{ deel: WinkelDeelNaam; melding?: string; adres?: string; ronde?: number } | null>(() => {
     const v = openGevraagd();
     if (v) return { deel: "bestellingen", melding: v.melding };
     const adres = winkelGevraagd();
@@ -90,6 +93,8 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
 
   useEffect(() => { if (werkGesprek?.gebruiker === staat.gebruiker.id) setOpen(werkGesprek.id); }, [werkGesprek, staat.gebruiker.id]);
 
+  useEffect(() => { const openGevraagd = () => { const id = gevraagdGesprek(); if (id !== null) setOpen(id); }; window.addEventListener("chat-open", openGevraagd); return () => window.removeEventListener("chat-open", openGevraagd); }, []);
+  useEffect(() => { const open = () => { if (kaartGevraagd()) { setOpen(null); setWinkel(oud => ({ deel: "kaart", ronde: (oud?.ronde ?? 0) + 1 })); } }; open(); window.addEventListener("kaart-openen", open); return () => window.removeEventListener("kaart-openen", open); }, []);
   const vorige = useRef("");
   const kijkNieuw = useCallback(async () => {
     const o = await overzicht();
@@ -131,7 +136,7 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
     return <Gesprekscherm key={open} id={open} ik={ik} begin={g} projectOpen={werkGesprek?.id === open || projectVan === open} staat={staat} setStaat={setStaat} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
   }
   if (openGast !== null) return <GastGesprekScherm boeking={openGast} terug={() => { setOpenGast(null); laden().catch(() => {}); }} />;
-  if (winkel) return <WinkelApp start={winkel.deel} melding={winkel.melding} adres={winkel.adres}
+  if (winkel) return <WinkelApp key={winkel.ronde} start={winkel.deel} melding={winkel.melding} adres={winkel.adres}
     thuisadres={staat?.data.instellingen?.thuisadres} bestel={bestel} terug={() => setWinkel(null)} />;
   if (openCommunity !== null && ik !== null) {
     const c = groepen.find((x) => x.id === openCommunity);
@@ -155,8 +160,9 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
     <div className="flex min-h-full flex-col">
       <AppKop titel={DELEN.find(([k]) => k === deel)?.[1] ?? "Chat"}
         terug={!zichtbaar.includes(deel) ? () => setDeel("chats") : undefined} terugNaam="Chats"
-        rechts={acties.length > 0 && (
+        rechts={(
           <span className="flex shrink-0 gap-2">
+            <InstellingenKnop pagina="privacy" label="Privacy en beveiliging instellen" />
             {acties.map((a) => (
               <button key={a.label} onClick={a.doe} aria-label={a.label}
                 className="flex size-10 items-center justify-center rounded-full bg-vlak">{a.icoon}</button>
@@ -593,7 +599,7 @@ const CATEGORIEEN: [string, Ic][] = [["Kleding", Shirt], ["Elektronica", Scherm]
   ["Sport", Bal], ["Boeken", Boek], ["Kinderen", Kind], ["Hobby", Penseel]];
 const chip = (aan: boolean) => `flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm ${aan ? "bg-accent font-medium text-white" : "bg-vlak text-rustig"}`;
 
-type WinkelDeelNaam = "ontdekken" | "verkopen" | "bestellingen";
+type WinkelDeelNaam = "ontdekken" | "verkopen" | "bestellingen" | "kaart";
 
 /** De winkel als eigen app: ontdekken, zelf verkopen en je bestellingen, met een eigen menu onderin. */
 function WinkelApp({ start, melding, adres, thuisadres, bestel, terug }: { start: WinkelDeelNaam; melding?: string;
@@ -611,9 +617,10 @@ function WinkelApp({ start, melding, adres, thuisadres, bestel, terug }: { start
   return (
     <div className="flex min-h-full flex-col">
       <AppKop terug={deel === "ontdekken" ? terug : () => setDeel("ontdekken")} terugNaam={deel === "ontdekken" ? "Chat" : "Winkel"}
-        titel={deel === "ontdekken" ? "Winkel" : deel === "verkopen" ? "Verkopen" : "Bestellingen"}
+        titel={deel === "ontdekken" ? "Winkel" : deel === "kaart" ? "Kaart en routes" : deel === "verkopen" ? "Verkopen" : "Bestellingen"}
         rechts={deel === "ontdekken" && (
           <span className="flex shrink-0 gap-2">
+            <button onClick={() => setDeel("kaart")} aria-label="Kaart en routes" className={knop}><KaartVouw className="size-5" /></button>
             <button onClick={() => setDeel("verkopen")} aria-label="Verkopen" className={knop}><Plus className="size-5" /></button>
             <button onClick={() => setDeel("bestellingen")} aria-label={wacht ? `Bestellingen, ${wacht} wachten op jou` : "Bestellingen"} className={knop}>
               <Tas className="size-5" />
@@ -621,7 +628,7 @@ function WinkelApp({ start, melding, adres, thuisadres, bestel, terug }: { start
             </button>
           </span>
         )} />
-      {deel === "ontdekken" && <WinkelDeel key={`${bijgewerkt}-${openWinkel}`} bestel={bestel} verkoop={() => setVerkopen(true)}
+      {(deel === "ontdekken" || deel === "kaart") && <WinkelDeel key={deel} kaart={deel === "kaart"} bestel={bestel} verkoop={() => setVerkopen(true)}
         winkel={openWinkel} thuisadres={thuisadres} />}
       {deel === "verkopen" && (
         <div className="flex flex-col gap-5 px-6 pb-8">
@@ -643,11 +650,11 @@ function WinkelApp({ start, melding, adres, thuisadres, bestel, terug }: { start
   );
 }
 
-function WinkelDeel({ bestel, verkoop, winkel, thuisadres }: { bestel: (p: Product) => void; verkoop: () => void;
-  winkel?: string; thuisadres?: string }) {
+function WinkelDeel({ bestel, verkoop, winkel, thuisadres, kaart }: { bestel: (p: Product) => void; verkoop: () => void;
+  winkel?: string; thuisadres?: string; kaart?: boolean }) {
   const [zoek, setZoek] = useState("");
   const [term, setTerm] = useState("");
-  const [bron, setBron] = useState<NonNullable<Filter["bron"]>>("alles");
+  const [bron, setBron] = useState<NonNullable<Filter["bron"]>>(kaart ? "winkels" : "alles");
   const [bezorgen, setBezorgen] = useState(false);
   const [producten, setProducten] = useState<Product[] | null>(null);
   const [winkels, setWinkels] = useState<WinkelKaartje[]>([]);

@@ -1,3 +1,4 @@
+import { AANBIEDERS, beschikbareAanbieders, externBeginnen, externAfronden, isExterneTerugkomst, type Aanbieder } from "../lib/externAanmelden";
 // Het eerste scherm: inloggen, een account maken, of je wachtwoord terugkrijgen met een code per mail.
 import { lazy, Suspense, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { apparaatNaam, inloggen } from "../api";
@@ -19,13 +20,25 @@ const tekstVan = (e: unknown) => (e instanceof Error && e.message && !/fetch|net
 type Stand = "inloggen" | "nieuw" | "vergeten";
 
 export default function Inloggen({ opIngelogd }: { opIngelogd: () => Promise<void> }) {
+  const [externTerug] = useState(isExterneTerugkomst);
+  const [externBezig, setExternBezig] = useState(externTerug);
+  const [externFout, setExternFout] = useState("");
+  useEffect(() => {
+    if (!externTerug) return;
+    let actief = true;
+    externAfronden().then(() => { if (actief) return opIngelogd(); })
+      .catch(() => { if (actief) setExternFout("Aanmelden lukte niet of is afgebroken. Probeer opnieuw of gebruik je mailadres en wachtwoord."); })
+      .finally(() => { if (actief) setExternBezig(false); });
+    return () => { actief = false; };
+  }, [externTerug, opIngelogd]);
   const [stand, setStand] = useState<Stand>("inloggen");
   const [mail, setMail] = useState<boolean | null>(null);
   useEffect(() => { mailIngesteld().then(setMail); }, []);
   return (
     <main className="mx-auto flex min-h-full max-w-sm flex-col justify-center gap-8 px-6 py-10">
       <MascotteMetTip />
-      {stand === "inloggen" && <Inlog opIngelogd={opIngelogd} naar={setStand} mail={!!mail} />}
+      {externFout && <p role="alert" className="text-sm text-red-600">{externFout}</p>}
+      {externBezig ? <p role="status">Je aanmelding wordt gecontroleerd…</p> : stand === "inloggen" && <Inlog opIngelogd={opIngelogd} naar={setStand} mail={!!mail} />}
       {stand === "nieuw" && <Nieuw opIngelogd={opIngelogd} naar={setStand} mail={!!mail} />}
       {stand === "vergeten" && <Vergeten opIngelogd={opIngelogd} naar={setStand} />}
     </main>
@@ -34,13 +47,14 @@ export default function Inloggen({ opIngelogd }: { opIngelogd: () => Promise<voi
 
 type Deel = { opIngelogd: () => Promise<void>; naar: (s: Stand) => void };
 
-function Formulier({ titel, uitleg, fout, onSubmit, children }: { titel: string; uitleg?: string; fout: string;
+function Formulier({ titel, uitleg, fout, onSubmit, children, vooraf }: { titel: string; uitleg?: string; fout: string; vooraf?: ReactNode;
   onSubmit: (e: FormEvent) => void; children: ReactNode }) {
   return <>
     <div className="flex flex-col gap-1">
       <h1 className="text-[32px] font-bold tracking-tight">{titel}</h1>
       {uitleg && <p className="text-[15px] text-rustig">{uitleg}</p>}
     </div>
+    {vooraf}
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       {children}
       {fout && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{fout}</p>}
@@ -74,7 +88,7 @@ function Inlog({ opIngelogd, naar, mail }: Deel & { mail: boolean }) {
   }
 
   return <>
-    <Formulier titel="Welkom" fout={fout} onSubmit={versturen}>
+    <Formulier titel="Welkom" fout={fout} onSubmit={versturen} vooraf={!codeNodig && <ExternAanmelden />}>
       {!codeNodig ? (
         <>
           <label className="sr-only" htmlFor="naam">Gebruikersnaam of mailadres</label>
@@ -223,4 +237,52 @@ function Vergeten({ opIngelogd, naar }: Deel) {
       <button className={linkje} onClick={() => naar("inloggen")}>Terug naar inloggen</button>
     </div>
   </>;
+}
+
+function ExternAanmelden() {
+  const [beschikbaar, setBeschikbaar] = useState<Record<Aanbieder, boolean> | null>(null);
+  const [ladenFout, setLadenFout] = useState("");
+  const [poging, setPoging] = useState(0);
+  const [keuze, setKeuze] = useState<Aanbieder | null>(null);
+  const [akkoord, setAkkoord] = useState(false);
+  const [meer, setMeer] = useState(false);
+  const [bezig, setBezig] = useState(false);
+  const [fout, setFout] = useState("");
+  const [lezen, setLezen] = useState<"voorwaarden" | "privacy" | null>(null);
+  useEffect(() => {
+    let actief = true;
+    setLadenFout("");
+    beschikbareAanbieders().then(v => { if (actief) setBeschikbaar(v); })
+      .catch(() => { if (actief) setLadenFout("Externe aanmelding is nu niet beschikbaar. Gebruik je mailadres of probeer opnieuw."); });
+    return () => { actief = false; };
+  }, [poging]);
+  const naam = AANBIEDERS.find(a => a.id === keuze)?.naam;
+  return <section aria-label="Andere aanmeldmogelijkheden" className="-mt-3 flex flex-col gap-3">
+    <div className="flex flex-col gap-2">{AANBIEDERS.filter(a => meer || a.id !== "azure").map(a =>
+      <button key={a.id} type="button" disabled={!beschikbaar?.[a.id] || bezig} onClick={() => { setKeuze(a.id); setFout(""); }}
+        className="h-12 rounded-2xl border border-lijn font-medium disabled:opacity-50">
+        Verder met {a.naam}{beschikbaar && !beschikbaar[a.id] ? " · niet actief" : ""}
+      </button>)}</div>
+    {!meer && <button type="button" onClick={() => setMeer(true)} className="min-h-11 text-sm text-accent">Andere aanmeldmethoden</button>}
+    {ladenFout ? <p role="status" className="text-sm text-rustig">{ladenFout} <button type="button" className="min-h-11 text-accent" onClick={() => setPoging(n => n + 1)}>Opnieuw ophalen</button></p>
+      : beschikbaar && !Object.values(beschikbaar).some(Boolean) && <p className="text-sm text-rustig">Google, Apple en Microsoft zijn nog niet beschikbaar. Je kunt hieronder met je mailadres of gebruikersnaam inloggen.</p>}
+    {keuze && <div className="flex flex-col gap-3 rounded-2xl bg-vlak p-4">
+      <p className="text-sm text-rustig">Je gaat naar {naam} om je identiteit te bevestigen. Assistent krijgt je naam en mailadres, geen wachtwoord van {naam}.</p>
+      <label className="flex gap-3 text-sm"><input type="checkbox" checked={akkoord} onChange={e => setAkkoord(e.target.checked)} className="mt-1 size-5 shrink-0" />
+        <span>Ik ben 16 jaar of ouder en ga akkoord met de voorwaarden en privacyverklaring.</span></label>
+      <div className="flex gap-4"><button type="button" className="min-h-11 text-sm text-accent" onClick={() => setLezen("voorwaarden")}>Voorwaarden lezen</button>
+        <button type="button" className="min-h-11 text-sm text-accent" onClick={() => setLezen("privacy")}>Privacyverklaring lezen</button></div>
+      {fout && <p role="alert" className="text-sm text-red-600">{fout}</p>}
+      <button type="button" disabled={!akkoord || bezig} className={hoofdknop} onClick={async () => {
+        setBezig(true); setFout("");
+        try { await externBeginnen(keuze, akkoord); }
+        catch (e) { setFout(tekstVan(e)); setBezig(false); }
+      }}>{bezig ? "Even geduld…" : `Doorgaan naar ${naam}`}</button>
+      <button type="button" disabled={bezig} className="min-h-11 text-sm text-rustig" onClick={() => setKeuze(null)}>Annuleren</button>
+    </div>}
+    <p className="text-center text-sm text-rustig">Of met je mailadres of gebruikersnaam</p>
+    {lezen && <Onderblad titel={lezen === "voorwaarden" ? "Voorwaarden" : "Privacyverklaring"} sluit={() => setLezen(null)}>
+      <Suspense fallback={<p>Even laden…</p>}><Teksten welke={lezen} /></Suspense>
+    </Onderblad>}
+  </section>;
 }
