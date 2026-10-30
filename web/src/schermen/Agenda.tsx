@@ -187,7 +187,7 @@ export default function Agenda({ staat, setStaat }: Props) {
       {paneel === "mail" && <MailPaneel staat={staat} setStaat={setStaat} />}
       {paneel === "taken" && <TakenPaneel staat={staat} setStaat={setStaat} naarMail={() => kiesPaneel("mail")} />}
       {paneel === "herinneringen" && <HerinneringenPaneel staat={staat} setStaat={setStaat} />}
-      {paneel === "vakanties" && <Suspense fallback={<p role="status" className="px-6">Vakantie laden…</p>}><Vakanties key={staat.gebruiker.id} staat={staat} setStaat={setStaat} /></Suspense>}
+      {paneel === "vakanties" && <Suspense fallback={<p role="status" className="px-6">Vakantie laden…</p>}><Vakanties key={staat.gebruiker.id} staat={staat} setStaat={setStaat} openAgenda={datum => { kiesPaneel(null); setGekozen(datum); }} /></Suspense>}
       {paneel === "evenementen" && <Evenementen staat={staat} setStaat={setStaat} />}
       {paneel === "prikken" && <PrikkenPaneel staat={staat} setStaat={setStaat} />}
       {!paneel && <div key={weergave} className="opkomen flex flex-1 flex-col">

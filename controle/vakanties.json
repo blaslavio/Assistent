@@ -1,13 +1,13 @@
 {
-  "gemaakt_op": "2026-10-30T12:56:15.367034+00:00",
+  "gemaakt_op": "2026-10-30T13:08:00.656238+00:00",
   "scope": "ontwikkeling, geen productiecertificering",
   "webtests": {
-    "geslaagd": 289,
-    "bestanden": 62
+    "geslaagd": 301,
+    "bestanden": 63
   },
   "database": {
     "bestaande_integratietests_geslaagd": 25,
-    "nieuwe_verhuurtests_geslaagd": 20,
+    "nieuwe_verhuurtests_geslaagd": 22,
     "omgeving": "geïsoleerde PostgreSQL 17, daadwerkelijke migratie en RPCs",
     "gelijktijdigheid": [
       "twee bevestigingen",
@@ -23,9 +23,8 @@
     "breedte": 390,
     "hoogte": 844,
     "schermen": [
-      "reisplan",
-      "verhuur",
-      "aanbieden"
+      "reiskompas",
+      "vergelijking van twee verblijven"
     ],
     "horizontale_overloop": false,
     "productiegegevens": false
@@ -33,17 +32,30 @@
   "productiemigratie_toegepast": false,
   "betalingen_voor_verblijven": false,
   "bron_sha256": {
-    "web/src/lib/vakantie.ts": "2257795ff4065524ca2e503bc5ef501b279307495fd58d63c12f42d86b05bb5c",
+    "web/src/lib/vakantie.ts": "977ade43a5a1feb2cf1cce913aca20b99ed98e915b0342832981a758ccd57e9c",
     "web/src/lib/verhuur.ts": "3ac74e7cc6c5a00619bd8e71d282b500f0e4a6dc5ca23f75af29a5fd576c5aa8",
     "web/src/lib/assistent.ts": "755bc5aa8c2d6cdcb03abd6309622a549fd497a63ceffb93637182391c68a715",
     "web/src/lib/club.ts": "f87e985b8d79296d7a1e5ffda75c7ce63354c16cc1ed78297408286ceaab05ca",
     "web/src/lib/naar.ts": "9126d6c291ec441cfefe4419c4f1ff9936758bc31d427cc6a3020582dd16b595",
-    "web/src/schermen/Vakanties.tsx": "4adc51c756a363ad986ad7c4acd48dce11d0e7277d49f30b2af519de014c560c",
-    "web/src/schermen/Verblijven.tsx": "86af1e9a3a9c4e4ef2fb97041803b52161b2289b40b4823d58d667f8485d9472",
-    "web/src/schermen/Agenda.tsx": "6a54c545650e4228200760bfb717e18863b9b9f94291b9363ff1292921c06baa",
+    "web/src/schermen/Vakanties.tsx": "2ba3df3a5f361860d218a38ad463cb1f7e68537e6e96647a0dd51d2f1701f292",
+    "web/src/schermen/Verblijven.tsx": "9af04632971e2d81ac24fdc11c02223cce74ff979f34a4c8be24fd5671552563",
+    "web/src/schermen/Agenda.tsx": "8f2d151ed787a469dde6cd43253cfa809ee66a532ba6f191f8f7debb76e4f393",
     "web/src/schermen/Instellingen.tsx": "76c49270a6b60a150cc583c4851ba54c03fbfc4d570d8a33c771546eba3f1102",
-    "sql/vakantie_verhuur.sql": "fcbac570b743f89c74eb350cc34e0b5b67a157c0b43f308918493db611d6a44e",
-    "test_vakantie_verhuur.py": "24ac400bc68051eaf04a181b389b53ad73cbac8fe1f80f90cab74e5a13ff9575",
-    ".github/workflows/project-checks.yml": "2eacfdf09a0769e64d592cf107b843af15bc88f3bbc4b5ebc511725f701b70e6"
-  }
+    "sql/vakantie_verhuur.sql": "dee0df868ba44f1ca3fb6cb0981d159260850bd20da141598626268fab5add39",
+    "test_vakantie_verhuur.py": "d23fc90b3a832653c24babad3f96f8cabab02fd3c4f6006d247528bb8f54e228",
+    ".github/workflows/project-checks.yml": "2eacfdf09a0769e64d592cf107b843af15bc88f3bbc4b5ebc511725f701b70e6",
+    "web/src/lib/verblijfkeuze.ts": "92c6e51055467ab4ad4147fbc86782e94a540691b6a49e81004e4476a97b6df3",
+    "web/src/lib/verblijfkeuze.test.ts": "b9b2b677687acf986bb10f1a5cd54ce6a12714a49aeca4ff82e90980d0a4dc9b",
+    "web/src/lib/vakantie.test.ts": "a3b5e688afc82d4413b74f5afba578a84fe2213b91f3aa83eb05d2d7129a78c6",
+    "web/src/schermen/Vakanties.test.tsx": "d9eec5c227f6ade0d136c56aae670cfe793291b7958e61f4cfa36950354486a0",
+    "web/src/schermen/Verblijven.test.tsx": "bc2f75497ea3e4ae05a706a576eb1c56f7d5f26a04f867918a370d8652f297c8"
+  },
+  "verbeteringen": [
+    "agenda schuift alleen mee als de bestaande afspraak nog exact uit het plan komt",
+    "volgende stap en aankomstaftelling in Europe/Amsterdam",
+    "vergelijk maximaal drie verblijven op totaalprijs en voorzieningen",
+    "reisbudget inclusief vervoer en dagbudget voor de gekozen datums en gasten",
+    "zoektekst normaliseert komma’s, accenten en spaties",
+    "wis privégegevens en opdrachten bij sessiewissel; negeer late antwoorden"
+  ]
 }

@@ -188,6 +188,21 @@ class VakantieVerhuurTests(unittest.TestCase):
         self.sql(f"insert into private.vakantie_reserveringen(id,verblijf,gast,versie,van,tot,personen,totaal,voorwaarden,status) select md5(i::text)::uuid,'{self.id}',2,1,'2030-01-01','2030-01-02',1,10000,'test','geannuleerd' from generate_series(21,30) i")
         self.assertIn('dertig',self.request()['fout'])
 
+    def test_search_sorts_total_stay_price_including_cleaning(self):
+        second="00000000-0000-4000-8000-000000000099"
+        self.sql(f"insert into private.vakantie_verblijven select '{second}'::uuid,eigenaar,versie,'Goedkoper totaal',plaats,land,beschrijving,adres,regels,12000,0,personen,van,tot,voorzieningen,open,weg from private.vakantie_verblijven where id='{self.id}'")
+        # Vier nachten: 4*10000+5000=45000 versus 4*12000=48000.
+        self.assertEqual(self.search()['verblijven'][0]['id'],self.id)
+        # Eén nacht: 10000+5000=15000 versus 12000. De andere woning hoort nu eerst.
+        r=self.call('vakantie_verblijven_zoeken',"'gast','test-only','2030-05-01','2030-05-02',2,''")
+        self.assertEqual(r['verblijven'][0]['id'],second)
+
+    def test_search_accepts_place_country_from_trip_with_comma_accents_and_spacing(self):
+        self.sql("update private.vakantie_verblijven set plaats='Évora',land='Portugal'")
+        r=self.call('vakantie_verblijven_zoeken',"'gast','test-only','2030-05-01','2030-05-02',2,'  EVORA,   Portugal  '")
+        self.assertEqual(len(r['verblijven']),1)
+        self.assertEqual(self.call('vakantie_verblijven_zoeken',"'gast','test-only','2030-05-01','2030-05-02',2,'Andere plaats'")['verblijven'],[])
+
     def test_no_table_access_and_invalid_session_cannot_read(self):
         self.assertTrue(self.call('mijn_vakantie_verhuur',"'host','wrong'")['geen_toegang'])
         with self.assertRaises(AssertionError): self.sql('set role anon; select * from private.vakantie_verblijven')

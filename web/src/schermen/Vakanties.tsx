@@ -2,11 +2,17 @@ import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from "rea
 import { bijwerken, huidigeSessie, type Gegevens } from "../api";
 import type { Staat } from "../App";
 import { kaartBestemmingOpenen } from "../lib/naar";
-import { bewaren, botsingen, centen, controleer, euro, inAgenda, kosten, plannen, reisbrief, verwijderen, VOORBEREIDING, type Vakantie } from "../lib/vakantie";
+import { bewaren, botsingen, centen, controleer, euro, inAgenda, kosten, plannen, reisbrief, verwijderen, VOORBEREIDING, agendaStand, vertrekKompas, reisVandaag, reisDatum, type Vakantie } from "../lib/vakantie";
 const Verblijven = lazy(() => import("./Verblijven"));
 const veld = "min-h-12 w-full rounded-xl bg-vlak px-3 py-2";
 const knop = "min-h-11 rounded-full bg-vlak px-4 py-2 text-accent disabled:opacity-50";
-export default function Vakanties({ staat, setStaat }: { staat: Staat; setStaat: (s: Staat) => void }) {
+export default function Vakanties({ staat, setStaat, openAgenda }: { staat: Staat; setStaat: (s: Staat) => void; openAgenda?: (datum: string) => void }) {
+  const [vandaag,setVandaag] = useState(reisVandaag);
+  useEffect(() => {
+    const ververs = () => { if (!document.hidden) setVandaag(reisVandaag()); };
+    const klok = setInterval(ververs,60000); window.addEventListener("focus",ververs); document.addEventListener("visibilitychange",ververs);
+    return () => { clearInterval(klok); window.removeEventListener("focus",ververs); document.removeEventListener("visibilitychange",ververs); };
+  }, []);
   const [deel, setDeel] = useState<"plannen" | "verblijven">("plannen");
   const [bewerk, setBewerk] = useState<Vakantie | null>(null);
   const formulier = useRef<HTMLFormElement>(null);
@@ -44,7 +50,7 @@ export default function Vakanties({ staat, setStaat }: { staat: Staat; setStaat:
       {voorstel && <section aria-label="Controleer je vakantieplan" className="rounded-2xl border border-lijn p-4">
         <h2 className="font-semibold">Controleer je vakantieplan</h2><p>{voorstel.titel} · {voorstel.plaats}</p><p>{voorstel.van} t/m {voorstel.tot} · {kosten(voorstel).nachten} nachten</p>
         <p>Begroting {euro(kosten(voorstel).totaal)} · {voorstel.personen} reizigers</p>
-        <p className="text-sm text-rustig">Dagbudget geldt per reiziger, ook op de heen- en terugreisdag. Dit maakt geen boeking en wijzigt je agenda nog niet. Bij een bijgesteld plan moet je een eerdere agenda-afspraak zelf controleren.</p>
+        <p className="text-sm text-rustig">Dagbudget geldt per reiziger, ook op de heen- en terugreisdag. Dit maakt geen boeking. Bij opslaan schuift een eerder door dit plan gemaakte agenda-afspraak mee, als je die niet zelf hebt aangepast. Eigen aanpassingen blijven behouden.</p>
         <button className={knop} disabled={bezig} onClick={() => wijzig(g => bewaren(g, voorstel, bewerk ?? undefined), "Privévakantieplan opgeslagen.")}>Plan bewaren</button>
         <button className={knop} disabled={bezig} onClick={() => setVoorstel(null)}>Sluiten zonder terugdraaien</button>
       </section>}
@@ -56,8 +62,12 @@ export default function Vakanties({ staat, setStaat }: { staat: Staat; setStaat:
           <button className={knop} disabled={bezig || !!voorstel}>Plan controleren</button>
         </form></details>}
       {!leesfout && !lijst.length && <p>Je hebt nog geen vakantieplan. Begin met bestemming, datums en je eigen begroting.</p>}
-      {lijst.map(v => { const k = kosten(v), bots = botsingen(staat.data.afspraken, v); return <article key={v.id} className="flex flex-col gap-3 rounded-2xl border border-lijn p-4">
-        <h2 className="text-lg font-semibold">{v.titel}</h2><p>{v.plaats} · {v.van} t/m {v.tot}</p>
+      {lijst.map(v => { const k = kosten(v), bots = botsingen(staat.data.afspraken, v), kompas = vertrekKompas(v,staat.data.afspraken,vandaag), agenda = agendaStand(staat.data.afspraken,v); return <article key={v.id} className="flex flex-col gap-3 rounded-2xl border border-lijn p-4">
+        <h2 className="text-lg font-semibold">{v.titel}</h2><p>{v.plaats} · {reisDatum(v.van)} t/m {reisDatum(v.tot)}</p>
+        <section aria-label={`Volgende stap voor ${v.titel}`} className="rounded-xl bg-vlak p-3">
+          <p className="text-sm font-semibold">{kompas.fase}</p><p className="mt-1 text-sm">{kompas.stap}</p>
+          <p className="mt-2 text-xs text-rustig">{kompas.gedaan} van {VOORBEREIDING.length} voorbereidingen afgevinkt · geen boekingsbevestiging</p>
+        </section>
         <p>{k.nachten} nachten · {v.personen} reizigers · begroting {euro(k.totaal)}</p>
         <p className="text-sm text-rustig">{v.budget ? k.verschil < 0 ? `${euro(-k.verschil)} boven je budget` : `${euro(k.verschil)} ruimte binnen je budget` : "Totaalbudget nog niet bepaald"}. Eigen schatting, geen actuele prijsopgave.</p>
         {!!bots.length && <details><summary className="min-h-11 cursor-pointer py-2">Controleer {bots.length} mogelijk overlappende agenda-items</summary><ul>{bots.map(a => <li key={a.id}>{a.titel} · {a.start.slice(0,10)}</li>)}</ul></details>}
@@ -71,7 +81,9 @@ export default function Vakanties({ staat, setStaat }: { staat: Staat; setStaat:
         <details><summary className="min-h-11 cursor-pointer py-2">Plan bijstellen, kaart en agenda</summary><div className="flex flex-wrap gap-2">
           <button className={knop} disabled={bezig || !!voorstel} onClick={() => { setBewerk(v); setVoorstel(null); }}>Plan bijstellen</button>
           <button className={knop} onClick={() => kaartBestemmingOpenen(v.plaats)}>Bestemming op kaart</button>
-          <button className={knop} disabled={bezig} onClick={() => wijzig(g => inAgenda(g,v), "Vakantie in de agenda gezet, inclusief terugreisdag. Er is niets gereserveerd.")}>Bevestig: in mijn agenda zetten</button>
+          {agenda === "ontbreekt" && <button className={knop} disabled={bezig} onClick={() => wijzig(g => inAgenda(g,v), "Vakantie in de agenda gezet, inclusief terugreisdag. Er is niets gereserveerd.")}>Bevestig: in mijn agenda zetten</button>}
+          {agenda !== "ontbreekt" && <p className="text-sm text-rustig">{agenda === "actueel" ? "Je agenda loopt gelijk met dit plan." : "Je agenda-afspraak is apart aangepast. Controleer die vóór vertrek."}</p>}
+          {openAgenda && <button className={knop} onClick={() => openAgenda(v.van)}>Bekijk deze dagen in mijn agenda</button>}
           <button className={knop} disabled={bezig} onClick={() => setWeg(v)}>Plan verwijderen</button>
         </div></details>
         <details><summary className="min-h-11 cursor-pointer py-2">Reisbrief bekijken en kopiëren</summary><p className="text-sm text-rustig">Bevat bestemming, datums, reizigers en begroting. Controleer vóór je deelt; er wordt niets automatisch verzonden.</p>

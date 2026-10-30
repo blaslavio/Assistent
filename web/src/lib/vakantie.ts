@@ -54,6 +54,9 @@ export function bewaren(g: Gegevens, v: Vakantie, basis?: Vakantie) {
   if (bestaand && JSON.stringify(bestaand) === JSON.stringify(schoon)) return;
   if (basis) {
     if (basis.id !== v.id || !bestaand || JSON.stringify(bestaand) !== JSON.stringify(basis)) throw new Error("Het plan is intussen gewijzigd. Vernieuw eerst.");
+    // Alleen een ongewijzigde, door dit plan gemaakte afspraak mag automatisch meeschuiven.
+    const i = g.afspraken.findIndex(a => a.id === `vakantie:${v.id}`);
+    if (i >= 0 && zelfdeAfspraak(g.afspraken[i], agendaAfspraak(basis))) g.afspraken[i] = agendaAfspraak(schoon);
     g.vakanties = lijst.map(x => x.id === v.id ? schoon : x);
   } else {
     if (bestaand) throw new Error("Dit plan bestaat al met andere gegevens. Open het opnieuw.");
@@ -62,14 +65,26 @@ export function bewaren(g: Gegevens, v: Vakantie, basis?: Vakantie) {
   }
 }
 
+function agendaAfspraak(v: Vakantie): Afspraak {
+  return { id: `vakantie:${v.id}`, titel: `Vakantie: ${v.titel}`, start: v.van, einde: v.tot, locatie: v.plaats,
+    soort: "reizen", notitie: "Privévakantieplan. Dit is geen reserverings- of betaalbevestiging. Terugreisdag inbegrepen." };
+}
+function zelfdeAfspraak(a: Afspraak, b: Afspraak) {
+  const sleutels = Object.keys(a).sort();
+  return JSON.stringify(sleutels) === JSON.stringify(Object.keys(b).sort())
+    && sleutels.every(k => a[k as keyof Afspraak] === b[k as keyof Afspraak]);
+}
+export function agendaStand(afspraken: Afspraak[], v: Vakantie): "ontbreekt" | "actueel" | "aangepast" {
+  const oud = afspraken.find(a => a.id === `vakantie:${v.id}`);
+  return !oud ? "ontbreekt" : zelfdeAfspraak(oud, agendaAfspraak(v)) ? "actueel" : "aangepast";
+}
 export function inAgenda(g: Gegevens, v: Vakantie) {
   const actueel = plannen(g).find(x => x.id === v.id);
   if (!actueel || JSON.stringify(actueel) !== JSON.stringify(v)) throw new Error("Dit vakantieplan is gewijzigd. Vernieuw eerst.");
   const id = `vakantie:${v.id}`;
-  const a: Afspraak = { id, titel: `Vakantie: ${v.titel}`, start: v.van, einde: v.tot, locatie: v.plaats,
-    soort: "reizen", notitie: "Privévakantieplan. Dit is geen reserverings- of betaalbevestiging. Terugreisdag inbegrepen." };
+  const a = agendaAfspraak(v);
   const oud = g.afspraken.find(x => x.id === id);
-  if (oud && JSON.stringify(oud) !== JSON.stringify(a)) throw new Error("De agenda-afspraak is elders aangepast. Verwijder die eerst bewust vanuit de agenda.");
+  if (oud && !zelfdeAfspraak(oud, a)) throw new Error("De agenda-afspraak is elders aangepast. Verwijder die eerst bewust vanuit de agenda.");
   if (!oud) g.afspraken.push(a);
 }
 export function verwijderen(g: Gegevens, v: Vakantie) {
@@ -81,4 +96,30 @@ export function verwijderen(g: Gegevens, v: Vakantie) {
 export function reisbrief(v: Vakantie) {
   const k = kosten(v);
   return `${v.titel}\nBestemming: ${v.plaats}\n${v.van} t/m ${v.tot} · ${k.nachten} nachten · ${v.personen} reizigers\nBegroting: ${euro(k.totaal)} (schatting)\nNog te regelen:\n${VOORBEREIDING.filter(t => !v.checklist.includes(t)).map(t => `- ${t}`).join("\n") || "Basischecklist afgerond"}\nDit plan is geen boeking. Controleer actuele prijzen en voorwaarden.`;
+}
+
+/** Kalenderdatum van de gebruiker in Amsterdam, zonder UTC-dagverschuiving rond middernacht. */
+export function reisVandaag(nu = new Date()) {
+  const delen = new Intl.DateTimeFormat("en-CA", {timeZone:"Europe/Amsterdam",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(nu);
+  const lees = (k: string) => delen.find(p => p.type === k)!.value;
+  return `${lees("year")}-${lees("month")}-${lees("day")}`;
+}
+export function reisDatum(d: string) {
+  dagGetal(d);
+  return new Intl.DateTimeFormat("nl-NL", {day:"numeric",month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(`${d}T00:00:00Z`));
+}
+export function vertrekKompas(v: Vakantie, afspraken: Afspraak[], vandaag = reisVandaag()) {
+  const over = dagGetal(v.van) - dagGetal(vandaag), voorbij = dagGetal(v.tot) < dagGetal(vandaag);
+  const open = VOORBEREIDING.filter(t => !v.checklist.includes(t));
+  const fase = voorbij ? "Reis volgens je plan voorbij" : over < 0 ? "Reis volgens je plan bezig" : over === 0 ? "Aankomst volgens je plan vandaag" : `Aankomst over ${over} ${over === 1 ? "dag" : "dagen"}`;
+  let stap: string;
+  if (voorbij) stap = "Loop je werkelijke uitgaven en open afspraken met de verhuurder na.";
+  else if (over <= 0) stap = "Controleer aankomst, sleuteloverdracht en je reserveringsbevestiging.";
+  else if (agendaStand(afspraken,v) === "aangepast") stap = "Controleer de aangepaste vakantie-afspraak in je agenda.";
+  else if (kosten(v).verschil < 0 && v.budget > 0) stap = "Je begroting overschrijdt je budget. Stel kosten of budget bij.";
+  else if (over <= 14 && open.length) stap = open[0];
+  else if (agendaStand(afspraken,v) === "ontbreekt") stap = "Zet je vakantie bewust in je agenda om andere plannen erbij te kunnen afstemmen.";
+  else if (open.length) stap = open[0];
+  else stap = "Je basischecklist is klaar. Controleer de bevestigingen en actuele reisinformatie.";
+  return {fase,stap,open:open.length,gedaan:VOORBEREIDING.length-open.length};
 }

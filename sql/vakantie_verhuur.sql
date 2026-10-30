@@ -39,20 +39,27 @@ returns jsonb language sql stable set search_path to '' as $$
 $$;
 revoke all on function private.vakantie_json(private.vakantie_verblijven,boolean) from public,anon,authenticated;
 
+create or replace function private.vakantie_zoektekst(p_tekst text)
+returns text language sql immutable set search_path to '' as $$
+ select regexp_replace(translate(lower(trim(coalesce(p_tekst,''))),
+ 'àáâäãåèéêëìíîïòóôöõùúûüçñ','aaaaaaeeeeiiiiooooouuuucn'),'[[:space:],;]+',' ','g')
+$$;
+revoke all on function private.vakantie_zoektekst(text) from public,anon,authenticated;
+
 create or replace function public.vakantie_verblijven_zoeken(p_naam text,p_wachtwoord text,p_van date,p_tot date,p_personen integer,p_plek text default '')
 returns jsonb language plpgsql stable security definer set search_path to '' as $$
 declare ik bigint:=private.gebruiker_id(p_naam,p_wachtwoord);
 begin
  if ik is null then return jsonb_build_object('geen_toegang',true); end if;
- if p_van is null or p_tot is null or p_personen is null or p_van < (now() at time zone 'Europe/Amsterdam')::date or p_tot<=p_van or p_tot>p_van+90 or p_personen not between 1 and 30 then return jsonb_build_object('fout','Controleer datums en gasten.'); end if;
+ if p_van is null or p_tot is null or p_personen is null or p_van < (now() at time zone 'Europe/Amsterdam')::date or p_tot<=p_van or p_tot>p_van+90 or p_personen not between 1 and 30 or coalesce(length(p_plek),0)>160 then return jsonb_build_object('fout','Controleer datums, gasten en plaats.'); end if;
  return jsonb_build_object('verblijven',coalesce((select jsonb_agg(x.j) from (
   select private.vakantie_json(v,false) j from private.vakantie_verblijven v join private.gebruikers g on g.id=v.eigenaar
   where v.open and not v.weg and not g.geblokkeerd and not g.verwijderd and v.eigenaar<>ik
     and v.personen>=p_personen and v.van<=p_van and v.tot>=p_tot
-    and (coalesce(trim(p_plek),'')='' or position(lower(trim(p_plek)) in lower(v.plaats||' '||v.land))>0)
+    and (private.vakantie_zoektekst(p_plek)='' or position(private.vakantie_zoektekst(p_plek) in private.vakantie_zoektekst(v.plaats||' '||v.land))>0)
     and not exists(select 1 from private.vakantie_blokkades b where b.verblijf=v.id and b.van<p_tot and b.tot>p_van)
     and not exists(select 1 from private.vakantie_reserveringen r where r.verblijf=v.id and r.status='bevestigd' and r.van<p_tot and r.tot>p_van)
-  order by v.prijs,v.id limit 50) x),'[]'::jsonb));
+  order by (p_tot-p_van)*v.prijs+v.schoonmaak,v.id limit 50) x),'[]'::jsonb));
 end; $$;
 
 create or replace function public.mijn_vakantie_verhuur(p_naam text,p_wachtwoord text)
@@ -160,7 +167,7 @@ begin
  if doel='bevestigd' then
   if r.versie<>v.versie or not v.open or v.weg or r.van<(now() at time zone 'Europe/Amsterdam')::date
    or not exists(select 1 from private.gebruikers where id=r.gast and not geblokkeerd and not verwijderd)
-   then return jsonb_build_object('fout','Aanbod of aanvraag is gewijzigd. Laat de gast opnieuw aanvragen.'); end if;
+   then return jsonb_build_object('fout','Aanbod of aanvraag is gewijzigd. Wijs de oude aanvraag af of laat de gast die annuleren en opnieuw aanvragen.'); end if;
   if exists(select 1 from private.vakantie_blokkades where verblijf=v.id and van<r.tot and tot>r.van) then return jsonb_build_object('fout','Deze nachten zijn door de verhuurder geblokkeerd.'); end if;
   if exists(select 1 from private.vakantie_reserveringen where verblijf=v.id and id<>r.id and status='bevestigd' and van<r.tot and tot>r.van) then return jsonb_build_object('fout','Er is al een bevestigde reservering voor deze nachten.'); end if;
  end if;
