@@ -1,3 +1,4 @@
+import HoofdNavigatie from "./schermen/HoofdNavigatie";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { GeenToegang, adresOpruimen, adresWaarde, gegevensLaden, huidigeSessie, momentopnameBewaren, opstarten, overstappen,
   type Staat } from "./api";
@@ -52,7 +53,7 @@ const POST = postVragen(adresWaarde("post"));
 const CURSUS = terugVanCursus(adresWaarde("cursus_betaald"), adresWaarde("pakket_betaald"), adresWaarde("community_abonnement"));
 adresOpruimen("betaald", "zeg", "ochtend", "winkel", "code", "state", "cursus_betaald", "pakket_betaald", "community_abonnement", "cursus", "post");
 if (BETAALD !== null) openVragen(BETAALD === "0" ? "Betalen is afgebroken. Je kunt het opnieuw proberen."
-  : "Gelukt. Je betaling is binnen en het geld staat vast tot je bevestigt dat alles goed is.");
+  : "Je bent terug van de betaalpagina. Controleer de actuele betaalstatus bij je bestelling.");
 // Alleen Vandaag zit in het eerste stuk van de app. De andere schermen komen los, en worden opgehaald zodra de app
 // even niets te doen heeft, zodat ze klaarstaan voordat je erop tikt. Claude laden we pas als je de assistent opent.
 const laden = {
@@ -60,6 +61,7 @@ const laden = {
   chat: () => import("./schermen/Chat"),
   instellingen: () => import("./schermen/Instellingen"),
 };
+const Projecten = lazy(() => import("./schermen/Projecten"));
 const Agenda = lazy(laden.agenda);
 const Chat = lazy(laden.chat);
 const Instellingen = lazy(laden.instellingen);
@@ -77,10 +79,11 @@ function vooraf() {
   else setTimeout(doe, 1200);
 }
 
-export type Tab = "vandaag" | "agenda" | "chat" | "assistent" | "instellingen";
+export type Tab = "projecten" | "vandaag" | "agenda" | "chat" | "assistent" | "instellingen";
 
 const TABS: { id: Tab; naam: string; Icoon: typeof Zon }[] = [
   { id: "vandaag", naam: "Vandaag", Icoon: Zon },
+  { id: "projecten", naam: "Projecten", Icoon: Kalender },
   { id: "agenda", naam: "Agenda", Icoon: Kalender },
   { id: "chat", naam: "Chat", Icoon: Ballon },
   { id: "assistent", naam: "Assistent", Icoon: Vonk },
@@ -97,8 +100,10 @@ export default function App() {
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [teKopen, setTeKopen] = useState<Product | null>(null);
   const [fout, setFout] = useState("");
+  const [werkGesprek, setWerkGesprek] = useState<{ id: number; ronde: number; gebruiker: number } | null>(null);
   // De vorige stand staat op het scherm terwijl het inloggen nog loopt (of zonder verbinding).
   const [voorlopig, setVoorlopig] = useState(false);
+
 
   const [voorChat, setVoorChat] = useState<Tab>("vandaag");
   // Een onderdeel dat je via "Je apps" opent; het getal laat Instellingen weten dat het opnieuw gevraagd is.
@@ -220,15 +225,18 @@ export default function App() {
   if (!staat || (!huidigeSessie() && !voorlopig)) return <Inloggen opIngelogd={herladen} />;
 
   const scherm = {
-    vandaag: <Vandaag staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} ga={setTab}
+    vandaag: <Vandaag key={staat.gebruiker.id} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} ga={setTab}
       vraag={(t) => { setVooraf(t); setTab("assistent"); }} />,
+    projecten: <Projecten key={staat.gebruiker.id} staat={staat} naarChat={() => { setWerkGesprek(null); setTab("chat"); }} open={gesprek => {
+      setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat");
+    }} />,
     agenda: <Agenda staat={staat} setStaat={setStaat} />,
-    chat: <Chat staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
+    chat: <Chat key={staat.gebruiker.id} werkGesprek={werkGesprek} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
       verlaat={() => setTab(voorChat)} terugNaam={TABS.find((t) => t.id === voorChat)?.naam}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
     assistent: <Assistent staat={staat} vernieuw={herladen} teKopen={teKopen}
       gekocht={() => setTeKopen(null)} vooraf={voorafVraag} voorafGebruikt={() => setVooraf("")}
-      naarBestellingen={() => { openVragen(); setTab("chat"); }} />,
+      naarBestellingen={() => { setWerkGesprek(null); openVragen(); setTab("chat"); }} />,
     instellingen: <Instellingen staat={staat} vernieuw={herladen} terug={() => setTab(vorige)} opUitgelogd={() => setStaat(null)}
       setStaat={setStaat} vraag={(t) => { setVooraf(t); setTab("assistent"); }} start={startOnderdeel}
       vorigeNaam={TABS.find((t) => t.id === vorige)?.naam} />,
@@ -244,26 +252,14 @@ export default function App() {
             className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white">Opnieuw</button>
         </div>}
       <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}><Suspense fallback={null}>{scherm}</Suspense></Vangnet></div>
-      <Vangnet naam="bellen" klein><BelLaag /></Vangnet>
+      <Vangnet naam="bellen" klein><BelLaag naarProject={(gesprek) => { setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat"); }} /></Vangnet>
       <MascotteFeest />
       {gedeeldePost !== null && huidigeSessie() && (
         <Suspense fallback={null}><PostBlad id={gedeeldePost} sluit={() => setGedeeldePost(null)} /></Suspense>
       )}
       {/* In de chat heeft de chat zijn eigen menu, zoals een aparte app; linksboven ga je terug. */}
       {(tab === "agenda" || tab === "instellingen") && <AltijdVragen vraag={(t) => { setVooraf(t); setTab("assistent"); }} />}
-      {tab !== "chat" && <nav aria-label="Hoofdmenu"
-        className="flex shrink-0 justify-around border-t border-lijn pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)]">
-        {TABS.map(({ id, naam, Icoon }) => {
-          const actief = tab === id;
-          return (
-            <button key={id} onClick={() => setTab(id)} aria-current={actief ? "page" : undefined}
-              className={`flex min-w-14 flex-col items-center gap-1 text-[11px] ${actief ? "font-semibold text-inkt" : "text-zacht"}`}>
-              <Icoon />
-              {naam}
-            </button>
-          );
-        })}
-      </nav>}
+      {tab !== "chat" && <HoofdNavigatie actief={tab} kies={t => { if(t === "chat") setWerkGesprek(null); setTab(t); }} />}
     </div>
   );
 }

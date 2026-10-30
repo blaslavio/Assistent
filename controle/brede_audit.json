@@ -1,0 +1,1470 @@
+{
+  "formaat": "assistent-brede-audit",
+  "versie": 1,
+  "tijd": "2026-10-29T22:54:46.959263+00:00",
+  "basis_commit": "6637bec339f5b8561d0ac9ca97cf78029160f90c",
+  "synthetische_regressie": {
+    "gevallen": 100000,
+    "families": 20,
+    "geslaagd": 100000,
+    "seed": 10000020261028,
+    "rapport": "controle/integratie_100000.json.gz"
+  },
+  "nieuwe_planner_scenarios": {
+    "gevallen": 5000,
+    "seed": "0x261029",
+    "minimaal_in_geheugen_bewaarde_scenarios": 4001,
+    "volledig_bezette_scenarios": 250,
+    "onderdeel_van_webtests": true
+  },
+  "nieuwe_toestemming_voorwaarden_scenarios": {
+    "gevallen": 5000,
+    "onderdeel_van_webtests": true,
+    "scope": "Actuele toestemming, ontbrekende leden, intrekken, verval, afzendervervalsing, titelbeperking en driewaardige dienstvoorwaarden"
+  },
+  "python_tests": {
+    "geslaagd": 1269,
+    "overgeslagen": 0,
+    "postgres_archief": 11,
+    "postgres_veilige_opslag": 25
+  },
+  "pytest": {
+    "geslaagd": 358,
+    "subtests": 21
+  },
+  "webtests": {
+    "geslaagd": 177,
+    "builds": 2
+  },
+  "beveiliging": {
+    "bandit_per_ernst": {
+      "LOW": 88
+    },
+    "bandit_per_categorie": {
+      "B106": 2,
+      "B110": 40,
+      "B406": 1,
+      "B404": 11,
+      "B603": 16,
+      "B311": 2,
+      "B101": 2,
+      "B112": 2,
+      "B607": 8,
+      "B105": 4
+    },
+    "bandit_code_suppressies": 5,
+    "lage_signaleringen": [
+      {
+        "bestand": "./agendas.py",
+        "regel": 525,
+        "categorie": "B106",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./agent.py",
+        "regel": 329,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./agent.py",
+        "regel": 669,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./agent.py",
+        "regel": 1284,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 434,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 656,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 1361,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 2040,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 3273,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 3314,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 3324,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 3330,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 3783,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 6633,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 6642,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 6649,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 6655,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 6660,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 6667,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 6674,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 6679,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./app.py",
+        "regel": 6685,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./azure_services.py",
+        "regel": 8,
+        "categorie": "B406",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./bank.py",
+        "regel": 159,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./bestanden.py",
+        "regel": 112,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./bestandsgereedschap.py",
+        "regel": 13,
+        "categorie": "B404",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./bestandsgereedschap.py",
+        "regel": 57,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./boekpagina.py",
+        "regel": 139,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./browser.py",
+        "regel": 312,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./chat.py",
+        "regel": 355,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./dieptecontrole.py",
+        "regel": 253,
+        "categorie": "B311",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./documenten.py",
+        "regel": 325,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./documenten.py",
+        "regel": 389,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./extern_inloggen.py",
+        "regel": 46,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./gezondheid.py",
+        "regel": 234,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./integratiecontrole.py",
+        "regel": 104,
+        "categorie": "B101",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./integratiecontrole.py",
+        "regel": 111,
+        "categorie": "B311",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./mail.py",
+        "regel": 127,
+        "categorie": "B112",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./mail.py",
+        "regel": 183,
+        "categorie": "B112",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./opslag.py",
+        "regel": 283,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./opslag.py",
+        "regel": 312,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./opslag.py",
+        "regel": 599,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./opslag.py",
+        "regel": 605,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./opslag.py",
+        "regel": 615,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./privacy_scherm.py",
+        "regel": 131,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./samen.py",
+        "regel": 841,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./samen_leren.py",
+        "regel": 105,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./samen_scherm.py",
+        "regel": 1633,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./scripts/azure_validate.py",
+        "regel": 7,
+        "categorie": "B404",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./scripts/azure_validate.py",
+        "regel": 23,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./scripts/azure_validate.py",
+        "regel": 70,
+        "categorie": "B607",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./scripts/azure_validate.py",
+        "regel": 70,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_bestandsgereedschap.py",
+        "regel": 9,
+        "categorie": "B404",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_bestandsgereedschap.py",
+        "regel": 82,
+        "categorie": "B607",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_bestandsgereedschap.py",
+        "regel": 82,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_controlegereedschap.py",
+        "regel": 6,
+        "categorie": "B404",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_controlegereedschap.py",
+        "regel": 56,
+        "categorie": "B105",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_controlegereedschap.py",
+        "regel": 59,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_controlegereedschap.py",
+        "regel": 64,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_integratie.py",
+        "regel": 90,
+        "categorie": "B106",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_interface.py",
+        "regel": 137,
+        "categorie": "B101",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_opslag_validatie.py",
+        "regel": 4,
+        "categorie": "B404",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_opslag_validatie.py",
+        "regel": 39,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_planning_backup.py",
+        "regel": 41,
+        "categorie": "B105",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_project_archief.py",
+        "regel": 5,
+        "categorie": "B404",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_project_archief.py",
+        "regel": 16,
+        "categorie": "B607",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_project_archief.py",
+        "regel": 16,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_veilige_opslag.py",
+        "regel": 10,
+        "categorie": "B404",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_veilige_opslag.py",
+        "regel": 35,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_verdieping.py",
+        "regel": 121,
+        "categorie": "B105",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./test_verdieping.py",
+        "regel": 121,
+        "categorie": "B105",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/bron_review.py",
+        "regel": 16,
+        "categorie": "B404",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/bron_review.py",
+        "regel": 45,
+        "categorie": "B607",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/bron_review.py",
+        "regel": 45,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/bron_review.py",
+        "regel": 84,
+        "categorie": "B607",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/bron_review.py",
+        "regel": 84,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/bron_review.py",
+        "regel": 99,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/diepte_controle.py",
+        "regel": 13,
+        "categorie": "B404",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/diepte_controle.py",
+        "regel": 24,
+        "categorie": "B607",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/diepte_controle.py",
+        "regel": 24,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/planning_controle.py",
+        "regel": 15,
+        "categorie": "B404",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/planning_controle.py",
+        "regel": 89,
+        "categorie": "B607",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/planning_controle.py",
+        "regel": 89,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/planning_controle.py",
+        "regel": 111,
+        "categorie": "B607",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./tools/planning_controle.py",
+        "regel": 111,
+        "categorie": "B603",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./verbeteren.py",
+        "regel": 36,
+        "categorie": "B110",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./video_trim.py",
+        "regel": 3,
+        "categorie": "B404",
+        "ernst": "LOW"
+      },
+      {
+        "bestand": "./video_trim.py",
+        "regel": 34,
+        "categorie": "B603",
+        "ernst": "LOW"
+      }
+    ],
+    "python_pakketten": 90,
+    "python_pakketten_met_bekende_kwetsbaarheden": 0,
+    "python_overgeslagen_pakketten": 0,
+    "npm_kwetsbaarheden": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "npm_afhankelijkheden": {
+      "prod": 15,
+      "dev": 173,
+      "optional": 70,
+      "peer": 13,
+      "peerOptional": 0,
+      "total": 187
+    },
+    "python_dependency_versies": [
+      {
+        "naam": "altair",
+        "versie": "6.3.0"
+      },
+      {
+        "naam": "annotated-types",
+        "versie": "0.8.0"
+      },
+      {
+        "naam": "anthropic",
+        "versie": "2.3.0"
+      },
+      {
+        "naam": "anyio",
+        "versie": "4.15.1"
+      },
+      {
+        "naam": "attrs",
+        "versie": "26.1.0"
+      },
+      {
+        "naam": "bandit",
+        "versie": "1.9.4"
+      },
+      {
+        "naam": "caldav",
+        "versie": "3.6.0"
+      },
+      {
+        "naam": "calendaring-config",
+        "versie": "0.5.0"
+      },
+      {
+        "naam": "certifi",
+        "versie": "2026.10.23"
+      },
+      {
+        "naam": "cffi",
+        "versie": "2.1.1"
+      },
+      {
+        "naam": "charset-normalizer",
+        "versie": "3.5.2"
+      },
+      {
+        "naam": "click",
+        "versie": "8.5.0"
+      },
+      {
+        "naam": "cryptography",
+        "versie": "50.0.2"
+      },
+      {
+        "naam": "defusedxml",
+        "versie": "0.7.1"
+      },
+      {
+        "naam": "distro",
+        "versie": "1.9.0"
+      },
+      {
+        "naam": "dnspython",
+        "versie": "2.9.0"
+      },
+      {
+        "naam": "docstring-parser",
+        "versie": "0.18.0"
+      },
+      {
+        "naam": "fitdecode",
+        "versie": "0.11.0"
+      },
+      {
+        "naam": "fonttools",
+        "versie": "4.67.0"
+      },
+      {
+        "naam": "fpdf2",
+        "versie": "2.8.9"
+      },
+      {
+        "naam": "google-auth",
+        "versie": "2.62.0"
+      },
+      {
+        "naam": "google-genai",
+        "versie": "1.75.0"
+      },
+      {
+        "naam": "h11",
+        "versie": "0.16.0"
+      },
+      {
+        "naam": "httpcore",
+        "versie": "1.0.9"
+      },
+      {
+        "naam": "httpcore2",
+        "versie": "2.16.0"
+      },
+      {
+        "naam": "httpx",
+        "versie": "0.28.1"
+      },
+      {
+        "naam": "httpx2",
+        "versie": "2.16.0"
+      },
+      {
+        "naam": "icalendar",
+        "versie": "7.3.0"
+      },
+      {
+        "naam": "icalendar-searcher",
+        "versie": "1.3.0"
+      },
+      {
+        "naam": "idna",
+        "versie": "3.20"
+      },
+      {
+        "naam": "imageio-ffmpeg",
+        "versie": "0.6.0"
+      },
+      {
+        "naam": "iniconfig",
+        "versie": "2.3.1"
+      },
+      {
+        "naam": "itsdangerous",
+        "versie": "2.2.0"
+      },
+      {
+        "naam": "jh2",
+        "versie": "5.0.15"
+      },
+      {
+        "naam": "jinja2",
+        "versie": "3.1.6"
+      },
+      {
+        "naam": "jiter",
+        "versie": "0.18.0"
+      },
+      {
+        "naam": "jsonschema",
+        "versie": "4.26.0"
+      },
+      {
+        "naam": "jsonschema-specifications",
+        "versie": "2025.9.1"
+      },
+      {
+        "naam": "lxml",
+        "versie": "6.1.3"
+      },
+      {
+        "naam": "markdown-it-py",
+        "versie": "4.2.0"
+      },
+      {
+        "naam": "markupsafe",
+        "versie": "3.0.4"
+      },
+      {
+        "naam": "mdurl",
+        "versie": "0.1.2"
+      },
+      {
+        "naam": "narwhals",
+        "versie": "2.27.1"
+      },
+      {
+        "naam": "niquests",
+        "versie": "3.21.2"
+      },
+      {
+        "naam": "numpy",
+        "versie": "2.5.4"
+      },
+      {
+        "naam": "opentelemetry-api",
+        "versie": "1.45.1"
+      },
+      {
+        "naam": "packaging",
+        "versie": "26.3"
+      },
+      {
+        "naam": "pandas",
+        "versie": "3.1.0"
+      },
+      {
+        "naam": "pillow",
+        "versie": "13.0.0"
+      },
+      {
+        "naam": "pillow-heif",
+        "versie": "1.8.1"
+      },
+      {
+        "naam": "pluggy",
+        "versie": "1.7.0"
+      },
+      {
+        "naam": "protobuf",
+        "versie": "7.36.2"
+      },
+      {
+        "naam": "pyarrow",
+        "versie": "26.0.0"
+      },
+      {
+        "naam": "pyasn1",
+        "versie": "0.6.5"
+      },
+      {
+        "naam": "pyasn1-modules",
+        "versie": "0.4.2"
+      },
+      {
+        "naam": "pycparser",
+        "versie": "3.12"
+      },
+      {
+        "naam": "pydantic",
+        "versie": "2.14.1"
+      },
+      {
+        "naam": "pydantic-core",
+        "versie": "2.50.1"
+      },
+      {
+        "naam": "pydeck",
+        "versie": "0.9.3"
+      },
+      {
+        "naam": "pygments",
+        "versie": "2.21.0"
+      },
+      {
+        "naam": "pypdf",
+        "versie": "6.21.2"
+      },
+      {
+        "naam": "pytest",
+        "versie": "9.2.0"
+      },
+      {
+        "naam": "python-dateutil",
+        "versie": "2.9.0.post0"
+      },
+      {
+        "naam": "python-docx",
+        "versie": "1.2.0"
+      },
+      {
+        "naam": "python-multipart",
+        "versie": "0.0.32"
+      },
+      {
+        "naam": "pyyaml",
+        "versie": "6.0.3"
+      },
+      {
+        "naam": "qh3",
+        "versie": "2.0.4"
+      },
+      {
+        "naam": "qrcode",
+        "versie": "8.2"
+      },
+      {
+        "naam": "recurring-ical-events",
+        "versie": "3.8.2"
+      },
+      {
+        "naam": "referencing",
+        "versie": "0.37.0"
+      },
+      {
+        "naam": "requests",
+        "versie": "2.34.2"
+      },
+      {
+        "naam": "rich",
+        "versie": "15.0.0"
+      },
+      {
+        "naam": "rpds-py",
+        "versie": "2026.9.1"
+      },
+      {
+        "naam": "six",
+        "versie": "1.17.0"
+      },
+      {
+        "naam": "sniffio",
+        "versie": "1.3.1"
+      },
+      {
+        "naam": "starlette",
+        "versie": "1.10.0"
+      },
+      {
+        "naam": "stevedore",
+        "versie": "5.9.1"
+      },
+      {
+        "naam": "streamlit",
+        "versie": "1.66.1"
+      },
+      {
+        "naam": "tenacity",
+        "versie": "9.1.4"
+      },
+      {
+        "naam": "truststore",
+        "versie": "0.10.5"
+      },
+      {
+        "naam": "typing-extensions",
+        "versie": "4.16.0"
+      },
+      {
+        "naam": "typing-inspection",
+        "versie": "0.4.4"
+      },
+      {
+        "naam": "tzdata",
+        "versie": "2026.5"
+      },
+      {
+        "naam": "urllib3",
+        "versie": "2.8.0"
+      },
+      {
+        "naam": "urllib3-future",
+        "versie": "2.25.903"
+      },
+      {
+        "naam": "uvicorn",
+        "versie": "0.54.0"
+      },
+      {
+        "naam": "wassima",
+        "versie": "2.1.5"
+      },
+      {
+        "naam": "watchdog",
+        "versie": "6.0.0"
+      },
+      {
+        "naam": "websockets",
+        "versie": "16.1.1"
+      },
+      {
+        "naam": "x-wr-timezone",
+        "versie": "2.0.1"
+      }
+    ]
+  },
+  "scope": "Lokale en geïsoleerde controles met synthetische gegevens. Aantallen testgevallen zijn geen aantallen verbeterpunten. Geen certificering van de hele app.",
+  "niet_geverifieerd": [
+    "Productie-E2E met echte accounts/apparaten",
+    "Echte betaal-, boekings-, reserverings- en maildiensten",
+    "Werkelijke multi-device encryptie en camera/microfoon",
+    "Volledige functionele beoordeling van alle lage statische signalen"
+  ],
+  "bronhashes": {
+    "actielinks.py": "6540b2a10354323b4052aa2515681104c363110b1784d1c8b50f0c93d5dd4f34",
+    "actielinks_scherm.py": "be52b9b4bc2909b45e978ea9dd06def90ea04c9cb2f83c6a1adde3a792fcc499",
+    "actieoverzicht.py": "0d2ef086320684731bedbaf8a1c28ccd9edf69d9af0ca63363e44df20c69f6f6",
+    "actieoverzicht_scherm.py": "07c06097d97a5991710833b25ed5fab25f7eeeffca71605dc71a5ba53341a76c",
+    "action_tools.py": "dd5ae50832a25d8cd94e7001b6fbe1c6973c71c6e28910d9984e492d2f4087ba",
+    "activiteiten.py": "62039789336d778abc4f3dbac7624ceb30f722a275be101e116d21766b846209",
+    "agenda_import.py": "182e395922742f9a85ba4515eb409b36c9c935d1a80a17be80f7f686c32aa500",
+    "agendacontrole.py": "7c73fced230cabcffa9747f350339497a3ed82c3579a958b045a1c01fe1bc3d3",
+    "agendas.py": "d70c7d8f9400df88efb707af45336f65df5750c3a60dd238f5031d0b8a5dc887",
+    "agent.py": "06f8df5af89c4e2e757f2a8bcb82c42011c73db79630c2f1c2617b8de0462611",
+    "ander_brein.py": "c02e21f2daa8246543857ff17b15e89bb2a00ea0ff8185ca91e571279320375f",
+    "app.py": "4f6a2a33f6303e7c92e7ef964fbf75258e075b1895904c7b0e307c9e4b24f0a5",
+    "assistant_learning.py": "f9748e21bf23ee793d9225520d82e032799b487f6de6a416e8d99d003f85fa1e",
+    "assistant_learning_tests.py": "7acb83a480cd9fc0f91a374321293f29d2663818371ff23b76985b0366ec1850",
+    "assistant_privacy.py": "806256939ee4b0fb421fc7dea7037688d5542d1b508261ec8eba441bac85b638",
+    "assistant_privacy_tests.py": "c5dfa9c5b800afa3abedca6ec5ad2a50cc9aefe4abd732d00463b82cb00fb7c5",
+    "avatar.py": "1958c5438babdc99e20773459e73d73af1704c9965fc888e7b4be201041e8036",
+    "azure-pipelines.yml": "ee9ef49c33e17a3347d92ef1bc227631c6f8a40981b9f8c82dff1df772d9a068",
+    "azure_documents.py": "4d82ad8c07f4af35d01bd6b6ce100174d2f4845cb4caf97a8af16962aa882fbe",
+    "azure_search_ready.py": "3c24fb269e92f0a3321628d75a7e2dc17061c007e90a85385b5c20c6f4af1724",
+    "azure_services.py": "d1acfb0dd1f2c9739665cd3f4c23813b6f30419577d2f718d0df46ee5b6ab11a",
+    "azure_ui.py": "11a8c52dddadaf1bf0f548c9ade4db657a36cc7f7dfc1ff30d14d4b0404eb0a9",
+    "bank.py": "dd99fd53e19e64420827c87dacfec1b1ed15f14540f8a5b2e3ebdeee1c2544ee",
+    "beleggen.py": "9d423098147e8401a97f1b61e824261b1f3301ee58b142cc5b2f4080fc8d2efd",
+    "beroep.py": "fa38e4ade7e9cfba900b385f4cbc0aba683718bff63b3fbbefe18baf4f953b78",
+    "bestanden.py": "c6f367f759ea7225fd90154de5ae88906a8e57552a2a094ab7349667de824bdb",
+    "bestanden_scherm.py": "3dcc774c23c2b6c4a5bd489b3d9afa1e507bde5c9d826059b09f8675dcf163f2",
+    "bestandsgereedschap.py": "870d459c22c41baf888f4de33e2eb6d0fc63cb08fb70cca32a7543bfb1972ef2",
+    "bestandsgereedschap_scherm.py": "b84b0ee7a4e5dd3742ad0983ef4c271b52d4e68cf4e7e8653216d0ee6c2545f6",
+    "beta_contracts.py": "ac4db173da15cdf9d54ca86ce072b0cbc68dc53efc238d1ffc23d01c1258a40f",
+    "boekpagina.py": "0ae6ddea585c413a8e9b5c1fca938032eca297491b24a36f2e1c2e32951976d7",
+    "boodschappen.py": "3afb2ba4fee5c83bb8be62467878fd1014a0cf85f253bc99a69bc5338f984260",
+    "boven.py": "d0103c9b2faa0c2fd79a12f4edce3267aae965e648f744574c6b9f1a98b7116d",
+    "browser.py": "dcd8f908696c11d430a0e7f7066b8005a01057b3755ebe40a9513830f6283989",
+    "budget.py": "578423f7386704bc946897a15c3499c4e3444e9829ee016f2e525856fc205ac4",
+    "capaciteit.py": "9d42983ccbe9631168fdcd0829e4e9fda1fd3f7d93b7c654e5a242bdbf0f7603",
+    "chat.py": "b6e9d2caade4f51f44dd3d0b98b6533ebce6e4c899477696728c8f2ece3ec6a3",
+    "communicatie.py": "e422a7913e055bb60f6888a66416c1897f6c5f32d03ab5482412d48857003c2d",
+    "communicatie_scherm.py": "a0355ea7c7fbc6fe027e334c174137bb3be750d156e9fae74d71a52b10ff227a",
+    "community_core.py": "095e8b6ab3c6037176b69b6230ab9dc5d90138fb3110c3df8b9bfed5f80c029d",
+    "community_privacy.py": "4e4cce1d94ff22174c82bacae544445bd6af8133a4a39c685dc2771db65278c1",
+    "community_safety.py": "55457d552cd972126b49674b589abb11dcd9dcf0f5f1ea979c2df0b7f8dfc454",
+    "community_safety_tests.py": "ff926a8cc8b2b46c39c20e427c2c96ba458f38a4606823b858872a29a81ffff9",
+    "cursus.py": "ee3ce8734097b15202a5ee5b8f574759125268dafb91bcc707628f5b8272b5b6",
+    "cursus_scherm.py": "6a3c866b05fbd64f29947aa44f4ecc5948cbfd7f8b75ddd87989b8bcc0912f2e",
+    "dagplan.py": "c69e39e98a6b9eeeaa49a744d3c33f1324e48898921b2c54c6ec3af6dab53422",
+    "dagplan_scherm.py": "0713b1e4ec64a97ff9e80635ab4c9b1618fdd08f81459a7352638417c5f49a8b",
+    "dating_core.py": "e085577132671ba5d647e16776abe0b8b36b7492820b57d110b53f570eeb1e97",
+    "dienst_tools.py": "27a61c10838a9c2ba5e954595d7777e5143eab5515ef0a39eb58f18597201225",
+    "dieptecontrole.py": "47f8fe6ea2b7384e61273e5466f97a03e04f90fe3d7eeb4c1c73fa53afb2575d",
+    "docs/app/index.html": "572450e3af7a16a8e961e02037f14da5718e6db55e70ae489638af100904d364",
+    "docs/index.html": "ce6a798794c31d53dac6c6c430acb5ca0cf9fa39be30685c7f3298159482c118",
+    "documenten.py": "27dac7eeb7c3185954d3e954355bf6ee9cd3fef4477cbd5d41d9abc4750b796f",
+    "documenten_scherm.py": "aa0e8742748a5534bef2454a7014f45c8d0d865c85f0d1d54bdf990ba0a8318c",
+    "ecosystem_core.py": "3228b6c826f8f20890c82ef2df28cff43559d6cdc5798f2dc3d4cf64d8251c1c",
+    "ecosystem_ui.py": "a05b72e4b22ffc9a228dfa8e3b79ee824bc5065c2c27b60c30671b09d933b85d",
+    "editor.py": "9c5d4754f8bb037b00f3cece06f125294e77faeb271ad4c020c43cd3422e004b",
+    "escrow_safety.py": "cf5ce0386b71d4ab3a1a9620ab20c3d12f41f9d3e7649dfe2591250c38db5df8",
+    "event_swarm_core.py": "560fe4de68cb1369d893a9e409db1a5a518dbaea417ba6f0c2d2ecc50e9f0bb4",
+    "events.py": "182e2d25101fd1142b3107e9d57ac8286c5c353037a6fb0a9a9506407d3f9b55",
+    "extern_inloggen.py": "24c69ca1d63b469d074c665326945d60c60609523e67b3ee21d2b852a23d7b81",
+    "feestdagen.py": "e35b88a09b0b93bed136d68d93db72f8a40c4b6d879399f272e244ac63735d1f",
+    "focusplan.py": "a706b5bfab1758852aa4b2acf2d52e6fe297b51e4da474802620884cc9d3a457",
+    "gegevenscontrole.py": "cd12ad380bbb2d879d37b7b78ea7f41c60631581611b0261de345ed3ee285ddc",
+    "geld_scherm.py": "8f9ead0b803f814f1208f5c7a304faafd9b5661fca4ad15b3d05680509c977c1",
+    "geldwaarden.py": "7fe676e8d9f965211aafe1ace03346d29d14ebea9de90c61a39d7cf8ce137985",
+    "gemini_service.py": "0766887adaca0021512ab58d02349066eaf63dc4ae677acab47f0a4c625c3cad",
+    "gereedschappen.py": "d9eacc98439a3515bafe6714051d7b1d291a4051d9547bee74d488fb2ed8c601",
+    "gereedschappen_scherm.py": "07f5094b89bc52f15881bac1811deef799f154cf68aa532ae1fb1364314a3679",
+    "gezin.py": "b6d3589b44199b3d34bc1a4f58073357ce5ab939d1d91eb1abede326458a874c",
+    "gezin_scherm.py": "fb33c65a8c847d92725f90489bba4b8a23e7448383cd0699669a58d895b16b9a",
+    "gezondheid.py": "c93db33eef4097d36f889e54da193c0bfddf1fba1226ef3e6e8515b2f60c7af0",
+    "handelsafspraak.py": "8c667015425715dbbb51e8a8ca8e8729e146693c5c2fc0867d65ce8470be66b9",
+    "herplanning.py": "8f1c8f5870d5e344dff658c56f5fe7563434fbaa08e90c56192cf1185e1e3761",
+    "herstel.py": "f06716ab16164b19872ac5453f05f7e967c077a8cc39f3e9b4e869383301a71d",
+    "ics.py": "c58b693e25be25b19b27e7c8c96b505c914deedb7c130a1b593519ac1a4df967",
+    "indeling.py": "ccb888b449100f3b4c3f0e308f0879942eff0e59bff9ba376b5157f394d5d4eb",
+    "inplannen.py": "31008c70a0ad6a80bf8173a904224e5635f0d7acb2c39c366faf6b05fd246dc7",
+    "integratiecontrole.py": "ea597a8ad4a8270ca3e0630ca97056120f408e0c57510fc8c525a49d1ad9de30",
+    "integraties_voorbereiding.py": "616b73ffeb53aef4c5bfe695926b4a65235009b457324753e80a58227afa9c5c",
+    "intent_engine.py": "a6a88dc5e682d0d2cf17b08c57e77e84040573b413d0bed6f5d2a4c5bcfb081b",
+    "intenties.py": "5a65baa020d90a80f189f260fbdff49de69db8a9869877e8ece83e6104e8daf0",
+    "kort.py": "1105b3e3d794747bb1951cfc53b773332030c35428f576c249a229ab4b737233",
+    "life_swarm_core.py": "aa076fecf5f7256b4c1e06740c24c49b5409828d1c3a84a3f82c8a2920653d4d",
+    "mail.py": "e2a9ea3040f09dc6e5c39f5a2c2a024461472a1527b482103bd4dffbe7a08516",
+    "mailtaken.py": "6c3cd993066c7b6d343531067ccab56fed105fee4463e0f31013f213d5c583a8",
+    "master_hub_core.py": "2e08e6e6eb739f5bbbdb4d047df0398ee2575b316a9e54577454ba55d81a1b13",
+    "media.py": "46755aa93c797fcf56e62800469580420ccef3b2ad760b6f9e6a388342f7f9c0",
+    "meldingen.py": "be043e308d9f88637ded7d66c7285ebc37ffe7da0e5fbcf654788b78b4fabf6a",
+    "mens.py": "a72cd6423450e501bb5580ebf8bcf5955eea04f194f396d0955b5bfe7e7c6251",
+    "multistream_core.py": "ad220666606b9fd4b349979ad8bad6bd5ab6723c613516171147f3e724ceb9af",
+    "multistream_store.py": "0ff60e4d20ec4d0abab0d7b997d75b351dcd81f7eb6927d5ddafe531ad5f81b4",
+    "neural_video_core.py": "5abb5726ee841cff4edaba87fce38035fff1c16bda57f9fb83b4bd1c076a78aa",
+    "nieuwe_app.py": "4b59bbb00c99dbad035f1971927512e997277d6b44658036390908a07605ec5c",
+    "nieuwe_app/index.html": "2de4eef0c44d4996eb7fd885b7ea0aabe45b1f94dcb28e8ac90077d2b7c25df7",
+    "onthouden.py": "509124d112482e6b202ae5f59c36d97b8c7a0a1be51e5bba6b78802083181ac7",
+    "ontwerp.py": "4a22a90c0d88098b61f5f6719a6b59529a20fea61f211ba4be7613d019bd3df2",
+    "opslag.py": "3b1c0f85f2304e60586d9382a0010d23295b5d937102c8196721d4e139acd445",
+    "os_navigation.py": "8da9de285b77f1ccee26d988d7e93ea65b05e09f5031aad2f95d315025ffa23d",
+    "os_navigation_ui.py": "6cc558ec75502082a8c9ce0aacb66410b4a6adabf6f37face9624739e04e6b97",
+    "os_readiness.py": "2f6d9319f030d78672b61a7ea19c9c58c14c144fcb99fed2b9c3c3853ac16ae7",
+    "os_release_evidence.py": "27eee7456ebeaab011f84f85b2681e0897e27f1f4c901c0bf6b9e57d4afcf5b5",
+    "overzicht.py": "2a1d9cc209fe4ae7128d981f1f854518e13d86e50d59c4c6ac1b8d46dbdc8821",
+    "pay_in_chat_core.py": "84ee87f2eab720d450e8f8540e5f0fedc862af5bb8dc6889ea01e8cc9d28af59",
+    "plannen_scherm.py": "3ff8d6567f14f68acabf649a0b1d6b0cae7ed62de1280b9aec13c9ebc941dbd3",
+    "planning.py": "19cc5741bed723a644a84919b6ba25547e90c45eaf742bc5ab9ec34f838f2f2f",
+    "planning_backup.py": "18f754b004130f47f22f29185f9147d2d61b4bccbc36f3c699362971393d86fd",
+    "planning_backup_scherm.py": "872b27cea1275a529d371f7e88d379f2fb22bde15bcd76fbcb8cacfd8bf1f07e",
+    "pot.py": "a35d43ad06677e6a46a0d8bdc85864f411168703bf2d75ada5321ec8045f7dd6",
+    "pot_scherm.py": "9f03b31a3c745de85270c9392e17902a8577694ef5f2bfc522fd3dbe7614ae66",
+    "predictive_context.py": "b0df5315d104c25de60c1e0f7e40df7dc9370ac2924e006a59915dafa4d8143a",
+    "prikker.py": "ed05793ffb15065042c28f570e11995210712342cc5b558926221a11105f44e7",
+    "privacy_scherm.py": "bceca4e38952a9f92d1bec84b14a62e1176962313941abaa9d2afbb564ad79ea",
+    "regression_tests.py": "efc5f0cf08b3a9b5abbcacf456b8fff656db9a6087c43dcf83275a2e94ed2fd6",
+    "reizen.py": "4b75ebb9bfbc0059d78bdaf357b8cfdc3688f128819537967650408e3e916436",
+    "reserveren.py": "74013ad0081cfead3965f5f4738eee8e5ff3048a61acebbb9ce773a5c1f8e0c5",
+    "resource_booking_core.py": "978aa6efbc37cd3e82660fd06c86cedb5d86e2cd086e209ccb176d2d6c36a7a8",
+    "rive_assistant.py": "51c128d92a10fb03e2c74e480b06253413694a09962c6b4908e23572b69b103a",
+    "rive_chat_state.py": "5fd137edfd6c92adcc30532f68d52b8f51def0e8756ec54f8b67cfdffd364c54",
+    "rive_preview.py": "133bc679a48643c6e421453ec96078a9a1ed589af029675d8844a58642113131",
+    "ruimte.py": "41a5d4599cb9ba1010fca207c8a83cc952229c837712b4f3df431f40ec183ce2",
+    "ruimte_scherm.py": "d46329edc43c77ed768b29ae5c760ebdd3317f6b65ad5351e2f79ffb9620514a",
+    "samen.py": "b4e7403ac34ad684dbb92afa13ca2efb59dd0a8871c4853a5c5b597db71305b0",
+    "samen_leren.py": "9984d2b9008f4e77d595afaa0d02d49c1402abcb33f84091d701dfdddc099af5",
+    "samen_scherm.py": "28f57c24446a87accb1248aa910be866bb84c7181705ba993f3b98952d0d7a68",
+    "schil.py": "c835bc791f6b7b050748a09def5addaa4a8811e38af749f1e7b7d93c7294882a",
+    "scripts/azure_validate.py": "5076a3620dcae015d2f1c66dbf7bc280bde004e9149eb7b39317bd62dfc5a7a0",
+    "scripts/configure_azure_oauth.py": "47f5b44e0af68f7ebd2d41875580f38078064f80e40ca0b4601e16d75983e57e",
+    "service_intake_core.py": "2373155c325fea92b60284e74f1b86611db84eb59d7824113b1070a9bdeb7e7c",
+    "service_intake_ui.py": "d6f84dcc7ce58cfac127f80c421ef8a01791dff7d187ad842296a3ef40c5fad8",
+    "sjablonen.py": "7a2ffd693c5043227a6f72919358a153c9e051c8dbc0df7693b7c9f155ef660c",
+    "sjablonen_scherm.py": "b8e5ae877c9e18cadc8198fb69fa1c2ff4ee774e9a1a38631a1e4e4330e4d2b5",
+    "slim.py": "c5660c88e64ffde6c7072b485d48a7dc98aa59f75a5206fd469d3fac43befaad",
+    "snelinvoer.py": "45d31cc6781805805181ae4d5f7c5d4d8d1d95125813f8157e9d11128baa781a",
+    "sport_scherm.py": "d538b3efb6d7af8d8c3171e9ee2cbb5cc2c8416e707d6f140d315d2618379be3",
+    "spraak.py": "af59b6df28fb6c18f6a80e70fb9325fc2f5880093fbfdc8c250b87d80d5b3401",
+    "sql/aanvragen.sql": "5a3d332f0c41dc0bf0cfff21429115a648b660a8aff537f2483a3472e55ccb0f",
+    "sql/agenda_delen.sql": "73c92e1c569a75a936aa3cbad480c50779879b1f1d27bb2a29d00ca040cc5507",
+    "sql/agenda_feed.sql": "1cf59904758de99d27eb4af40a1c8f569f448f4adf376d3e6815518fde77002d",
+    "sql/ai_openai.sql": "ec0886ef1d60d7aadabed3c6a0302f6093fbf463a4d1b2b15f4a49c792050b15",
+    "sql/alleen_mensen.sql": "83fa81c9b4446ec30c2c9e146af0c53e70fd3c43d2436acc102384aafdbba8d2",
+    "sql/app_fouten.sql": "344f437211479ed29ab013035f88aca8006c68764f9bea6374d2ed6001973686",
+    "sql/apparaten.sql": "b83cf695a86ed6a92aded5f4733738fc314ff67f9bcecf5be9157d75b70eb3da",
+    "sql/bank.sql": "f7fd7e629a09a2e6ba6fd407fe2664811f9d1fc58178207cb862dacb384b4f51",
+    "sql/bestanden.sql": "91e0f38506347571a69b64dd9f076516d678895030193f964a5fb608a7b99e46",
+    "sql/bestellingen.sql": "81e30e1c18117d1eb4f4d8b8b4766186acbbf6fbe0b914d916a1beea4c4a935e",
+    "sql/beveiliging.sql": "956094349a83722ddb5ad1faf52a1b5df276c16980f74410fb33b9099d2a1858",
+    "sql/biedingen.sql": "dabaf373bb3ad47aaeedec6659cfddbff6bfd6dfe932dfe50dd855d1a61a1940",
+    "sql/boeken_betalen.sql": "bfe2e67dda4a6fd448d4a2432cebf978772d8304a612e0acd944d0bdef86269a",
+    "sql/boekpagina.sql": "435e5bd439ea92944aee9f889bdaa7e4457e83e9a49b082fe48385b858c2a108",
+    "sql/budget.sql": "44865ee3d814361c588163369d51c8b1e63f56e326c1600609245c0fe4c1bdb2",
+    "sql/chat.sql": "fc2c10e07e8274dbeb2e5dae8fd1b382272352abcada63ba0685e829e76b8eff",
+    "sql/chat_boeken.sql": "7e56b59fa1dd9c2524b46a058000a4729ab3152d7ce45519d59be73d6aea548b",
+    "sql/chat_community.sql": "6d9c71b1ea2a7968589bd13e3ce05e3257916156204bfb759c4b241842e18c5c",
+    "sql/chat_contacten.sql": "e7042e05ed396d6c30cded001a8dc65bcd906dd39748b759e3ed515e8905182f",
+    "sql/chat_ontvangen.sql": "d2531eb316bdcad704bc49084ce95f36ef8e8916e27155367ea293dd5f26c145",
+    "sql/chat_privacy.sql": "548bdc98acc6b3253ec8520ca2e029d75fa95ae9874fd35052e5ad47868b52a2",
+    "sql/community_aanbod.sql": "085e0f36f964b473662c93bec19f4a6fb1d7291f59d75136e06194ff78bbbc17",
+    "sql/community_agenda.sql": "886a6c4cb927003843e19fea1e0ee13f96f45ec626ec11e57004f9b8f3e0a693",
+    "sql/community_feed.sql": "194697c453a0a0de371f972d8281cc21a845b4c353f73d8106f8d24ae7cef28b",
+    "sql/community_opruimen.sql": "53a358662e0b551ef324dc0daab6bfb47e99ae4c2ed7f94fb5ed469a3804dd9a",
+    "sql/deellinks.sql": "f53fbfc91cf93dc960f47bc22e7ca209fa202afb4f562e60230a8701fccaec03",
+    "sql/documenten.sql": "3261df82051449503b83e5d7c39603c61a168e585a275e285cf19cd29ce6bdd8",
+    "sql/extern_inloggen.sql": "62e0817a2cb4892f68f0a7c3d9c029c58ea0e92a14360575954f21715188760d",
+    "sql/gast_berichten.sql": "f87c8736add80f59dc8307d2bf90eb11af0271f5b7d9069457b22852cd8827c5",
+    "sql/gezin.sql": "5affeec4c4ff02e7542e3dac1b83970332b22acac806e0dcaaf39e733dae465e",
+    "sql/gezondheid.sql": "a678d213ae8720db7cb2cce3510b854fccc3c5d910b7d276e0c8c29b6b630ffd",
+    "sql/huishouden.sql": "7a41e3963055c055cad8c1a54cb1fb962638e1a42a320b8a376702c8382aa9d9",
+    "sql/kort_profiel.sql": "103b96d2f33241c491d58a36738dc6ba1f09c7c3c03b757ed10957424ced2f48",
+    "sql/mail_bevestigen.sql": "eb1d7b0166d4802b472ad5e635295a9068aa7458fb743cbbf0a2d657a881c62d",
+    "sql/meerdere_gebruikers.sql": "00d3ab90205dadc996f81153e1388e219d082e3f1e29612b447c77f6ee051753",
+    "sql/meldingen.sql": "51dd95457714bf990ca36fb91768e1a3e11e4895ba7d9d86ffbbc7d56a31ff76",
+    "sql/niveaus.sql": "ac053455e6073e48e115cf291a767e5346c63a94c0ca5cf67dd366e1b46abfc8",
+    "sql/ontwerpen.sql": "dc9174caef52a82010b43c70f7e166a6dc9d269b5e47a03693c934f29a4a7549",
+    "sql/potten.sql": "8bfd0e0f876d83af1195086ea53746451947897a009ded8a7fc176dc54caef0a",
+    "sql/prikker.sql": "7168b5f1b0cfe536cff3d1e21f2c3c8848b1feb9b7c560ede1430eee7d5dbb16",
+    "sql/privacy_gasten.sql": "a9d17e4d236e5a9c358545d35fbc3586294c334777301a53f01fee21197f4029",
+    "sql/productkaarten.sql": "025763e223822a35f54eb140efe45a70e2339b40d5b95fb797fb3921a6482d66",
+    "sql/profiel_over.sql": "2f534159b43702679a7f55fe7a369d44427f86e55bda24307e5baf2da5953914",
+    "sql/profielfoto.sql": "0242f2435d8e187e45000f0244c50b1b5638379623d7f62d42108441411da9ca",
+    "sql/project_archief.sql": "c420e7f2f09c3506090b4506be23a37e28b46bff5685b910cdc18258380cbdff",
+    "sql/reserveren.sql": "bccb13710e25c64423e2ecf61d6a72c9fe3830cec05f88163c636db0005fd237",
+    "sql/reviews_marketing.sql": "eb0de27930fab55d655fbc89840fe734311ce199746a3d26d4de01b0c59c4c09",
+    "sql/ruimte_bouwer.sql": "2ef61e2610a5f5885f13fca8a0c431cd9a18df57344949d7957b7eb6d576d509",
+    "sql/ruimtes.sql": "1fe7980bcc62af0d04565ff3ca5d4a917b5470ffe59ace6d77fcda043cd27b97",
+    "sql/samen_leren.sql": "91641919508c04efc52cfb9b1b3723391b15f9511ea7e5c6ee602574c17238e1",
+    "sql/schaal.sql": "a4f6ebba1470cb1468d0a18014c114bb13ec1e778cc9c6e44ac5fba01c4b0f37",
+    "sql/snelstart.sql": "fefe1d9e3159ae274b8ef7ce7d91be7f7fa50a3f50a62aa5ac1f3896dee4da5f",
+    "sql/stories.sql": "70b14511460480960836f04fb520c2944319404bc831d5442f29e9cacbacafaf",
+    "sql/story_video.sql": "f01dd54f9c86a663726d676343316c58fce31a54b4566b51d612f6f2aac71b80",
+    "sql/stripe.sql": "e588346aa8051366004e4e8d45ad8c4ac2205a0f7b501eb28d446310a5c79989",
+    "sql/telefoon.sql": "045cc1d1ccb7757693b0618de9beb79429be09166910be3dae90fa4016484d5c",
+    "sql/toegangssleutels.sql": "872063f815c3528ed35b1e0c2c6eadb036aa82981374959962a3dd8f7c612af8",
+    "sql/uitnodigingen.sql": "e05e12e886b173c0e4e2c41d8070dcdc6d0a786c6cef974049637eae75cc02dd",
+    "sql/veilige_opslag.sql": "39403ca9a931dabc127a0b431ab7ff3087e979bc7b3cc5c8a0eec8d2cf8fe8a1",
+    "sql/verbeteren.sql": "1e935fe9f52d3b459f9e2aaeaf8f86ae8a53ac8f41bf812395151d810c67ee9c",
+    "sql/verzending.sql": "47caeeea770df5300b0bea2587f511023e8bc11e4dd96b876d822d96c2fa32ef",
+    "sql/webpush.sql": "3e401e562a24ebc03a44a72af52dd8c8a038d21b719b95549ffccfe4b57def9c",
+    "sql/webshop.sql": "7cd63dc6201304718ae912f99676030e940655437713a30c8b3ac1a108059b14",
+    "sql/winkelen.sql": "39d0ac4ac4a344ac2073f16bf98846b0abddd642fe38c0ee33f96859030c3e85",
+    "sql/winkelkaart.sql": "fdf99b5a2198c114c5bb9d6a56185d5cbaa1eaf4dd322c9570817dc480656573",
+    "sql/zaak.sql": "bcf719b0954e9540082314ab913366712df93a622c8341ac7d0a3f6fc881118b",
+    "strava.py": "27381610955f82ec0d47ab9221880384f26a6f9fee03c448775aa38a8518052d",
+    "supabase/functions/agenda/index.ts": "e9c28aed9fd38665f59e385467b3a9852e342debb6b33847051ac9c16e86f5da",
+    "supabase/functions/ai/index.ts": "bc5e25ae27cb4c7009b0caeb972e337bf3b3198db17150ff4761fe845efda8df",
+    "supabase/functions/ai/openai.ts": "fb0061fe600dbaba3783ef537d1d588ab13b0de1bde71d1c75d5c5e2c2f03263",
+    "supabase/functions/bank/index.ts": "c03621469b2840fbaf00cca95ae1bb0ba0ed485287abb606f75593e720467efb",
+    "supabase/functions/bestanden/index.ts": "9be2930d42e288e6cab0edc96e8127f3e532b50ae5020675f2f31205f7eee5bc",
+    "supabase/functions/betalen/index.ts": "58b0f671d850ff127acd773bd0aa2cd695a4db24f2859495c1c5e97e5f395ec4",
+    "supabase/functions/gezondheid/index.ts": "908952dc95fa4f5ec8b49a8710f1ac528f2dae9ab36ea2c79d19f907be8e93b4",
+    "supabase/functions/koersen/index.ts": "89f2179a60ec37dbbb195b36017cddd74f206c47eb8d13c53ad2c767da1ab4e0",
+    "supabase/functions/mail/index.ts": "9421fecd18d38c9b0f25d2f15dbba820d57919babd3dcfe47921d3ee707cabed",
+    "supabase/functions/mail/index_test.ts": "4a6a83dcce1d8c89955cf2a6a2f5d2f42fd75780612644a3f125ad0aecc3adb2",
+    "supabase/functions/push/index.ts": "5a42996ab34429b40496b14b883d732e87466e13ba4f73e745adbbc1835152c1",
+    "supabase/functions/push/webpush.ts": "3421be1638275dad34e2e6c79ea5c2147c0e35b46dd94751e3239237944bf904",
+    "supabase/functions/sleutel/index.ts": "adf6ed421bb9fbb57c80fe66070fa503fc6f4785333bbff518cd5954ea6cca3e",
+    "supabase/functions/sleutel/webauthn.ts": "b0d0eba2a52acc91e89c7deda2e913bbe91bf41a96617f8c23a14395e35cb3d5",
+    "symbool.py": "a5044d6e206440fa2e81a902fd250182dc3a855e4d1862d3500316be7a7f4e46",
+    "taakplanning_scherm.py": "30124a97742c2bd6c029a3882cbda7a1cc41805d00143d05dc5a9e4b160dcb93",
+    "taakvolgorde.py": "219f4b027103caf8e78103cbf0902604697dae65d8bf0813d1ef025a70cd2042",
+    "taal.py": "5ee6e8f0b8c7fee46663611df38fece9a17d8b8de3c76d0f2b87add43c107d31",
+    "tekstcontrole.py": "7efaac754530615cdbeb83ffb34d65fcefaf0f790361a64481ec74f0b3cad68a",
+    "teksten.py": "696f76fa8b7a50cf4d63a007c8ace44590476efa613fc758dc9f54a787a85283",
+    "test_actielinks.py": "36f58992829f9414f315ce81455b837ed72f9f68e4258bc038534c4ab4245553",
+    "test_actieoverzicht.py": "d2926f913c6598c211908531c6452c4787d662dbb8aa76ad99cfcad4b882e757",
+    "test_agendacontrole.py": "dda6b0076782a69e6a2cda5209a5acc715a2460a22aa5a26fa2dc7bdc1741abd",
+    "test_bestandsgereedschap.py": "4fa63824df56b8c86bed26b86c7ef19687651c890acc672b1318b9e2d860e25b",
+    "test_communicatie.py": "6a57c8f2e8bec33b6ea9b0d65e5fa079aaf37ad93b16968e217da3a5a82fad39",
+    "test_controlegereedschap.py": "739a4f30112ca4546c7cfc213e377f7b730248756813f70fad88fe937fdc0110",
+    "test_dagplan.py": "29f4a5e4c877cca1f34d9cd651730e056c4e9b10d3c88fd35609ebd85c04b85f",
+    "test_focusplan.py": "4e31cbfe7b3fe2405e20abc38990d065a920b02d21f5650fe5fca12f15a07885",
+    "test_gebruikersstroom.py": "e3c2e692a3bdfdb45402723117064ffb69bbdfcd87e878d5e28636c2c3ed2f27",
+    "test_herplanning.py": "64d87ed2180baee4ff8d1f478211241ad362e2da684742f1a1bc9bbae2be3d88",
+    "test_integratie.py": "25e5387d7019761a2195467082873c897edcf78f797f723c8394e6e7d879336e",
+    "test_intenties.py": "80dc7ef9712b3ca8a633e331872d980acabdf5071be2819f568d49b939c79390",
+    "test_interface.py": "70e561cea5a584032d388c7a52a9a7ea0d11c0cb1b793b22cd1359eca8bca7cd",
+    "test_interface_scherm.py": "78b2f10aceeb43043dd81bde53b0c6300d5c18900a2f4148c41747bc9c4d003d",
+    "test_opslag_validatie.py": "aaea33d474f67447f31fc42df6ba0d4d81e7305312472847ced14db4433f9736",
+    "test_planning_backup.py": "0fd9b15e3d3b97c49ca312331eba52efe1bde868a69d2b09c268a16fd02a7933",
+    "test_project_archief.py": "31a90c4c3e4156cc7a50fcc2c3cad6d997a56a6cd5da80fe8a3206d6f0d2d6fa",
+    "test_sjablonen.py": "2a441d5837df692e8246a170ffab4746f00ad6e6e98aae9494d171109dfac2d2",
+    "test_taakplanning.py": "09f9a698b36af38af5b92a4790c0b7a1281c4807aa303ad08022322f281c2aa1",
+    "test_veilige_opslag.py": "7f46b0c4821974c782b754de4e54e44d6e054804a67b21621648dc77e301006d",
+    "test_verdieping.py": "6411d03b0f014f744e9bed923af9cc0bdecb7f79eec691f80d40ca4cb77dd05e",
+    "test_werkbronnen.py": "80f799fb53687c2f47ab250b57c2078ed1f10eb1459f0e26c7fd4d067e8174cb",
+    "test_werkcontrole.py": "00750a92f40a68f14ec7ba24f0e1d6f854cb9e6684e2c86609fdee1508f50f11",
+    "tests/test_action_tools.py": "feab70aefc55e468c47b06df79938f997304a9709f22a4a0e4b9d6f49416e8a8",
+    "tests/test_agenda_import.py": "e6a3a050a4fe583656a6e761020d5039fda6b6353dfd8290e8e80f9510454a57",
+    "tests/test_agenda_security.py": "7b07890bbc4fa66cba9743e0b7f5ef39b6faaf348aa8ccc9c6b386795112a8a7",
+    "tests/test_ander_brein.py": "4760de41713b2e6a9dc3ea4aebfdf6748db6b39ebdaa083ce4567cd56f1127a3",
+    "tests/test_app_sections_layout.py": "21a78d6d0c2ed8c3e7d734b09ea96a03f8374a51d3b3e84b7e6d220aafc83561",
+    "tests/test_azure_services.py": "af899d8fd905eb5c330f90e6491c07b7ffbe2693e5dfe9e520b180fbaa4c5c05",
+    "tests/test_beleggen_yahoo.py": "d7e949353b84f2a35b7d109ac3932e9017f694f2153ce2d4de55ef475e6494c5",
+    "tests/test_beta_contracts.py": "b9c14def756ad09faf8f39123fb85f63c8c70585895632ae6debb91859d9f8cc",
+    "tests/test_booking_abuse_guards.py": "589c9e4ed04ab6cf9ba29c4572ec3f2f4d9d9d9c0e654277fbdddf5b20cb3374",
+    "tests/test_business_navigation_contract.py": "e40fe5e36e829efbfda45fdc0606c35a79a733e9e2bddc940b08b9feac681199",
+    "tests/test_business_responsive_layout.py": "5171b40026ac2bd8aa91b1a04ef56dd4306ad729a419cf8f580a132fcaf5493e",
+    "tests/test_business_settings_builder_ux.py": "6945349f9e44a8767e4abe29513c77e511ed7ba32c2e87acb68b6916f364d4b3",
+    "tests/test_business_tool_rows.py": "7738423ad771dd9c724c602919e13d7d5c399128bb343483cb8894f12397a740",
+    "tests/test_business_workspace.py": "f334ad7b4d44ad6697ac38e86bbb15f17a751727fff4898de8e3c39bd915a9bd",
+    "tests/test_calendar_feedback.py": "cdf1c930057e9edfa890baf4cf460eeb5bc4464d977334c42bee6fc2814072eb",
+    "tests/test_calendar_suggestions.py": "70bf3c15aa122cd6accdcc8044bc5f5f1154ea59f4fa9bad1ba2ed0bf05541d4",
+    "tests/test_community_privacy_regression.py": "df7b73339dd9e78105c027477e5a49fa69bb8df0a5b83406f4fccbf420ca12c6",
+    "tests/test_dienst_tools.py": "f598b5e9705337439a921f4d91ec858f84aed7aca4c90be05791926e7995bfff",
+    "tests/test_ecosystem_integration.py": "8fdee29cab09204cd531a9d950cbbe3e22e47507bfe019c4fdd5dbc993dfb132",
+    "tests/test_entra_provider_guard.py": "2b3caa1b0c5d94845fd3dc0aa5fe6a12542a9ce52d253c85462d76a940d100f1",
+    "tests/test_escrow_safety.py": "cc857e5649edc2b141b3d0fad56281c14a7f2b11508c1ff9e1364c60cdaae89d",
+    "tests/test_event_swarm_core.py": "2cb193a00a2e40aabdd29db3608f49f5a379138e6e6cc8a1dd404f91b7cf70e7",
+    "tests/test_gemini_service.py": "baebefff74bf205a8d6650fc2099d21c61d9ddfbe26b6c870e82807c6d7d5703",
+    "tests/test_intake_storage_boundary.py": "369ec2f4fbe0ae2b7dba575af871dfbb1d4507f37554a7886f167e4b064f1c62",
+    "tests/test_labels.py": "24e2f705fe778590d2bc9671990eed83908a802db96707bf13de3c6b3f1fea73",
+    "tests/test_life_swarm_core.py": "2b034458881252c114033922f478a82dd48aa95cc032297df10c3d9e85e91f5b",
+    "tests/test_login_hint.py": "2221a8a1a82cbf655710a62de58b3e94ac0bca52a029aeb7a09318bf76fcd716",
+    "tests/test_master_hub_input_validation.py": "71033ea63562263916e81f243789d9a95c37916fd4544be5da5b17d079d8baea",
+    "tests/test_master_hub_stream_routing.py": "e2d59f0af0a94bf0a90e03266d5fac1b6caaa57d5741614a2d1e894bb3bb218c",
+    "tests/test_multiple_intents.py": "b60381f358f14548b16c40a20ba6367500f0bbc4f15d019d93dbd44885311a97",
+    "tests/test_neural_video_core.py": "e09d83b0688096b3abc825b53a06c9c9616e0e00fcee79e0ea74f78d68d2ac68",
+    "tests/test_os_navigation.py": "5f837d69de1b254abd0234d0c8b2fcbcad9db201b7d8f39899889f1d6e3569c5",
+    "tests/test_os_readiness.py": "45370e982f8462345b1e8bb75276b40943bfb344e73c3c723378e0176e8e7de5",
+    "tests/test_os_release_evidence.py": "72a63b640d40910244201be9aaeb4a77b201e45b29d9a8e27a5951c025d2beac",
+    "tests/test_pay_in_chat_intent.py": "2ca9a84d981fb70b77a794857e29e9b45c3f8b975677ffb2f904128618c75578",
+    "tests/test_planning_icons.py": "f27fd16e6bfb38f6812048e27f1546aec36c410e8add2806900c864c61e38db5",
+    "tests/test_private_session_cache.py": "ebbf6be1e5985cf6a29a8c8c4676d34f0f73d3865554c1f7cddd65563dbe4735",
+    "tests/test_profession_picker.py": "029bfa1c59d8588b89cb9c7fb56e95c80031ece40e69fc5c3f69c3646696f3ab",
+    "tests/test_professional_business_options.py": "e7dcbaa4269be0b0eb04bb16d20a848feb22152d0ff39a72a4fd70f905e98039",
+    "tests/test_profile.py": "312251fcd4cfa34350d4eb240ae9ea94724277bbd9908c8762402f658fad06ad",
+    "tests/test_rive_assistant.py": "d5064af5fce4125b47f046057cad433e4791c7b1a122d3b8a4ee986150f54e69",
+    "tests/test_rive_chat_state.py": "3f190aacde16bac4ce5265f630767098d832a07fc4efc073130683314c91b607",
+    "tests/test_rive_svg_fallback.py": "6c3256be2481ba99c0f85cca82d4d47e9a247624223e1422c76b297fce7a5418",
+    "tests/test_service_intake_core.py": "5347303da50650d9977f545eb42bbb04d1282acdb3d39d73a091b362ff1d326c",
+    "tests/test_service_preparation.py": "1d9d195389d1fe1fd19be7fcff0ef8d92106e1991ed566987188d89b36485c6e",
+    "tests/test_settings_grid_alignment.py": "7f11ab6c28e497269c30a5035a3edbe3f6568489cbff82b0aa963304d5040716",
+    "tests/test_settings_layout.py": "2c1f9b8fcc2e83a88d86abd1eac106b3dd9107c1c5a0253e6589a81c7e6f99a0",
+    "tests/test_settings_profile_avatar.py": "64bb5ef7e77158f6f2cc5f22b46d822e5e65707cfec954ffaf22837c95a16af7",
+    "tests/test_shop_builder_product_creation.py": "2f168717607dc92ff85bf66280ef86286858d9e2b50ae5aa1b5d7f14333e62ae",
+    "tests/test_shop_dashboard.py": "6d40519cde54a923dc65690ea202858627455234e9e59b375ea5d479f1f4ab8f",
+    "tests/test_shop_empty_store.py": "ae9e9cd574a888df66aec285ed5805e777d2107dd4b2867e89cc9e0b85d882f4",
+    "tests/test_shopping_hub.py": "efe8d4fa36cdbf28a4bc87e9f53300bd7daa5fd87597d677c536deed0ad8185e",
+    "tests/test_shopping_navigation_state.py": "fd90375eb90392b9d827eccf4b0964846661cdaa0fc03aaeb2a0c41f5f0c49b0",
+    "tests/test_shopping_polish.py": "090c3c9342fb9cb41cc409c0971498e69983e78a7bac58740f823b4b26993120",
+    "tests/test_storefront_preview.py": "4946225b9efcd95cf9c2af89c4f632f33ca990ff08b1e731d54b5f206df2797e",
+    "tests/test_storefront_secondhand.py": "14bd6bb68479e912a8ff08e4de9d641e32e46ced068a260c760a3732a235e587",
+    "tests/test_trade_calendar.py": "e4f4f7b93ff5c3493401fe4f1a1b58180ee42e56b77ccb0bd16a6ce7699d1047",
+    "tests/test_unified_hub_core.py": "dd624314d3628d4a6f4b3df9d23a1729c42a40c70e438b4ae026e9b17c278c27",
+    "tests/test_user_flow_runtime.py": "53e744047f58221134cbbc865e9c4d616284401dbdbd159636ee3af7ceef7003",
+    "tests/test_werkrooster.py": "26c9492e31c28015031778d9b996937781529fffe41b45ac72fb5c5aa9580e05",
+    "tests/test_winkelen.py": "c2843ab1377fbb945f31e3d2a14ade0cb5f92bb9caba072d0705023b6d852197",
+    "tests/test_workspace_safe.py": "bb15d53b966f62e0a3d5ce2597a4b37c817ca1b7714446d02ace186aec923c59",
+    "tijd.py": "4fa28c722ad3ede2f9ca83fdc18f4652a46a4258665b47f6f6b2a91178e74659",
+    "toegang.py": "01e8f8172dd16e79adf4d4d96a23adcb1c916a5bf42fa9fd0125e9091d2821c2",
+    "toegangssleutel.py": "c0993b69c22d12be584b460d3a8bd092afdf58b34e93abb422b31185a7d4a852",
+    "tools/audit_100.py": "e9ffcb365aecd6d0b5518f7353938d49f8bfa29dc3652e00d73b7fde243d90a1",
+    "tools/bron_review.py": "d2338f3979a1ecdb1fc90f57752cfb152c5f2c59d7e2bbb85b96671fe3057be1",
+    "tools/diepte_controle.py": "71feda081f1d889b2b1fb2b35d0ed1f2d5c798d25d213e0ed63dfae789277d47",
+    "tools/integratie_controle.py": "f67cdbb926d57c6c17bf4b7ae1523b26355ccdcbf4cbaf0cd3cb3e590ccec48a",
+    "tools/interface_browser_controle.py": "a812bf5e04f96737fdb6f82f9071a985c545b88d0d461b0f9a326c506d85ce93",
+    "tools/interface_controle.py": "c1d797ee1ca4edbc9b8ad1b3774d607883986ae884406fbc133928b1b3c2c1f3",
+    "tools/interface_lokaal.py": "7732f9d521bd8fb116132129dea19c2c4d4e8ecc348bc73745487d651684a84e",
+    "tools/omgeving_controle.py": "93df3284fd3f6576b0e5714bb8245007ef7fec7bd127592038266fe7df101055",
+    "tools/planning_controle.py": "ae359db8a404d8ea9dba7e47a50edb7a4a2d49d50120c817ca40c7ed7f11521d",
+    "tools/werkdata_controle.py": "a82c3321d250d74a750bcda9d6d7b48ab47e1b5623c7ec5060186e0f0ea7f5e3",
+    "unified_hub_core.py": "15cfab0af8abc7496fb790de6e9ecc5b331b2153e2242d2b0fe0e40161377547",
+    "universal_os.py": "acfab69f85aa7bacd3b0a276718f3d4f9c7f6acc7f85af6acff00a578ddc7b78",
+    "universal_search.py": "6aa413341493a9e5cc9e09999d3b9ccdf8bd1eaa0d1dc8ebd90a21b20bfb44c9",
+    "universal_workspace.py": "89576d6c2305367a27df7b567d616e9969c4bb4e7c17d54fdb06c0ba1f41a8d4",
+    "verbeteren.py": "5e0281eeeda76a83565b10183c6b0cfa3fdd000d4bfe298fe4969fa1c36e4a23",
+    "vertalingen/samenvoegen.py": "8339a002943bb27b9e6d4073432baadcb211e49c27a83568775f0a821a69ebd2",
+    "vertalingen/verzamelen.py": "04d67d70e53af0a50d7f2a860c8a4dd4c454f15b412ca04c73523d7d10aeed43",
+    "video_project_core.py": "7405ad3ccf94d320f235970eee9b47c1a2d25b65724b5f2a7eb215f25fec2ec4",
+    "video_trim.py": "27a5426b0bde6b65117033ee9b1b869df0491eca1f40c07030d388c9dd2c46ca",
+    "web/index.html": "2076cef426c91ef156ac8b5936bf4ba39bbf0945a66d4e2c3836afb448609e1f",
+    "web/src/App.tsx": "6041892519be407368ca1b58824f50e4a47d7706dcf4b9ba1207b7aa2ee2c205",
+    "web/src/api.test.ts": "6fe7464029da8534db2131aecba3118149ccd46d4e69b9c975fd1fbb8b0ab047",
+    "web/src/api.ts": "c248ac4c3274691a489c004099dbe9fd58a545d935b1aa35b361fd0db122470f",
+    "web/src/grafiek.test.ts": "aa08d15f4ce3a1c52effe0e1470e5b4751b9b0df85a10afcd21238d3d0c87588",
+    "web/src/grafiek.tsx": "7ce35245acad25267d024b7ee65f463a8c8b69357042e05edaac2660c2f21f1f",
+    "web/src/iconen.tsx": "9eba3ad7204b4cacf7fb1fe95185700d6c724f368b3e99bf55cf6cbe59e1ed10",
+    "web/src/keuzekaart.tsx": "dc711126d57297ec69863089c83e647db785749be5cf59f4babe5e84a8edc398",
+    "web/src/lib/afschrift.test.ts": "2429124ccaa8f386792d59e8a3ce73bb7ca2b1250adb9c2d5657a05e02941609",
+    "web/src/lib/afschrift.ts": "49b616802965c39b80479125debf0973db1099527ab0ace69d14ae9b200ef98d",
+    "web/src/lib/assistent.ts": "590906363563aff5f4c7daa1d1cbb29483f353837cc49f6e132c98b52d3ec18e",
+    "web/src/lib/beleggen.test.ts": "db31e74b8a37930bd924d50d5861b3ea1505a5afa9c520866984e81cba92a4b2",
+    "web/src/lib/beleggen.ts": "3f24a001a1b12f27a49436e19d505983654f5398a89569dd73a5ed4bd502818f",
+    "web/src/lib/bellen.ts": "492a598822017142b15698255310c45e97e903e1c02fbb18a11d55913c323a55",
+    "web/src/lib/bestellingen.ts": "a839f0efe36e34dab56a4a5e27b922076ee4aa9741726197df45367192b7614e",
+    "web/src/lib/beveiliging.ts": "a90cae99937af75de076eb0823f7af481e79b0410d84fe853456275a9d5c45e9",
+    "web/src/lib/bijlagen.ts": "feffe7d970a534a2438bfe79b1dc4ea40d0b0183568a2da34507a595496f90af",
+    "web/src/lib/chat.ts": "71c237c95750821d98ba9338db25094074c757958d3dc475d0316446ea239b6b",
+    "web/src/lib/chatbetaling.test.ts": "67cea5ddcefd8ef947fcc236af992036ffa5925a63c8f75df6e4596d9d3511b2",
+    "web/src/lib/chatbetaling.ts": "83f4a306be51b1e4358f3e914fefa3a0146758325ceba9ee97582338c9a6e72e",
+    "web/src/lib/club.test.ts": "d144d0c4169a64423eb40b65136f6861ee72fb26b112f1c8c3e8a1e8039cd1d3",
+    "web/src/lib/club.ts": "5dffcd1100d4665324df8b9ee20cc8db63b608746cbeb414b58419615cd5c8cf",
+    "web/src/lib/dagacties.test.ts": "1e650fcd397f46321098118b578abdef4eaa546b254a5d45d5cedbd89f40ef10",
+    "web/src/lib/dagacties.ts": "ae39d292f34214b9793ad0fbf2f4d5f335e13d99ff3ed6f1a4af323d1d4d507f",
+    "web/src/lib/delen.ts": "c22d81b439ecf61ac4de7e95c2c0d8bff5a850c25a6a8c30e4455307d15670b7",
+    "web/src/lib/feed.ts": "df974c17f12bc61cd20eb1700993debbecb62688e42e4cd54725f2c6e499362d",
+    "web/src/lib/feestdagen.test.ts": "8f422a6378bbc28c431231df27333c6f4020ba9bf281f842777fbb858a9f1640",
+    "web/src/lib/feestdagen.ts": "c0f96850049b2e4919931e086b448071294a62364913d8090dc3b3284e6ed000",
+    "web/src/lib/gasten.ts": "04d2815b076a69a37c4a6f84bbf6cf37f9f3241dfae0d69f9501b0ea78d2db45",
+    "web/src/lib/geschiedenis.ts": "38f393ad3f0b646cfdc0c414e72307cc42d24a41782f967bfb20185322abb0bc",
+    "web/src/lib/leren.test.ts": "4ea5852e53208481c5aa65a5726193a47a1b35d8ed27f5804165852330d45ecb",
+    "web/src/lib/leren.ts": "ae5b7e6490b6aaf31094a52670ae4756641a38f44afde6297cde1029a2b5386c",
+    "web/src/lib/mail.test.ts": "b331e3cacdef52af6c3cd446708bb1b2ffd18380f857fb574d59d2892db54f40",
+    "web/src/lib/mail.ts": "2d6fe80cc3c82c4a6c2c66883c5aa861b8eab4f15cab4f08e02ea04932cb5ff6",
+    "web/src/lib/opmaak.tsx": "6974b65164a6a8da059ef4e8f4c445bcb3d0c163899b07d55607ff0905264f88",
+    "web/src/lib/prikken.test.ts": "92af555bd538be165d7b0a02c84d10f71eefa8d44cd631971ec7605a1b0b9018",
+    "web/src/lib/prikken.ts": "059458795047c942164370185eaf68a7b27fa7e5d1bae3bf38b142fcc4a411de",
+    "web/src/lib/project.test.ts": "8390bd5b44b4fea855a356c999b3f0bf653adb841e7c947238f297bb2d412213",
+    "web/src/lib/project.ts": "a700ae55ecf7192c30bc205065006a6dbbc0dc3f22ea43052c8fbbbb86505e75",
+    "web/src/lib/projectals.ts": "c79af6254e04d57d21899681805f2572121b0dc6046711477174d9af6da7b8b6",
+    "web/src/lib/projectaudit.test.ts": "a4ea3acc09a708b35b819acdd8ac6e466f4dee551b9ffe37f5021828add40c92",
+    "web/src/lib/projectdiensten.test.ts": "1255f055f875981e385ba55ea395402dcc918d48b8f86b6365b2c0be01bd6cce",
+    "web/src/lib/projectdiensten.ts": "8f7fa479b17a74d9c36f68b2d8f1ed72e28eea330a5a70c9809f0dcf78da4e35",
+    "web/src/lib/projectherplan.test.ts": "48bc233687c3c5efc3afc150f0cc299e7b45f3197807ba027fc544dc77c25839",
+    "web/src/lib/projectherplan.ts": "d7ff343e12b06dd374663d9c1ef4557a89a29c88bd0a28e6503dcb2b57bb37a0",
+    "web/src/lib/projecthulp.test.ts": "60475f31224abff2d3f1db413c80a2047523f5c02d589f01edd0a3d82e25064c",
+    "web/src/lib/projectinvarianten.test.ts": "a10ebda0b14d0f84f57545842126b4af16784e9557a188a543c2fd8c7c4da14c",
+    "web/src/lib/projectmotor.test.ts": "41cfde05fe4dba6ad00eb92195f53fc767db2d38f20a373cd4d5bf91fc7b5f40",
+    "web/src/lib/projectplan.ts": "f3368cbf72aec9d0e385d05425a6a961b260323078b1d34c9188855d09c35463",
+    "web/src/lib/projectprivacy.test.ts": "68dc9b1c30471e14be8c4613995dc7a8b1fad45ac5e372511e5c0999af16130c",
+    "web/src/lib/projectprivacy.ts": "93de439bdf7f1dc4cb49f16309783bc2f2d3de1926c2bd44bf5ade27add6345e",
+    "web/src/lib/projectregie.test.ts": "44eb792ddfd9b47f4c9461d99ced7c0ddcd1b90159b85f1733c06c47fafc8a83",
+    "web/src/lib/projectregie.ts": "766045396d22f861d06eb7dd1ace2e224bd84fd172340fc1a14358aa27d27037",
+    "web/src/lib/projecttijd.ts": "81a4f1db1af07e9b797c226050127a1c9564d2dee2ad3dc6bc469bd41db4ba23",
+    "web/src/lib/projectwanneer.ts": "51a4b7fc51235de92960c65c881f2a757ce784b2cc4f8394356e7745e0213474",
+    "web/src/lib/projectwerk.test.ts": "4989e86cc73fbd604c882c5e3f0b2419517ffb57161c1106ec06bb71d5cb56a5",
+    "web/src/lib/projectwerk.ts": "3a81cb22c685d62a7771ceda0eda1b0d3cee8a19a1a230eddbb818a7151f10f6",
+    "web/src/lib/snelstart.ts": "85ed67855f8f54c34de62aba9c2aa077f2cc7dc110fcd2a27a75955415da6cfd",
+    "web/src/lib/teksten.ts": "0879eee59f5faedef64249fa31c0de755b365382fde792b91f6283b58e813ffd",
+    "web/src/lib/tijd.ts": "ab27d5f101b59be1747128e5ba769ed897b561e9938df18fc389a506d223b76f",
+    "web/src/lib/video.ts": "0aed5d40e4547f63460bd6482a123819ab5fb4abe18e8874699d4a4063f797ba",
+    "web/src/lib/voorstellen.ts": "be7be5e29ae7ffca468e448b3834620b2740bafab923ff76851b73acffc15dab",
+    "web/src/lib/weer.ts": "80ad832359a4a60718355566b102ab8358d538680d67c34f03d78df14f824e6c",
+    "web/src/lib/winkelen.ts": "fa144b2b288faba742e0408fd0ebd199e696a6619ed3bd57e5700aaa81e15d30",
+    "web/src/lib/zaak.test.ts": "3d089ed730b2900a0c92af1d33ba95b9e4778b7f7dd5b875aca0e1e23f60d3a8",
+    "web/src/lib/zaak.ts": "72db9ee5990d27b952a5eb16413767414306bc8e96417d3fae437cb38842a4e2",
+    "web/src/main.tsx": "aea080c4ce469f9b49390d3a4935abc48f503d7120ae284bda94b775447caeb3",
+    "web/src/mascotte.tsx": "bf383680065ad6397eec2801c3fe1d24078c3093e5de43aef7bb8ca297ae4df3",
+    "web/src/rondje.tsx": "4e51f9ee6c49ac7e9695716018918b342b78916df9cdfa3dc822d754359416d3",
+    "web/src/schermen/Agenda.tsx": "b15f966256defa53141b6c7b5150e2921a82f758c1e739f0b512a98e616cff8e",
+    "web/src/schermen/AgendaPanelen.tsx": "138094c12dd5e4fcb76384b0eba085720f0974a695e808864f6d8549ff463658",
+    "web/src/schermen/Algemeen.tsx": "88c3f2c7599f5d6ce135aeaae51eaca7e4ef1cab1f11d51db303409525a26789",
+    "web/src/schermen/AppMenu.tsx": "1eecc4ff5fc386c88fb7889bd75a1305fc99a21c91cb095307f54e1c83f73786",
+    "web/src/schermen/Assistent.tsx": "9917ea9588ca949b6cb5055ac145cf5a973ec3b9f5e97700e0dfb018c3437a56",
+    "web/src/schermen/Beleggen.tsx": "4f05f523df00aa0e71661c2aa2521f5e917117cb7cd40ad97141f71b1b92f711",
+    "web/src/schermen/Bellen.test.tsx": "fa7612a064307a9f4a89cb447a9e1d3d5e078ced608d081fef2d0c579eace8ce",
+    "web/src/schermen/Bellen.tsx": "f4cf8ce25fc4e330d87aa120c54cf16c95012526dfff1dd802443623eb69a01e",
+    "web/src/schermen/Bestellingen.tsx": "644fcd2d48ddcf4d3e09b3ef34f186d3235b39ca1d243d3b5f7ca4f57d9f728d",
+    "web/src/schermen/Beveiliging.tsx": "2b003f585fc1d00caa3bccab8a699af19d86c596acbd435b02dc864dac1e050d",
+    "web/src/schermen/Chat.tsx": "a2949e1835c26d8b3569b20f018b037d555699e2d20c9082e55ae65edbeee499",
+    "web/src/schermen/ChatBetaling.test.tsx": "9462b92efce12bd6c529e05a4a950280e066b1f7a0a83c3661ebab11e6df4e1f",
+    "web/src/schermen/ChatBetaling.tsx": "48a8e4a35e45455784efa2c0fa0cd6ee56dc9aa530e1925558faf468e389c951",
+    "web/src/schermen/ClubAgenda.tsx": "6f72bbf694d3b7930304429a6c151761377a9a5d2bc97fdad424d57d1f206ace",
+    "web/src/schermen/CommunityBeheer.tsx": "c486bc33d15f5bfe66df721565d2eced56e21d727713c415b3f42211c3fa2bdc",
+    "web/src/schermen/CommunityOpruimen.tsx": "21bf40a7c06b89845b81c1a035a7362e1cc6b4635e0adeb869f115c2db885d52",
+    "web/src/schermen/Delen.tsx": "37981aabcb5e6db8812b632e201a5ded67818f1e4a6d3d1e43923bd2bc59594c",
+    "web/src/schermen/Feed.tsx": "97fbf35f7d7738449e887e0af61d2c8e54e9bbe45896f9f85585ff5ee0b6f17c",
+    "web/src/schermen/Gasten.tsx": "cddcffcc73f14ff939fa2077c842d3bc3414d56dc7b47956ab264a0bd65d4953",
+    "web/src/schermen/Gesprekken.tsx": "bb7d53d14ec9b530f80c1e43093c15503490a0fa6a8a0c750aeba1f09b2a0c40",
+    "web/src/schermen/HoofdNavigatie.tsx": "5a2063c25b81706fcebd744008661d92e96d4207cd41da2b5c382ef80a411dbb",
+    "web/src/schermen/Inloggen.tsx": "2b777216fe6216df37ac0e239281cc732c227582ebbd82744e7fba46b3bffb4f",
+    "web/src/schermen/Instellingen.tsx": "5be3958f7f09b3a657b5203f3a5fcb192bbb82065361f30ad1a1f16b164a8f05",
+    "web/src/schermen/Leren.tsx": "bf77e6b10d83ac883a6905fe2e4cca5914064ce5bd39687018c39553179f4ef8",
+    "web/src/schermen/MailOpstellen.tsx": "d03a4ae70908436c0938b8b1a390ea7c48aaba325d3f7c3c9de045049d545e35",
+    "web/src/schermen/Onderblad.tsx": "7376315af4835387523b6b5389f324c18a8f3715fcba9ccedabb8ba8c10ecbfe",
+    "web/src/schermen/Onderdelen.tsx": "8df6f12352415758f294f6df35057ea2eb421d017cbd928da2bfc0b7d1e51a7d",
+    "web/src/schermen/Oproepen.tsx": "b2ea0d67569e124908b87fb5aea98e86d3940392323dee218098c9466a54db29",
+    "web/src/schermen/Prikken.tsx": "329118610cecaf9789f3e1be80519e5a174b2ecb722e3c5952b28a2fd701a146",
+    "web/src/schermen/Profiel.tsx": "58068cd2bbb240ecc5bd1b85ed1eb6ba30042c32d5c8292a98257e27d6c964fa",
+    "web/src/schermen/ProjectAls.test.tsx": "8d733e593704e1763c5b1c40825c6e86dda051dac251c2ba76f51b69ad7c8fea",
+    "web/src/schermen/ProjectAls.tsx": "04a815035cc9ec45af568822b9eb5c187e16c92b520284de97384b0882132cbe",
+    "web/src/schermen/ProjectArchief.test.tsx": "19c195b1d8c22889bfe9b1a626207da18d134a14c66de0b09a6bf24eddff08a2",
+    "web/src/schermen/ProjectArchief.tsx": "f7a69a8220e01b9e565fefe44ae4453f5d993419d41920baaaf80dd33bad80d2",
+    "web/src/schermen/ProjectArchiefCatalogus.test.tsx": "dc167ae4207701711c05e9fa783e8ad2b84a81cce2fa4e896ad976ff9b89fa08",
+    "web/src/schermen/ProjectArchiefCatalogus.tsx": "c1538ae6cc8813ebe536fd0120a990d971688304d859d2f650a109e3396854fa",
+    "web/src/schermen/ProjectBord.tsx": "6e59e383f820533622d8e2cd2da00a0ed83625822166d754d956465399f0cf62",
+    "web/src/schermen/ProjectHoe.tsx": "4c089c5d7df2d72c4476ca93e08e67d5671e30b755aeb89080ed6b5487f7362b",
+    "web/src/schermen/ProjectKompas.test.tsx": "5c5136721355fcfee24b1bcbb77ab70a4ff8064c95cd87c431c347f0db442d9e",
+    "web/src/schermen/ProjectKompas.tsx": "5cbd5500005fce3592cc38db156560f2fa26f5aea6ebbc7c0b7465eb22d99d29",
+    "web/src/schermen/ProjectNavigatie.tsx": "9aa9a24d1d71b95655c7a163ff45d57c77eaa9230e3b21f927cdbd63c493c8cb",
+    "web/src/schermen/ProjectRegie.test.tsx": "cb5a26ab4a7017aebc762f2e96dcdc6ac86753da4df79abc32dbee382e2ef439",
+    "web/src/schermen/ProjectRegie.tsx": "241cfc1ce1039d4b1ab6d6a49c904951da43569a532f647d5e65f21571a5103c",
+    "web/src/schermen/ProjectSjablonen.tsx": "571234769a7e12ddf3993406493e3dcb415baa3e85163ff771a82c8850531c28",
+    "web/src/schermen/ProjectWanneer.test.tsx": "c87e35cfc549004899a6503d5924ca3740e6b8066a39765c0589166c7a6a591e",
+    "web/src/schermen/ProjectWanneer.tsx": "54fba26b9ee34dae1fe93b16f3eec507dfbc0d2438c11416944a79371be9940c",
+    "web/src/schermen/ProjectWerk.test.tsx": "60f431a2d4cced0e6006f6c5be2d60aca5ca5a011f84b526da3bbb5af09f1f25",
+    "web/src/schermen/ProjectWerkdruk.tsx": "5b5fdaf1274af142510c38a9abd30d518136d7ea1c310bb7c05e88f78a773b6a",
+    "web/src/schermen/ProjectWerkruimte.test.tsx": "ec5f06e9ce43662a88552c66c68782126858485ea69702bdca30b9b2158dfc45",
+    "web/src/schermen/ProjectWerkruimte.tsx": "69a3bc91186b4a2b0117487509e04a0dd3776dee24419d12b9d73953f40f2ae9",
+    "web/src/schermen/Projecten.test.tsx": "d65ee6f467eec19fdf6c1ef4df2d3d9c0b50371690af92dc37877829c8c22732",
+    "web/src/schermen/Projecten.tsx": "5987d08e37d5df84161f9ea54a545ed80c161a513b2c24d2e7b9083806c4a92a",
+    "web/src/schermen/RustigeNavigatie.test.tsx": "8ff302e2310dc151d41165231ab5c1db0b4dbb7f190318ac19adcb430195b1dd",
+    "web/src/schermen/Stories.tsx": "913fc205e332a1af6381523f9677a735f52febe12fa228b6de66be97a2c4f12b",
+    "web/src/schermen/Vandaag.test.tsx": "46b57a06ca51fc99a58059428fea3837eca28e55403e5d71688f6a942f8e83f4",
+    "web/src/schermen/Vandaag.tsx": "0cb21528f6960a5c219c469b19124e60cb2f13b0b60909bbce240468503a7794",
+    "web/src/schermen/Verkopen.tsx": "8f247ac0c4f14772dab343731e5e288fa1d187e9cf1ac32301d323622d274ea8",
+    "web/src/schermen/Winkelen.tsx": "c8dbbc88ac3375a1948f9de39510d832ddcb1872242782ff0fcd735b1014d157",
+    "web/src/schermen/Zakelijk.tsx": "293ee04e8216549c180e04f043779dd91204bbb50f7010637985579f33e18dbd",
+    "web/src/schermen/instellingen-ui.tsx": "a0154fb5635d2703151233bebb85395df6f3f4a33d4197871b2b8d02904fc642",
+    "web/src/vangnet.tsx": "a18fd68a88af56243a3a280423bc9f0f137f234a7d4c90d138076109141f7b72",
+    "web/src/vastScherm.ts": "52f035a4b60e1da74b4a19fc0d6b8c60bf65cfc7e28f98baedc6f8b1beb96a58",
+    "web/src/versie.ts": "57a8d15e918bfbc1e476713ca234c59d9076e228eae9d6b083776816b81a9eda",
+    "web/teksten.py": "6fd1e4b1547ab61bab872fb24bbe305e0a52cda47d9f675b6ec18b10413cb3e9",
+    "web/vite.config.ts": "93c06255c0529d8e10f0ef5a1fe38133c6e721b0d214c7ccb012bff203cc4586",
+    "weer.py": "cd6de4612272bd6c50862de2c34d0f8550ab5dc7573425af7b6f32d6294f253f",
+    "wereld.py": "43ff862c2f82c0761c4d9001aa5a50e513f7418c13050c34ba0946c4f0c7244a",
+    "werk_scherm.py": "dd82f198d0aaaaf502cf979b42a38699d8e1497a2a5fdb0c625270c5241335a3",
+    "werkbronnen.py": "ef63646027be1f7eb0eda67825e93cfff14630ef9aa546462161d8193fcabbff",
+    "werkbronnen_scherm.py": "93ad74b2c54becee38d1c5f2238ac98363825f72e64d3b8fa9640eb6537e912f",
+    "werkcontext.py": "4698de93b8cdc685ca5d5ab098f850afdaac470973d619446a6cadd480fc6d88",
+    "werkcontext_scherm.py": "d6bd15a7a21888a1ff7fc005e7cf86b1a2ea335c24f357dc5b8bf46312dd1b55",
+    "werkcontrole_scherm.py": "f5af3b9857bb632af1abd9f7408982f5034a798f094d60f30b94211708d39743",
+    "werkrooster.py": "cf34a917150448db327312636d991d0b05f12ea22fda69623ced9d2841aa4544",
+    "werkzoeken.py": "82833c4a48e9d2dc505fa556d88fcd83104593b33d9777402e41ab88da491925",
+    "wetenschap.py": "64106a99b620bf7e7f89fa964bda34a8b4f708cc6817a8e6a0747e3b7cd3a6f7",
+    "winkelen.py": "22e140d8525e866c4fef7d9f32f7e510dde6ddc55bd5fcd6b2e7b9e7083da26c",
+    "winkelen_scherm.py": "6897296513b407cedea275f27dd93658ea7d964b9cfdcc849ec7c62526b13249",
+    "winkelkaart.py": "1148ffa0124379c180b61211d4725e0acf988d231bf8cf0b11a0a70352361b26",
+    "woning.py": "c41912263d0842bb656be3edc5c1131f6980a10baad958c7475cb8b1d362c645",
+    "workspace_hub.py": "85f40e03eac1fc4fb4356a590b3678578c2429a2439540391dc6d2ee4db04477",
+    "workspace_safe.py": "cd60337f05ce6708b91da16ee2a2b4b913c30fffb9d8efb4510ee268d1cf989d",
+    "zaak.py": "dd693772e7560ba5faa1c5dc2e9a8ab4dac3a0eb64cf9352cbf01c5e569c19b2",
+    "zaak_scherm.py": "a1aec32635f32e9215d22ff778234630ea3b3165ced2850c292a834ac8a76265",
+    "zoekveld.py": "6456a58befced2a024abde61a75508030ff95ac765c59c7ae683c11b45cebd6e",
+    ".github/workflows/ai-tests.yml": "b1a5ea5ecc4b4239ab95bc87f004c2664502cf4823b605b42d765c31342eaa63",
+    ".github/workflows/intake-gate.yml": "4493c4e767092be78868bbe58c5c715f429b12c6b0b9da93fa8a8cb48ea4e949",
+    ".github/workflows/project-checks.yml": "a9d05c6e54c8dbc3f7e14c562c7336b9753e15af16a11a26fab1743d9d997936",
+    ".github/workflows/publish-web.yml": "e84b2e27de9c8e41dfa54c8a5b95bd51b7cddd6552c9178b4ea0fa52764d4526",
+    ".github/workflows/regression.yml": "5993902c376c565e4f1ca19b20d3992770492e08da4bae0385b04bc0aebf58c4",
+    ".github/workflows/rive-cli-build.yml": "f9327cb4fa0d15845e71160d13f2444c70447d351f460da09ef3aee6316ad8f3",
+    ".github/workflows/security-tests.yml": "3cdd59453be85d37f00ec97a4268cc866ecb2afb0f4e001c8443c309e8b0f339",
+    ".github/workflows/superapp-ci.yml": "076ef0ea546587ae4b0c7808904654db934d3bcb5238c95aa606ba1eeb633ab8",
+    ".github/workflows/workspace-validation.yml": "1da5f4dc15618bc010c94bd9f68a3d443946753a806cdaa950a23d94b7e50a89"
+  }
+}

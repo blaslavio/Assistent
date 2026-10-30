@@ -141,3 +141,7 @@ export const Grafiek = (p: P) => <svg {...basis} {...p}><path d="M3 3v18h18" /><
 export const Delen = (p: P) => (
   <svg {...basis} {...p}><path d="M12 3v12M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>
 );
+
+export const Projectmap = (p: P) => (
+  <svg {...basis} {...p}><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" /><path d="M7 12h10M7 16h6" /></svg>
+);

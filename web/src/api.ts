@@ -56,6 +56,11 @@ let sessie: Sessie | null = null;
 let sessieWacht: Promise<unknown> | null = null;
 let startZonderVerbinding = false;
 
+function zetSessie(nieuw: Sessie | null) {
+  sessie = nieuw;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("assistent-sessie"));
+}
+
 export function huidigeSessie() {
   return sessie;
 }
@@ -68,7 +73,7 @@ export async function alsIk<T = Record<string, unknown>>(functie: string, parame
   const antwoord = await rpc<T>(functie, { ...parameters, p_naam: account.naam, p_wachtwoord: account.token });
   if (sessie !== account) throw new GeenToegang("Het account is intussen gewijzigd.");
   if (antwoord && typeof antwoord === "object" && (antwoord as { geen_toegang?: boolean }).geen_toegang) {
-    sessie = null;
+    zetSessie(null);
     throw new GeenToegang();
   }
   return antwoord;
@@ -156,7 +161,7 @@ export function opstarten(): { vorige: Promise<Staat | null>; vers: Promise<Staa
       await snelstart.wissen();
       return null;
     }
-    sessie = { naam: a.naam ?? "", token: a.token };
+    zetSessie({ naam: a.naam ?? "", token: a.token });
     if (a.gegevens && !(a.gegevens as { geen_toegang?: boolean }).geen_toegang) return netjes(a.gegevens);
     return gegevensLaden();
   })();
@@ -207,7 +212,7 @@ export async function uitloggen() {
   }
   schrijf(APPARAAT_SLEUTEL, null);
   schrijf(VORIGE_SLEUTEL, null);
-  sessie = null;
+  zetSessie(null);
   await snelstart.wissen();
 }
 
@@ -216,6 +221,7 @@ export async function uitloggen() {
 export type Afspraak = {
   id: number | string; titel: string; start: string; einde?: string | null; locatie?: string; soort?: string;
   sport?: string; notitie?: string; extern?: boolean;
+  projectplanning?: { gesprek:number; aanpak:string; stap:string; opdracht:string };
 };
 export type Taak = { id: number; titel: string; deadline?: string | null; klaar: boolean; prioriteit?: string; notitie?: string;
   herhaal?: Herhaal | null };

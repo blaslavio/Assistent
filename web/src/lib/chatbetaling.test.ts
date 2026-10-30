@@ -1,0 +1,13 @@
+import { beforeEach, expect, it, vi } from "vitest";
+import { betaalbericht, chatCheckout, eigenBetaalverzoek } from "./chatbetaling";
+import { lijst, uitvoeren, type Bestelling } from "./bestellingen";
+import { huidigeSessie } from "../api";
+vi.mock("./bestellingen",()=>({lijst:vi.fn(),uitvoeren:vi.fn()}));
+vi.mock("../api",()=>({huidigeSessie:vi.fn()}));
+const b:Bestelling={id:42,titel:"Ontwerp",bedrag:125,betaalwijze:"app",levering:"digitaal",status:"geaccepteerd",rol:"koper",ander:"Alex",ander_id:2,bijgewerkt:"2026-10-29"};
+beforeEach(()=>{vi.resetAllMocks();vi.mocked(huidigeSessie).mockReturnValue({naam:"mij",token:"token"});vi.mocked(lijst).mockResolvedValue([{...b}]);vi.mocked(uitvoeren).mockResolvedValue("https://checkout.stripe.com/c/pay/test");});
+it("deelt alleen een begrensde bestellingsreferentie",()=>{expect(betaalbericht({t:"projectbetaling",versie:1,bestelling:42})).not.toBeNull();expect(betaalbericht({t:"projectbetaling",versie:1,bestelling:42,bedrag:1})).toBeNull();expect(betaalbericht({t:"projectbetaling",versie:1,bestelling:0})).toBeNull();});
+it("controleert eigen rol en wederpartij met dienstgegevens",async()=>{await expect(eigenBetaalverzoek(42,99,"koper")).rejects.toThrow("gesprekspartner");await expect(eigenBetaalverzoek(42,2,"verkoper")).rejects.toThrow();vi.mocked(lijst).mockResolvedValue([{...b,ander_id:undefined}]);await expect(eigenBetaalverzoek(42,2,"koper")).rejects.toThrow();expect(uitvoeren).not.toHaveBeenCalled();});
+it("herleest vlak voor checkout en blokkeert veranderde bedragen en afgeronde bestellingen",async()=>{vi.mocked(lijst).mockResolvedValueOnce([{...b,bedrag:150}]);await expect(chatCheckout(42,2,b)).rejects.toThrow("gewijzigd");vi.mocked(lijst).mockResolvedValueOnce([{...b,status:"betaald"}]);await expect(chatCheckout(42,2,b)).rejects.toThrow("nu niet");expect(uitvoeren).not.toHaveBeenCalled();});
+it("opent uitsluitend het HTTPS-adres van de betaaldienst na expliciete checkout",async()=>{expect(await chatCheckout(42,2,b)).toBe("https://checkout.stripe.com/c/pay/test");for(const url of ["https://checkout.stripe.com.evil.invalid/pay","http://checkout.stripe.com/pay","https://user@checkout.stripe.com/pay"]){vi.mocked(uitvoeren).mockResolvedValueOnce(url);await expect(chatCheckout(42,2,b)).rejects.toThrow("Onverwacht");}});
+it("levert geen checkout op na een accountwissel",async()=>{vi.mocked(uitvoeren).mockImplementation(async()=>{vi.mocked(huidigeSessie).mockReturnValue({naam:"ander",token:"anders"});return "https://checkout.stripe.com/pay";});await expect(chatCheckout(42,2,b)).rejects.toThrow("Account");});

@@ -7,6 +7,7 @@ export type Bestelling = {
   rol: "koper" | "verkoper"; ander: string; kosten?: number | null; aantal?: number; verzendkosten?: number | null;
   commissie?: number | null; webshop?: boolean; vervoerder?: string | null; track_code?: string | null;
   bijgewerkt: string; uitbetaald?: boolean;
+  ander_id?: number;
 };
 
 export type Stap = { actie: string; naam: string; hoofd?: boolean; toelichting?: boolean };
