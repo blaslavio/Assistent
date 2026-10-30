@@ -98,7 +98,7 @@ export function routeBriefje(stops: Stop[], tijden:Tijden|undefined, priveLabels
   if(tijden)controleerTijden(tijden);
   if(stops.length>5)throw new Error("Maximaal vijf stops.");
   return ["Mijn routebriefje",...stops.map((s,i)=>`${i+1}. ${controleerStop(s).prive&&!priveLabels?"Privéstop (naam en locatie niet gedeeld)":s.naam}`),
-    tijden?`Geschatte planning: heen ${tijden.heen} min; bezoek ${tijden.bezoek} min; verder ${tijden.verder} min; buffer ${tijden.buffer} min.`:"Reistijden nog niet te schatten.",
+    tijden?`Geschatte planning: heen ${tijden.heen} min; bezoek ${tijden.bezoek} min; verder ${tijden.verder} min; buffer ${tijden.buffer} min.`:"Volledige reistijdplanning nog niet beschikbaar.",
     "Dit is een plan, geen reservering of actuele verkeersroute. Agenda, vertrekadres en coördinaten zijn niet opgenomen."].join("\n");
 }
 

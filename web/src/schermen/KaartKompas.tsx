@@ -49,15 +49,16 @@ export default function KaartKompas({staat,setData,gekozen,vanaf,kies,reiswijze}
     finally{slot.current=false;setBezig(false);}
   }
   return <section aria-label="Mijn kaartkompas" className="flex flex-col gap-3 rounded-3xl border border-lijn p-4">
-    <div><h3 className="text-lg font-semibold">Mijn kaartkompas</h3><p className="mt-1 text-sm text-rustig">Verbind je stops met de tijd die je hebt. Je agenda blijft in de app.</p></div>
+    <div><h3 className="text-lg font-semibold">Mijn kaartkompas</h3><p className="mt-1 text-sm text-rustig">Verbind je stops met je agenda. De tijdscontrole gebeurt lokaal.</p></div>
     {fout&&<p role="alert" className="text-sm text-red-600">{fout}</p>}{melding&&<p role="status" className="text-sm text-rustig">{melding}</p>}
+    {heen&&<p className="rounded-xl bg-vlak p-3 text-sm"><strong>Heenreis: ongeveer {heen.laag}–{heen.hoog} minuten</strong><br/><span className="text-xs text-rustig">Automatische indicatie, geen live verkeersinformatie.</span></p>}
     {gekozen&&<div className="flex flex-wrap gap-2">
       <button className={knop} onClick={()=>{try{setStops(voegStopToe(stops,alsStop(gekozen)));setFout("");}catch(e){setFout(foutTekst(e));}}}>Deze plek als stop</button>
       <button className={knop} onClick={()=>setStart({lat:gekozen.lat,lon:gekozen.lon})}>Vertrek vanaf deze plek</button>
       <button className={knop} onClick={()=>{setNaam(gekozen.naam.slice(0,120));setBewaar(true);setOpdracht(null);}}>Bewaar privéplek</button>
     </div>}
     <details><summary className="min-h-11 cursor-pointer py-3 font-medium">Past één extra bezoek vóór mijn volgende afspraak?</summary>
-      {heen?<div className="rounded-xl bg-vlak p-3 text-sm"><strong>Heenreis: ongeveer {heen.laag}–{heen.hoog} minuten</strong><p className="mt-1 text-xs text-rustig">{heen.toelichting}</p></div>
+      {heen?<div className="rounded-xl bg-vlak p-3 text-sm"><p className="text-xs text-rustig">{heen.toelichting}</p></div>
         :<p className="text-sm text-rustig">Kies je bestemming en vertrekpunt. De app schat de reistijd; je hoeft geen reistijd in te vullen.</p>}
       <p className="mt-3 text-sm">Hoe lang wil je hier blijven?</p><div className="my-2 flex flex-wrap gap-2">{[15,30,60,120].map(n=><button key={n} className={knop} aria-pressed={bezoek===n} onClick={()=>setBezoek(n)}>{n} min bezoek</button>)}</div>
       {volgende?.locatie&&toegestaanAdres!==volgende.locatie&&<div className="rounded-xl border border-lijn p-3"><p className="text-xs text-rustig">Om de tweede reis te schatten zoeken we alleen het locatieadres van je volgende afspraak op via OpenStreetMap. De titel, notities en rest van je agenda gaan niet mee.</p>
@@ -71,7 +72,7 @@ export default function KaartKompas({staat,setData,gekozen,vanaf,kies,reiswijze}
       <p className="text-xs text-rustig">Vergelijking op hemelsbrede afstand. Wegen, verkeer, openingstijden en bereikbaarheid kunnen een andere volgorde beter maken.</p>
       {!vertrek&&<p className="mt-2 text-sm">Kies een vertrekpunt op de kaart of gebruik Bij mij. Utrecht is alleen het beginbeeld van de kaart.</p>}
       {start&&<button className={knop} onClick={()=>setStart(null)}>Eigen vertrekpunt loslaten</button>}
-      <ol className="my-3 flex flex-col gap-2">{stops.map((s,i)=><li key={s.id} className="flex flex-wrap items-center gap-2 rounded-2xl bg-vlak p-3"><span className="min-w-0 flex-1 text-sm">{i+1}. {s.naam}{s.prive?" · privé":""}</span>
+      <ol className="my-3 flex flex-col gap-2">{stops.map((s,i)=><li key={s.id} className="flex flex-wrap items-center gap-2 rounded-2xl bg-vlak p-3"><button aria-label={`Toon stop ${i+1} op kaart`} className="min-h-11 min-w-0 flex-1 text-left text-sm" onClick={()=>kies({...s,app:false,soort:"Geplande stop",plekId:s.id})}>{i+1}. {s.naam}{s.prive?" · privé":""}</button>
         <button aria-label={`Stop ${i+1} omhoog`} disabled={i===0} className="min-h-11 px-3 disabled:opacity-30" onClick={()=>setStops(a=>{const b=[...a];[b[i-1],b[i]]=[b[i],b[i-1]];return b;})}>↑</button>
         <button aria-label={`Verwijder stop ${i+1}`} className="min-h-11 px-2 text-sm text-rustig" onClick={()=>setStops(a=>a.filter(p=>p.id!==s.id))}>Weg</button></li>)}</ol>
       <label className="flex gap-2 text-sm"><input type="checkbox" checked={rond} onChange={e=>setRond(e.target.checked)}/>Terug naar mijn vertrekpunt meenemen</label>

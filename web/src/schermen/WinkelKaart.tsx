@@ -78,7 +78,7 @@ export function WinkelKaart({ winkels, thuisadres, open, staat, setData }: { sta
         <button onClick={bijMij} className="h-9 rounded-full bg-vlak px-4 text-sm font-medium">Bij mij</button>
         <span className="text-[13px] text-rustig">{!ik&&!thuis?"Afstanden vanaf het kaartmidden. Kies een vertrekpunt voor je plan.":app.length > 0 ? "Grote punten zijn winkels in de app." : "Sleep om rond te kijken."}</span>
       </div>
-      {gekozen&&<p className="text-xs text-rustig">{gekozen.prive?"Eigen gekozen privébestemming. Alleen de coördinaten gaan mee bij navigeren.":gekozen.app?"Winkel uit de app. Bekijk de winkel voor actuele productinformatie.":"Bron: OpenStreetMap. Openingstijden, voorraad en bereikbaarheid zijn niet live gecontroleerd."}</p>}
+      {gekozen&&<p className="text-xs text-rustig">{gekozen.prive?"Eigen gekozen privébestemming. Alleen de coördinaten gaan mee bij navigeren.":gekozen.app?"Winkel uit de app. Bekijk de winkel voor actuele productinformatie.":gekozen.soort==="Geplande stop"?"Stop uit je eigen routeplan. Controleer de werkelijke route in je navigatie-app.":"Bron: OpenStreetMap. Openingstijden, voorraad en bereikbaarheid zijn niet live gecontroleerd."}</p>}
       {gekozen && <div className="flex flex-col gap-3 rounded-3xl border border-lijn p-4">
         <div className="flex gap-2"><label className="flex-1 text-xs text-rustig">Navigatie-app<select aria-label="Navigatie-app" value={routeApp} onChange={e=>setRouteApp(e.target.value as RouteApp)} className="mt-1 h-11 w-full rounded-2xl bg-vlak px-3 text-sm text-inkt"><option value="google">Google Maps</option><option value="apple">Apple Kaarten</option><option value="waze">Waze (auto)</option></select></label>
           <label className="flex-1 text-xs text-rustig">Reizen met<select aria-label="Reizen met" disabled={routeApp === "waze"} value={routeApp === "waze" ? "auto" : reiswijze} onChange={e=>setReiswijze(e.target.value as Reiswijze)} className="mt-1 h-11 w-full rounded-2xl bg-vlak px-3 text-sm text-inkt"><option value="auto">Auto</option><option value="lopen">Lopen</option><option value="fiets">Fiets</option><option value="ov">Openbaar vervoer</option></select></label></div>
@@ -97,10 +97,7 @@ export function WinkelKaart({ winkels, thuisadres, open, staat, setData }: { sta
           {gekozen.app ? (
             <button onClick={() => { if(gekozen.winkelAdres)open(gekozen.winkelAdres); }}
               className="h-10 shrink-0 rounded-full bg-accent px-4 text-sm font-medium text-white">Bekijken</button>
-          ) : (
-            <a href={routeLink(gekozen, routeApp, reiswijze)} target="_blank" rel="noreferrer"
-              className="flex h-10 shrink-0 items-center rounded-full bg-white px-4 text-sm font-medium dark:bg-black/30">Route</a>
-          )}
+          ) : null}
         </div>
       )}
       <KaartKompas reiswijze={routeApp==="waze"?"auto":reiswijze} staat={staat} setData={setData} gekozen={gekozen} vanaf={ik??thuis} kies={p=>{setGekozen(p);setMidden({lat:p.lat,lon:p.lon});}} />

@@ -30,3 +30,7 @@ Privélabels blijven buiten Apple Kaarten-links; de bestemmingcoördinaten worde
 - De kaart wijzigt geen agenda, taak, boeking, reservering of betaalstatus.
 - Oudere zelfstandige Python-prototypes worden niet als parallelle app of extra actie-/betaalmotor aangesloten. De actuele Azure-adapter, uitvoeringsgrenzen en Stripe-administratie blijven leidend; eerdere voorstellen blijven als geschiedenis behouden.
 - Externe dienstconfiguratie en de servermigraties voor eerdere functies blijven afzonderlijk te verifiëren; een merge bewijst geen productie-uitrol.
+
+## Controle
+
+270 webtests in 58 bestanden en negen releasebewijscontroles slagen. Eén van de webtests vergelijkt bovendien 1000 reproduceerbare wereldwijde stopplannen; dit zijn scenario’s, geen extra unit-testfuncties of gevonden fouten. TypeScript en beide productiebuilds slagen. De npm-audit meldt nul bekende kwetsbaarheden. Bronhashes en seed staan in `controle/kaartkompas.json`. Dit is geen bewijs van actuele verkeersinformatie of productie-E2E.

@@ -71,7 +71,7 @@ describe("privéplekken en overdracht",()=>{
  it("deelt geen privélabels, vertrekpunt, agenda of coördinaten zonder extra keuze",()=>{
   const s=[punt("Openbare winkel",1),{...punt("Geheime locatie",5.12345,true),lat:52.12345}];const b=routeBriefje(s,tijden);
   expect(b).not.toContain("Geheime locatie");expect(b).not.toContain("52.12345");expect(b).not.toContain("5.12345");expect(b).toContain("Openbare winkel");
-  expect(routeBriefje(s,undefined)).toContain("nog niet te schatten");expect(routeBriefje(s,tijden,true)).toContain("Geheime locatie");
+  expect(routeBriefje(s,undefined)).toContain("nog niet beschikbaar");expect(routeBriefje(s,tijden,true)).toContain("Geheime locatie");
   const url=routeLink({...s[1],naam:s[1].naam},"apple");expect(url).not.toContain("Geheime");expect(url).toContain("52.12345");
  });
 });
