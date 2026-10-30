@@ -73,45 +73,71 @@ export function berichtStroom(message: Obj) {
   return events.map(e => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
 }
 
-// Azure OpenAI: zelfde Responses-API, eigen adres en sleutel; het model is de naam van de deployment.
-export type Azure = { endpoint: string; key: string; deployment: string };
-export function azureAdres(endpoint: string) {
-  return endpoint.trim().replace(/\/+$/, "").replace(/\/openai(\/.*)?$/, "") + "/openai/v1/responses";
-}
+export type OpenAIProvider = { endpoint?: string; inputPerMillion?: number; outputPerMillion?: number; searchCost?: number };
 
-export async function openaiAntwoord(body: Obj, key: string, model: string, tellen: (cost: number) => Promise<unknown>,
-  azure?: Azure) {
+export async function openaiAntwoord(body: Obj, key: string, model: string, tellen: (cost: number) => Promise<unknown>, provider: OpenAIProvider = {}) {
   let request: Obj;
-  try { request = openaiVerzoek(body, azure ? azure.deployment : model); }
+  try { request = openaiVerzoek(body, model); }
   catch (e) { return Response.json({ type: "error", error: { type: "invalid_request_error", message: (e as Error).message } }, { status: 400 }); }
+  const endpoint = provider.endpoint ?? "https://api.openai.com/v1/responses";
+  const azure = Boolean(provider.endpoint);
   // Zoeken op internet zit niet in elke Azure-deployment.
   if (azure) request.tools = request.tools.filter((t: Obj) => t.type !== "web_search");
-  const vraag = (r: Obj) => fetch(azure ? azureAdres(azure.endpoint) : "https://api.openai.com/v1/responses", {
-    method: "POST", headers: { ...(azure ? { "api-key": azure.key } : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json" },
-    body: JSON.stringify(r), signal: AbortSignal.timeout(110000),
-  });
-  let r = await vraag(request);
-  let result = await r.json();
-  // Oudere Azure-modellen (zoals gpt-4o) kennen de denkstand niet: dan zonder opnieuw.
-  if (azure && r.status === 400 && /reasoning/i.test(result.error?.message ?? "")) {
+  const vraag = async (): Promise<Response | { result: Obj; status: number; ok: boolean }> => {
+    let r: Response;
+    try {
+      r = await fetch(endpoint, {
+        method: "POST", headers: azure
+          ? { "api-key": key, "Content-Type": "application/json" }
+          : { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify(request), signal: AbortSignal.timeout(110000),
+      });
+    } catch (error) {
+      console.error(azure ? "azure_connection" : "openai_connection", error instanceof Error ? error.name : "unknown");
+      return Response.json({ type: "error", error: { type: "api_error",
+        message: azure ? "Azure AI is niet bereikbaar. Probeer het later opnieuw." : "ChatGPT is niet bereikbaar. Probeer het later opnieuw." } }, { status: 503 });
+    }
+    const raw = await r.text();
+    try { return { result: JSON.parse(raw), status: r.status, ok: r.ok }; }
+    catch {
+      console.error(azure ? "azure_invalid_response" : "openai_invalid_response", r.status);
+      return Response.json({ type: "error", error: { type: "api_error",
+        message: "De AI-provider gaf een ongeldig antwoord. Probeer het later opnieuw." } }, { status: 502 });
+    }
+  };
+  let antwoord = await vraag();
+  // Oudere Azure-modellen (zoals gpt-4o) kennen de denkstand niet: dan één keer zonder.
+  if (azure && !(antwoord instanceof Response) && antwoord.status === 400
+      && /reasoning/i.test(String(antwoord.result.error?.message ?? antwoord.result.error?.param ?? ""))) {
     delete request.reasoning;
-    r = await vraag(request);
-    result = await r.json();
+    antwoord = await vraag();
   }
-  if (!r.ok) {
-    console.error(azure ? "azure" : "openai", r.status, result.error?.code ?? result.error?.type);
-    const message = result.error?.type === "insufficient_quota"
-      || ["insufficient_quota", "credit_balance_exhausted"].includes(result.error?.code)
-      ? "Het OpenAI API-tegoed is op of nog niet ingesteld. Vul het tegoed aan in OpenAI Platform."
-      : "De assistent is nu niet beschikbaar. Probeer het later opnieuw.";
-    return Response.json({ type: "error", error: { type: r.status === 429 ? "rate_limit_error" : "api_error", message } },
-      { status: r.status });
+  if (antwoord instanceof Response) return antwoord;
+  const { result, status } = antwoord;
+  if (!antwoord.ok) {
+    const code = result.error?.code ?? result.error?.type ?? "unknown";
+    console.error(azure ? "azure" : "openai", status, code);
+    const message = azure
+      ? status === 401 || status === 403
+        ? "Azure AI-autorisatie mislukt. Controleer de Azure API-sleutel."
+        : status === 404 ? "Azure AI-deployment niet gevonden. Controleer de deploymentnaam."
+        : status === 429 ? "Azure AI heeft tijdelijk de aanvraaglimiet bereikt."
+        : "Azure AI is tijdelijk niet beschikbaar."
+      : result.error?.type === "insufficient_quota" ||
+        ["insufficient_quota", "credit_balance_exhausted"].includes(result.error?.code)
+        ? "Het OpenAI API-tegoed is op of nog niet ingesteld. Vul het tegoed aan in OpenAI Platform."
+        : "ChatGPT is nu niet beschikbaar. Probeer het later opnieuw.";
+    return Response.json({ type: "error", error: { type: status === 429 ? "rate_limit_error" : "api_error", message } },
+      { status: status >= 400 && status < 600 ? status : 502 });
   }
   if (result.status === "failed") throw new Error("OpenAI response failed");
   // De bestaande platformtarieven vormen de bovengrens voor het maandbudget; geen facturatie aan gebruikers.
   const usage = result.usage ?? {};
-  await tellen((usage.input_tokens ?? 0) * 4 / 1e6 + (usage.output_tokens ?? 0) * 20 / 1e6
-    + (result.output ?? []).filter((i: Obj) => i.type === "web_search_call").length * 0.01);
+  const inputRate = provider.inputPerMillion ?? 4;
+  const outputRate = provider.outputPerMillion ?? 20;
+  const searchRate = provider.searchCost ?? 0.01;
+  await tellen((usage.input_tokens ?? 0) * inputRate / 1e6 + (usage.output_tokens ?? 0) * outputRate / 1e6
+    + (result.output ?? []).filter((i: Obj) => i.type === "web_search_call").length * searchRate);
   const message = openaiBericht(result, body.model);
   return body.stream ? new Response(berichtStroom(message), { headers: { "content-type": "text/event-stream", "cache-control": "no-cache" } })
     : Response.json(message);
