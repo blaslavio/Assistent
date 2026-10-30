@@ -73,12 +73,17 @@ export function berichtStroom(message: Obj) {
   return events.map(e => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
 }
 
-export async function openaiAntwoord(body: Obj, key: string, model: string, tellen: (cost: number) => Promise<unknown>) {
+export type OpenAIProvider = { endpoint?: string; inputPerMillion?: number; outputPerMillion?: number; searchCost?: number };
+
+export async function openaiAntwoord(body: Obj, key: string, model: string, tellen: (cost: number) => Promise<unknown>, provider: OpenAIProvider = {}) {
   let request;
   try { request = openaiVerzoek(body, model); }
   catch (e) { return Response.json({ type: "error", error: { type: "invalid_request_error", message: (e as Error).message } }, { status: 400 }); }
-  const r = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+  const endpoint = provider.endpoint ?? "https://api.openai.com/v1/responses";
+  const r = await fetch(endpoint, {
+    method: "POST", headers: provider.endpoint
+      ? { "api-key": key, "Content-Type": "application/json" }
+      : { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify(request), signal: AbortSignal.timeout(110000),
   });
   const result = await r.json();
@@ -94,8 +99,11 @@ export async function openaiAntwoord(body: Obj, key: string, model: string, tell
   if (result.status === "failed") throw new Error("OpenAI response failed");
   // De bestaande platformtarieven vormen de bovengrens voor het maandbudget; geen facturatie aan gebruikers.
   const usage = result.usage ?? {};
-  await tellen((usage.input_tokens ?? 0) * 4 / 1e6 + (usage.output_tokens ?? 0) * 20 / 1e6
-    + (result.output ?? []).filter((i: Obj) => i.type === "web_search_call").length * 0.01);
+  const inputRate = provider.inputPerMillion ?? 4;
+  const outputRate = provider.outputPerMillion ?? 20;
+  const searchRate = provider.searchCost ?? 0.01;
+  await tellen((usage.input_tokens ?? 0) * inputRate / 1e6 + (usage.output_tokens ?? 0) * outputRate / 1e6
+    + (result.output ?? []).filter((i: Obj) => i.type === "web_search_call").length * searchRate);
   const message = openaiBericht(result, body.model);
   return body.stream ? new Response(berichtStroom(message), { headers: { "content-type": "text/event-stream", "cache-control": "no-cache" } })
     : Response.json(message);
