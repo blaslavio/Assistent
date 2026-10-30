@@ -1,5 +1,6 @@
 /** Kleine, controleerbare taakopdrachten. Geen AI, netwerk of agenda-aanpassingen. */
 import type { Gegevens, Taak } from "../api";
+import { afvinkenIn } from "./taken";
 
 export type DagActie = { soort: "toevoegen"; opdracht: string; titel: string; basis: Taak[] }
   | { soort: "afronden"; taak: Taak };
@@ -44,10 +45,22 @@ export function taakUitvoeren(g: Gegevens, actie: DagActie): void {
   const taak = g.taken.find(t => t.id === actie.taak.id);
   if (!taak) throw new Error("Deze taak is inmiddels verwijderd. Vernieuw je overzicht.");
   const verwacht = { ...actie.taak, klaar: true };
-  if (gelijk(taak, verwacht)) return;
+  const zonderAfrondtijd = (t: Taak) => {
+    const { klaar_op: _tijd, ...rest } = t as Taak & { klaar_op?: string };
+    return rest;
+  };
+  if (taak.klaar && gelijk(zonderAfrondtijd(taak), zonderAfrondtijd(verwacht))) return;
   if (!gelijk(taak, actie.taak)) throw new Error("Deze taak is intussen gewijzigd. Vernieuw en controleer opnieuw.");
-  taak.klaar = true;
-  // Een taak afronden is geen toestemming om bijbehorende afspraken te wissen.
+  if (taak.herhaal) {
+    const hoogste = [...g.taken, ...g.afspraken].reduce((max, t) => typeof t.id === "number" ? Math.max(max, t.id) : max, 0);
+    const volgend = Math.max(g.volgend_id, hoogste + 1);
+    if (!Number.isSafeInteger(volgend) || volgend < 1 || !Number.isSafeInteger(volgend + 1)) {
+      throw new Error("Er is geen veilig taaknummer beschikbaar.");
+    }
+    g.volgend_id = volgend;
+  }
+  // Behoud hoofdversiegedrag voor herhaling en afrondtijd, zonder agenda te wissen.
+  afvinkenIn(g, taak.id, new Date(), true);
 }
 
 export function taakResultaat(g: Gegevens, actie: DagActie): Taak {

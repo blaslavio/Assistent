@@ -61,3 +61,16 @@ describe("dagelijkse taakopdrachten", () => {
     expect(gelijk({ a: 1, b: [2, 3] }, { b: [2, 3], a: 1 })).toBe(true);
   });
 });
+
+it("behoudt herhaling bij bevestigen zonder afspraken te wissen of bij retry te verdubbelen", () => {
+  const taak = { id: 1, titel: "Wekelijks", klaar: false, herhaal: "week" as const, deadline: "2030-01-01" };
+  const g = { taken: [structuredClone(taak)], afspraken: [{ id: 9, titel: "Gepland", start: "2030-01-01T10:00", taak_id: 1 }], volgend_id: 2 };
+  const afspraken = structuredClone(g.afspraken);
+  const actie = { soort: "afronden" as const, taak };
+  taakUitvoeren(g, actie);
+  taakUitvoeren(g, actie);
+  expect(g.taken).toHaveLength(2);
+  expect(g.taken[0]).toMatchObject({ klaar: true, klaar_op: expect.any(String) });
+  expect(g.taken[1]).toMatchObject({ id: 10, klaar: false, herhaal: "week", deadline: "2030-01-08" });
+  expect(g.afspraken).toEqual(afspraken);
+});

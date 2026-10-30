@@ -2,7 +2,7 @@ name: Project privacy and integration
 on:
   push:
     branches: [develop]
-    paths: ['web/**', 'sql/project_archief.sql', 'test_project_archief.py', '.github/workflows/project-checks.yml']
+    paths: ['web/**', 'sql/project_archief.sql', 'test_project_archief.py', 'os_release_evidence.py', 'tests/test_os_release_evidence.py', '.github/workflows/project-checks.yml']
   pull_request:
     branches: [develop, main]
   workflow_dispatch:
@@ -49,3 +49,14 @@ jobs:
         if: always()
         run: docker rm -f project-privacy-db
 
+
+  release-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reject stale or superseded release evidence
+        run: python -m unittest discover -s tests -p test_os_release_evidence.py -v

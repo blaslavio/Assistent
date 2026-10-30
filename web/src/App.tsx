@@ -232,7 +232,8 @@ export default function App() {
   if (!staat || (!huidigeSessie() && !voorlopig)) return <Inloggen opIngelogd={herladen} />;
 
   const scherm = {
-    vandaag: <Vandaag key={staat.gebruiker.id} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} ga={setTab}
+    vandaag: <Vandaag key={staat.gebruiker.id} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} ga={setTab} vernieuw={herladen} naarAssistent={() => setTab("assistent")}
+      naarProject={gesprek => { setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat"); }}
       vraag={(t) => { setVooraf(t); setTab("assistent"); }} />,
     projecten: <Projecten key={staat.gebruiker.id} staat={staat} naarChat={() => { setWerkGesprek(null); setTab("chat"); }} open={gesprek => {
       setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat");

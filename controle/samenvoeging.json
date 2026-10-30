@@ -1,0 +1,26 @@
+{
+  "time_utc": "2026-10-30T08:08:55.550602+00:00",
+  "main_base": "f033838f4852686d09b3c5d4c748a0dc855bd713",
+  "develop_base": "7a75eaf2eb5b49f10c33f039a26bbb96c3b6d881",
+  "checks": {
+    "web_tests": 234,
+    "web_test_files": 51,
+    "release_evidence_tests": 9,
+    "isolated_postgres_archive_tests": 11,
+    "skipped": 0,
+    "web_builds": 2,
+    "rebuild_has_no_diff": true,
+    "python_shell_syntax": true
+  },
+  "source_sha256": {
+    "web/src/App.tsx": "aa3e8d5fe03aa8b07813558c887950f697b8e9a0a6d5924d4ef613dccf743911",
+    "web/src/schermen/Vandaag.tsx": "647a80b229677e56f3a6d77e0b7e14b3f05bd034058b31e03aba9c7f4718aebd",
+    "web/src/vangnet.tsx": "b95866944589938acad8ed102babb94771b850ef9f6f4565191d064017bfd82b",
+    "web/src/lib/dagacties.ts": "f36c908ec8c3a5c32b04005caa817f0ddaa6db6acec31e6f064aa91b686d8fb3",
+    "web/src/lib/taken.ts": "57ece40f0fc24fb888cdaa8fb29c68d1f1cca66e8f69dd63c136b627eb0b50a1",
+    "os_release_evidence.py": "86575a2ed95195a3557dacd58fd200b930cedd5c3af4921c603624870748ab96",
+    "sql/project_archief.sql": "a39991473671b56f2cc49791633897d2e1592d8771ebeabb239a4bd1d8cc85ff",
+    ".github/workflows/project-checks.yml": "2ff8d4a6028bc6be97fb4bb0f61a84497aad4d1c46c905744fedc4f19cbeb0ba"
+  },
+  "production_verified": false
+}

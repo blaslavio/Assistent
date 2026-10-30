@@ -6,14 +6,15 @@ import { Verbindingsfout, isNetwerkfout } from "./lib/net";
 
 let gemeld = 0;
 
-/** Stuurt een foutmelding naar de server: alleen de fout en waar die zat, nooit je gegevens. Hooguit 5 per keer laden. */
-export function foutMelden(fout: unknown, waar: string, extra = "") {
+/** Alleen vaste categorieën; foutteksten, stacks en browsergegevens kunnen privégegevens bevatten. */
+export function foutMelden(fout: unknown, waar: string) {
   if (gemeld >= 5) return;
   gemeld += 1;
-  const e = fout instanceof Error ? fout : new Error(String(fout));
-  const tekst = [waar, `${e.name}: ${e.message}`, (e.stack ?? "").slice(0, 900), extra.slice(0, 400),
-    navigator.userAgent].join("\n");
-  rpc("app_fout_melden", { p_tekst: tekst.slice(0, 2000) }).catch(() => {});
+  const plekken = ["app", "vandaag", "projecten", "agenda", "chat", "assistent", "instellingen", "bellen", "venster", "belofte"];
+  const soorten = ["Error", "TypeError", "RangeError", "ReferenceError", "SyntaxError", "URIError", "EvalError"];
+  const plek = plekken.includes(waar) ? waar : "onbekend";
+  const soort = fout instanceof Error && soorten.includes(fout.name) ? fout.name : "Error";
+  rpc("app_fout_melden", { p_tekst: `clientfout\nplek: ${plek}\nsoort: ${soort}` }).catch(() => {});
 }
 
 /** Vangt fouten die buiten een scherm gebeuren, zoals in een timer of een antwoord van de server. */
@@ -38,9 +39,9 @@ export class Vangnet extends Component<Props, { fout: Error | null }> {
     return { fout };
   }
 
-  componentDidCatch(fout: Error, info: { componentStack?: string | null }) {
+  componentDidCatch(fout: Error) {
     if (laadfout(fout)) return;
-    foutMelden(fout, this.props.naam, info.componentStack ?? "");
+    foutMelden(fout, this.props.naam);
   }
 
   render() {
@@ -54,8 +55,7 @@ export class Vangnet extends Component<Props, { fout: Error | null }> {
           <p className="text-sm text-rustig">Waarschijnlijk is de verbinding even weg. Controleer je internet en probeer het opnieuw.</p>
         </> : <>
           <p className="text-lg font-semibold">Dit scherm lukt even niet</p>
-          <p className="text-sm text-rustig">Er ging iets mis. Ik heb het doorgegeven, zodat het opgelost wordt.</p>
-          <p className="max-w-full break-words text-xs text-zacht">{fout.message}</p>
+          <p className="text-sm text-rustig">Probeer het scherm opnieuw te openen. Blijft dit gebeuren, herlaad dan de app.</p>
         </>}
         <div className="mt-2 flex gap-2">
           <button onClick={() => this.setState({ fout: null })}
