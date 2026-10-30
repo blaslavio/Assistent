@@ -41,5 +41,9 @@
     161
   ],
   "real_traffic_or_timetable_data": false,
-  "live_production_certified": false
+  "live_production_certified": false,
+  "consolidation_complete": true,
+  "current_local_branch": "main",
+  "open_pull_requests_after_integration": 0,
+  "local_histories_preserved": true
 }
