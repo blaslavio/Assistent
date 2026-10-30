@@ -12,7 +12,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const ANTHROPIC_API = Deno.env.get("ANTHROPIC_API") ?? "https://api.anthropic.com";
 const OPENAI_MODEL = "gpt-5.4";
-const MODELLEN = new Set(["claude-opus-5-5", OPENAI_MODEL]);
+const AZURE_MODEL = "azure-gpt-5-mini";
+const MODELLEN = new Set(["claude-opus-5-5", OPENAI_MODEL, AZURE_MODEL]);
 const MAX_GROOTTE = 20_000_000;
 
 async function rpc(functie: string, parameters: Record<string, unknown> = {}) {
@@ -101,6 +102,28 @@ export async function verwerk(verzoek: Request): Promise<Response> {
 
     const claudeSleutel = Deno.env.get("ANTHROPIC_API_KEY") || toegang.sleutel;
     const openaiSleutel = Deno.env.get("OPENAI_API_KEY") || toegang.openai_sleutel;
+    if (body.model === AZURE_MODEL) {
+      const endpoint = (Deno.env.get("AZURE_OPENAI_ENDPOINT") ?? "").trim();
+      const key = (Deno.env.get("AZURE_OPENAI_API_KEY") ?? "").trim();
+      const deployment = (Deno.env.get("AZURE_OPENAI_DEPLOYMENT") ?? "").trim();
+      const input = Number(Deno.env.get("AZURE_INPUT_EUR_PER_MILLION"));
+      const output = Number(Deno.env.get("AZURE_OUTPUT_EUR_PER_MILLION"));
+      if (!endpoint || !key || !deployment || !Number.isFinite(input) || input < 0 || !Number.isFinite(output) || output < 0 ||
+          !Deno.env.has("AZURE_INPUT_EUR_PER_MILLION") || !Deno.env.has("AZURE_OUTPUT_EUR_PER_MILLION")) {
+        return fout(503, "Azure AI is nog niet volledig geconfigureerd.", "api_error");
+      }
+      let host: URL;
+      try { host = new URL(endpoint); } catch { return fout(503, "Ongeldig Azure-endpoint.", "api_error"); }
+      if (host.protocol !== "https:" || !host.hostname.endsWith(".openai.azure.com") ||
+          host.username || host.password || host.port || host.search || host.hash ||
+          !["", "/", "/openai/v1", "/openai/v1/"].includes(host.pathname)) {
+        return fout(503, "Ongeldig Azure-endpoint.", "api_error");
+      }
+      const url = `https://${host.hostname}/openai/v1/responses`;
+      return await openaiAntwoord(body, key, deployment,
+        (euro) => rpc("ai_gebruik_bij", { p_gebruiker: id, p_euro: euro }),
+        { endpoint: url, inputPerMillion: input, outputPerMillion: output, searchCost: 0 });
+    }
     if (body.model === OPENAI_MODEL || !claudeSleutel) {
       if (!openaiSleutel) return fout(503, "De ChatGPT-sleutel is nog niet ingesteld.", "api_error");
       return await openaiAntwoord(body, openaiSleutel, OPENAI_MODEL,
