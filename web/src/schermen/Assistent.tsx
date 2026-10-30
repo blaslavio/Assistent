@@ -59,9 +59,9 @@ const Spraak = (window as unknown as { SpeechRecognition?: new () => Herkenning;
   .SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: new () => Herkenning }).webkitSpeechRecognition;
 
 type Props = { staat: Staat; vernieuw: () => void; teKopen?: Product | null; gekocht?: () => void; vooraf?: string;
-  voorafGebruikt?: () => void; naarBestellingen?: () => void };
+  voorafGebruikt?: () => void; naarBestellingen?: () => void; sluit?: () => void };
 
-export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, voorafGebruikt, naarBestellingen }: Props) {
+export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, voorafGebruikt, naarBestellingen, sluit }: Props) {
   const [beurten, setBeurten] = useState<Beurt[]>(gesprek.beurten);
   const [invoer, setInvoer] = useState(conceptLezen);
   useEffect(() => conceptBewaren(invoer), [invoer]);
@@ -125,7 +125,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
       try {
         const b = await lezen(bestand);
         if (b.grootte > ruimte) {
-          setMelding("Dit gesprek zit vol met bestanden. Begin een nieuw gesprek met Nieuw.");
+          setMelding("Dit gesprek zit vol met bestanden. Begin een nieuw gesprek met de plus bovenin.");
           break;
         }
         ruimte -= b.grootte;
@@ -351,15 +351,22 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-10 flex items-center justify-between bg-white/85 px-6 pt-14 pb-3 backdrop-blur dark:bg-[#0b0b0e]/85">
-        <h1 className="text-[32px] font-bold tracking-tight">Assistent</h1>
+        <div className="flex items-center gap-2">
+          {sluit && (
+            <button onClick={sluit} aria-label="Sluiten" className="-ml-2 flex size-10 items-center justify-center rounded-full text-rustig">
+              <Kruis className="size-5" />
+            </button>
+          )}
+          <h1 className="text-[28px] font-bold tracking-tight">Assistent</h1>
+        </div>
         <div className="flex gap-2">
           <button onClick={() => setGeschiedenis(true)} aria-label="Eerdere gesprekken"
             className="flex size-10 items-center justify-center rounded-full bg-vlak">
             <Klok className="size-5" />
           </button>
           {!leeg && (
-            <button onClick={nieuw} className="flex h-10 items-center gap-1.5 rounded-full bg-vlak px-4 text-sm font-medium">
-              <Plus className="size-4" /> Nieuw
+            <button onClick={nieuw} aria-label="Nieuw gesprek" className="flex size-10 items-center justify-center rounded-full bg-vlak">
+              <Plus className="size-5" />
             </button>
           )}
         </div>

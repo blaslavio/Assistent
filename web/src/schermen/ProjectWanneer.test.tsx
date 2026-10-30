@@ -1,0 +1,20 @@
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
+import ProjectWanneer from "./ProjectWanneer";
+import { bijwerken } from "../api";
+import { projectRegelsVers } from "../lib/chat";
+import { nieuwFeit, type Feit } from "../lib/projectregie";
+import type { Staat } from "../App";
+vi.mock("../lib/chat",()=>({projectRegelsVers:vi.fn()}));
+const sessie=vi.hoisted(()=>({naam:"Alice",token:"test"}));vi.mock("../api",async origineel=>({...await origineel<object>(),huidigeSessie:()=>sessie,bijwerken:vi.fn()}));
+afterEach(()=>{cleanup();vi.restoreAllMocks();vi.clearAllMocks();});
+it("verplaatst een eigen afspraak alleen na preview, actuele broncontrole en bevestiging",async()=>{
+ vi.spyOn(Date,"now").mockReturnValue(Date.parse("2026-10-29T09:00:00Z"));const f=(actie:Feit["actie"],bericht:number):Feit=>({actie,bericht,afzender:1,tijd:"2026-10-29T08:00:00Z"});
+ const root=f(nieuwFeit("actie","Ontwerp"),1),s={id:crypto.randomUUID(),titel:"Uitwerken",klaarAls:"Akkoord",minuten:60,eigenaar:1,alternatief:"Samen",afhankelijkVan:[]};
+ const plan=f(nieuwFeit("aanpak","Route",{soort:"eigen"},{doel:root.actie.sleutel,stappen:[s]}),2),ven=f(nieuwFeit("werkvenster","Vrij",{soort:"eigen"},{vensters:[{van:"2026-10-29T10:00:00Z",tot:"2026-10-29T14:00:00Z"}]}),3),feiten=[root,plan,ven];
+ const data={taken:[],afspraken:[{id:1,titel:"Uitwerken",start:"2026-10-29T09:00",einde:"2026-10-29T09:30",soort:"focus",projectplanning:{gesprek:8,aanpak:plan.actie.sleutel,stap:s.id,opdracht:crypto.randomUUID()}}],volgend_id:2};
+ vi.mocked(bijwerken).mockImplementation(async fn=>{fn(data);return data;});vi.mocked(projectRegelsVers).mockResolvedValue({regels:feiten.map(f=>({id:f.bericht,afzender:f.afzender,tijd:f.tijd,weg:false,bericht:f.actie})),gesprek:{id:8,soort:"groep",leden:[],status:"lid",ongelezen:0}});
+ const setData=vi.fn(),voorstel=vi.fn();render(<ProjectWanneer gesprek={8} doelVoorstel={root.actie.sleutel} feiten={feiten} ik={1} personen={new Map([[1,"Alice"]])} staat={{gebruiker:{id:1,naam:"Alice"},data} as Staat} setData={setData} schrijven voorstel={voorstel}/>);
+ fireEvent.click(screen.getByText("Wanneer past deze aanpak?"));fireEvent.click(screen.getByText("Passend alternatief voor eigen afspraak controleren"));expect(bijwerken).not.toHaveBeenCalled();expect(data.afspraken[0].start).toBe("2026-10-29T09:00");
+ fireEvent.click(screen.getByText("Bevestig eigen afspraak verplaatsen"));await waitFor(()=>expect(setData).toHaveBeenCalled());expect(data.afspraken[0].start).toBe("2026-10-29T11:00");expect(data.afspraken).toHaveLength(1);expect(projectRegelsVers).toHaveBeenCalledWith(8,false);expect(voorstel).not.toHaveBeenCalled();
+});

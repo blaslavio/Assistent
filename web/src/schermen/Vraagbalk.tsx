@@ -1,6 +1,6 @@
 // Eén balk onderaan Vandaag: typ of zeg wat je wilt. De mascotte laat eerst zien wat hij ervan maakt, met één tik
 // staat het erin. Een vraag gaat meteen naar de assistent.
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { bijwerken } from "../api";
 import type { Staat } from "../App";
 import { Kalender, Kruis, Lijstje, Microfoon, Pijl, Vonk } from "../iconen";
@@ -28,7 +28,8 @@ function dagNaam(datum: string) {
   return t[0].toUpperCase() + t.slice(1);
 }
 
-export function Vraagbalk({ staat, setStaat, vraag }: { staat: Staat; setStaat: (s: Staat) => void; vraag?: (t: string) => void }) {
+export function Vraagbalk({ staat, setStaat, vraag, links, plek = "Wat wil je doen?" }: { staat: Staat; setStaat: (s: Staat) => void;
+  vraag?: (t: string) => void; links?: ReactNode; plek?: string }) {
   const [invoer, setInvoer] = useState("");
   const [voorstel, setVoorstel] = useState<Voorstel | null>(null);
   const [zin, setZin] = useState("");
@@ -101,7 +102,7 @@ export function Vraagbalk({ staat, setStaat, vraag }: { staat: Staat; setStaat: 
   const titel = (t: string) => voorstel && setVoorstel({ ...voorstel, titel: t });
 
   return (
-    <div className="sticky bottom-0 z-10 bg-white px-4 pt-2 pb-3 dark:bg-[#0b0b0e]">
+    <div className="relative z-10 shrink-0 bg-white px-4 pt-2 pb-1 dark:bg-[#0b0b0e]">
       {voorstel && (
         <section aria-label="Zo begrijp ik het" className="opkomen mb-2 flex flex-col gap-3 rounded-3xl bg-vlak p-4">
           <div className="flex items-end gap-2.5">
@@ -145,10 +146,11 @@ export function Vraagbalk({ staat, setStaat, vraag }: { staat: Staat; setStaat: 
           </div>
         </section>
       )}
-      <form onSubmit={verstuur}>
-        <label className="flex h-13 items-center gap-1.5 rounded-full bg-vlak pr-1.5 pl-5">
-          <span className="sr-only">Wat wil je doen?</span>
-          <input value={invoer} onChange={(e) => setInvoer(e.target.value)} placeholder={luistert ? "Ik luister…" : "Wat wil je doen?"}
+      <form onSubmit={verstuur} className="flex items-center gap-2">
+        {links}
+        <label className="flex h-13 min-w-0 flex-1 items-center gap-1.5 rounded-full bg-vlak pr-1.5 pl-5">
+          <span className="sr-only">{plek}</span>
+          <input value={invoer} onChange={(e) => setInvoer(e.target.value)} placeholder={luistert ? "Ik luister…" : plek}
             enterKeyHint="send" className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-zacht" />
           {Spraak && !invoer.trim() && (
             <button type="button" onClick={luister} aria-label={luistert ? "Stop met luisteren" : "Inspreken"}

@@ -1,5 +1,7 @@
 // Algemene instellingen: hoe de app eruitziet, wat er op Vandaag staat, en een idee of probleem melden.
 import { useEffect, useState } from "react";
+import { DOK_KEUZES, dokVan } from "./HoofdNavigatie";
+import type { Tab } from "../App";
 import { alsIk } from "../api";
 import { Schakelaar, kop } from "./instellingen-ui";
 import { LANDEN, REGIO_S, REGIO_UITLEG, type FeestInstellingen } from "../lib/feestdagen";
@@ -77,6 +79,7 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
         zet={(aan) => toegankelijk({ minder_beweging: aan })} />
     </div>
     <Feestdagen inst={inst} bewaar={bewaar} />
+    <Dok inst={inst} bewaar={bewaar} />
     <section className="flex flex-col gap-2">
       <h2 className={kop}>Op Vandaag</h2>
       {VANDAAG.map(([k, label, uitleg]) => (
@@ -90,6 +93,32 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
         zet={(aan) => bewaar((i) => { i.voorbeeldvragen = aan; })} />
     </section>
   </>;
+}
+
+/** Welke drie plekken onderin staan. Tik er een aan om te wisselen: de oudste keuze maakt plaats. */
+function Dok({ inst, bewaar }: { inst: Weergave; bewaar: (aanpassen: (i: Record<string, unknown>) => void) => void }) {
+  const gekozen = dokVan((inst as Record<string, unknown>).dok);
+  function wissel(id: Tab) {
+    if (gekozen.includes(id)) return;
+    bewaar((i) => { i.dok = [...gekozen.slice(1), id]; });
+  }
+  return (
+    <fieldset>
+      <legend className={kop}>Onderin</legend>
+      <div className="grid grid-cols-4 gap-2">
+        {DOK_KEUZES.map(({ id, naam, Icoon }) => {
+          const aan = gekozen.includes(id);
+          return (
+            <button key={id} type="button" aria-pressed={aan} onClick={() => wissel(id)}
+              className={`flex h-16 flex-col items-center justify-center gap-1 rounded-2xl text-[13px] ${aan ? "bg-inkt font-semibold text-white dark:text-black" : "bg-vlak text-rustig"}`}>
+              <Icoon className="size-5" />{naam}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-2 px-1 text-[13px] text-rustig">Drie plekken. Kies je een andere, dan maakt de oudste keuze plaats.</p>
+    </fieldset>
+  );
 }
 
 /** Feestdagen en schoolvakanties in de agenda. Standaard Nederland met de leuke dagen erbij. */

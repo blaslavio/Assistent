@@ -1,0 +1,51 @@
+name: Project privacy and integration
+on:
+  push:
+    branches: [develop]
+    paths: ['web/**', 'sql/project_archief.sql', 'test_project_archief.py', '.github/workflows/project-checks.yml']
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm test
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+  encrypted-archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ASSISTENT_TEST_POSTGRES_CONTAINER: project-privacy-db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Start isolated database
+        run: |
+          docker run -d --name project-privacy-db --network none -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17
+          for attempt in $(seq 1 30); do
+            if docker exec project-privacy-db pg_isready -U postgres; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Test archive access, limits and repeat requests
+        run: python -m unittest -v test_project_archief
+      - name: Remove test database
+        if: always()
+        run: docker rm -f project-privacy-db
+

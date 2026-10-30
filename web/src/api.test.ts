@@ -77,4 +77,17 @@ describe("haperende verbinding", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 503 })));
     await expect(rpc("iets")).rejects.toThrow(/storing/);
   });
+
+  it("wist tijdelijke gedeelde projecttekst direct bij uitloggen", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(reactie({ token: "sessie", naam: "alice" }))
+      .mockResolvedValueOnce(reactie(true)));
+    await inloggen("alice", "test-only", "", false);
+    const { bestandMaken, werkruimte } = await import("./lib/project");
+    const r = werkruimte(42);
+    bestandMaken(42, "privé.md", "Niet meenemen naar volgend account");
+    expect(r.bestanden.size).toBe(1);
+    await uitloggen();
+    expect(r.bestanden.size).toBe(0);
+    expect(werkruimte(42).bestanden.size).toBe(0);
+  });
 });
