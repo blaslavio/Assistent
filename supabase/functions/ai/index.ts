@@ -106,10 +106,13 @@ export async function verwerk(verzoek: Request): Promise<Response> {
       const endpoint = (Deno.env.get("AZURE_OPENAI_ENDPOINT") ?? "").trim();
       const key = (Deno.env.get("AZURE_OPENAI_API_KEY") ?? "").trim();
       const deployment = (Deno.env.get("AZURE_OPENAI_DEPLOYMENT") ?? "").trim();
-      const input = Number(Deno.env.get("AZURE_INPUT_EUR_PER_MILLION"));
-      const output = Number(Deno.env.get("AZURE_OUTPUT_EUR_PER_MILLION"));
-      if (!endpoint || !key || !deployment || !Number.isFinite(input) || input < 0 || !Number.isFinite(output) || output < 0 ||
-          !Deno.env.has("AZURE_INPUT_EUR_PER_MILLION") || !Deno.env.has("AZURE_OUTPUT_EUR_PER_MILLION")) {
+      // Conservatieve interne budgetreservering, geen Azure-factuurtarief.
+      // Definitieve tarieven kunnen later via secrets worden ingesteld.
+      const inputSetting = Deno.env.get("AZURE_INPUT_EUR_PER_MILLION");
+      const outputSetting = Deno.env.get("AZURE_OUTPUT_EUR_PER_MILLION");
+      const input = inputSetting ? Number(inputSetting) : 1;
+      const output = outputSetting ? Number(outputSetting) : 5;
+      if (!endpoint || !key || !deployment || !Number.isFinite(input) || input <= 0 || !Number.isFinite(output) || output <= 0) {
         return fout(503, "Azure AI is nog niet volledig geconfigureerd.", "api_error");
       }
       let host: URL;
