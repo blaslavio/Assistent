@@ -49,6 +49,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
     return () => window.removeEventListener("instellingen-pagina", open);
   }, []);
   const [bezig, setBezig] = useState(false);
+  const [toonExtra, setToonExtra] = useState(false);
   const [melding, setMelding] = useState("");
   const g = staat.gebruiker;
   const [eigenFoto] = useEigenFoto(g);
@@ -201,6 +202,10 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
         <Rij icoon={Winkelpand} kleur="#475569" titel="Zakelijk" uitleg="Rooster, klanten en boekhouding" open={() => setOnderdeel("zakelijk")} />
       </Groep>
 
+      <button type="button" aria-expanded={toonExtra} onClick={() => setToonExtra((v) => !v)} className="mt-7 flex w-full items-center justify-between rounded-2xl bg-vlak px-4 py-3 text-left font-medium">
+        <span>Meer instellingen en apps</span><span className="text-sm text-rustig">{toonExtra ? "Minder tonen" : "Tonen"}</span>
+      </button>
+      {toonExtra && <>
       <Groep titel="Leren en sport">
         <Rij icoon={Boek} kleur="#0284c7" titel="Leren" uitleg={ONDERDEEL_UITLEG.leren} open={() => setOnderdeel("leren")} />
         <Rij icoon={Hartslag} kleur="#16a34a" titel="Sport en gezondheid" uitleg={ONDERDEEL_UITLEG.sport} open={() => setOnderdeel("sport")} />
@@ -212,6 +217,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
         ))}
       </Groep>
 
+      </>}
       <Groep titel="Hulp">
         <Rij icoon={Vraag} kleur="#0e9fb3" titel="Idee of probleem" uitleg="Zeg wat beter kan en volg wat ermee gebeurt" open={() => setPagina("idee")} />
       </Groep>
