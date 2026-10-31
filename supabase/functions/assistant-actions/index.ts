@@ -68,7 +68,7 @@ export async function handleAssistantAction(request: Request): Promise<Response>
   } catch {
     return Response.json({ error: "database_unavailable" }, { status: 503 });
   }
-  if (!response.ok) return Response.json({ error: "action_failed" }, { status: 502 });
+  if (!response.ok) return Response.json({ error: "action_failed", executed: false }, { status: 502 });
   return Response.json({ status: "completed", action, result: await response.json(), executed: true });
 
 }
