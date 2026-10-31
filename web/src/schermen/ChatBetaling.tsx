@@ -48,6 +48,6 @@ export function ChatBetaalkaart({bericht,ander,mijn}:{bericht:unknown;ander:numb
       <p className="text-xs text-rustig">Controleer eventuele verzendkosten en de definitieve afrekening vóór betaling.</p>
       {!mijn&&b.status==="geaccepteerd"&&<button disabled={bezig} className="min-h-11 w-full rounded-xl bg-accent px-4 font-semibold text-white disabled:opacity-50" onClick={()=>doe(true)}>{bezig?"Bezig…":"Verder naar beveiligd betalen"}</button>}
       <button disabled={bezig} className="min-h-11 w-full rounded-xl border border-lijn px-3 text-sm disabled:opacity-50" onClick={()=>doe()}>Bedrag en status opnieuw controleren</button>
-    </> : <button disabled={bezig} className="min-h-11 w-full rounded-xl bg-accent px-4 font-semibold text-white disabled:opacity-50" onClick={()=>doe()}>{bezig?"Ophalen…":"Bestelling en prijs bekijken"}</button>}
+    </> : <button disabled={bezig} className="min-h-11 w-full rounded-xl bg-accent px-4 font-semibold text-white disabled:opacity-50" onClick={()=>doe()}>{bezig?"Ophalen…":"Actueel bedrag en status controleren"}</button>}
   </section>;
 }
