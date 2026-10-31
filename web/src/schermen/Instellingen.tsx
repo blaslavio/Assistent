@@ -106,6 +106,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
     const feiten = ((staat.data.geheugen as Feit[] | undefined) ?? []).slice().reverse();
     return scherm("Privacy en beveiliging", <>
       <Beveiliging gebruiker={g} />
+      <details className="rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer py-2 font-medium">Wat de assistent van mij onthoudt</summary><div className="mt-3 flex flex-col gap-4">
       <Schakelaar label="De assistent onthoudt dingen over mij"
         uitleg="Bijvoorbeeld je voorkeuren en gewoontes, zodat hij je beter helpt."
         aan={!inst.geheugen_uit} zet={(aan) => bewaar((i) => { i.geheugen_uit = !aan; })} />
@@ -128,7 +129,8 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
         )}
         <p className="mt-2 px-1 text-sm text-rustig">Je vragen worden verwerkt door de ingestelde AI-dienst: Claude of Azure OpenAI. Deel alleen gegevens die nodig zijn voor je vraag.</p>
       </section>
-      <Techniek />
+      </div></details>
+      <details className="rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer py-2 font-medium">Technische uitleg</summary><Techniek /></details>
     </>);
   }
 
@@ -167,25 +169,29 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
       { titel: "Weergave", uitleg: "Kleur, tekstgrootte, navigatie en Vandaag", open: () => setPagina("algemeen"), icoon: Schuiven },
       { titel: "Assistent", uitleg: "Naam, toon, antwoorden en AI-koppeling", open: () => setPagina("assistent"), icoon: Vonk },
     ] },
-    { id: "planning", titel: "Planning en koppelingen", uitleg: "Mail, boekingspagina en thuisadres", icoon: Kalender, kleur: "#2f80ed", rijen: [
+    { id: "planning", titel: "Planning en koppelingen", uitleg: "Je agenda, reizen, mail en thuisadres", icoon: Kalender, kleur: "#2f80ed", rijen: [
       { titel: "Mail", uitleg: gekoppeld(staat.data) ? "Mailbox gekoppeld" : "Koppel je mailbox", open: () => setPagina("mail"), icoon: Envelop },
       { titel: "Kaart en routes", uitleg: "Bestemming zoeken, winkels en navigeren", open: kaartOpenen, icoon: Huis },
       { titel: "Vakantie en verblijf", uitleg: "Reisplannen, particuliere verhuur en reserveringsaanvragen", open: vakantiesOpenen, icoon: Kalender },
       { titel: "Evenementen", uitleg: "Organiseren, deelnemers, tijden en evenementpagina", open: evenementenOpenen, icoon: Kalender },
-      { titel: "Boekingspagina", uitleg: "Afspraken laten inplannen en reserveren", open: () => setPagina("afspraken"), icoon: Kalender },
       { titel: "Thuis", uitleg: "Adres voor weer en reistijden", open: () => setPagina("thuis"), icoon: Huis },
     ] },
-    { id: "geld", titel: "Geld en werk", uitleg: "Betalen, budget, beleggen en zakelijk", icoon: Euro, kleur: "#c2571a", rijen: [
+    { id: "geld", titel: "Geldzaken", uitleg: "Je betalingen, budget en beleggingen", icoon: Euro, kleur: "#c2571a", rijen: [
       { titel: "Betalingen", uitleg: "Bestellingen, kopersbescherming en uitbetalen", open: () => setPagina("betalingen"), icoon: Euro },
       { titel: "Budget", uitleg: "Uitgaven en afschriften", open: () => setOnderdeel("budget"), icoon: Lijstje },
       { titel: "Beleggen", uitleg: "Portefeuille, markten en volglijst", open: () => setOnderdeel("beleggen"), icoon: Grafiek },
-      { titel: "Zakelijk", uitleg: "Rooster, klanten en boekhouding", open: () => setOnderdeel("zakelijk"), icoon: Winkelpand },
     ] },
     { id: "apps", titel: "Mijn apps", uitleg: "Lijsten, documenten, leren en gezondheid", icoon: Boek, kleur: "#14866d", rijen:
       ONDERDELEN.filter(([id]) => !["budget", "beleggen", "zakelijk"].includes(id)).map(([id, titel, icoon]) =>
         ({ titel, uitleg: ONDERDEEL_UITLEG[id] ?? titel, icoon, open: () => setOnderdeel(id) })),
     },
+    { id: "zakelijk", titel: "Zakelijke opties", uitleg: "Klanten, rooster en afspraken ontvangen", icoon: Winkelpand, kleur: "#346a92", rijen: [
+      { titel: "Zakelijk", uitleg: "Rooster, klanten en boekhouding", open: () => setOnderdeel("zakelijk"), icoon: Winkelpand },
+      { titel: "Boekingspagina", uitleg: "Afspraken laten inplannen en reserveren", open: () => setPagina("afspraken"), icoon: Kalender },
+    ] },
   ];
+  const volgorde = ["account","app","planning","apps","geld"];
+  const persoonlijk = groepen.filter(g=>g.id!=="zakelijk").sort((a,b)=>volgorde.indexOf(a.id)-volgorde.indexOf(b.id));
   const term = zoek.trim().toLocaleLowerCase("nl");
   const gekozenGroep = groepen.find(g => g.id === categorie);
   const resultaten = [...groepen.flatMap(g => g.rijen.map(r => ({ ...r, kleur: g.kleur, groep: g.titel }))),
@@ -211,7 +217,10 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
         <Groep titel="Zoekresultaten">{resultaten.map(r => <Rij key={r.titel} {...r} uitleg={`${r.groep} · ${r.uitleg}`} />)}</Groep>
       </> : gekozenGroep ? <Groep titel={gekozenGroep.uitleg}>{gekozenGroep.rijen.map(r => <Rij key={r.titel} {...r} kleur={gekozenGroep.kleur} />)}</Groep>
       : <>
-        <Groep titel="Wat wil je aanpassen?">{groepen.map(g => <Rij key={g.id} titel={g.titel} uitleg={g.uitleg} icoon={g.icoon} kleur={g.kleur} open={() => setCategorie(g.id)} />)}</Groep>
+        <Groep titel="Voor jezelf">{persoonlijk.map(g => <Rij key={g.id} titel={g.titel} uitleg={g.uitleg} icoon={g.icoon} kleur={g.kleur} open={() => setCategorie(g.id)} />)}</Groep>
+        <details className="mt-5 rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer py-2 font-medium">Zakelijke opties</summary>
+          <Groep titel="Voor je werk of onderneming">{groepen.find(g => g.id === "zakelijk")!.rijen.map(r => <Rij key={r.titel} {...r} kleur="#346a92" />)}</Groep>
+        </details>
         <button onClick={() => setPagina("idee")} className="mt-5 min-h-11 text-sm text-accent">Hulp of een idee doorgeven</button>
       </>}
       <button onClick={async () => { await uitloggen(); opUitgelogd(); }} className="mt-8 h-12 w-full rounded-2xl bg-vlak font-medium text-red-600 dark:text-red-400">Uitloggen</button>

@@ -23,3 +23,7 @@ Via Agenda → Vakantie en verblijf kun je privévakanties plannen, begroten en 
 ## Rustiger aanmelden en navigeren
 
 De aanmeldpagina heeft herkenbare Google- en Apple-knoppen. Bellen heeft één instellingeningang; extra agenda-opties staan gegroepeerd onder Meer. Zie [RUSTIGE_INTERFACE.md](RUSTIGE_INTERFACE.md) voor de bediening en activeringsvoorwaarden.
+
+## Zachte start
+
+Vandaag toont extra informatie pas na uitklappen. Persoonlijke instellingen staan voorop, zakelijke opties apart; beveiliging heeft uitleg in gewone taal. Zonder opgeslagen themakeuze is de standaard lichtblauw/wit. Zie [ZACHTE_START.md](ZACHTE_START.md).

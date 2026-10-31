@@ -7,7 +7,7 @@ import { alsIk } from "../api";
 import { Schakelaar, kop } from "./instellingen-ui";
 import { LANDEN, REGIO_S, REGIO_UITLEG, type FeestInstellingen } from "../lib/feestdagen";
 
-export type Stijl = { kleur?: "indigo" | "zeegroen" | "oranje" | "grafiet"; vorm?: "rond" | "strak"; ruimte?: "ruim" | "compact" };
+export type Stijl = { kleur?: "hemel" | "indigo" | "zeegroen" | "oranje" | "grafiet"; vorm?: "rond" | "strak"; ruimte?: "ruim" | "compact" };
 export type Weergave = { thema?: "auto" | "licht" | "donker"; stijl?: Stijl;
   toegankelijk?: { tekst?: string; contrast?: boolean; minder_beweging?: boolean };
   voorpagina?: Record<string, boolean>; voorbeeldvragen?: boolean; feestdagen?: Partial<FeestInstellingen> };
@@ -16,7 +16,7 @@ export type Weergave = { thema?: "auto" | "licht" | "donker"; stijl?: Stijl;
 export const TEKSTGROOTTE: Record<string, number> = { Klein: 0.92, Normaal: 1, Groot: 1.12, "Extra groot": 1.25 };
 const THEMA: [NonNullable<Weergave["thema"]>, string][] = [["auto", "Automatisch"], ["licht", "Licht"], ["donker", "Donker"]];
 const KLEUREN: [NonNullable<Stijl["kleur"]>, string, string][] = [
-  ["indigo", "Indigo", "#4f46e5"], ["zeegroen", "Zeegroen", "#0f766e"], ["oranje", "Oranje", "#c2410c"], ["grafiet", "Grafiet", "#27272a"]];
+  ["hemel", "Lichtblauw", "#82c7ef"], ["indigo", "Indigo", "#4f46e5"], ["zeegroen", "Zeegroen", "#0f766e"], ["oranje", "Oranje", "#c2410c"], ["grafiet", "Grafiet", "#27272a"]];
 const VORM: [NonNullable<Stijl["vorm"]>, string][] = [["rond", "Rond"], ["strak", "Strak"]];
 const RUIMTE: [NonNullable<Stijl["ruimte"]>, string][] = [["ruim", "Ruim"], ["compact", "Compact"]];
 export const VANDAAG: [string, string, string][] = [
@@ -33,13 +33,13 @@ export const opVandaag = (i: Weergave, k: string) => i.voorpagina?.[k] !== false
 export function weergaveToepassen(i: Weergave) {
   const html = document.documentElement;
   const t = i.toegankelijk ?? {};
-  if (i.thema === "licht" || i.thema === "donker") html.dataset.thema = i.thema;
+  if (!i.thema || i.thema === "licht" || i.thema === "donker") html.dataset.thema = i.thema ?? "licht";
   else delete html.dataset.thema;
   const st = i.stijl ?? {};
   const zet = (k: "kleur" | "vorm" | "ruimte", v: string | undefined, standaard: string) => {
     if (v && v !== standaard) html.dataset[k] = v; else delete html.dataset[k];
   };
-  zet("kleur", st.kleur, "indigo"); zet("vorm", st.vorm, "rond"); zet("ruimte", st.ruimte, "ruim");
+  zet("kleur", st.kleur ?? "hemel", "indigo"); zet("vorm", st.vorm, "rond"); zet("ruimte", st.ruimte, "ruim");
   html.style.setProperty("--zoom", String(TEKSTGROOTTE[t.tekst ?? ""] ?? 1));
   html.classList.toggle("contrast", !!t.contrast);
   html.classList.toggle("minder-beweging", !!t.minder_beweging);
@@ -52,12 +52,12 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
   const st = inst.stijl ?? {};
   const stijl = (stuk: Stijl) => bewaar((i) => { i.stijl = { ...st, ...stuk }; });
   return <>
-    <Keuzes label="Licht of donker" opties={THEMA} waarde={inst.thema ?? "auto"} kies={(v) => bewaar((i) => { i.thema = v; })} />
+    <Keuzes label="Licht of donker" opties={THEMA} waarde={inst.thema ?? "licht"} kies={(v) => bewaar((i) => { i.thema = v; })} />
     <fieldset>
       <legend className={kop}>Kleur</legend>
       <div className="flex gap-3">
         {KLEUREN.map(([k, naam, hex]) => {
-          const aan = (st.kleur ?? "indigo") === k;
+          const aan = (st.kleur ?? "hemel") === k;
           return (
             <button key={k} type="button" aria-pressed={aan} onClick={() => stijl({ kleur: k })}
               className="flex flex-1 flex-col items-center gap-1.5 text-[13px]">
@@ -69,8 +69,11 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
         })}
       </div>
     </fieldset>
+    <details className="rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer font-medium">Vorm en ruimte</summary><div className="mt-3 flex flex-col gap-4">
     <Keuzes label="Vorm" opties={VORM} waarde={st.vorm ?? "rond"} kies={(v) => stijl({ vorm: v })} />
     <Keuzes label="Ruimte" opties={RUIMTE} waarde={st.ruimte ?? "ruim"} kies={(v) => stijl({ ruimte: v })} />
+    </div></details>
+    <details className="rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer font-medium">Tekst en leesbaarheid</summary><div className="mt-3 flex flex-col gap-4">
     <Keuzes label="Tekstgrootte" opties={Object.keys(TEKSTGROOTTE).map((k) => [k, k === "Extra groot" ? "Extra" : k])}
       waarde={t.tekst && t.tekst in TEKSTGROOTTE ? t.tekst : "Normaal"} kies={(v) => toegankelijk({ tekst: v })} />
     <div className="flex flex-col gap-2">
@@ -79,6 +82,8 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
       <Schakelaar label="Minder beweging" uitleg="Geen draaiende of wisselende dingen." aan={!!t.minder_beweging}
         zet={(aan) => toegankelijk({ minder_beweging: aan })} />
     </div>
+    </div></details>
+    <details className="rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer font-medium">Startpagina en navigatie</summary><div className="mt-3 flex flex-col gap-4">
     <Feestdagen inst={inst} bewaar={bewaar} />
     <Dok inst={inst} bewaar={bewaar} />
     <ChatRij inst={inst} bewaar={bewaar} />
@@ -89,11 +94,12 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
           zet={(aan) => bewaar((i) => { i.voorpagina = { ...(inst.voorpagina ?? {}), [k]: aan }; })} />
       ))}
     </section>
-    <section className="flex flex-col gap-2">
-      <h2 className={kop}>Bij de assistent</h2>
+    </div></details>
+    <details className="rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer font-medium">Bij de assistent</summary>
+    <section className="mt-3 flex flex-col gap-2">
       <Schakelaar label="Voorbeeldvragen" uitleg="Een paar vragen om mee te beginnen." aan={inst.voorbeeldvragen !== false}
         zet={(aan) => bewaar((i) => { i.voorbeeldvragen = aan; })} />
-    </section>
+    </section></details>
   </>;
 }
 

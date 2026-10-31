@@ -61,6 +61,17 @@
       --reeks-1: #3987e5; --reeks-2: #d95926; --reeks-3: #199e70;
     }
   :root[data-thema=donker] body { background: #0b0b0e; }
+  :root[data-kleur=hemel] { --color-accent: #2463a6; --color-accent-donker: #194c85; }
+  :root[data-thema=licht][data-kleur=hemel] {
+    --color-inkt: #18334d; --color-rustig: #50677c; --color-zacht: #627b91;
+    --color-vlak: #edf5fc; --color-lijn: #d4e5f2;
+  }
+  :root[data-thema=licht][data-kleur=hemel] body { background: #f9fcff; }
+  :root[data-thema=licht][data-kleur=hemel].contrast { --color-rustig: #324f69; --color-zacht: #405c75; --color-lijn: #8baac1; }
+  :root[data-thema=donker][data-kleur=hemel] .text-accent { color: #a1d4f5; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-thema=licht])[data-kleur=hemel] .text-accent { color: #a1d4f5; }
+  }
   /* Tekstgrootte uit Instellingen › Algemeen: de hele app schaalt mee. */
   #root { zoom: var(--zoom, 1); height: calc(var(--app-hoogte, 100%) / var(--zoom, 1)); }
   .contrast { --color-rustig: #45454d; --color-zacht: #5c5c66; --color-lijn: #c9c9d1; }

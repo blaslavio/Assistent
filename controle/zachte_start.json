@@ -1,0 +1,37 @@
+{
+  "gemaakt_op": "2026-10-31T16:05:59.953227+00:00",
+  "scope": "rustigere, interactievere startpagina, persoonlijke instellingen eerst, begrijpelijke beveiliging en zachte lichte stijl",
+  "webtests": {
+    "geslaagd": 318,
+    "bestanden": 67
+  },
+  "builds": [
+    "webinterface",
+    "Streamlit-bundel"
+  ],
+  "mobiele_fixture": {
+    "breedte": 390,
+    "hoogte": 844,
+    "lichtblauw_wit": true,
+    "een_homepaneel_tegelijk": true,
+    "terug_met_tekstbehoud": true,
+    "zakelijk_ingeklapt": true,
+    "beveiligingsuitleg_bereikbaar": true,
+    "horizontale_overloop": false,
+    "productiegegevens": false
+  },
+  "aanmeldgedrag_ongewijzigd": true,
+  "databasefuncties_ongewijzigd": true,
+  "livepublicatie_bevestigd": false,
+  "bron_sha256": {
+    "web/src/schermen/Vandaag.tsx": "b1426ce9b90d9c63add1cf5672afadec37522c13fc7d2933eca3012e60d5928a",
+    "web/src/schermen/Vandaag.test.tsx": "d5db36bf90396c45b98f4bc184cb918bf523a32942d440dff9298f6d523c8d5d",
+    "web/src/schermen/Instellingen.tsx": "72eaa9734d2b17a17e3cef3de22d31c544275457886df4e5b41b9a6c73da4871",
+    "web/src/schermen/Instellingen.test.tsx": "98bb6c4d2b8488f03f28194c7e5f0aec2aad0bd58cf94a45231eaa24398b990e",
+    "web/src/schermen/Algemeen.tsx": "bdf5c2984fc6f027d05fb1c5613e8e8b87d38b9fa52904d4a0824cc8f2327646",
+    "web/src/schermen/Algemeen.test.tsx": "8f48e0ec03c35d9a9d6f939ea896ec53d46b022f9e4c4b3b5332197d9f1fac4e",
+    "web/src/schermen/Beveiliging.tsx": "2d0c681e4e9c4fb4f7aae7323fa321de98cb54ac322c71c15fd31649c165840c",
+    "web/src/schermen/Beveiliging.test.tsx": "4d992a24c1ef9e8065dba267cd9b20b188b22361cf8cf0e7637b2a6e8ec1dba6",
+    "web/src/index.css": "97626d78b8a388e293b1cc625957fe843999ab2f8567cdf65c4824aa41236c18"
+  }
+}

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { bijwerken, instellingenBijwerken, type Afspraak } from "../api";
+import { bijwerken, instellingenBijwerken, huidigeSessie, type Afspraak } from "../api";
 import type { Staat, Tab } from "../App";
 import { dagenVan } from "../lib/club";
 import { Camera, Envelop, Huis, Kalender, Kruis, Plus, Terug, Vinkje } from "../iconen";
@@ -29,12 +29,15 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
   const [weer, setWeer] = useState<Weer | null>(null);
   const [alleTaken, setAlleTaken] = useState(false);
   const [invoer, setInvoer] = useState("");
+  const takenBlok = useRef<HTMLDetailsElement>(null), invoerVeld = useRef<HTMLInputElement>(null);
   const [actie, setActie] = useState<DagActie | null>(null);
   const [voorstelKeuze, setVoorstelKeuze] = useState<{ voorstel: Voorstel; optie: number; basis: unknown } | null>(null);
   const [bezig, setBezig] = useState(false);
   const [onzeker, setOnzeker] = useState(false);
   const [fout, setFout] = useState("");
   const [resultaat, setResultaat] = useState("");
+  const controle = useRef<HTMLElement>(null);
+  useEffect(() => { if (actie) { controle.current?.scrollIntoView?.({block:"nearest"}); controle.current?.focus({preventScroll:true}); } }, [actie]);
   const slot = useRef(false);
   const { data, gebruiker } = staat;
   const toon = (k: string) => opVandaag((data.instellingen ?? {}) as Weergave, k);
@@ -176,18 +179,26 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
     } finally { slot.current = false; setBezig(false); }
   }
 
+  async function zachtLicht() {
+    if (slot.current) return;
+    slot.current=true;setBezig(true);setFout("");const account=huidigeSessie();
+    try { const nieuw=await instellingenBijwerken(i=>{i.thema="licht";i.stijl={...(i.stijl as object??{}),kleur:"hemel"};});if(huidigeSessie()===account)setStaat({...staat,data:nieuw}); }
+    catch { setFout("De lichte weergave kon niet worden opgeslagen. Probeer opnieuw via Weergave."); }
+    finally {slot.current=false;setBezig(false);}
+  }
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-end justify-between px-6 pt-14 pb-2">
-        <div className="flex flex-col gap-1">
+      <header className="flex flex-wrap items-end justify-between gap-2 px-6 pt-14 pb-2">
+        <div className="min-w-0 flex flex-col gap-1">
           <p className="text-sm text-rustig">
             {dagTitel(nu)}{weer ? ` · ${weer.graden}° ${weer.tekst.toLowerCase()}` : ""}
           </p>
           <h1 className="text-[32px] font-bold tracking-tight">{groet(nu)}</h1>
         </div>
+        {(data.instellingen?.thema === "donker" || data.instellingen?.thema === "auto") && <button type="button" aria-label="Lichte blauw-witte weergave" disabled={bezig} onClick={zachtLicht} className="min-h-11 shrink-0 rounded-full border border-lijn px-3 text-sm text-accent">Zacht licht</button>}
       </header>
 
-      <main className="flex flex-1 flex-col gap-7 px-6 py-4">
+      <main className="flex flex-1 flex-col gap-3 px-6 py-4">
         {fout && <div role="alert" className="rounded-2xl border border-lijn p-4">
           <p>{fout}</p>
           {vernieuw && <button disabled={bezig} onClick={async () => {
@@ -205,7 +216,8 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
             <button disabled={bezig} onClick={() => { setVoorstelKeuze(null); setOnzeker(false); setFout(""); }} className="min-h-11 px-3">{onzeker ? "Sluiten zonder terugdraaien" : "Annuleren"}</button>
           </div>
         </section>}
-        {actie && <section aria-label="Controleer je taakopdracht" className="rounded-[20px] border border-lijn p-5">
+        {actie && <section ref={controle} tabIndex={-1} aria-label="Controleer je taakopdracht" className="rounded-[20px] border border-lijn p-5">
+          {actie.soort === "toevoegen" && <p className="mb-2 text-sm text-rustig">Stap 2 van 2 · Controleren</p>}
           <h2 className="font-semibold">{actie.soort === "toevoegen" ? "Nieuwe taak controleren" : "Taak afronden?"}</h2>
           <p className="mt-2 break-words">{actie.soort === "toevoegen" ? actie.titel : actie.taak.titel}</p>
           <p className="mt-2 text-sm text-rustig">{onzeker ? "Een eerdere poging kan al zijn verwerkt. Opnieuw proberen gebruikt dezelfde opdracht."
@@ -214,8 +226,11 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
             <button disabled={bezig} onClick={bevestigen} className="min-h-11 rounded-full bg-accent px-5 text-white disabled:opacity-50">
               {bezig ? "Opslaan…" : onzeker ? "Dezelfde opdracht opnieuw proberen" : "Bevestigen"}
             </button>
-            <button disabled={bezig} onClick={() => { setActie(null); setOnzeker(false); setFout(""); }} className="min-h-11 px-3">
-              {onzeker ? "Sluiten zonder terugdraaien" : "Annuleren"}
+            <button disabled={bezig} onClick={() => {
+              const terugNaarInvoer = actie.soort === "toevoegen"; setActie(null); setOnzeker(false); setFout("");
+              if (terugNaarInvoer) { if (takenBlok.current) takenBlok.current.open = true; setTimeout(() => invoerVeld.current?.focus(),0); }
+            }} className="min-h-11 px-3">
+              {onzeker ? "Sluiten zonder terugdraaien" : actie.soort === "toevoegen" ? "Terug naar invoer" : "Annuleren"}
             </button>
           </div>
         </section>}
@@ -223,12 +238,6 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
           <h2 className="font-semibold">Opgeslagen</h2><p className="mt-1 break-words">{resultaat}</p>
           {naarAssistent && <button onClick={naarAssistent} className="mt-3 min-h-11 font-medium text-accent">Bespreek je volgende stap met de assistent</button>}
         </section>}
-        {toon("mascotte") && <MascotteMetTip />}
-        <AanDeSlag staat={staat} setStaat={setStaat} naarInstellingen={naarInstellingen} ga={ga} />
-        {v && (
-          <KeuzeKaart keuze={v} open={!gekozen && !actie && !voorstelKeuze} kies={kiesVoorstel} compact
-            gekozen={gekozen?.sleutel === v.sleutel ? gekozen.optie : undefined} />
-        )}
         {toon("afspraken") && straks && (
           <section>
             <h2 className={kop}>Straks</h2>
@@ -243,8 +252,8 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
         )}
 
         {toon("afspraken") && rest.length > 0 && (
-          <section>
-            <h2 className={kop}>Vandaag</h2>
+          <details name="vandaag-rust" className="rounded-2xl border border-lijn p-4">
+            <summary className="min-h-11 cursor-pointer py-2 font-medium">Verder vandaag · {rest.length}</summary>
             <ul>
               {rest.map((a) => (
                 <li key={a.id} className="flex items-baseline gap-4 py-2.5">
@@ -253,18 +262,21 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
                 </li>
               ))}
             </ul>
-          </section>
+          </details>
         )}
 
         {toon("afspraken") && !straks && rest.length === 0 && <p className="text-rustig">Niets meer in je agenda vandaag.</p>}
 
         {zonderResultaat(data, nu).slice(0, 1).map((a) => (
-          <Suspense key={a.id} fallback={null}><HoeGingHet a={a} bewaar={async (r) => {
+          <details key={a.id} name="vandaag-rust" className="rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer py-2 font-medium">Training afronden</summary><Suspense fallback={null}><HoeGingHet a={a} bewaar={async (r) => {
             setStaat({ ...staat, data: await bijwerken((g) => { vastleggen(g, a.id, r); }) });
             mascotteZeg(r.gevoel >= 4 ? "Lekker bezig! Staat erin." : "Goed dat je ging. Staat erin.");
-          }} /></Suspense>
+          }} /></Suspense></details>
         ))}
 
+        {(toon("week") || (toon("afspraken") && (komend.length > 0 || feest))) && <details name="vandaag-rust" className="rounded-2xl border border-lijn p-4">
+          <summary className="min-h-11 cursor-pointer py-2 font-medium">Vooruitkijken</summary>
+          <div className="flex flex-col gap-5 pt-2">
         {toon("afspraken") && (komend.length > 0 || feest) && (
           <section>
             <h2 className={kop}>Komende dagen</h2>
@@ -295,9 +307,13 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
           </section>
         )}
 
+          {toon("week") && <JeWeek staat={staat} setStaat={setStaat} nu={nu} />}
+          </div>
+        </details>}
+
         {meldingen.length > 0 && (
-          <section>
-            <h2 className={kop}>Voor jou</h2>
+          <details name="vandaag-rust" className="rounded-2xl border border-lijn p-4">
+            <summary className="min-h-11 cursor-pointer py-2 font-medium">Voor jou · {meldingen.length}</summary>
             <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
               {meldingen.map((m) => (
                 <li key={m.sleutel}>
@@ -308,13 +324,11 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
                 </li>
               ))}
             </ul>
-          </section>
+          </details>
         )}
 
-        {toon("week") && <JeWeek staat={staat} setStaat={setStaat} nu={nu} />}
-
-        {toon("taken") && <section>
-          <h2 className={kop}>Taken</h2>
+        {toon("taken") && <details ref={takenBlok} name="vandaag-rust" className="rounded-2xl border border-lijn p-4">
+          <summary className="min-h-11 cursor-pointer py-2 font-medium">Taken · {taken.length} open</summary>
           {taken.length === 0 ? (
             <p className="text-rustig">Geen open taken.</p>
           ) : (
@@ -332,20 +346,34 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
             </ul>
           )}
           {taken.length > 3 && <button className="min-h-11 text-accent" aria-expanded={alleTaken} onClick={() => setAlleTaken(!alleTaken)}>{alleTaken ? "Toon mijn drie eerstvolgende taken" : `Bekijk alle ${taken.length} taken`}</button>}
-        </section>}
-      </main>
-
-      {toon("taken") && <form onSubmit={toevoegen} className="sticky bottom-0 bg-white px-4 pb-3 pt-2 dark:bg-[#0b0b0e]">
+      <form onSubmit={toevoegen} className="mt-4 flex flex-col gap-2">
+        <p className="text-sm text-rustig">Stap 1 van 2 · Wat wil je doen?</p>
         <label className="flex h-13 items-center gap-2.5 rounded-full bg-vlak pr-2 pl-5">
           <span className="sr-only">Nieuwe taak</span>
-          <input value={invoer} onChange={(e) => setInvoer(e.target.value)} placeholder="Nieuwe taak" maxLength={160} disabled={!!actie || !!voorstelKeuze || bezig || !!gekozen}
+          <input ref={invoerVeld} value={invoer} onChange={(e) => setInvoer(e.target.value)} placeholder="Nieuwe taak" maxLength={160} disabled={!!actie || !!voorstelKeuze || bezig || !!gekozen}
             className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-zacht" />
           <button aria-label="Taak voorbereiden" disabled={!invoer.trim() || !!actie || !!voorstelKeuze || bezig || !!gekozen}
             className="flex size-10 items-center justify-center rounded-full bg-inkt text-white disabled:opacity-30 dark:text-black">
             <Plus className="size-5" />
           </button>
         </label>
-      </form>}
+      </form>
+        </details>}
+        <details name="vandaag-rust" className="rounded-2xl border border-lijn p-4">
+          <summary className="min-h-11 cursor-pointer py-2 font-medium">Tips en persoonlijke inrichting</summary>
+          <div className="flex flex-col gap-4 pt-3">
+        {toon("mascotte") && <MascotteMetTip />}
+        <AanDeSlag staat={staat} setStaat={setStaat} naarInstellingen={naarInstellingen} ga={ga} />
+        {v && (
+          <KeuzeKaart keuze={v} open={!gekozen && !actie && !voorstelKeuze} kies={kiesVoorstel} compact
+            gekozen={gekozen?.sleutel === v.sleutel ? gekozen.optie : undefined} />
+        )}
+
+          </div>
+        </details>
+      </main>
+
+
     </div>
   );
 }

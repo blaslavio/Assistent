@@ -54,19 +54,36 @@ export function Beveiliging({ gebruiker }: { gebruiker: Gebruiker }) {
   if (!stand) return fout ? <Melding tekst={fout} fout /> : <p className="px-1 text-rustig">Laden…</p>;
   return <>
     <Check stand={stand} gebruiker={gebruiker} />
-    <TweeStap stand={stand} gebruiker={gebruiker} klaar={laden} />
-    <Ingelogd stand={stand} lijst={lijst} klaar={laden} />
-    <Lekcheck />
+    <Uitleg titel="Extra controle bij aanmelden" kort={stand.twee_stap ? "Staat aan: naast je wachtwoord gebruik je een code." : "Nog niet ingesteld: voeg een extra code toe aan je wachtwoord."}>
+      <p className="text-sm text-rustig">Deze extra stap helpt als iemand je wachtwoord weet. Een app op je telefoon maakt een tijdelijke code. Bewaar ook de herstelcodes: daarmee kun je weer binnen als je die telefoon kwijt bent.</p>
+      <TweeStap stand={stand} gebruiker={gebruiker} klaar={laden} />
+    </Uitleg>
+    <Uitleg titel="Je apparaten en aanmeldingen" kort={stand.sessies.length === 1 ? "Je bent op 1 plek ingelogd. Bekijk of je die herkent." : `Je bent op ${stand.sessies.length} plekken ingelogd. Bekijk welke je herkent.`}>
+      <p className="text-sm text-rustig">‘Nu ingelogd’ zijn aanmeldingen die nog toegang hebben. ‘Dit apparaat onthouden’ betekent dat de app op dat apparaat opnieuw mag openen zonder telkens je wachtwoord te vragen. Meerdere regels met ‘iPhone’ kunnen van dezelfde telefoon komen; de naam bewijst niet dat het een ander toestel is.</p>
+      <p className="text-sm text-rustig">Met ‘Vergeten’ stop je het automatisch aanmelden op dat apparaat. Een al geopende aanmelding kan nog actief zijn. Wil je andere actieve aanmeldingen ook stoppen, kies dan ‘Op alle andere apparaten uitloggen’.</p>
+      <Ingelogd stand={stand} lijst={lijst} klaar={laden} />
+    </Uitleg>
+    <Uitleg titel="Controleer je wachtwoord op datalekken" kort="Bekijk of dit wachtwoord voorkomt in bekende gelekte lijsten.">
+      <p className="text-sm text-rustig">Deze controle verandert je wachtwoord niet. Wordt het gevonden, kies dan een nieuw en uniek wachtwoord. Niet gevonden betekent niet dat een wachtwoord zeker veilig is.</p>
+      <Lekcheck />
+    </Uitleg>
   </>;
+}
+
+function Uitleg({titel,kort,children}:{titel:string;kort:string;children:ReactNode}) {
+  return <details className="rounded-2xl border border-lijn p-4">
+    <summary className="min-h-11 cursor-pointer py-2"><span className="font-medium">{titel}</span><span className="mt-1 block text-sm text-rustig">{kort}</span></summary>
+    <div className="mt-4 flex flex-col gap-4">{children}</div>
+  </details>;
 }
 
 function Check({ stand, gebruiker }: { stand: Stand; gebruiker: Gebruiker }) {
   const punten: [boolean, string, string][] = [
     [stand.twee_stap, "Tweestapsverificatie staat aan", "Zet tweestapsverificatie aan, hieronder."],
-    [!stand.twee_stap || stand.herstelcodes_over >= 3, "Genoeg herstelcodes",
-      "Je hebt bijna geen herstelcodes meer. Zet tweestapsverificatie uit en weer aan voor nieuwe."],
+    [!stand.twee_stap || stand.herstelcodes_over >= 3, stand.twee_stap ? "Genoeg herstelcodes" : "Herstelcodes horen bij de extra inlogcontrole",
+      "Je hebt bijna geen herstelcodes meer. Open Extra controle bij aanmelden en controleer je herstelmogelijkheden."],
     [!!gebruiker.email, "Mailadres voor herstel", "Vul je mailadres in bij Account."],
-    [stand.sessies.length <= 3, "Weinig open sessies", "Log uit op apparaten die je niet meer gebruikt."],
+    [stand.sessies.length <= 3, "Weinig actieve aanmeldingen", "Je staat op meerdere plekken ingelogd. Controleer welke je herkent."],
     [!stand.mislukt_recent, "Geen mislukte inlogpogingen deze week",
       `${stand.mislukt_recent} mislukte poging(en) deze week. Was jij dat niet? Kies een nieuw wachtwoord bij Account.`],
   ];
@@ -74,10 +91,12 @@ function Check({ stand, gebruiker }: { stand: Stand; gebruiker: Gebruiker }) {
   return (
     <Blok titel="Beveiligingscheck">
       <div className="flex flex-col gap-3 rounded-2xl bg-vlak p-4">
-        <p className="font-semibold">{goed} van {punten.length} in orde</p>
+        <p className="font-semibold">{goed} van {punten.length} basiscontroles in orde</p>
+        <p className="text-sm text-rustig">Hier zie je aandachtspunten voor je account. Open alleen het onderwerp dat je wilt regelen.</p>
         <div className="h-2 overflow-hidden rounded-full bg-zacht/25">
           <div className="h-full rounded-full bg-accent" style={{ width: `${(goed / punten.length) * 100}%` }} />
         </div>
+        <details><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-accent">Bekijk de controles en hun betekenis</summary>
         <ul className="flex flex-col gap-1.5 text-[15px]">
           {punten.map(([ok, naam, tip]) => (
             <li key={naam} className="flex gap-2">
@@ -85,7 +104,7 @@ function Check({ stand, gebruiker }: { stand: Stand; gebruiker: Gebruiker }) {
               <span>{ok ? naam : tip}</span>
             </li>
           ))}
-        </ul>
+        </ul></details>
       </div>
     </Blok>
   );
@@ -199,7 +218,7 @@ function Ingelogd({ stand, lijst, klaar }: { stand: Stand; lijst: Apparaat[]; kl
   const [alleApparaten, setAlleApparaten] = useState(false);
   const reden: Record<string, string> = { wachtwoord: "fout wachtwoord", code: "foute code", sleutel: "Face ID geweigerd" };
   return <>
-    <Blok titel="Ingelogd op">
+    <Blok titel="Nu ingelogd">
       <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
         {(alleSessies ? stand.sessies : stand.sessies.slice(0, KORT)).map((s, i) => (
           <li key={i} className="flex items-center gap-2 px-4 py-3 text-[15px]">
@@ -222,7 +241,7 @@ function Ingelogd({ stand, lijst, klaar }: { stand: Stand; lijst: Apparaat[]; kl
       <Melding tekst={melding} />
     </Blok>
     {lijst.length > 0 && (
-      <Blok titel="Ingelogd blijven op">
+      <Blok titel="Dit apparaat onthouden">
         <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
           {(alleApparaten ? lijst : lijst.slice(0, KORT)).map((a) => (
             <li key={a.id} className="flex items-center gap-2 py-2 pr-2 pl-4 text-[15px]">
@@ -283,7 +302,7 @@ function Lekcheck() {
         <button disabled={!ww} className={knop}>Controleren</button>
       </form>
       {uitkomst && <Melding tekst={uitkomst.tekst} fout={uitkomst.fout} />}
-      <p className="px-1 text-sm text-rustig">Je wachtwoord verlaat de app niet: alleen de eerste 5 tekens van een versleutelde
+      <p className="px-1 text-sm text-rustig">Je wachtwoord verlaat de app niet: alleen de eerste 5 tekens van een digitale
         vingerafdruk gaan naar Have I Been Pwned.</p>
     </Blok>
   );

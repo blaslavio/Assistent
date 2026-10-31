@@ -2,7 +2,7 @@
 
 ## Wat is samengebracht
 
-- Instellingen heeft vijf groepen en doorzoekt alle onderliggende keuzes. Profiel, hulp en uitloggen blijven direct bereikbaar. Snelknoppen in de assistent, agenda en chat openen dezelfde instellingenpagina.
+- Instellingen heeft vijf persoonlijke groepen en apart ingeklapte zakelijke opties; de zoekfunctie doorzoekt alle onderliggende keuzes. Profiel, hulp en uitloggen blijven direct bereikbaar. Snelknoppen in de assistent, agenda en chat openen dezelfde instellingenpagina.
 - Het beginscherm toont Google en Apple, met Microsoft bij andere aanmeldmethoden. E-mail/gebruikersnaam en wachtwoord blijven werken als providers niet beschikbaar zijn. Een externe aanmelding gebruikt de officiële Supabase Auth-client met PKCE en tijdelijke sessieopslag. Alleen de server koppelt een bevestigde identiteit aan een appaccount. Tweestapsverificatie wordt niet overgeslagen.
 - Agenda heeft een ingang Evenementen. Een evenement hoort bij een groep, heeft een begin en een eindtijd (ook over meerdere dagen) en een eigen deelbare pagina. Alleen groepsleden krijgen inhoud. De maker/beheerder kan na bevestigen verwijderen; bij een fout blijft de pagina open. Een verwijderde pagina geeft geen details terug. Dit is geen openbare ticket- of betaalpagina.
 - Bij de winkel staan Betalen en contact, plus contactkeuzes tijdens het aanmaken. De eigenaar kiest app-chat, e-mail, telefoon, WhatsApp en website. Alleen expliciet ingevulde kanalen worden op de open winkel gepubliceerd. Gegevens staan los van de vormgeving, zodat opnieuw ontwerpen ze niet overschrijft. Accountverwijdering ruimt deze contactgegevens op.
