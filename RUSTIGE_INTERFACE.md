@@ -4,7 +4,7 @@ Deze update past de bestaande interface aan. Er komen geen extra aanmeld-, chat-
 
 ## Aanmelden
 
-Het beginscherm toont de eigen appnaam, **Doorgaan met Google** en **Doorgaan met Apple**, met lokaal opgeslagen SVG-logo’s. Er worden geen externe logo-afbeeldingen opgehaald. Microsoft staat onder **Andere aanmeldmethoden**. Daarna volgen één veld voor mailadres of bestaande gebruikersnaam en **Doorgaan**. Pas in de volgende stap verschijnt het wachtwoord. Teruggaan wist het ingevoerde wachtwoord; de gebruikersnaam blijft staan. Tweestapsverificatie en de bestaande servercontrole blijven actief.
+Het beginscherm toont de eigen appnaam, het veld voor **Gebruikersnaam of mailadres**, het veld voor **Wachtwoord** en **Inloggen**. Daaronder staan **Doorgaan met Google** en **Doorgaan met Apple**, met lokaal opgeslagen SVG-logo’s. Er worden geen externe logo-afbeeldingen opgehaald. Microsoft staat onder **Andere aanmeldmethoden**. Beide invoervelden zijn direct zichtbaar; aanmelden met een wachtwoord heeft geen extra tussenstap. Tweestapsverificatie en de bestaande servercontrole blijven actief.
 
 Account maken, wachtwoordherstel wanneer beschikbaar, voorwaarden en privacy blijven bereikbaar. Het aanmeldscherm heeft een eigen scrollgebied, zodat de onderste bediening ook bij minder schermhoogte bereikbaar blijft. Een mislukte controle van de mailvoorziening blokkeert de wachtwoordaanmelding niet.
 
@@ -30,3 +30,5 @@ Zoekwoorden zoals huren, verhuren en reserveren vinden ook Vakantie en verblijf.
 De webtests controleren onder meer de veilige aanmeldstappen, tweestapsverificatie, ontbrekende providers, het enkele tandwieltje en het bereiken van gegroepeerde functies. Een lokale browserfixture controleert lichte/donkere aanmelding, inactieve aanbieders, bellen en het agendamenu op 390 px breedte. Ook is het bereiken van de footer bij 400 px schermhoogte gecontroleerd. Deze fixture gebruikt uitsluitend fictieve gegevens; actieve OAuth-knoppen daarin bewijzen geen productie-instelling.
 
 Zie `controle/rustige_interface.json` voor de controles en bronversies. Beide distributies worden uit `web/src` gebouwd. Dit is geen bevestigde livepublicatie of uitgevoerde productiemigratie.
+
+De correctie waarbij gebruikersnaam en wachtwoord direct zichtbaar blijven en de externe aanbieders eronder staan, is afzonderlijk gecontroleerd in `controle/aanmeldvolgorde.json`.

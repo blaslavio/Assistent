@@ -17,25 +17,28 @@ it("toont Google en Apple op het beginscherm en vraagt toestemming voor doorstur
 it("houdt wachtwoordaanmelding beschikbaar als de providers niet beschikbaar zijn",async()=>{
  m.beschikbaar.mockResolvedValue({google:false,apple:false,azure:false});m.inlog.mockResolvedValue({token:"test-session"});const klaar=vi.fn();render(<Inloggen opIngelogd={klaar}/>);
  await screen.findByText(/Nog niet actief: Google, Apple/);
- fireEvent.change(screen.getByLabelText("Gebruikersnaam of mailadres"),{target:{value:"alice"}});fireEvent.click(screen.getByRole("button",{name:"Doorgaan"}));fireEvent.change(screen.getByLabelText("Wachtwoord"),{target:{value:"test-only"}});fireEvent.click(screen.getByRole("button",{name:"Inloggen"}));await waitFor(()=>expect(klaar).toHaveBeenCalled());
+ fireEvent.change(screen.getByLabelText("Gebruikersnaam of mailadres"),{target:{value:"alice"}});fireEvent.change(screen.getByLabelText("Wachtwoord"),{target:{value:"test-only"}});fireEvent.click(screen.getByRole("button",{name:"Inloggen"}));await waitFor(()=>expect(klaar).toHaveBeenCalled());
 });
 
-it("houdt het beginscherm bij twee herkenbare aanbieders en één mailveld",async()=>{
+it("houdt gebruikersnaam en wachtwoord zichtbaar met de aanbieders daaronder",async()=>{
  render(<Inloggen opIngelogd={vi.fn()}/>);await screen.findByRole("button",{name:"Doorgaan met Google"});
  expect(screen.getByRole("button",{name:"Doorgaan met Google"}).querySelector('[data-aanmeldlogo="google"]')).toBeTruthy();
  expect(screen.getByRole("button",{name:"Doorgaan met Apple"}).querySelector('[data-aanmeldlogo="apple"]')).toBeTruthy();
- expect(screen.queryByLabelText("Wachtwoord")).toBeNull();expect(screen.queryByRole("button",{name:"Doorgaan met Microsoft"})).toBeNull();
+ const naam=screen.getByLabelText("Gebruikersnaam of mailadres"),wachtwoord=screen.getByLabelText("Wachtwoord");
+ expect(naam.compareDocumentPosition(wachtwoord)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+ for(const aanbieder of ["Google","Apple"])expect(wachtwoord.compareDocumentPosition(screen.getByRole("button",{name:`Doorgaan met ${aanbieder}`}))&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+ expect(screen.queryByRole("button",{name:"Doorgaan met Microsoft"})).toBeNull();
  fireEvent.click(screen.getByRole("button",{name:"Andere aanmeldmethoden"}));expect(screen.getByRole("button",{name:"Doorgaan met Microsoft"})).toBeTruthy();
 });
-it("vraagt pas het wachtwoord na Doorgaan en laat terugkeren zonder wachtwoord te bewaren",async()=>{
- render(<Inloggen opIngelogd={vi.fn()}/>);fireEvent.change(screen.getByLabelText("Gebruikersnaam of mailadres"),{target:{value:"alice"}});
- fireEvent.click(screen.getByRole("button",{name:"Doorgaan"}));expect(m.inlog).not.toHaveBeenCalled();expect(document.activeElement).toBe(screen.getByLabelText("Wachtwoord"));
- fireEvent.change(screen.getByLabelText("Wachtwoord"),{target:{value:"niet-bewaren"}});fireEvent.click(screen.getByRole("button",{name:"Andere aanmeldmethode"}));
- expect(screen.queryByLabelText("Wachtwoord")).toBeNull();fireEvent.click(screen.getByRole("button",{name:"Doorgaan"}));expect((screen.getByLabelText("Wachtwoord") as HTMLInputElement).value).toBe("");
+it("laat direct met gebruikersnaam en wachtwoord inloggen zonder extra stap",async()=>{
+ m.inlog.mockResolvedValue({token:"test-session"});const klaar=vi.fn();render(<Inloggen opIngelogd={klaar}/>);
+ fireEvent.change(screen.getByLabelText("Gebruikersnaam of mailadres"),{target:{value:"alice"}});
+ fireEvent.change(screen.getByLabelText("Wachtwoord"),{target:{value:"test-only"}});expect(m.inlog).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole("button",{name:"Inloggen"}));await waitFor(()=>expect(klaar).toHaveBeenCalled());expect(m.inlog).toHaveBeenCalledWith("alice","test-only","");
 });
 it("houdt tweestapsverificatie intact in de rustigere aanmeldstappen",async()=>{
  m.inlog.mockResolvedValueOnce({code_nodig:true}).mockResolvedValueOnce({token:"test-session"});const klaar=vi.fn();render(<Inloggen opIngelogd={klaar}/>);
- fireEvent.change(screen.getByLabelText("Gebruikersnaam of mailadres"),{target:{value:"alice"}});fireEvent.click(screen.getByRole("button",{name:"Doorgaan"}));fireEvent.change(screen.getByLabelText("Wachtwoord"),{target:{value:"test-only"}});fireEvent.click(screen.getByRole("button",{name:"Inloggen"}));
+ fireEvent.change(screen.getByLabelText("Gebruikersnaam of mailadres"),{target:{value:"alice"}});fireEvent.change(screen.getByLabelText("Wachtwoord"),{target:{value:"test-only"}});fireEvent.click(screen.getByRole("button",{name:"Inloggen"}));
  await screen.findByLabelText("Code uit je app");expect(klaar).not.toHaveBeenCalled();expect(screen.queryByRole("button",{name:"Doorgaan met Google"})).toBeNull();
  fireEvent.change(screen.getByLabelText("Code uit je app"),{target:{value:"123456"}});fireEvent.click(screen.getByRole("button",{name:"Inloggen"}));await waitFor(()=>expect(klaar).toHaveBeenCalled());expect(m.inlog).toHaveBeenLastCalledWith("alice","test-only","123456");
 });

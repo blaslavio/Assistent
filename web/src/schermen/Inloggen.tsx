@@ -76,16 +76,12 @@ function Inlog({ opIngelogd, naar, mail }: Deel & { mail: boolean }) {
   const [wachtwoord, setWachtwoord] = useState("");
   const [code, setCode] = useState("");
   const [codeNodig, setCodeNodig] = useState(false);
-  const [wachtwoordOpen,setWachtwoordOpen] = useState(false);
-  const wachtwoordVeld = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (wachtwoordOpen) wachtwoordVeld.current?.focus(); }, [wachtwoordOpen]);
   const [fout, setFout] = useState("");
   const [bezig, setBezig] = useState(false);
 
   async function versturen(e: FormEvent) {
     e.preventDefault();
-    if (!naam.trim() || bezig) return;
-    if (!wachtwoordOpen) { setWachtwoordOpen(true); return; }
+    if (!naam.trim() || !wachtwoord || bezig) return;
     setBezig(true);
     setFout("");
     try {
@@ -102,15 +98,15 @@ function Inlog({ opIngelogd, naar, mail }: Deel & { mail: boolean }) {
   }
 
   return <>
-    <Formulier titel={codeNodig ? "Bevestig je aanmelding" : wachtwoordOpen ? "Welkom terug" : "Aanmelden of registreren"} fout={fout} onSubmit={versturen} vooraf={!codeNodig && !wachtwoordOpen && <ExternAanmelden />}>
+    <Formulier titel={codeNodig ? "Bevestig je aanmelding" : "Aanmelden of registreren"} fout={fout} onSubmit={versturen}>
       {!codeNodig ? (
         <>
           <label className="sr-only" htmlFor="naam">Gebruikersnaam of mailadres</label>
           <input id="naam" disabled={bezig} className={veld} placeholder="Gebruikersnaam of mailadres" autoComplete="username"
             autoCapitalize="none" value={naam} onChange={(e) => setNaam(e.target.value)} />
-          {wachtwoordOpen && <><label className="sr-only" htmlFor="wachtwoord">Wachtwoord</label>
-          <input ref={wachtwoordVeld} disabled={bezig} id="wachtwoord" className={veld} type="password" placeholder="Wachtwoord"
-            autoComplete="current-password" value={wachtwoord} onChange={(e) => setWachtwoord(e.target.value)} /></>}
+          <label className="sr-only" htmlFor="wachtwoord">Wachtwoord</label>
+          <input disabled={bezig} id="wachtwoord" className={veld} type="password" placeholder="Wachtwoord"
+            autoComplete="current-password" value={wachtwoord} onChange={(e) => setWachtwoord(e.target.value)} />
         </>
       ) : (
         <>
@@ -119,13 +115,13 @@ function Inlog({ opIngelogd, naar, mail }: Deel & { mail: boolean }) {
             autoFocus value={code} onChange={(e) => setCode(e.target.value)} />
         </>
       )}
-      <button disabled={bezig || !naam.trim() || (wachtwoordOpen && !wachtwoord)} className={hoofdknop}>{bezig ? "Even geduld" : wachtwoordOpen ? "Inloggen" : "Doorgaan"}</button>
+      <button disabled={bezig || !naam.trim() || !wachtwoord} className={hoofdknop}>{bezig ? "Even geduld" : "Inloggen"}</button>
     </Formulier>
     <div className="-mt-4 flex flex-col">
-      {wachtwoordOpen && !codeNodig && <button type="button" disabled={bezig} className={linkje} onClick={() => { setWachtwoordOpen(false); setWachtwoord(""); setFout(""); }}>Andere aanmeldmethode</button>}
       {mail && <button disabled={bezig} className={linkje} onClick={() => naar("vergeten")}>Wachtwoord vergeten?</button>}
       <button disabled={bezig} className={linkje} onClick={() => naar("nieuw")}>Nieuw hier? Maak een account</button>
     </div>
+    {!codeNodig && <ExternAanmelden />}
   </>;
 }
 
@@ -274,7 +270,8 @@ function ExternAanmelden() {
   }, [poging]);
   const naam = AANBIEDERS.find(a => a.id === keuze)?.naam;
   const inactief = AANBIEDERS.filter(a => (meer || a.id !== "azure") && beschikbaar && !beschikbaar[a.id]);
-  return <section aria-label="Andere aanmeldmogelijkheden" className="-mt-3 flex flex-col gap-3">
+  return <section aria-label="Andere aanmeldmogelijkheden" className="flex flex-col gap-3">
+    <div className="mb-1 flex items-center gap-4 text-center text-sm text-rustig"><span className="h-px flex-1 bg-lijn" /><span>Of ga verder met</span><span className="h-px flex-1 bg-lijn" /></div>
     <div className="flex flex-col gap-2">{AANBIEDERS.filter(a => meer || a.id !== "azure").map(a =>
       <button key={a.id} type="button" aria-describedby={!beschikbaar?.[a.id] ? statusId : undefined} disabled={!beschikbaar?.[a.id] || bezig} onClick={() => { setKeuze(a.id); setAkkoord(false); setFout(""); }}
         className="flex min-h-13 items-center justify-center gap-3 rounded-full border border-lijn px-4 py-3 font-medium text-inkt disabled:opacity-50">
@@ -283,7 +280,7 @@ function ExternAanmelden() {
     <button type="button" aria-expanded={meer} onClick={() => setMeer(!meer)} className="min-h-11 text-sm text-rustig">{meer ? "Minder aanmeldmethoden" : "Andere aanmeldmethoden"}</button>
     {ladenFout ? <p id={statusId} role="status" className="text-sm text-rustig">{ladenFout} <button type="button" className="min-h-11 text-accent" onClick={() => setPoging(n => n + 1)}>Opnieuw ophalen</button></p>
       : !beschikbaar ? <p id={statusId} role="status" className="text-sm text-rustig">Aanmeldmogelijkheden controleren…</p>
-      : !!inactief.length && <p id={statusId} className="text-sm text-rustig">Nog niet actief: {inactief.map(a => a.naam).join(", ")}. Je kunt hieronder met je mailadres of gebruikersnaam inloggen.</p>}
+      : !!inactief.length && <p id={statusId} className="text-sm text-rustig">Nog niet actief: {inactief.map(a => a.naam).join(", ")}. Je kunt hierboven met je mailadres of gebruikersnaam inloggen.</p>}
     {keuze && <div className="flex flex-col gap-3 rounded-2xl bg-vlak p-4">
       <p className="text-sm text-rustig">Je gaat naar {naam} om je identiteit te bevestigen. Assistent krijgt je naam en mailadres, geen wachtwoord van {naam}.</p>
       <label className="flex gap-3 text-sm"><input type="checkbox" checked={akkoord} onChange={e => setAkkoord(e.target.checked)} className="mt-1 size-5 shrink-0" />
@@ -298,7 +295,6 @@ function ExternAanmelden() {
       }}>{bezig ? "Even geduld…" : `Doorgaan naar ${naam}`}</button>
       <button type="button" disabled={bezig} className="min-h-11 text-sm text-rustig" onClick={() => setKeuze(null)}>Annuleren</button>
     </div>}
-    <div className="flex items-center gap-4 text-center text-sm text-rustig"><span className="h-px flex-1 bg-lijn" /><span>Of met je mailadres</span><span className="h-px flex-1 bg-lijn" /></div>
     {lezen && <Onderblad titel={lezen === "voorwaarden" ? "Voorwaarden" : "Privacyverklaring"} sluit={() => setLezen(null)}>
       <Suspense fallback={<p>Even laden…</p>}><Teksten welke={lezen} /></Suspense>
     </Onderblad>}
