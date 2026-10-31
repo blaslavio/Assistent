@@ -1,7 +1,7 @@
 {
-  "gemaakt_op": "2026-10-31T13:56:10.207992+00:00",
+  "gemaakt_op": "2026-10-31T15:29:23.616401+00:00",
   "correctie": "Gebruikersnaam en wachtwoord direct zichtbaar; Google en Apple onder het bestaande formulier",
-  "gerichte_aanmeldtests_geslaagd": 5,
+  "gerichte_aanmeldtests_geslaagd": 7,
   "volgorde_getest_via_dom": true,
   "tweestapsverificatie_getest": true,
   "builds": [
@@ -10,7 +10,9 @@
   ],
   "livepublicatie_bevestigd": false,
   "bron_sha256": {
-    "web/src/schermen/Inloggen.tsx": "d553d902e621cb3730bd1a22fe71cc99cefff95c8107a21f78b51201b2850ee2",
-    "web/src/schermen/Inloggen.test.tsx": "4e4535822f90629c25f28a0d20b26f8ebb1987c5e76c916aad366464984aeb13"
-  }
+    "web/src/schermen/Inloggen.tsx": "89a296b55941d39348dd43e5777f22608a51e0b912e6e843314cbfb3d0cd6bc8",
+    "web/src/schermen/Inloggen.test.tsx": "5cd38928f77503a67c1c7ab42e44d05418a7936f98e58dcdfd1d223f5588666c"
+  },
+  "bestaande_wachtwoordaanmelding_zonder_gebruikersnaam_hersteld": true,
+  "serverauthenticatie_ongewijzigd": true
 }

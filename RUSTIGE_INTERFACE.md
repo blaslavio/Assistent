@@ -4,7 +4,7 @@ Deze update past de bestaande interface aan. Er komen geen extra aanmeld-, chat-
 
 ## Aanmelden
 
-Het beginscherm toont de eigen appnaam, het veld voor **Gebruikersnaam of mailadres**, het veld voor **Wachtwoord** en **Inloggen**. Daaronder staan **Doorgaan met Google** en **Doorgaan met Apple**, met lokaal opgeslagen SVG-logo’s. Er worden geen externe logo-afbeeldingen opgehaald. Microsoft staat onder **Andere aanmeldmethoden**. Beide invoervelden zijn direct zichtbaar; aanmelden met een wachtwoord heeft geen extra tussenstap. Tweestapsverificatie en de bestaande servercontrole blijven actief.
+Het beginscherm toont de eigen appnaam, het veld voor **Gebruikersnaam of mailadres**, het veld voor **Wachtwoord** en **Inloggen**. Daaronder staan **Doorgaan met Google** en **Doorgaan met Apple**, met lokaal opgeslagen SVG-logo’s. Er worden geen externe logo-afbeeldingen opgehaald. Microsoft staat onder **Andere aanmeldmethoden**. Beide invoervelden zijn direct zichtbaar; aanmelden met een wachtwoord heeft geen extra tussenstap. Voor het bestaande hoofdaccount mag de gebruikersnaam, zoals voorheen, leeg blijven. De bestaande server bepaalt dan het account en controleert het wachtwoord en eventuele tweestapscode; de interface maakt het gebruikersnaamveld niet verplicht. Tweestapsverificatie en de bestaande servercontrole blijven actief.
 
 Account maken, wachtwoordherstel wanneer beschikbaar, voorwaarden en privacy blijven bereikbaar. Het aanmeldscherm heeft een eigen scrollgebied, zodat de onderste bediening ook bij minder schermhoogte bereikbaar blijft. Een mislukte controle van de mailvoorziening blokkeert de wachtwoordaanmelding niet.
 

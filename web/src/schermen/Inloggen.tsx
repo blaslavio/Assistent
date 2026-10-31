@@ -81,7 +81,7 @@ function Inlog({ opIngelogd, naar, mail }: Deel & { mail: boolean }) {
 
   async function versturen(e: FormEvent) {
     e.preventDefault();
-    if (!naam.trim() || !wachtwoord || bezig) return;
+    if (!wachtwoord || bezig) return;
     setBezig(true);
     setFout("");
     try {
@@ -115,7 +115,7 @@ function Inlog({ opIngelogd, naar, mail }: Deel & { mail: boolean }) {
             autoFocus value={code} onChange={(e) => setCode(e.target.value)} />
         </>
       )}
-      <button disabled={bezig || !naam.trim() || !wachtwoord} className={hoofdknop}>{bezig ? "Even geduld" : "Inloggen"}</button>
+      <button disabled={bezig || !wachtwoord} className={hoofdknop}>{bezig ? "Even geduld" : "Inloggen"}</button>
     </Formulier>
     <div className="-mt-4 flex flex-col">
       {mail && <button disabled={bezig} className={linkje} onClick={() => naar("vergeten")}>Wachtwoord vergeten?</button>}

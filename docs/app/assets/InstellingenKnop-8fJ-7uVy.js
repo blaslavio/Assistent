@@ -1,1 +1,0 @@
-import{t as e}from"./jsx-runtime-DzygSRPZ.js";import{La as t,Ln as n}from"./index-CpTyV-jP.js";var r=e();function i({pagina:e,label:i}){return(0,r.jsx)(`button`,{type:`button`,onClick:()=>n(e),"aria-label":i,className:`flex size-11 shrink-0 items-center justify-center rounded-full bg-vlak text-rustig`,children:(0,r.jsx)(t,{className:`size-5`})})}export{i as t};

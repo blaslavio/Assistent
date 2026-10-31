@@ -42,3 +42,20 @@ it("houdt tweestapsverificatie intact in de rustigere aanmeldstappen",async()=>{
  await screen.findByLabelText("Code uit je app");expect(klaar).not.toHaveBeenCalled();expect(screen.queryByRole("button",{name:"Doorgaan met Google"})).toBeNull();
  fireEvent.change(screen.getByLabelText("Code uit je app"),{target:{value:"123456"}});fireEvent.click(screen.getByRole("button",{name:"Inloggen"}));await waitFor(()=>expect(klaar).toHaveBeenCalled());expect(m.inlog).toHaveBeenLastCalledWith("alice","test-only","123456");
 });
+
+it("herstelt aanmelden met alleen een wachtwoord voor het bestaande hoofdaccount",async()=>{
+ m.inlog.mockResolvedValue({token:"test-session"});const klaar=vi.fn();render(<Inloggen opIngelogd={klaar}/>);
+ expect((screen.getByLabelText("Gebruikersnaam of mailadres") as HTMLInputElement).value).toBe("");
+ expect((screen.getByRole("button",{name:"Inloggen"}) as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.change(screen.getByLabelText("Wachtwoord"),{target:{value:"test-only"}});
+ expect((screen.getByRole("button",{name:"Inloggen"}) as HTMLButtonElement).disabled).toBe(false);
+ fireEvent.click(screen.getByRole("button",{name:"Inloggen"}));await waitFor(()=>expect(klaar).toHaveBeenCalled());
+ expect(m.inlog).toHaveBeenCalledWith("","test-only","");
+});
+it("vraagt ook zonder ingevulde gebruikersnaam de bestaande tweestapscode",async()=>{
+ m.inlog.mockResolvedValueOnce({code_nodig:true}).mockResolvedValueOnce({token:"test-session"});const klaar=vi.fn();render(<Inloggen opIngelogd={klaar}/>);
+ fireEvent.change(screen.getByLabelText("Wachtwoord"),{target:{value:"test-only"}});fireEvent.click(screen.getByRole("button",{name:"Inloggen"}));
+ await screen.findByLabelText("Code uit je app");expect(klaar).not.toHaveBeenCalled();
+ fireEvent.change(screen.getByLabelText("Code uit je app"),{target:{value:"123456"}});fireEvent.click(screen.getByRole("button",{name:"Inloggen"}));
+ await waitFor(()=>expect(klaar).toHaveBeenCalled());expect(m.inlog).toHaveBeenLastCalledWith("","test-only","123456");
+});
