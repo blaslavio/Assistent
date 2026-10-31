@@ -1,0 +1,27 @@
+name: Assistant actions security
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/assistant-actions.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/assistant-actions.yml'
+permissions:
+  contents: read
+jobs:
+  deno-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check action entrypoint
+        run: deno check supabase/functions/assistant-actions/index.ts
+      - name: Run action policy and validation tests
+        run: deno test --no-check supabase/functions/_shared/action_policy_test.ts supabase/functions/assistant-actions/authorization_test.ts supabase/functions/assistant-actions/phase3_policy_test.ts supabase/functions/assistant-actions/phase3_validation_test.ts
