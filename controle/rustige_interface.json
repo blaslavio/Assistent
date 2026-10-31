@@ -1,0 +1,44 @@
+{
+  "gemaakt_op": "2026-10-31T10:26:44.022748+00:00",
+  "scope": "rustiger aanmelden, bellen en agendanavigatie",
+  "basis_commit": "0ebe061e50969c0f515fd3dbf1b5ff044adb3ec3",
+  "webtests": {
+    "bestanden": 65,
+    "geslaagd": 310
+  },
+  "gerichte_tests": 11,
+  "builds": [
+    "statische webinterface",
+    "enkele Streamlit-bundel"
+  ],
+  "browser_fixture": {
+    "breedte": 390,
+    "hoogte": 844,
+    "schermen": [
+      "inloggen-donker",
+      "inloggen-licht",
+      "inloggen-inactief",
+      "bellen",
+      "agenda"
+    ],
+    "horizontale_overloop": false,
+    "footer_bereikbaar_bij_400px_hoogte": true,
+    "uitsluitend_fictieve_gegevens": true,
+    "productie_e2e": false
+  },
+  "productiemigratie_uitgevoerd": false,
+  "oauth_productie_activering_uitgevoerd": false,
+  "livepublicatie_bevestigd": false,
+  "bron_sha256": {
+    "web/src/schermen/Inloggen.tsx": "32fe7bdafcf304c987d185ed63c65e778d91ca9ddb4d7aef66db4ece4e4d9e54",
+    "web/src/schermen/Inloggen.test.tsx": "e7f23e5a605dbf19d6885eba5541d2fd278c8cc7174541ac1782529c929556ab",
+    "web/src/schermen/AanmeldLogo.tsx": "de34389cabe3551ca381e375ae535f6b6426b19306371bf9ffacfcf784447207",
+    "web/src/schermen/Agenda.tsx": "7b6bffcce76578db62846c7c33394561189897b3820a5fc59818f9cd6c4ddb17",
+    "web/src/schermen/AgendaNavigatie.tsx": "1f3d41fe6be802f7848a79ed759153c7c0d20b60c843466efc260d52c022865e",
+    "web/src/schermen/AgendaNavigatie.test.tsx": "749f0b92d23d3c80ac4f0fc12d01d05473c3081401ace90a7527dcc7d140bb37",
+    "web/src/schermen/Chat.tsx": "733fdbf5e087c7bf95b87fde6fec59db1afed79f1d9394e144bb811c982cb430",
+    "web/src/schermen/Oproepen.tsx": "7258113f108c7566141e7890359f584553fe06d4c152563c9a0a5cc6854894f9",
+    "web/src/schermen/InstellingenKnop.tsx": "e954279f2bc5ad04a0a6525ffbb8a56d66ffe4724cefd810f6674c3beda46657",
+    "web/src/schermen/RustigerBellen.test.tsx": "e88d508e0594dd127aae6d2a899c68cc6acdf74fc1ada5b35aa55d7864a50c09"
+  }
+}

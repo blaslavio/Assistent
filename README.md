@@ -19,3 +19,7 @@ Werk uitsluitend in `/workspace/Assistent` met `main` als actuele basis. De eige
 ## Vakantie en particulier verblijf
 
 Via Agenda → Vakantie en verblijf kun je privévakanties plannen, begroten en voorbereiden, en particulier een woning aanbieden of een reserveringsaanvraag doen. Zie [VAKANTIES.md](VAKANTIES.md) voor de functies, migratie en grenzen van deze eerste versie.
+
+## Rustiger aanmelden en navigeren
+
+De aanmeldpagina heeft herkenbare Google- en Apple-knoppen. Bellen heeft één instellingeningang; extra agenda-opties staan gegroepeerd onder Meer. Zie [RUSTIGE_INTERFACE.md](RUSTIGE_INTERFACE.md) voor de bediening en activeringsvoorwaarden.

@@ -1,6 +1,7 @@
 // Oproepen: snelkiezen, gemiste oproepen met terugbellen of een herinnering, een belafspraak in je agenda en hoe dit
 // toestel overgaat. Het logboek en de belvoorkeuren blijven op dit apparaat.
 import { useState } from "react";
+import { instellingenOpenen } from "../lib/naar";
 import { bijwerken, type Gegevens } from "../api";
 import { Kalender, Klok, Kruis, Slot, Ster, Telefoon, Vinkje, Video, Zoek } from "../iconen";
 import { belDuur, gesprekNaam, type Gesprek } from "../lib/chat";
@@ -56,25 +57,16 @@ export function Oproepen({ ik, lijst, instellingen, sluitInstellingen, bewaard, 
   }
 
   if (!kanBellen()) {
-    return <p className="px-6 text-rustig">Bellen kan niet in deze browser. Probeer Safari of Chrome.</p>;
+    return <><p className="px-6 text-rustig">Bellen kan niet in deze browser. Probeer Safari of Chrome.</p>{instellingen && <BelInstellingen v={v} sluit={sluitInstellingen} />}</>;
   }
   return (
     <div className="flex flex-col gap-6 pb-8">
-      <label className="mx-6 flex h-11 items-center gap-2 rounded-2xl bg-vlak px-4">
+      {mensen.length > 0 && <label className="mx-6 flex h-11 items-center gap-2 rounded-2xl bg-vlak px-4">
         <Zoek className="size-5 text-rustig" />
         <span className="sr-only">Zoek iemand om te bellen</span>
         <input value={zoek} onChange={(e) => setZoek(e.target.value)} placeholder="Wie wil je spreken?"
           className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-zacht" />
-      </label>
-
-      {/* Drie dingen die gewone bel-apps niet doen: een belafspraak, stille uren per toestel, en je beltijd. */}
-      <div className="grid grid-cols-3 gap-2 px-6">
-        <Tegel icoon={<Kalender className="size-5" />} titel="Plannen" uitleg="In je agenda"
-          doe={() => setPlannen("kies")} />
-        <Tegel icoon={<Klok className="size-5" />} titel="Stille uren" aan={stilNu(v)}
-          uitleg={v.stilAan ? `${v.stilVan}–${v.stilTot}` : "Uit"} doe={() => belVoorkeurZetten({ stilAan: !v.stilAan })} />
-        <Tegel icoon={<Telefoon className="size-5" />} titel={`${minuten} min`} uitleg="deze week" />
-      </div>
+      </label>}
 
       {snel.length > 0 && (
         <section>
@@ -120,7 +112,7 @@ export function Oproepen({ ik, lijst, instellingen, sluitInstellingen, bewaard, 
         <h2 className={`${kop} px-7`}>Contacten</h2>
         {mensen.length === 0 ? (
           <div className="flex flex-col items-start gap-3 px-7">
-            <p className="text-sm text-rustig">Wie je spreekt onder Chats, kun je hier bellen, videobellen of een belafspraak mee maken.</p>
+            <p className="text-sm text-rustig">Zoek een contact om te bellen, videobellen of samen een belafspraak te plannen.</p>
             <button onClick={zoekIemand} className="flex h-10 items-center gap-2 rounded-full bg-accent px-4 text-sm font-medium text-white">
               <Zoek className="size-4" /> Iemand zoeken</button>
           </div>
@@ -146,6 +138,15 @@ export function Oproepen({ ik, lijst, instellingen, sluitInstellingen, bewaard, 
         )}
       </section>
 
+      <details className="mx-6 rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer py-2 font-medium">Planning en beloverzicht</summary>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <Tegel icoon={<Kalender className="size-5" />} titel="Plannen" uitleg="In je agenda"
+          doe={() => mensen.length ? setPlannen("kies") : zoekIemand()} />
+        <Tegel icoon={<Klok className="size-5" />} titel="Stille uren" aan={stilNu(v)}
+          uitleg={v.stilAan ? `${v.stilVan}–${v.stilTot}` : "Uit"} doe={() => belVoorkeurZetten({ stilAan: !v.stilAan })} />
+        <Tegel icoon={<Telefoon className="size-5" />} titel={`${minuten} min`} uitleg="deze week" />
+      </div>
+      </details>
       {log.length > 0 && (
         <section>
           <div className="flex items-center gap-2 px-6 pb-2">
@@ -320,6 +321,7 @@ function BelInstellingen({ v, sluit }: { v: BelVoorkeur; sluit: () => void }) {
         <h2 className={kop}>Privacy</h2>
         <p className="px-1 text-sm text-rustig">Alleen mensen met wie je een gesprek hebt, kunnen je bellen. Beeld en geluid gaan
           rechtstreeks en versleuteld tussen jullie toestellen. Je beloverzicht staat alleen op dit apparaat.</p>
+        <button type="button" onClick={() => { sluit(); instellingenOpenen("privacy"); }} className="min-h-11 rounded-2xl bg-vlak px-4 text-accent">Privacy en beveiliging van mijn account</button>
         <button onClick={() => { if (confirm("Je beloverzicht op dit apparaat wissen?")) oproepenWissen(); }}
           className="h-12 rounded-2xl bg-vlak font-medium text-red-600 dark:text-red-400">Beloverzicht wissen</button>
       </section>

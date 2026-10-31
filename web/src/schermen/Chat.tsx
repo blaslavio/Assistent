@@ -162,10 +162,10 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
         terug={!zichtbaar.includes(deel) ? () => setDeel("chats") : undefined} terugNaam="Chats"
         rechts={(
           <span className="flex shrink-0 gap-2">
-            <InstellingenKnop pagina="privacy" label="Privacy en beveiliging instellen" />
+            {deel !== "oproepen" && <InstellingenKnop pagina="privacy" label="Privacy en beveiliging instellen" />}
             {acties.map((a) => (
               <button key={a.label} onClick={a.doe} aria-label={a.label}
-                className="flex size-10 items-center justify-center rounded-full bg-vlak">{a.icoon}</button>
+                className="flex size-11 items-center justify-center rounded-full bg-vlak">{a.icoon}</button>
             ))}
           </span>
         )} />
