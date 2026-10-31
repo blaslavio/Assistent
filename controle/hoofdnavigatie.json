@@ -1,0 +1,66 @@
+{
+  "gemaakt_op": "2026-10-31T18:06:49.647332+00:00",
+  "scope": "Mijn dag, menselijke Chat en Werkruimte als vaste hoofdplekken; AI en profiel apart bovenin",
+  "webtests": {
+    "geslaagd": 344,
+    "bestanden": 75
+  },
+  "builds": [
+    "webinterface",
+    "Streamlit-bundel"
+  ],
+  "browsercontrole": {
+    "extra_breedtes": [
+      320,
+      1024
+    ],
+    "mobiel": [
+      390,
+      844
+    ],
+    "drie_hoofdplekken": true,
+    "gesprek_concept_bewaard": true,
+    "werkruimte_zoekopdracht_bewaard": true,
+    "agenda_week_bewaard": true,
+    "hoofdmenu_in_gesprek_bereikbaar": true,
+    "horizontale_overloop": false,
+    "uitsluitend_lokale_fixture": true
+  },
+  "bezochte_schermen_bewaren_invoer_en_scroll": true,
+  "chatconcepten_alleen_in_accountgeheugen": true,
+  "verborgen_gesprekken_bevestigen_late_antwoorden_niet_als_gelezen": true,
+  "oude_appverwijzingen_blijven_bereikbaar": true,
+  "aanmeldgedrag_ongewijzigd": true,
+  "databasefuncties_ongewijzigd": true,
+  "livepublicatie_bevestigd": false,
+  "bron_sha256": {
+    "web/src/App.tsx": "b4be609917ed523094bba44dd41c4dace9b0017d15fdb65ba4e25ae15715bcd4",
+    "web/src/AppNavigatie.test.tsx": "33c23bb5254ce5dc04bdd77cc446dc91dcb77320616cf87169355fbf9354587c",
+    "web/src/index.css": "1c16d0d0573a105d350278cd1d65a73065dfc71b470a619cc5d5b67b071050f0",
+    "web/src/lib/bestellingen.ts": "9a8c29fdf53430d4ee1e361cf66a3836a40899be87fd58bffd7f6943c11c6cd3",
+    "web/src/lib/chat.ts": "d9d4ed851b9ad1a458b51d240633171483708ae2376ceb20f370213e1f97cdfa",
+    "web/src/lib/mijnwinkel.ts": "e639a23d6f54d054dc603a5ffbcc2088703f4cff6f7e155a182ddb16165bd2a6",
+    "web/src/lib/naar.ts": "6a7c76d65017ace1e470287b1e7bd197dfcb1f04493fba050303f1a510e706e5",
+    "web/src/schermen/Agenda.tsx": "38bb937439f8c1f5f7ca46736566dec825a1aa2ece48d5a510e11c127e3bf1bb",
+    "web/src/schermen/Algemeen.tsx": "85fc28775c29564c058325ede435e0350b35755da6f272081a3a97714bd79f09",
+    "web/src/schermen/AppMenu.tsx": "b22ee44508b83da7102cdc9b70f62f1a6db27112261433e270e4adc62b3a5f9d",
+    "web/src/schermen/Assistent.tsx": "83a47afc66ce443e8d248099619fc18e9e0bb28fd11a3e9950be53e2ecc68bbc",
+    "web/src/schermen/BewaarScherm.test.tsx": "96b2581be0c3d7158b37394c55a926ca11f98c08519743aef5dbc311876fad8e",
+    "web/src/schermen/BewaarScherm.tsx": "57f01c783fd0fb160ab793204723d5f33dda73786ab498e48c92033cd36f3200",
+    "web/src/schermen/Chat.tsx": "e0a80ea44af14260a6ad564d4beada7ef2b7038cb59af67fba267490e7f05a78",
+    "web/src/schermen/ChatNavigatie.test.tsx": "8daac7ef9acd99631ff994588fe72f33b65c11c6f97b4e233bab2a1e6180a896",
+    "web/src/schermen/Gasten.tsx": "61c8593f76f52fbc3f9f54d234480b0ac49988b4d9e1ac209dba7c7c85e49bdb",
+    "web/src/schermen/HoofdNavigatie.tsx": "e4420555bbafd82ec703566314bc095f1de58dee46cd87be9a5fc1f8e35f6712",
+    "web/src/schermen/Instellingen.tsx": "a0db73f521009d32858805b662942bcb358d3be47474d3b4056dc231f3400fc3",
+    "web/src/schermen/MijnDag.tsx": "58a6258c795aa7dea240821e55c67c0d8eecf20bb3e3c79d2994f90b89b603f0",
+    "web/src/schermen/Onderdelen.tsx": "efda7f02087e0a7282261d91c0b12345279f15fac09532d39253fd8c575221d8",
+    "web/src/schermen/RustigeNavigatie.test.tsx": "020ad4a04935add3b85589f2decc1875b6f6e25b97c6a98960b7e3d370ee2052",
+    "web/src/schermen/Stories.tsx": "02403b896733ae95a43dc55b84a95faed1cba5bcd2c1822f3a04a1b6c4638da9",
+    "web/src/schermen/Vandaag.tsx": "21ab00a2a5041be791db9e8cec49f4ed8a65e826679677f3fe8a3edfed2caf5e",
+    "web/src/schermen/Werkruimte.test.tsx": "c63ecde30cabe0e80cb3b6cee35c8a2951b558ff07684c57688ba378b597eda5",
+    "web/src/schermen/Werkruimte.tsx": "28c17ad4991c591370ce9a9bbdc1deb0858d44e52b9167b0810239318be38839",
+    "web/src/schermen/Winkelen.tsx": "690d0cf2b4e0d311655d355ca8e798d4b5f2c2285f1baf5f8c89761f66382f73",
+    "web/src/schermen/chatdelen.test.ts": "ec8b6e3aab910f0a39b3d9b2b9c0b3e0eda2c086a73c6d522cf3b8f399da50bd",
+    "web/src/schermen/chatdelen.ts": "364c14a605901b2cb4762952a976c9dbecea602d4e22f45586e31a032f91255c"
+  }
+}

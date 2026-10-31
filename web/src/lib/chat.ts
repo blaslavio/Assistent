@@ -322,7 +322,7 @@ export async function voorbeeld(g: Gesprek): Promise<string> {
   return tekst;
 }
 
-export async function berichten(gesprek: number, na: number) {
+export async function berichten(gesprek: number, na: number, magLezen:()=>boolean=()=>true) {
   if (!ik) throw new Error("De chat is nog niet gestart.");
   const r = await rpc<{ berichten: RuwBericht[]; gesprek: Gesprek }>("chat_berichten",
     { p_gesprek: gesprek, p_na: na, p_apparaat: ik.apparaat });
@@ -341,7 +341,7 @@ export async function berichten(gesprek: number, na: number) {
     regels.push(regel);
   }
   const hoogste = r.berichten.length ? r.berichten[r.berichten.length - 1].id : 0;
-  if (hoogste && r.gesprek?.status === "lid") rpc("chat_gelezen", { p_gesprek: gesprek, p_tot: hoogste }).catch(() => {});
+  if (hoogste && r.gesprek?.status === "lid" && magLezen()) rpc("chat_gelezen", { p_gesprek: gesprek, p_tot: hoogste }).catch(() => {});
   return { regels, gesprek: r.gesprek, hoogste, meer: r.berichten.length === 200 };
 }
 

@@ -1,5 +1,6 @@
+import { useSchermActief } from "./BewaarScherm";
 import { KaartVouw } from "../iconen";
-import { kaartOpenen, kaartGevraagd, gevraagdGesprek } from "../lib/naar";
+import { kaartOpenen, kaartGevraagd, gevraagdGesprek, winkelAppGevraagd } from "../lib/naar";
 import InstellingenKnop from "./InstellingenKnop";
 import { BetaalverzoekMaken, ChatBetaalkaart } from "./ChatBetaling";
 import ProjectWerkruimte from "./ProjectWerkruimte";
@@ -46,19 +47,25 @@ const WinkelKaart = lazy(() => import("./WinkelKaart").then((m) => ({ default: m
 const Projecten = lazy(() => import("./Projecten"));
 
 function bewaardDeel(): Deel {
-  if (isGevraagd() || isWinkelGevraagd()) return "winkel";
+  if (isGevraagd() || isWinkelGevraagd()) return "chats";
   if (isCursusLinkGevraagd()) return "communitys";
   try {
     const d = localStorage.getItem("assistent.chatdeel");
-    if (d !== "winkel" && DELEN.some(([k]) => k === d)) return d as Deel;
+    if (d === "chats" || d === "communitys" || d === "oproepen") return d;
   } catch { /* geen opslag */ }
   return "chats";
 }
 
 type Props = { verlaat?: () => void; terugNaam?: string; staat: Staat; setStaat?: React.Dispatch<React.SetStateAction<Staat | null>>; naarInstellingen: () => void;
-  bestel: (p: Product) => void; werkGesprek?: { id: number; ronde: number; gebruiker: number } | null };
+  bestel: (p: Product) => void; ongelezenGewijzigd?: (aantal:number)=>void; werkGesprek?: { id: number; ronde: number; gebruiker: number } | null };
 
-export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
+export default function Chat({ staat, setStaat, bestel, werkGesprek, ongelezenGewijzigd,verlaat,terugNaam }: Props) {
+  const schermActief=useSchermActief();
+  const markeerGelezen=useCallback((id:number)=>setLijst(oud=>oud.some(g=>g.id===id&&g.ongelezen>0)?oud.map(g=>g.id===id?{...g,ongelezen:0}:g):oud),[]);
+  const concepten=useRef(new Map<number,string>());
+  const bewaarConcept=useCallback((id:number,tekst:string)=>{if(tekst)concepten.current.set(id,tekst);else concepten.current.delete(id);},[]);
+  const [vanBuiten,setVanBuiten]=useState(isGevraagd()||isWinkelGevraagd());
+  const [zoekGesprek,setZoekGesprek]=useState("");
   const [projectVan, setProjectVan] = useState<number | null>(null);
   const [ik, setIk] = useState<number | null>(null);
   const [belInst, setBelInst] = useState(false);
@@ -80,8 +87,9 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
     return adres ? { deel: "ontdekken", adres } : null;
   });
 
+  function verlaatGesprek(){setOpen(null);setOpenGast(null);setOpenCommunity(null);setNieuw(false);}
   function setDeel(d: Deel) {
-    if (d === "winkel") { setWinkel({ deel: "ontdekken" }); return; }
+    if (d === "winkel") { setVanBuiten(false);setWinkel(oud=>({deel:"ontdekken",ronde:(oud?.ronde??0)+1})); return; }
     setDeelRuw(d);
     try { localStorage.setItem("assistent.chatdeel", d); } catch { /* geen opslag */ }
   }
@@ -94,7 +102,16 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
   useEffect(() => { if (werkGesprek?.gebruiker === staat.gebruiker.id) setOpen(werkGesprek.id); }, [werkGesprek, staat.gebruiker.id]);
 
   useEffect(() => { const openGevraagd = () => { const id = gevraagdGesprek(); if (id !== null) setOpen(id); }; window.addEventListener("chat-open", openGevraagd); return () => window.removeEventListener("chat-open", openGevraagd); }, []);
-  useEffect(() => { const open = () => { if (kaartGevraagd()) { setOpen(null); setWinkel(oud => ({ deel: "kaart", ronde: (oud?.ronde ?? 0) + 1 })); } }; open(); window.addEventListener("kaart-openen", open); return () => window.removeEventListener("kaart-openen", open); }, []);
+  useEffect(() => { const open = () => { if (kaartGevraagd()) { setVanBuiten(true);verlaatGesprek(); setWinkel(oud => ({ deel: "kaart", ronde: (oud?.ronde ?? 0) + 1 })); } }; open(); window.addEventListener("kaart-openen", open); return () => window.removeEventListener("kaart-openen", open); }, []);
+  useEffect(()=>{const open=()=>{if(winkelAppGevraagd()){setVanBuiten(true);verlaatGesprek();setWinkel(oud=>({deel:"ontdekken",ronde:(oud?.ronde??0)+1}));}};open();window.addEventListener("winkel-app-openen",open);return()=>window.removeEventListener("winkel-app-openen",open);},[]);
+  useEffect(()=>{
+    const bestelling=()=>{const v=openGevraagd();if(v){setVanBuiten(true);verlaatGesprek();setWinkel(oud=>({deel:"bestellingen",melding:v.melding,ronde:(oud?.ronde??0)+1}));}};
+    const adres=()=>{const a=winkelGevraagd();if(a){setVanBuiten(true);verlaatGesprek();setWinkel(oud=>({deel:"ontdekken",adres:a,ronde:(oud?.ronde??0)+1}));}};
+    window.addEventListener("bestellingen-openen",bestelling);window.addEventListener("winkel-adres-openen",adres);
+    return()=>{window.removeEventListener("bestellingen-openen",bestelling);window.removeEventListener("winkel-adres-openen",adres);};
+  },[]);
+  const totaalOngelezen=lijst.filter(g=>g.ongelezen>0).length+gasten.filter(g=>g.ongelezen).length+groepen.filter(c=>c.status==="uitgenodigd"||c.kanalen.some(k=>k.ongelezen>0)).length;
+  useEffect(()=>{ongelezenGewijzigd?.(totaalOngelezen);},[totaalOngelezen,ongelezenGewijzigd]);
   const vorige = useRef("");
   const kijkNieuw = useCallback(async () => {
     const o = await overzicht();
@@ -126,18 +143,18 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
   }, [laden]);
 
   useEffect(() => {
-    if (ik === null || open !== null) return;
+    if (ik === null || (open !== null && schermActief)) return;
     const p = peilen(kijkNieuw, 4000, 20_000);
     return p.stop;
-  }, [ik, open, kijkNieuw]);
+  }, [ik, open, kijkNieuw,schermActief]);
 
   if (open !== null && ik !== null) {
     const g = lijst.find((x) => x.id === open);
-    return <Gesprekscherm key={open} id={open} ik={ik} begin={g} projectOpen={werkGesprek?.id === open || projectVan === open} staat={staat} setStaat={setStaat} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
+    return <Gesprekscherm key={open} id={open} ik={ik} begin={g} beginConcept={concepten.current.get(open)??""} bewaarConcept={bewaarConcept} gelezen={markeerGelezen} projectOpen={werkGesprek?.id === open || projectVan === open} staat={staat} setStaat={setStaat} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
   }
   if (openGast !== null) return <GastGesprekScherm boeking={openGast} terug={() => { setOpenGast(null); laden().catch(() => {}); }} />;
   if (winkel) return <WinkelApp staat={staat} setData={data=>setStaat?.(s=>s&&s.gebruiker.id===staat.gebruiker.id?{...s,data}:s)} key={winkel.ronde} start={winkel.deel} melding={winkel.melding} adres={winkel.adres}
-    thuisadres={staat?.data.instellingen?.thuisadres} bestel={bestel} terug={() => setWinkel(null)} />;
+    thuisadres={staat?.data.instellingen?.thuisadres} bestel={bestel} terugNaam={vanBuiten?terugNaam:"Chat"} losseKaart={vanBuiten&&winkel.deel==="kaart"} terug={() => {setWinkel(null);if(vanBuiten)verlaat?.();setVanBuiten(false);}} />;
   if (openCommunity !== null && ik !== null) {
     const c = groepen.find((x) => x.id === openCommunity);
     if (c) return <CommunityScherm c={c} openKanaal={setOpen} vernieuw={laden}
@@ -175,7 +192,7 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek }: Props) {
       )}
       {deel === "chats" && !nieuw && <GastenLijst lijst={gasten} open={setOpenGast} />}
       {deel === "chats" && ik !== null && (
-        <Chats ik={ik} lijst={lijst} voorbeelden={voorbeelden} open={setOpen} nieuw={() => setNieuw(true)} fout={fout} zoekt={nieuw} />
+        <Chats zoek={zoekGesprek} setZoek={setZoekGesprek} ik={ik} lijst={lijst} voorbeelden={voorbeelden} open={setOpen} nieuw={() => setNieuw(true)} fout={fout} zoekt={nieuw} />
       )}
       {deel === "communitys" && ik !== null && (
         <Communitys lijst={groepen} open={setOpenCommunity} vernieuw={laden} staat={staat} />
@@ -203,18 +220,22 @@ function Leeg({ icoon, titel, uitleg, children }: { icoon: ReactNode; titel: str
   );
 }
 
-function Chats({ ik, lijst, voorbeelden, open, nieuw, fout, zoekt }: { ik: number; lijst: Gesprek[];
+function Chats({ ik, lijst, voorbeelden, open, nieuw, fout, zoekt,zoek,setZoek }: { zoek:string;setZoek:(s:string)=>void; ik: number; lijst: Gesprek[];
   voorbeelden: Record<number, string>; open: (id: number) => void; nieuw: () => void; fout: string; zoekt: boolean }) {
+  const [updates,setUpdates]=useState(false);
+  const zichtbaar=lijst.filter(g=>`${gesprekNaam(g,ik)} ${voorbeelden[g.id]??""}`.toLocaleLowerCase("nl").includes(zoek.trim().toLocaleLowerCase("nl")));
   return (
     <>
-      <StoryRij ik={ik} />
+      <label className="mx-6 mb-3 flex items-center gap-2 rounded-2xl bg-vlak px-3"><Zoek className="size-5 shrink-0 text-rustig"/><input type="search" aria-label="Zoek een gesprek" placeholder="Zoek een persoon of groep" value={zoek} onChange={e=>setZoek(e.target.value)} className="h-12 min-w-0 flex-1 bg-transparent outline-none"/></label>
+      <details className="mx-6 mb-3" onToggle={e=>setUpdates(e.currentTarget.open)}><summary className="min-h-11 cursor-pointer py-2 text-[13px] text-rustig">Updates van je contacten</summary>{updates&&<StoryRij ik={ik}/>}</details>
+      {zoek.trim()&&lijst.length>0&&!zichtbaar.length&&<p role="status" className="px-6 text-sm text-rustig">Geen gesprek gevonden. Probeer een andere naam.</p>}
       {lijst.length === 0 && !fout && !zoekt && (
         <Leeg icoon={<Slot />} titel="Nog geen gesprekken" uitleg="Alles wat je hier schrijft, kan alleen jij en wie je spreekt lezen.">
           <button onClick={nieuw} className="mt-2 h-11 rounded-full bg-accent px-5 font-medium text-white">Begin een gesprek</button>
         </Leeg>
       )}
       <ul className="flex flex-col px-3">
-        {lijst.map((g) => {
+        {zichtbaar.map((g) => {
           const naam = gesprekNaam(g, ik);
           return (
             <li key={g.id}>
@@ -602,7 +623,7 @@ const chip = (aan: boolean) => `flex h-9 shrink-0 items-center gap-1.5 rounded-f
 type WinkelDeelNaam = "ontdekken" | "verkopen" | "bestellingen" | "kaart";
 
 /** De winkel als eigen app: ontdekken, zelf verkopen en je bestellingen, met een eigen menu onderin. */
-function WinkelApp({ start, melding, adres, thuisadres, bestel, terug, staat, setData }: { staat:Staat;setData:(g:Gegevens)=>void; start: WinkelDeelNaam; melding?: string;
+function WinkelApp({ start, melding, adres, thuisadres, bestel, terug, staat, setData,terugNaam,losseKaart }: { terugNaam?:string;losseKaart?:boolean; staat:Staat;setData:(g:Gegevens)=>void; start: WinkelDeelNaam; melding?: string;
   adres?: string; thuisadres?: string; bestel: (p: Product) => void; terug: () => void }) {
   const [deel, setDeel] = useState<WinkelDeelNaam>(start);
   const [openWinkel, setOpenWinkel] = useState(adres);
@@ -616,7 +637,7 @@ function WinkelApp({ start, melding, adres, thuisadres, bestel, terug, staat, se
   const knop = "relative flex size-10 items-center justify-center rounded-full bg-vlak";
   return (
     <div className="flex min-h-full flex-col">
-      <AppKop terug={deel === "ontdekken" ? terug : () => setDeel("ontdekken")} terugNaam={deel === "ontdekken" ? "Chat" : "Winkel"}
+      <AppKop terug={deel === "ontdekken"||(deel==="kaart"&&losseKaart) ? terug : () => setDeel("ontdekken")} terugNaam={deel === "ontdekken"||(deel==="kaart"&&losseKaart) ? terugNaam??"Chat" : "Winkel"}
         titel={deel === "ontdekken" ? "Winkel" : deel === "kaart" ? "Kaart en routes" : deel === "verkopen" ? "Verkopen" : "Bestellingen"}
         rechts={deel === "ontdekken" && (
           <span className="flex shrink-0 gap-2">
@@ -793,12 +814,12 @@ function NieuwVeld({ sluit, gestart }: { sluit: () => void; gestart: (id: number
   );
 }
 
-function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat }: { id: number; ik: number; begin?: Gesprek; terug: () => void; projectOpen?: boolean; staat?: Staat; setStaat?: React.Dispatch<React.SetStateAction<Staat | null>> }) {
+function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat,gelezen:markeer,beginConcept="",bewaarConcept }: { beginConcept?:string;bewaarConcept?:(id:number,tekst:string)=>void; gelezen?:(id:number)=>void; id: number; ik: number; begin?: Gesprek; terug: () => void; projectOpen?: boolean; staat?: Staat; setStaat?: React.Dispatch<React.SetStateAction<Staat | null>> }) {
   const [g, setG] = useState<Gesprek | undefined>(begin);
   const [regels, setRegels] = useState<Regel[]>([]);
-  const [invoer, setInvoer] = useState("");
-  // Zolang het gesprek open is, maakt de balk onderin plaats voor de invoer van het gesprek.
-  useEffect(() => { document.body.dataset.gesprek = "open"; return () => { delete document.body.dataset.gesprek; }; }, []);
+  const [invoer, setInvoer] = useState(beginConcept);
+  useEffect(()=>{bewaarConcept?.(id,invoer);},[id,invoer,bewaarConcept]);
+  const actief=useSchermActief(),actiefRef=useRef(actief);actiefRef.current=actief;
   const [extraOpen,setExtraOpen]=useState(!!projectOpen);
   useEffect(()=>{if(projectOpen)setExtraOpen(true);},[projectOpen]);
   useEffect(()=>{const openen=(e:Event)=>{if((e as CustomEvent).detail?.gesprek===id)setExtraOpen(true);};window.addEventListener("assistent-projectbron",openen);return()=>window.removeEventListener("assistent-projectbron",openen);},[id]);
@@ -815,12 +836,13 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat }: {
   const bezig = useRef(false);
 
   const bijwerken = useCallback(async () => {
-    if (bezig.current) return false;
+    if (bezig.current || !actiefRef.current || document.visibilityState!=="visible") return false;
     bezig.current = true;
     try {
-      const r = await berichten(id, tot.current);
+      const r = await berichten(id, tot.current,()=>actiefRef.current&&document.visibilityState==="visible");
+      if(!actiefRef.current||document.visibilityState!=="visible")return false;
       if (r.gesprek) setG(r.gesprek);
-      if (r.hoogste) tot.current = r.hoogste;
+      if (r.hoogste) {tot.current = r.hoogste;markeer?.(id);}
       if (r.regels.length) setRegels((oud) => {
         const al = new Set(oud.map((x) => x.id));
         return [...oud, ...r.regels.filter((x) => !al.has(x.id))];
@@ -829,14 +851,15 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat }: {
     } finally {
       bezig.current = false;
     }
-  }, [id]);
+  }, [id,markeer]);
 
   useEffect(() => {
+    if(!actief)return;
     bijwerken().catch((e) => setFout(e instanceof Error ? e.message : "Laden lukte niet."));
     const p = peilen(bijwerken, 2500, 15_000);
     return p.stop;
-  }, [bijwerken]);
-  useEffect(() => { onder.current?.scrollIntoView({ block: "end" }); }, [regels.length]);
+  }, [bijwerken,actief]);
+  useEffect(() => { if(actief)onder.current?.scrollIntoView?.({ block: "end" }); }, [regels.length,actief]);
 
   async function stuur(e: FormEvent) {
     e.preventDefault();
@@ -875,7 +898,7 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat }: {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-lijn bg-white/85 px-3 pt-12 pb-2.5 backdrop-blur dark:bg-[#0b0b0e]/85">
+      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-lijn bg-white/85 px-3 pt-3 pb-2.5 backdrop-blur dark:bg-[#0b0b0e]/85">
         <button onClick={terug} aria-label="Terug" className="flex size-10 items-center justify-center rounded-full text-rustig hover:bg-vlak">
           <Terug />
         </button>

@@ -1,6 +1,7 @@
 // Afspraken met gasten zonder account: de boekingspagina, de pagina van de gast, de gesprekken in je chat en het
 // instellen van je boekingspagina.
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useSchermActief } from "./BewaarScherm";
 import { Terug, Vinkje } from "../iconen";
 import { STANDAARD, afhandelen, antwoorden, boekLink, boeken, gastAnnuleren, gastBekijken, gastSturen, gesprek,
   linkNaam, mailIngesteld, mailInstellen, mijnPagina, naarBoeking, paginaBekijken, paginaBewaren, tijden,
@@ -263,6 +264,7 @@ export function GastenLijst({ lijst, open }: { lijst: GastGesprek[]; open: (boek
 }
 
 export function GastGesprekScherm({ boeking, terug }: { boeking: number; terug: () => void }) {
+  const actief=useSchermActief();
   const [g, setG] = useState<Awaited<ReturnType<typeof gesprek>> | null>(null);
   const [tekst, setTekst] = useState("");
   const [bezig, setBezig] = useState(false);
@@ -271,10 +273,11 @@ export function GastGesprekScherm({ boeking, terug }: { boeking: number; terug: 
 
   const laden = useCallback(() => gesprek(boeking).then(setG).catch((e) => setFout(foutVan(e))), [boeking]);
   useEffect(() => {
+    if(!actief)return;
     laden();
     const t = setInterval(() => document.visibilityState === "visible" && laden(), 10000);
     return () => clearInterval(t);
-  }, [laden]);
+  }, [laden,actief]);
 
   async function doe(werk: () => Promise<unknown>) {
     setBezig(true);
@@ -286,7 +289,7 @@ export function GastGesprekScherm({ boeking, terug }: { boeking: number; terug: 
   const b = g?.boeking;
   return (
     <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-10 flex items-center gap-2 bg-white/90 px-3 pt-12 pb-2 backdrop-blur dark:bg-[#0b0b0e]/90">
+      <header className="sticky top-0 z-10 flex items-center gap-2 bg-white/90 px-3 pt-3 pb-2 backdrop-blur dark:bg-[#0b0b0e]/90">
         <button onClick={terug} aria-label="Terug" className="flex size-10 items-center justify-center rounded-full text-rustig hover:bg-vlak"><Terug /></button>
         {b && <span className="flex min-w-0 flex-col">
           <span className="truncate font-semibold">{b.naam}</span>

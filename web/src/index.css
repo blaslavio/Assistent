@@ -203,7 +203,7 @@
 
 /* Toetsenbord open: de balken onderin maken plaats, zoals in WhatsApp. */
 .toetsenbord-open nav[aria-label=Hoofdmenu] { display: none !important; }
-body[data-gesprek] [data-onderbalk] { display: none; }
+/* Het hoofdmenu blijft ook vanuit een gesprek bereikbaar. */
 .toetsenbord-open [data-onderbalk]:not(:focus-within) { display: none; }
 /* Met het toetsenbord open vult een venster dat van onderen komt het hele zichtbare deel, zodat niets half wegvalt. */
 .toetsenbord-open [role=dialog] { max-height: 100% !important; }

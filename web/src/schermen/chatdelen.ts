@@ -5,7 +5,7 @@ export type Deel = "chats" | "communitys" | "projecten" | "winkel" | "oproepen";
 export const DELEN: [Deel, string, typeof Ballon][] = [["chats", "Chats", Ballon], ["communitys", "Community's", Mensen],
   ["projecten", "Projecten", Projectmap], ["winkel", "Winkel", Tas], ["oproepen", "Bellen", Telefoon]];
 // Standaard een korte rij; Bellen zit ook altijd als knop rechtsboven bij Chats. De rest zet je aan in Instellingen › Weergave.
-export const CHAT_STANDAARD: Deel[] = ["chats", "communitys", "winkel"];
+export const CHAT_STANDAARD: Deel[] = ["chats", "communitys", "oproepen"];
 
 /** Welke onderdelen in de rij bovenin Chat staan. Chats staat er altijd in, de volgorde is vast. */
 export function chatDelenVan(gekozen: unknown): Deel[] {

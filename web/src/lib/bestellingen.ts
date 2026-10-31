@@ -91,6 +91,7 @@ export async function uitvoeren(b: Bestelling, actie: string, toelichting = ""):
 let vraag: { melding?: string } | null = null;
 export function openVragen(melding?: string) {
   vraag = { melding };
+  window.dispatchEvent(new Event("bestellingen-openen"));
 }
 export const isGevraagd = () => vraag !== null;
 export function openGevraagd() {

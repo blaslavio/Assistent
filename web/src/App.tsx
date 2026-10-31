@@ -1,6 +1,6 @@
 import { isExterneTerugkomst } from "./lib/externAanmelden";
-import HoofdNavigatie, { dokVan } from "./schermen/HoofdNavigatie";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import HoofdNavigatie from "./schermen/HoofdNavigatie";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GeenToegang, adresOpruimen, adresWaarde, gegevensLaden, huidigeSessie, momentopnameBewaren, opstarten, overstappen,
   type Staat } from "./api";
 import { openVragen } from "./lib/bestellingen";
@@ -9,8 +9,8 @@ import { terugVanBank } from "./lib/bank";
 import { cursusLinkVragen, terugVanCursus } from "./lib/cursus";
 import { Ballon, Kalender, Persoon, Projectmap, Tandwiel, Vonk, Zon } from "./iconen";
 import Inloggen from "./schermen/Inloggen";
-import Vandaag from "./schermen/Vandaag";
-import { Vraagbalk } from "./schermen/Vraagbalk";
+import MijnDag from "./schermen/MijnDag";
+import BewaarScherm from "./schermen/BewaarScherm";
 import { weergaveToepassen, type Weergave } from "./schermen/Algemeen";
 import type { Bestemming } from "./lib/naar";
 import { MascotteFeest } from "./mascotte";
@@ -63,8 +63,7 @@ const laden = {
   chat: () => import("./schermen/Chat"),
   instellingen: () => import("./schermen/Instellingen"),
 };
-const Projecten = lazy(() => import("./schermen/Projecten"));
-const Agenda = lazy(laden.agenda);
+const Werkruimte = lazy(() => import("./schermen/Werkruimte"));
 const Chat = lazy(laden.chat);
 const Instellingen = lazy(laden.instellingen);
 const Assistent = lazy(() => import("./schermen/Assistent"));
@@ -93,8 +92,8 @@ function vooraf() {
 export type Tab = "projecten" | "vandaag" | "agenda" | "chat" | "assistent" | "instellingen";
 
 const TABS: { id: Tab; naam: string; Icoon: typeof Zon }[] = [
-  { id: "vandaag", naam: "Vandaag", Icoon: Zon },
-  { id: "projecten", naam: "Projecten", Icoon: Projectmap },
+  { id: "vandaag", naam: "Mijn dag", Icoon: Zon },
+  { id: "projecten", naam: "Werkruimte", Icoon: Projectmap },
   { id: "agenda", naam: "Agenda", Icoon: Kalender },
   { id: "chat", naam: "Chat", Icoon: Ballon },
   { id: "assistent", naam: "Assistent", Icoon: Vonk },
@@ -103,19 +102,17 @@ const TABS: { id: Tab; naam: string; Icoon: typeof Zon }[] = [
 
 export type { Staat };
 
-// Wat de balk onderin voorstelt, passend bij waar je bent.
-const PLEK: Record<Tab, string> = { vandaag: "Wat wil je doen?", agenda: "Plan iets of vraag het", chat: "Vraag de assistent",
-  projecten: "Vraag iets over je projecten", assistent: "", instellingen: "Zoek of vraag iets" };
-
 export default function App() {
   const [klaar, setKlaar] = useState(false);
   const [staat, setStaat] = useState<Staat | null>(null);
-  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL || CURSUS || CURSUSLINK ? "chat" : ZEG ? "assistent" : BANK || SPORT_TERUG ? "instellingen" : "vandaag");
+  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL || CURSUS || CURSUSLINK ? "chat" : ZEG ? "assistent" : BANK || SPORT_TERUG ? "projecten" : "vandaag");
   const [voorafVraag, setVooraf] = useState(ZEG);
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [voorAssistent, setVoorAssistent] = useState<Tab>("vandaag");
   const [teKopen, setTeKopen] = useState<Product | null>(null);
   const [fout, setFout] = useState("");
+  const [dagDeel,setDagDeel]=useState<"vandaag"|"agenda">("vandaag");
+  const [ongelezen, setOngelezen] = useState(0);
   const [werkGesprek, setWerkGesprek] = useState<{ id: number; ronde: number; gebruiker: number } | null>(null);
   // De vorige stand staat op het scherm terwijl het inloggen nog loopt (of zonder verbinding).
   const [voorlopig, setVoorlopig] = useState(false);
@@ -126,10 +123,11 @@ export default function App() {
   const [startOnderdeel, setStartOnderdeel] = useState<{ naam: OnderdeelNaam; n: number } | null>(
     BANK ? { naam: "budget", n: 1 } : SPORT_TERUG ? { naam: "sport", n: 1 } : null);
   const setTab = (t: Tab) => {
+    if(t==="vandaag"||t==="agenda")setDagDeel(t);
     // Instellingen en de assistent leggen zich over een scherm heen; sluiten brengt je terug waar je was.
-    if (t === "instellingen") setVorige(tab === "instellingen" || tab === "assistent" ? vorige : tab);
+    if (t === "instellingen") setVorige(tab === "instellingen" ? vorige : tab === "assistent" ? voorAssistent : tab);
     if (t === "assistent" && tab !== "assistent") setVoorAssistent(tab);
-    else setStartOnderdeel(null);
+    else if (t !== "projecten") setStartOnderdeel(null);
     if (t === "chat" && tab !== "chat") setVoorChat(tab);
     setTabRuw(t);
   };
@@ -225,13 +223,15 @@ export default function App() {
       const b = (e as CustomEvent<Bestemming>).detail;
       if (b.tab === "instellingen" && !b.onderdeel) setStartOnderdeel(null);
       if (b.onderdeel) setStartOnderdeel((o) => ({ naam: b.onderdeel!, n: (o?.n ?? 0) + 1 }));
-      setTab(b.tab);
+      if(b.tab==="chat")setVoorChat(tab);
+      setTab(b.onderdeel ? "projecten" : b.tab);
     };
     window.addEventListener("app-naar", ga);
     return () => window.removeEventListener("app-naar", ga);
   });
 
   // Kleur, tekstgrootte en toegankelijkheid uit je instellingen op de hele app.
+  useLayoutEffect(()=>{setOngelezen(0);},[staat?.gebruiker.id]);
   const weergave = staat?.data.instellingen;
   useEffect(() => { weergaveToepassen((weergave ?? {}) as Weergave); }, [weergave]);
 
@@ -244,27 +244,26 @@ export default function App() {
   // Tijdens de bliksemstart is er nog geen sessie, maar wel de vorige stand: die laten we alvast zien.
   if (!staat || (!huidigeSessie() && !voorlopig)) return <Inloggen opIngelogd={herladen} />;
 
+  const openProject = (gesprek:number) => { setWerkGesprek(oud => ({ id:gesprek,ronde:(oud?.ronde??0)+1,gebruiker:staat.gebruiker.id }));setTab("chat"); };
   const scherm = {
-    vandaag: <Vandaag key={staat.gebruiker.id} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")} ga={setTab} vernieuw={herladen} naarAssistent={() => setTab("assistent")}
-      naarProject={gesprek => { setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat"); }}
-      vraag={(t) => { setVooraf(t); setTab("assistent"); }} />,
-    projecten: <Projecten key={staat.gebruiker.id} staat={staat} naarChat={() => { setWerkGesprek(null); setTab("chat"); }} open={gesprek => {
-      setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat");
-    }} />,
-    agenda: <Agenda staat={staat} setStaat={setStaat} />,
-    chat: <Chat key={staat.gebruiker.id} werkGesprek={werkGesprek} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
+    vandaag: <MijnDag staat={staat} setStaat={setStaat} deel={dagDeel} ga={setTab} vernieuw={herladen}
+      naarProject={openProject} vraag={t=>{setVooraf(t);setTab("assistent");}} />,
+    projecten: <Werkruimte staat={staat} vernieuw={herladen} start={startOnderdeel} vraag={t=>{setVooraf(t);setTab("assistent");}}
+      naarChat={()=>{setWerkGesprek(null);setTab("chat");}} openProject={openProject}/>,
+    chat: <Chat key={staat.gebruiker.id} werkGesprek={werkGesprek} ongelezenGewijzigd={setOngelezen} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
       verlaat={() => setTab(voorChat)} terugNaam={TABS.find((t) => t.id === voorChat)?.naam}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
     assistent: <Assistent staat={staat} vernieuw={herladen} teKopen={teKopen}
       gekocht={() => setTeKopen(null)} vooraf={voorafVraag} voorafGebruikt={() => setVooraf("")}
       naarBestellingen={() => { setWerkGesprek(null); openVragen(); setTab("chat"); }} sluit={() => setTabRuw(voorAssistent)} />,
     instellingen: <Instellingen staat={staat} vernieuw={herladen} terug={() => setTab(vorige)} opUitgelogd={() => setStaat(null)}
-      setStaat={setStaat} vraag={(t) => { setVooraf(t); setTab("assistent"); }} start={startOnderdeel}
+      setStaat={setStaat} vraag={(t) => { setVooraf(t); setTab("assistent"); }}
       vorigeNaam={TABS.find((t) => t.id === vorige)?.naam} />,
-  }[tab];
+  };
+  const hoofd = tab === "agenda" ? "vandaag" : tab;
 
   return (
-    <div className="mx-auto flex h-full max-w-xl flex-col">
+    <div key={staat.gebruiker.id} data-hoofdplek={hoofd} className="mx-auto flex h-full max-w-xl flex-col">
       {!online ? <p role="status" className="bg-vlak px-6 py-3 text-sm text-rustig">
         Geen internet. Je ziet de laatste stand en wat je typt blijft staan.</p>
         : fout && <div role="alert" className="flex items-center gap-3 bg-vlak px-6 py-3 text-sm text-rustig">
@@ -272,26 +271,23 @@ export default function App() {
           <button onClick={() => (huidigeSessie() ? herladen() : starten())}
             className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white">Opnieuw</button>
         </div>}
-      <div className="flex-1 overflow-y-auto"><Vangnet key={tab} naam={tab}><Suspense fallback={<p role="status" className="px-6 py-8 text-rustig">Scherm laden…</p>}>{scherm}</Suspense></Vangnet></div>
+      {tab!=="assistent"&&<header className="flex shrink-0 items-center justify-between gap-3 px-6 pt-[max(env(safe-area-inset-top),8px)] pb-2">
+        <button onClick={()=>setTab("assistent")} aria-label="Open de AI-assistent" className="flex min-h-11 items-center gap-2 rounded-full bg-vlak px-3 text-[13px] font-medium"><Vonk className="size-5 text-accent"/>Assistent <span className="text-xs text-rustig">AI</span></button>
+        <button onClick={()=>setTab("instellingen")} aria-label="Profiel en instellingen" aria-current={tab==="instellingen"?"page":undefined} className="flex size-11 items-center justify-center overflow-hidden rounded-full bg-vlak text-rustig">
+          {staat.gebruiker.foto?<img src={staat.gebruiker.foto} alt="" className="size-full object-cover"/>:<Persoon className="size-5"/>}
+        </button>
+      </header>}
+      <main className="min-h-0 flex-1 overflow-hidden">
+        {(Object.keys(scherm) as (keyof typeof scherm)[]).map(id=><BewaarScherm key={id} actief={hoofd===id} naam={TABS.find(t=>t.id===id)!.naam}>
+          <Vangnet naam={id}><Suspense fallback={<p role="status" className="px-6 py-8 text-rustig">Scherm laden…</p>}>{scherm[id]}</Suspense></Vangnet>
+        </BewaarScherm>)}
+      </main>
       <Vangnet naam="bellen" klein><BelLaag naarProject={(gesprek) => { setWerkGesprek(oud => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat"); }} /></Vangnet>
       <MascotteFeest />
       {gedeeldePost !== null && huidigeSessie() && (
         <Suspense fallback={null}><PostBlad id={gedeeldePost} sluit={() => setGedeeldePost(null)} /></Suspense>
       )}
-      {/* Onderin altijd hetzelfde: je foto (Instellingen en al je onderdelen), de assistent en drie vaste plekken.
-          In een geopend gesprek verdwijnt het, daar heeft het gesprek zijn eigen invoer. */}
-      {tab !== "assistent" && (
-        <div data-onderbalk className="shrink-0">
-          <Vraagbalk staat={staat} setStaat={setStaat} plek={PLEK[tab]} vraag={(t) => { setVooraf(t); setTab("assistent"); }}
-            links={<button type="button" onClick={() => setTab("instellingen")} aria-label="Instellingen en al je onderdelen"
-              aria-current={tab === "instellingen" ? "page" : undefined}
-              className={`flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-vlak text-rustig ${tab === "instellingen" ? "ring-2 ring-inkt" : ""}`}>
-              {staat.gebruiker.foto ? <img src={staat.gebruiker.foto} alt="" className="size-full object-cover" /> : <Persoon className="size-5" />}
-            </button>} />
-          <HoofdNavigatie actief={tab} tabs={dokVan((staat.data.instellingen as Record<string, unknown> | undefined)?.dok)}
-            kies={(t) => { if (t === "chat") setWerkGesprek(null); setTab(t); }} />
-        </div>
-      )}
+      <div data-onderbalk className="shrink-0"><HoofdNavigatie actief={hoofd==="assistent"?voorAssistent:hoofd} ongelezen={ongelezen} kies={t=>setTab(t==="vandaag"?dagDeel:t)}/></div>
     </div>
   );
 }

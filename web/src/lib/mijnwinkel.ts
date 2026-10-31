@@ -77,6 +77,7 @@ let gevraagd: string | null = null;
 export function winkelVragen(adres: string) {
   const a = adres.toLowerCase().trim();
   gevraagd = /^[a-z0-9][a-z0-9-]{2,29}$/.test(a) ? a : null;
+  if(gevraagd)window.dispatchEvent(new Event("winkel-adres-openen"));
   return gevraagd !== null;
 }
 export function winkelGevraagd() {

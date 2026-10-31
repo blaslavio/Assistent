@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { alsIk, bijwerken, instellingenBijwerken, uitloggen } from "../api";
 import { gekoppeld } from "../lib/mail";
-import { kaartOpenen, evenementenOpenen, vakantiesOpenen, gevraagdePagina } from "../lib/naar";
+import { naar, kaartOpenen, evenementenOpenen, vakantiesOpenen, gevraagdePagina } from "../lib/naar";
 import { betaalStatus, lijst as bestellingenLijst, klaar, platformInstellen, stand, verkoperAanmelden, type BetaalStatus,
   type Bestelling } from "../lib/bestellingen";
 import { euro } from "../lib/winkelen";
@@ -74,7 +74,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
   }
 
   const scherm = (titel: string, inhoud: ReactNode) => (
-    <div className="px-6 pt-12 pb-10">
+    <div className="px-6 pt-4 pb-10">
       <button onClick={() => setPagina(null)} className="-ml-2 flex h-10 items-center gap-1 pr-3 text-rustig">
         <Terug className="size-5" /> Instellingen
       </button>
@@ -178,15 +178,15 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
     ] },
     { id: "geld", titel: "Geldzaken", uitleg: "Je betalingen, budget en beleggingen", icoon: Euro, kleur: "#c2571a", rijen: [
       { titel: "Betalingen", uitleg: "Bestellingen, kopersbescherming en uitbetalen", open: () => setPagina("betalingen"), icoon: Euro },
-      { titel: "Budget", uitleg: "Uitgaven en afschriften", open: () => setOnderdeel("budget"), icoon: Lijstje },
-      { titel: "Beleggen", uitleg: "Portefeuille, markten en volglijst", open: () => setOnderdeel("beleggen"), icoon: Grafiek },
+      { titel: "Budget", uitleg: "Uitgaven en afschriften", open: () => naar({tab:"projecten",onderdeel:"budget"}), icoon: Lijstje },
+      { titel: "Beleggen", uitleg: "Portefeuille, markten en volglijst", open: () => naar({tab:"projecten",onderdeel:"beleggen"}), icoon: Grafiek },
     ] },
     { id: "apps", titel: "Mijn apps", uitleg: "Lijsten, documenten, leren en gezondheid", icoon: Boek, kleur: "#14866d", rijen:
       ONDERDELEN.filter(([id]) => !["budget", "beleggen", "zakelijk"].includes(id)).map(([id, titel, icoon]) =>
-        ({ titel, uitleg: ONDERDEEL_UITLEG[id] ?? titel, icoon, open: () => setOnderdeel(id) })),
+        ({ titel, uitleg: ONDERDEEL_UITLEG[id] ?? titel, icoon, open: () => naar({tab:"projecten",onderdeel:id}) })),
     },
     { id: "zakelijk", titel: "Zakelijke opties", uitleg: "Klanten, rooster en afspraken ontvangen", icoon: Winkelpand, kleur: "#346a92", rijen: [
-      { titel: "Zakelijk", uitleg: "Rooster, klanten en boekhouding", open: () => setOnderdeel("zakelijk"), icoon: Winkelpand },
+      { titel: "Zakelijk", uitleg: "Rooster, klanten en boekhouding", open: () => naar({tab:"projecten",onderdeel:"zakelijk"}), icoon: Winkelpand },
       { titel: "Boekingspagina", uitleg: "Afspraken laten inplannen en reserveren", open: () => setPagina("afspraken"), icoon: Kalender },
     ] },
   ];
@@ -198,7 +198,7 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
     { titel: "Idee of probleem", uitleg: "Hulp en feedback", icoon: Vraag, kleur: "#0e9fb3", groep: "Hulp", open: () => setPagina("idee") }]
     .filter(r => `${r.titel} ${r.uitleg} ${r.groep}`.toLocaleLowerCase("nl").includes(term));
   return (
-    <div className="px-6 pt-12 pb-10">
+    <div className="px-6 pt-4 pb-10">
       <button onClick={() => { if (categorie || zoek) { setCategorie(null); setZoek(""); } else terug(); }} className="-ml-2 flex h-10 items-center gap-1 pr-3 text-rustig">
         <Terug className="size-5" /> {categorie || zoek ? "Instellingen" : "Terug"}
       </button>

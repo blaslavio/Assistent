@@ -1,3 +1,4 @@
+import { useSchermActief } from "./BewaarScherm";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Kruis, Oog, Plus, Prullenbak } from "../iconen";
 import { STORY_KLEUREN, fotoVerkleinen, stories, storyGezien, storyPlaatsen, storyWeg, type Story, type StoryInhoud } from "../lib/chat";
@@ -74,6 +75,7 @@ export function StoryRij({ ik }: { ik: number }) {
 }
 
 function Kijker({ reeks, begin, ik, sluit }: { reeks: Persoon[]; begin: number; ik: number; sluit: () => void }) {
+  const actief=useSchermActief();
   const [persoon, setPersoon] = useState(begin);
   // Begin bij de eerste story die je nog niet zag.
   const eersteNieuw = (p: Persoon) => Math.max(0, p.lijst.findIndex((s) => !s.gezien && s.maker !== ik));
@@ -115,13 +117,13 @@ function Kijker({ reeks, begin, ik, sluit }: { reeks: Persoon[]; begin: number; 
   };
 
   useEffect(() => {
-    if (s && !eigen && !s.gezien) {
+    if (actief && s && !eigen && !s.gezien) {
       s.gezien = true;
       storyGezien(s.id);
     }
-  }, [s, eigen]);
+  }, [s, eigen,actief]);
 
-  const stil = pauze || kijkers || zeker;
+  const stil = !actief || pauze || kijkers || zeker;
 
   // Een filmpje speelt mee met de balk: stilzetten als je vasthoudt, verder als je loslaat.
   useEffect(() => {
@@ -151,6 +153,7 @@ function Kijker({ reeks, begin, ik, sluit }: { reeks: Persoon[]; begin: number; 
   }, [stil, s?.id, volgende, duur]);
 
   useEffect(() => {
+    if(!actief)return;
     const toets = (e: KeyboardEvent) => {
       if (e.key === "Escape") sluit();
       if (e.key === "ArrowRight") volgende();

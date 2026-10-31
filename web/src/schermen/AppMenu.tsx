@@ -1,5 +1,5 @@
 // Een "app in de app" (chat, winkel, een community): bovenin één stap terug en, onder de titel, een rij om te wisselen.
-// Onderin staat zo overal hetzelfde: de assistent en de drie vaste plekken.
+// Onderin blijven de drie hoofdplekken; de AI-assistent heeft een eigen knop bovenin.
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Terug } from "../iconen";
@@ -9,14 +9,14 @@ export type MenuItem<K extends string> = [K, string, (p: { className?: string })
 export function AppKop({ terug, terugNaam, titel, rechts }: { terug?: () => void; terugNaam?: string; titel: string;
   rechts?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-10 bg-white/90 pt-14 backdrop-blur dark:bg-[#0b0b0e]/90">
+    <header className="sticky top-0 z-10 bg-white/90 pt-4 backdrop-blur dark:bg-[#0b0b0e]/90">
       {terug && (
         <button onClick={terug} className="-mt-2 mb-1 ml-4 flex h-9 items-center gap-0.5 rounded-full pr-3 pl-1 text-[15px] text-accent">
           <Terug className="size-5" /> {terugNaam ?? "Terug"}
         </button>
       )}
       <div className="flex items-center justify-between gap-3 px-6 pb-3">
-        <h1 className={`line-clamp-2 min-w-0 font-bold tracking-tight break-words ${titel.length > 16 ? "text-[26px] leading-tight" : "text-[32px]"}`}>{titel}</h1>
+        <h1 className={`line-clamp-2 min-w-0 font-bold tracking-tight break-words text-2xl leading-tight`}>{titel}</h1>
         {rechts}
       </div>
       <div data-menuplek />

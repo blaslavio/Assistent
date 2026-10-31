@@ -2,11 +2,15 @@
 
 ## Drie vaste ingangen
 
-- **Vandaag** toont de drie eerstvolgende open taken, in de bestaande deadlinevolgorde. ‘Bekijk alle taken’ toont de volledige lijst; eerdere versies beperkten die tot vijf. Afspraken en waarschuwingen blijven beschikbaar. Een taak wijzigen blijft een gecontroleerde opdracht.
-- **Chat** houdt gesprekken centraal. Samenwerken en betaalverzoeken staan onder **＋ Meer in dit gesprek**. Een projectlink of een projectvoorstel uit een chatbericht opent die ingang automatisch. Ongelezen berichten, belbediening en de eigen chatnavigatie blijven behouden.
-- **Projecten** biedt een korte route naar de werkruimtes in geaccepteerde gesprekken. Dit is een lijst van beschikbare gesprekswerkruimtes, geen automatisch overzicht van alle opgeslagen projectinhoud. Het haalt alleen gesprekmetadata op, zonder berichten/bestanden te lezen en zonder de ontvangststatus bij te werken. Zoeken werkt over de gehele lijst; standaard staan maximaal zes werkruimtes in beeld. Verzoeken worden niet als geaccepteerde projecten getoond.
+- **Mijn dag** combineert Vandaag en Agenda. Vandaag toont eerst de volgende afspraak; taken en vooruitkijken blijven uitklapbaar. De agenda heeft dag-, week- en maandweergave, taken en de bestaande extra planningsopties. De hoofdknop onthoudt of je het laatst bij Vandaag of Agenda was.
+- **Chat** is voor gesprekken met mensen, groepen en bellen. Een zoekveld vindt personen, groepen en lokaal geladen berichtvoorbeelden. Updates van contacten staan ingeklapt en worden pas bij openen opgehaald. Samenwerken en betaalverzoeken blijven onder **＋ Meer in dit gesprek**. Een projectlink opent de werkruimte bij het juiste gesprek. Ongelezentellingen gebruiken het geladen gespreks- en communityoverzicht; dit is geen pushdienst.
+- **Werkruimte** bundelt projecten en persoonlijke apps. Notities en documenten staan direct in beeld; overige persoonlijke apps en zakelijke opties zijn ingeklapt en via zoeken vindbaar. Kaart en winkel hebben een ingang. Een project opent de bestaande werkruimte bij het geaccepteerde gesprek. De projectenlijst toont gesprekmetadata, geen verzonnen overzicht van alle projectinhoud.
 
-**Agenda**, **Assistent** en **Instellingen** blijven bereikbaar via **Meer** in het hoofdmenu. Op een diep chat- of projectscherm gebruik je de bestaande terugknop naar de vorige ingang. Terug naar Bestellingen vanuit de assistent behoudt geen oude projectselectie.
+De **AI-assistent** heeft een herkenbare knop bovenin, los van menselijke Chat. **Profiel en instellingen** staan rechtsboven. De dubbele vraagbalk onderin vervalt; de drie hoofdplekken blijven ook vanuit een gesprek bereikbaar (het bestaande toetsenbordgedrag op mobiel blijft van toepassing). De hoofdplekken zijn vast; oude opgeslagen dokvoorkeuren worden niet overschreven, maar kunnen Chat of de gecombineerde dagweergave niet meer verbergen.
+
+Bezochte hoofdschermen bewaren invoer, keuze en scrollpositie zolang dit account in de app open blijft. Een chatconcept blijft ook na teruggaan naar de gesprekkenlijst in geheugen bewaard. Het wordt niet daarvoor naar een server of lokale permanente opslag gestuurd. Uitloggen of een ander account maakt de schermen en concepten leeg. Dit belooft geen herstel na sluiten of herladen van het tabblad.
+
+Verborgen chatgesprekken stoppen met berichten ophalen en bevestigen late antwoorden niet als gelezen. Bij terugkeren hervatten ze vanaf de eerdere berichtpositie. Het overzicht mag op de achtergrond blijven bijwerken voor ongelezentellingen. Bestaande agenda-, kaart-, winkel-, bestel- en appverwijzingen blijven werken nadat een hoofdscherm al is bezocht. Appverwijzingen vanuit instellingen openen de centrale Werkruimte. Terug naar Bestellingen vanuit de assistent voert geen betaalhandeling uit.
 
 ## Eén volgende stap
 
@@ -24,6 +28,6 @@ De Projecten-lijst toont geen vertraagd resultaat van een vorige sessie. Bij ses
 
 ## Controle
 
-170 webtests en beide TypeScript/Vite-builds slagen lokaal. De aanvullende tests controleren primaire/extra navigatie, zoeken, Escape en focus, alle taken/doelen terugvinden, lege toestanden, herstellen na een fout en afscherming bij accountwisseling.
+De webtests controleren de drie hoofdplekken, oude verwijzingen, zoeken, invoerbehoud, scrollherstel, teruggaan, accountwisseling, pauzeren van verborgen gesprekken en herhaalde winkel-/bestelopdrachten. De project-, betaal- en deelcontroles blijven onderdeel van de volledige testsuite.
 
-De projectweergave is daarnaast met Chromium op 390 pixels breed bekeken met synthetische voorbeeldgegevens: geen horizontale overloop, de vier projectmenuknoppen passen op één rij en Meer opent met zoeken. Dit is een lokale interfacecontrole; het vervangt geen praktijktest met echte accounts of mobiele apparaten.
+De volledige app is daarnaast met Chromium op 390 × 844 bekeken met onderschepte, uitsluitend lokale voorbeeldantwoorden: geen horizontale overloop; hoofdmenu bereikbaar vanuit een gesprek; chatconcept, zoekopdracht en agendaweek blijven behouden bij wisselen. Er zijn geen echte berichten verstuurd of betalingen uitgevoerd. Dit is geen productiecontrole met echte accounts of mobiele apparaten. Actuele aantallen en bronhashes staan in `controle/hoofdnavigatie.json`.

@@ -25,7 +25,7 @@ const knop = "flex h-12 shrink-0 items-center justify-center rounded-2xl bg-acce
 function Scherm({ titel, terug, terugNaam = "Instellingen", children, rechts }: { titel: string; terug: () => void; terugNaam?: string;
   children: ReactNode; rechts?: ReactNode }) {
   return (
-    <div className="flex min-h-full flex-col px-6 pt-12 pb-10">
+    <div className="flex min-h-full flex-col px-6 pt-4 pb-10">
       <div className="flex items-center justify-between">
         <button onClick={terug} className="-ml-2 flex h-10 items-center gap-1 pr-3 text-rustig">
           <Terug className="size-5" /> {terugNaam}
@@ -41,7 +41,7 @@ function Scherm({ titel, terug, terugNaam = "Instellingen", children, rechts }: 
 export function Onderdeel({ naam, staat, vernieuw, terug, terugNaam, vraag }: { naam: OnderdeelNaam; staat: Staat;
   vernieuw: () => Promise<void>; terug: () => void; terugNaam?: string; vraag: (tekst: string) => void }) {
   const titel = ONDERDELEN.find(([id]) => id === naam)![1];
-  if (naam === "documenten") return <Documenten terug={terug} />;
+  if (naam === "documenten") return <Documenten terug={terug} terugNaam={terugNaam} />;
   if (naam === "sport") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Sport staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
   if (naam === "leren") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Leren staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
   if (naam === "budget") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Budget staat={staat} /></Scherm>;
@@ -223,7 +223,7 @@ export function veiligHtml(html: string): string {
   return root.innerHTML;
 }
 
-function Documenten({ terug }: { terug: () => void }) {
+function Documenten({ terug, terugNaam }: { terug: () => void; terugNaam?:string }) {
   const [docs, setDocs] = useState<Doc[] | null>(null);
   const [prullenbak, setPrullenbak] = useState(false);
   const [open, setOpen] = useState<number | "nieuw" | null>(null);
@@ -245,7 +245,7 @@ function Documenten({ terug }: { terug: () => void }) {
   }
 
   return (
-    <Scherm titel={prullenbak ? "Prullenbak" : "Documenten"} terug={prullenbak ? () => setPrullenbak(false) : terug}
+    <Scherm terugNaam={prullenbak?"Documenten":terugNaam} titel={prullenbak ? "Prullenbak" : "Documenten"} terug={prullenbak ? () => setPrullenbak(false) : terug}
       rechts={!prullenbak && <button onClick={() => setOpen("nieuw")} className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-medium text-white">
         <Plus className="size-4" /> Nieuw</button>}>
       <input value={zoek} onChange={(e) => setZoek(e.target.value)} placeholder="Zoek in je documenten" aria-label="Zoeken" className={veld} />
@@ -336,7 +336,7 @@ function Editor({ id, terug }: { id: number | null; terug: () => void }) {
   const opmaak = (opdracht: string, waarde?: string) => { document.execCommand(opdracht, false, waarde); gewijzigd.current = true; vak.current?.focus(); };
 
   return (
-    <div className="flex min-h-full flex-col px-6 pt-12 pb-10">
+    <div className="flex min-h-full flex-col px-6 pt-4 pb-10">
       <div className="flex items-center justify-between">
         <button onClick={async () => { if (await bewaren()) terug(); }} className="-ml-2 flex h-10 items-center gap-1 pr-3 text-rustig">
           <Terug className="size-5" /> Documenten

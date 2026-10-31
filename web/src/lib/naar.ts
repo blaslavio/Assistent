@@ -3,7 +3,7 @@ import { kaartContext, agendaKaartplek, type KaartContext, type AgendaKaartplek 
 import type { Punt } from "./kaart";
 import type { OnderdeelNaam } from "./onderdeel-lijst";
 
-export type Hoofdtab = "vandaag" | "agenda" | "chat" | "assistent" | "instellingen";
+export type Hoofdtab = "projecten" | "vandaag" | "agenda" | "chat" | "assistent" | "instellingen";
 export type Bestemming = { tab: Hoofdtab; onderdeel?: OnderdeelNaam };
 
 export function naar(b: Bestemming) {
@@ -43,6 +43,9 @@ export function chatOpenen(id: number) {
   naar({ tab: "chat" });
 }
 export function gevraagdGesprek() { const id = gesprekGevraagd; gesprekGevraagd = null; return id; }
+let winkelAppVerzoek = false;
+export function winkelAppOpenen(){winkelAppVerzoek=true;window.dispatchEvent(new Event("winkel-app-openen"));naar({tab:"chat"});}
+export function winkelAppGevraagd(){const v=winkelAppVerzoek;winkelAppVerzoek=false;return v;}
 let kaartVerzoek = false;
 export function kaartOpenen() { kaartVerzoek = true; window.dispatchEvent(new Event("kaart-openen")); naar({ tab: "chat" }); }
 export function kaartGevraagd() { const v = kaartVerzoek; kaartVerzoek = false; return v; }
@@ -61,4 +64,4 @@ export function agendaPlekOpenen(naam:string,punt:Punt){
   window.dispatchEvent(new Event("agenda-kaartplek"));naar({tab:"agenda"});
 }
 export function agendaPlekLezen(){const p=agendaPlek;agendaPlek=null;return p;}
-if(typeof window!=="undefined")window.addEventListener("assistent-sessie",()=>{kaartBestemming=null;agendaPlek=null;gesprekGevraagd=null;kaartVerzoek=false;});
+if(typeof window!=="undefined")window.addEventListener("assistent-sessie",()=>{kaartBestemming=null;agendaPlek=null;gesprekGevraagd=null;kaartVerzoek=false;winkelAppVerzoek=false;});

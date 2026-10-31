@@ -1,5 +1,6 @@
 // Productkaartjes met foto, en de bladen die erachter zitten: het product zelf, de winkel en de verkoper.
 // Alles blijft in de app; bestellen loopt via de assistent, die een kaart klaarzet waarop jij zelf tikt.
+import { useSchermActief } from "./BewaarScherm";
 import { useEffect, useState } from "react";
 import { Beeld, Kruis, Tas, Terug } from "../iconen";
 import { WinkelPagina } from "./WinkelPagina";
@@ -64,13 +65,14 @@ export function Raster({ producten, open, uitverkocht }: { producten: Product[];
 /** Het bovenste blad van de stapel, met terug naar het vorige. */
 export function Bladen({ stapel, zet, bestel }: { stapel: Blad[]; zet: (s: Blad[]) => void;
   bestel: (p: Product) => void }) {
+  const actief=useSchermActief();
   const blad = stapel.at(-1);
   useEffect(() => {
-    if (!blad) return;
+    if (!blad || !actief) return;
     const toets = (e: KeyboardEvent) => e.key === "Escape" && zet([]);
     window.addEventListener("keydown", toets);
     return () => window.removeEventListener("keydown", toets);
-  }, [blad, zet]);
+  }, [blad, zet,actief]);
   if (!blad) return null;
   const open = (b: Blad) => zet([...stapel, b]);
   const titel = blad.soort === "product" ? blad.p.titel : blad.soort === "winkel" ? "Winkel" : "Verkoper";

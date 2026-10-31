@@ -1,3 +1,4 @@
+import { useSchermActief } from "./BewaarScherm";
 import AgendaNavigatie, { AGENDA_ONDERDELEN, type AgendaPaneel } from "./AgendaNavigatie";
 import { KaartVouw } from "../iconen";
 import { kaartBestemmingOpenen, kaartOpenen, agendaPlekLezen } from "../lib/naar";
@@ -52,9 +53,9 @@ function bewaardPaneel(): Paneel | null {
 
 const groot = (s: string) => s[0].toUpperCase() + s.slice(1);
 
-type Props = { staat: Staat; setStaat: (s: Staat) => void };
+type Props = { ingebed?: boolean; staat: Staat; setStaat: (s: Staat) => void };
 
-export default function Agenda({ staat, setStaat }: Props) {
+export default function Agenda({ staat, setStaat, ingebed }: Props) {
   const vandaag = datumTekst(new Date());
   const [weergave, setWeergaveRuw] = useState<Weergave>(bewaardeWeergave);
   const [gekozen, setGekozen] = useState(vandaag);
@@ -131,13 +132,13 @@ export default function Agenda({ staat, setStaat }: Props) {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 px-6 pt-14 pb-3">
+      <header className={`flex flex-col gap-3 px-6 pb-3 ${ingebed?"pt-4":"pt-14"}`}>
         <div className="flex items-center justify-between gap-2">
           {paneel ? (
-            <h1 key={paneel} className="opkomen text-[32px] font-bold tracking-tight">{AGENDA_ONDERDELEN.find(x => x.id === paneel)?.naam}</h1>
+            <h1 key={paneel} className={`opkomen ${ingebed?"text-2xl":"text-[32px]"} font-bold tracking-tight`}>{AGENDA_ONDERDELEN.find(x => x.id === paneel)?.naam}</h1>
           ) : (
             <button onClick={() => verschuif(0)} aria-label="Naar vandaag" className="min-w-0 text-left">
-              <h1 className="truncate text-[32px] font-bold tracking-tight">
+              <h1 className={`truncate ${ingebed?"text-2xl":"text-[32px]"} font-bold tracking-tight`}>
                 {titel}{datum.getFullYear() !== new Date().getFullYear() && <span className="text-rustig"> {datum.getFullYear()}</span>}
               </h1>
             </button>
@@ -412,11 +413,13 @@ function MaandWeergave({ gekozen, vandaag, afspraken, taken, bijzonder, naarDag 
 }
 
 function Blad({ titel, sluit, children }: { titel: string; sluit: () => void; children: React.ReactNode }) {
+  const actief=useSchermActief();
   useEffect(() => {
+    if(!actief)return;
     const toets = (e: KeyboardEvent) => e.key === "Escape" && sluit();
     window.addEventListener("keydown", toets);
     return () => window.removeEventListener("keydown", toets);
-  }, [sluit]);
+  }, [sluit,actief]);
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/30" onClick={sluit}>
       <div role="dialog" aria-label={titel} onClick={(e) => e.stopPropagation()}

@@ -21,10 +21,10 @@ const HoeGingHet = lazy(() => import("./Sport").then(m => ({ default: m.HoeGingH
 
 const kop = "mb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig";
 
-type Props = { staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () => void; ga?: (t: Tab) => void;
+type Props = { ingebed?: boolean; staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () => void; ga?: (t: Tab) => void;
   vraag?: (tekst: string) => void; naarAssistent?: () => void; vernieuw?: () => Promise<void>; naarProject?: (gesprek: number) => void };
 
-export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssistent, vernieuw, ga, naarProject }: Props) {
+export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, naarAssistent, vernieuw, ga, naarProject }: Props) {
   const [nu, setNu] = useState(() => new Date());
   const [weer, setWeer] = useState<Weer | null>(null);
   const [alleTaken, setAlleTaken] = useState(false);
@@ -188,12 +188,12 @@ export default function Vandaag({ staat, setStaat, naarInstellingen, naarAssiste
   }
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex flex-wrap items-end justify-between gap-2 px-6 pt-14 pb-2">
+      <header className={`flex flex-wrap items-end justify-between gap-2 px-6 pb-2 ${ingebed?"pt-4":"pt-14"}`}>
         <div className="min-w-0 flex flex-col gap-1">
           <p className="text-sm text-rustig">
             {dagTitel(nu)}{weer ? ` · ${weer.graden}° ${weer.tekst.toLowerCase()}` : ""}
           </p>
-          <h1 className="text-[32px] font-bold tracking-tight">{groet(nu)}</h1>
+          <h1 className={`${ingebed?"text-2xl":"text-[32px]"} font-bold tracking-tight`}>{groet(nu)}</h1>
         </div>
         {(data.instellingen?.thema === "donker" || data.instellingen?.thema === "auto") && <button type="button" aria-label="Lichte blauw-witte weergave" disabled={bezig} onClick={zachtLicht} className="min-h-11 shrink-0 rounded-full border border-lijn px-3 text-sm text-accent">Zacht licht</button>}
       </header>

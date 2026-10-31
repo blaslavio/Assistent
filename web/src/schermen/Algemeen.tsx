@@ -1,8 +1,7 @@
 // Algemene instellingen: hoe de app eruitziet, wat er op Vandaag staat, en een idee of probleem melden.
 import { useEffect, useState } from "react";
-import { DOK_KEUZES, dokVan } from "./HoofdNavigatie";
+import { DOK_KEUZES } from "./HoofdNavigatie";
 import { DELEN, chatDelenVan, type Deel } from "./chatdelen";
-import type { Tab } from "../App";
 import { alsIk } from "../api";
 import { Schakelaar, kop } from "./instellingen-ui";
 import { LANDEN, REGIO_S, REGIO_UITLEG, type FeestInstellingen } from "../lib/feestdagen";
@@ -85,7 +84,7 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
     </div></details>
     <details className="rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer font-medium">Startpagina en navigatie</summary><div className="mt-3 flex flex-col gap-4">
     <Feestdagen inst={inst} bewaar={bewaar} />
-    <Dok inst={inst} bewaar={bewaar} />
+    <Dok />
     <ChatRij inst={inst} bewaar={bewaar} />
     <section className="flex flex-col gap-2">
       <h2 className={kop}>Op Vandaag</h2>
@@ -103,30 +102,9 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
   </>;
 }
 
-/** Welke drie plekken onderin staan. Tik er een aan om te wisselen: de oudste keuze maakt plaats. */
-function Dok({ inst, bewaar }: { inst: Weergave; bewaar: (aanpassen: (i: Record<string, unknown>) => void) => void }) {
-  const gekozen = dokVan((inst as Record<string, unknown>).dok);
-  function wissel(id: Tab) {
-    if (gekozen.includes(id)) return;
-    bewaar((i) => { i.dok = [...gekozen.slice(1), id]; });
-  }
-  return (
-    <fieldset>
-      <legend className={kop}>Onderin</legend>
-      <div className="grid grid-cols-4 gap-2">
-        {DOK_KEUZES.map(({ id, naam, Icoon }) => {
-          const aan = gekozen.includes(id);
-          return (
-            <button key={id} type="button" aria-pressed={aan} onClick={() => wissel(id)}
-              className={`flex h-16 flex-col items-center justify-center gap-1 rounded-2xl text-[13px] ${aan ? "bg-inkt font-semibold text-white dark:text-black" : "bg-vlak text-rustig"}`}>
-              <Icoon className="size-5" />{naam}
-            </button>
-          );
-        })}
-      </div>
-      <p className="mt-2 px-1 text-[13px] text-rustig">Drie plekken. Kies je een andere, dan maakt de oudste keuze plaats.</p>
-    </fieldset>
-  );
+/** De hoofdplekken blijven herkenbaar voor iedereen. */
+function Dok() {
+  return <section><h3 className={kop}>Vaste hoofdplekken</h3><ul className="grid grid-cols-3 gap-2">{DOK_KEUZES.map(({id,naam,Icoon})=><li key={id} className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl bg-vlak text-[13px]"><Icoon className="size-5"/>{naam}</li>)}</ul><p className="mt-2 text-[13px] text-rustig">Vandaag en agenda staan samen in Mijn dag. Chat is voor mensen; de AI-assistent heeft een eigen knop bovenin.</p></section>;
 }
 
 /** Welke onderdelen in de rij bovenin Chat staan. Chats staat er altijd; Bellen zit ook als knop rechtsboven. */

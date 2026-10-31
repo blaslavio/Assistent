@@ -1,40 +1,20 @@
-// Het dok onderin: drie vaste plekken (standaard Vandaag, Agenda en Chat). Welke drie, kies je zelf in
-// Instellingen › Weergave. Al het andere bereik je via je foto linksonder (Instellingen) of door het de assistent te vragen.
+// Drie vaste hoofdplekken. Oude agenda- en dokkeuzes blijven compatibel, zonder Chat te verstoppen.
 import type { Tab } from "../App";
-import { Ballon, Kalender, Projectmap, Zon } from "../iconen";
-
+import { Ballon, Projectmap, Zon } from "../iconen";
 export const DOK_KEUZES: { id: Tab; naam: string; Icoon: typeof Zon }[] = [
-  { id: "vandaag", naam: "Vandaag", Icoon: Zon },
-  { id: "agenda", naam: "Agenda", Icoon: Kalender },
+  { id: "vandaag", naam: "Mijn dag", Icoon: Zon },
   { id: "chat", naam: "Chat", Icoon: Ballon },
-  { id: "projecten", naam: "Projecten", Icoon: Projectmap },
+  { id: "projecten", naam: "Werkruimte", Icoon: Projectmap },
 ];
-export const DOK_STANDAARD: Tab[] = ["vandaag", "agenda", "chat"];
-
-/** De drie plekken uit je instellingen, in vaste volgorde; onbekende of te weinig keuzes vullen we aan. */
-export function dokVan(gekozen: unknown): Tab[] {
-  const lijst = Array.isArray(gekozen) ? gekozen.filter((t): t is Tab => DOK_KEUZES.some((k) => k.id === t)) : [];
-  const uniek = [...new Set(lijst)].slice(0, 3);
-  for (const t of DOK_STANDAARD) if (uniek.length < 3 && !uniek.includes(t)) uniek.push(t);
-  return DOK_KEUZES.filter((k) => uniek.includes(k.id)).map((k) => k.id);
-}
-
-export default function HoofdNavigatie({ actief, kies, tabs = DOK_STANDAARD }: { actief: Tab; kies: (t: Tab) => void; tabs?: Tab[] }) {
-  return (
-    <nav aria-label="Hoofdmenu" data-dok
-      className="grid shrink-0 grid-cols-3 px-6 pt-1.5 pb-[max(env(safe-area-inset-bottom),10px)]">
-      {DOK_KEUZES.filter((k) => tabs.includes(k.id)).map(({ id, naam, Icoon }) => {
-        const aan = actief === id;
-        return (
-          <button key={id} onClick={() => kies(id)} aria-current={aan ? "page" : undefined}
-            className={`flex min-h-12 flex-col items-center justify-center gap-1 text-[11px] ${aan ? "font-semibold text-inkt" : "text-zacht"}`}>
-            <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${aan ? "bg-vlak" : ""}`}>
-              <Icoon className="size-[22px]" />
-            </span>
-            {naam}
-          </button>
-        );
-      })}
-    </nav>
-  );
+export const DOK_STANDAARD: Tab[] = ["vandaag", "chat", "projecten"];
+export function dokVan(_gekozen?: unknown): Tab[] { return [...DOK_STANDAARD]; }
+export default function HoofdNavigatie({ actief, kies, ongelezen=0 }: { actief: Tab; kies: (t: Tab) => void; ongelezen?: number }) {
+  const plek = actief === "agenda" ? "vandaag" : actief;
+  return <nav aria-label="Hoofdmenu" data-dok className="grid shrink-0 grid-cols-3 border-t border-lijn px-4 pt-1.5 pb-[max(env(safe-area-inset-bottom),10px)]">
+    {DOK_KEUZES.map(({id,naam,Icoon})=><button key={id} onClick={()=>kies(id)} aria-current={plek===id?"page":undefined}
+      aria-label={id==="chat"&&ongelezen>0?`Chat, ${ongelezen} ongelezen gesprekken`:naam}
+      className={`flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] ${plek===id?"font-semibold text-inkt":"text-rustig"}`}>
+      <span className={`relative flex h-8 w-14 items-center justify-center rounded-full ${plek===id?"bg-vlak":""}`}><Icoon className="size-[22px]"/>{id==="chat"&&ongelezen>0&&<span className="absolute -top-1 right-0 rounded-full bg-accent px-1.5 text-[10px] text-white">{ongelezen>99?"99+":ongelezen}</span>}</span>{naam}
+    </button>)}
+  </nav>;
 }

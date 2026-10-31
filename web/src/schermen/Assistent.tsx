@@ -1,5 +1,6 @@
 import InstellingenKnop from "./InstellingenKnop";
 import type Anthropic from "@anthropic-ai/sdk";
+import { useSchermActief } from "./BewaarScherm";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Staat } from "../App";
 import { Opstellen } from "./MailOpstellen";
@@ -63,6 +64,7 @@ type Props = { staat: Staat; vernieuw: () => void; teKopen?: Product | null; gek
   voorafGebruikt?: () => void; naarBestellingen?: () => void; sluit?: () => void };
 
 export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, voorafGebruikt, naarBestellingen, sluit }: Props) {
+  const schermActief=useSchermActief();
   const [beurten, setBeurten] = useState<Beurt[]>(gesprek.beurten);
   const [invoer, setInvoer] = useState(conceptLezen);
   useEffect(() => conceptBewaren(invoer), [invoer]);
@@ -89,8 +91,8 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
 
   useEffect(() => {
     gesprek.beurten = beurten;
-    onder.current?.scrollIntoView({ block: "end" });
-  }, [beurten, bezig]);
+    if(schermActief)onder.current?.scrollIntoView?.({ block: "end" });
+  }, [beurten, bezig,schermActief]);
   useEffect(() => () => stoppen.current?.abort(), []);
   // Na elk afgerond antwoord de tekst bewaren bij je eerdere gesprekken.
   useEffect(() => {
