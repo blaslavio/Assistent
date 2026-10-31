@@ -136,7 +136,7 @@ export default function Agenda({ staat, setStaat, ingebed }: Props) {
     <div className="flex min-h-full flex-col">
       <header className={`flex flex-col gap-3 px-6 pb-3 ${ingebed?"pt-4":"pt-14"}`}>
         <div className="flex items-center justify-between gap-2">
-          {paneel ? (
+          {paneel || meerOpen ? (
             <h1 key={paneel} className={`opkomen ${ingebed?"text-2xl":"text-[32px]"} font-bold tracking-tight`}>{meerOpen ? "Meer opties" : AGENDA_ONDERDELEN.find(x => x.id === paneel)?.naam}</h1>
           ) : (
             <button onClick={() => verschuif(0)} aria-label="Naar vandaag" className="min-w-0 text-left">
