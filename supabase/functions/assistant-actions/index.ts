@@ -43,7 +43,7 @@ export async function handleAssistantAction(request: Request): Promise<Response>
     idempotencyKey: typeof payload.idempotencyKey === "string" ? payload.idempotencyKey : undefined,
   });
   if (!decision.allowed) return Response.json({ error: decision.reason }, { status: 403 });
-  if (!ACTIONS_ENABLED) return Response.json({ status: "validated_not_executed", action, executed: false }, { status: 202 });
+  if (!ACTIONS_ENABLED) return Response.json({ error: "execution_disabled", executed: false }, { status: 503 });
   if (action !== "tasks.create" && action !== "agenda.create") {
     return Response.json({ error: "execution_not_supported" }, { status: 403 });
   }
@@ -52,7 +52,7 @@ export async function handleAssistantAction(request: Request): Promise<Response>
   const startsAt = typeof payload.startsAt === "string" ? payload.startsAt : "";
   const endsAt = typeof payload.endsAt === "string" ? payload.endsAt : "";
   if (action === "agenda.create" &&
-      (!/^\\d{4}-\\d\\d-\\d\\dT/.test(startsAt) || !Number.isFinite(Date.parse(startsAt)) ||
+      (!/^\d{4}-\d\d-\d\dT/.test(startsAt) || !Number.isFinite(Date.parse(startsAt)) ||
        !Number.isFinite(Date.parse(endsAt)) || Date.parse(endsAt) <= Date.parse(startsAt))) {
     return Response.json({ error: "invalid_schedule" }, { status: 400 });
   }
