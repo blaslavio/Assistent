@@ -24,4 +24,4 @@ jobs:
       - name: Type-check action entrypoint
         run: deno check supabase/functions/assistant-actions/index.ts
       - name: Run action policy and validation tests
-        run: deno test --no-check supabase/functions/_shared/action_policy_test.ts supabase/functions/assistant-actions/authorization_test.ts supabase/functions/assistant-actions/phase3_policy_test.ts supabase/functions/assistant-actions/phase3_validation_test.ts
+        run: deno test --allow-env=SUPABASE_URL,SUPABASE_ANON_KEY,ASSISTANT_ACTIONS_ENABLED --no-check supabase/functions/_shared/action_policy_test.ts supabase/functions/assistant-actions/authorization_test.ts supabase/functions/assistant-actions/phase3_policy_test.ts supabase/functions/assistant-actions/phase3_validation_test.ts
