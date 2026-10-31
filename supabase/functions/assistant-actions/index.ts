@@ -1,4 +1,5 @@
 import { authorizeAction } from "../_shared/action_policy.ts";
+import { validateAssistantPayload } from "../_shared/action_validation.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
@@ -47,15 +48,9 @@ export async function handleAssistantAction(request: Request): Promise<Response>
   if (action !== "tasks.create" && action !== "agenda.create") {
     return Response.json({ error: "execution_not_supported" }, { status: 403 });
   }
-  const title = typeof payload.title === "string" ? payload.title.trim() : "";
-  if (!title || title.length > 180) return Response.json({ error: "invalid_title" }, { status: 400 });
-  const startsAt = typeof payload.startsAt === "string" ? payload.startsAt : "";
-  const endsAt = typeof payload.endsAt === "string" ? payload.endsAt : "";
-  if (action === "agenda.create" &&
-      (!/^\d{4}-\d\d-\d\dT/.test(startsAt) || !Number.isFinite(Date.parse(startsAt)) ||
-       !Number.isFinite(Date.parse(endsAt)) || Date.parse(endsAt) <= Date.parse(startsAt))) {
-    return Response.json({ error: "invalid_schedule" }, { status: 400 });
-  }
+  const validated = validateAssistantPayload(payload, action);
+  if (!validated.ok) return Response.json({ error: validated.error }, { status: 400 });
+  const { title, startsAt, endsAt } = validated;
   // The RPC uses auth.uid() and an atomic unique (owner_id, idempotency_key)
   // constraint. Never pass a service-role key to this endpoint.
   const endpoint = new URL("/rest/v1/rpc/assistant_create_item", SUPABASE_URL);
