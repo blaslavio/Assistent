@@ -1,6 +1,7 @@
+import BerichtTaak from "./BerichtTaak";
 import { useSchermActief } from "./BewaarScherm";
 import { KaartVouw } from "../iconen";
-import { kaartOpenen, kaartGevraagd, gevraagdGesprek, winkelAppGevraagd } from "../lib/naar";
+import { kaartOpenen, kaartGevraagd, gevraagdGesprek, gevraagdBericht, winkelAppGevraagd } from "../lib/naar";
 import InstellingenKnop from "./InstellingenKnop";
 import { BetaalverzoekMaken, ChatBetaalkaart } from "./ChatBetaling";
 import ProjectWerkruimte from "./ProjectWerkruimte";
@@ -14,7 +15,7 @@ import { feedInstelling } from "../lib/feed";
 import Bestellingen from "./Bestellingen";
 import { isGevraagd, lijst as bestellingenLijst, openGevraagd, wachtOpMij } from "../lib/bestellingen";
 import { VERDWIJNEN, communityTijdelijk, isHerinnering, verdwijnenInstellen, antwoorden, berichten, community, communityAntwoorden, communityDeelnemen,
-  communityMaken, communityUitnodigen, contacten, gesprekNaam, kortTekst, nieuwGesprek, overzicht, starten, versturen,
+  chatBronLezen, communityMaken, communityUitnodigen, contacten, gesprekNaam, kortTekst, nieuwGesprek, overzicht, starten, versturen,
   voorbeeld, type Community, type Contact, type Deelnemer, type Gesprek, type Regel } from "../lib/chat";
 import { bellen, kan as kanBellen, luisteren } from "../lib/bellen";
 import { Oproepen } from "./Oproepen";
@@ -57,9 +58,9 @@ function bewaardDeel(): Deel {
 }
 
 type Props = { verlaat?: () => void; terugNaam?: string; staat: Staat; setStaat?: React.Dispatch<React.SetStateAction<Staat | null>>; naarInstellingen: () => void;
-  bestel: (p: Product) => void; ongelezenGewijzigd?: (aantal:number)=>void; werkGesprek?: { id: number; ronde: number; gebruiker: number } | null };
+  bestel: (p: Product) => void; projectGeopend?:(id:number)=>void; ongelezenGewijzigd?: (aantal:number)=>void; werkGesprek?: { id: number; ronde: number; gebruiker: number } | null };
 
-export default function Chat({ staat, setStaat, bestel, werkGesprek, ongelezenGewijzigd,verlaat,terugNaam }: Props) {
+export default function Chat({ staat, setStaat, bestel, werkGesprek, ongelezenGewijzigd,verlaat,terugNaam,projectGeopend }: Props) {
   const schermActief=useSchermActief();
   const markeerGelezen=useCallback((id:number)=>setLijst(oud=>oud.some(g=>g.id===id&&g.ongelezen>0)?oud.map(g=>g.id===id?{...g,ongelezen:0}:g):oud),[]);
   const concepten=useRef(new Map<number,string>());
@@ -72,6 +73,7 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek, ongelezenGe
   const [lijst, setLijst] = useState<Gesprek[]>([]);
   const [groepen, setGroepen] = useState<Community[]>([]);
   const [voorbeelden, setVoorbeelden] = useState<Record<number, string>>({});
+  const [bronBericht,setBronBericht]=useState(gevraagdBericht);
   const [open, setOpen] = useState<number | null>(gevraagdGesprek);
   const [openCommunity, setOpenCommunity] = useState<number | null>(null);
   const [gasten, setGasten] = useState<GastGesprek[]>([]);
@@ -99,9 +101,9 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek, ongelezenGe
     window.addEventListener("assistent-projectdienst",dienst);return()=>window.removeEventListener("assistent-projectdienst",dienst);
   },[open]);
 
-  useEffect(() => { if (werkGesprek?.gebruiker === staat.gebruiker.id) setOpen(werkGesprek.id); }, [werkGesprek, staat.gebruiker.id]);
+  useEffect(() => { if (werkGesprek?.gebruiker === staat.gebruiker.id) {setBronBericht(null);setOpen(werkGesprek.id);} }, [werkGesprek, staat.gebruiker.id]);
 
-  useEffect(() => { const openGevraagd = () => { const id = gevraagdGesprek(); if (id !== null) setOpen(id); }; window.addEventListener("chat-open", openGevraagd); return () => window.removeEventListener("chat-open", openGevraagd); }, []);
+  useEffect(() => { const openGevraagd = () => { const id = gevraagdGesprek(); if (id !== null){setBronBericht(gevraagdBericht());setOpen(id);} }; window.addEventListener("chat-open", openGevraagd); return () => window.removeEventListener("chat-open", openGevraagd); }, []);
   useEffect(() => { const open = () => { if (kaartGevraagd()) { setVanBuiten(true);verlaatGesprek(); setWinkel(oud => ({ deel: "kaart", ronde: (oud?.ronde ?? 0) + 1 })); } }; open(); window.addEventListener("kaart-openen", open); return () => window.removeEventListener("kaart-openen", open); }, []);
   useEffect(()=>{const open=()=>{if(winkelAppGevraagd()){setVanBuiten(true);verlaatGesprek();setWinkel(oud=>({deel:"ontdekken",ronde:(oud?.ronde??0)+1}));}};open();window.addEventListener("winkel-app-openen",open);return()=>window.removeEventListener("winkel-app-openen",open);},[]);
   useEffect(()=>{
@@ -150,7 +152,7 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek, ongelezenGe
 
   if (open !== null && ik !== null) {
     const g = lijst.find((x) => x.id === open);
-    return <Gesprekscherm key={open} id={open} ik={ik} begin={g} beginConcept={concepten.current.get(open)??""} bewaarConcept={bewaarConcept} gelezen={markeerGelezen} projectOpen={werkGesprek?.id === open || projectVan === open} staat={staat} setStaat={setStaat} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
+    return <Gesprekscherm key={open} id={open} ik={ik} begin={g} bronBericht={bronBericht} projectGeopend={projectGeopend} beginConcept={concepten.current.get(open)??""} bewaarConcept={bewaarConcept} gelezen={markeerGelezen} projectOpen={werkGesprek?.id === open || projectVan === open} staat={staat} setStaat={setStaat} terug={() => { setOpen(null); laden().catch(() => {}); }} />;
   }
   if (openGast !== null) return <GastGesprekScherm boeking={openGast} terug={() => { setOpenGast(null); laden().catch(() => {}); }} />;
   if (winkel) return <WinkelApp staat={staat} setData={data=>setStaat?.(s=>s&&s.gebruiker.id===staat.gebruiker.id?{...s,data}:s)} key={winkel.ronde} start={winkel.deel} melding={winkel.melding} adres={winkel.adres}
@@ -192,7 +194,7 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek, ongelezenGe
       )}
       {deel === "chats" && !nieuw && <GastenLijst lijst={gasten} open={setOpenGast} />}
       {deel === "chats" && ik !== null && (
-        <Chats zoek={zoekGesprek} setZoek={setZoekGesprek} ik={ik} lijst={lijst} voorbeelden={voorbeelden} open={setOpen} nieuw={() => setNieuw(true)} fout={fout} zoekt={nieuw} />
+        <Chats zoek={zoekGesprek} setZoek={setZoekGesprek} ik={ik} lijst={lijst} voorbeelden={voorbeelden} open={id=>{setBronBericht(null);setOpen(id);}} nieuw={() => setNieuw(true)} fout={fout} zoekt={nieuw} />
       )}
       {deel === "communitys" && ik !== null && (
         <Communitys lijst={groepen} open={setOpenCommunity} vernieuw={laden} staat={staat} />
@@ -200,7 +202,7 @@ export default function Chat({ staat, setStaat, bestel, werkGesprek, ongelezenGe
       {deel === "oproepen" && ik !== null && <Oproepen ik={ik} lijst={lijst} instellingen={belInst}
         sluitInstellingen={() => setBelInst(false)} zoekIemand={() => { setDeel("chats"); setNieuw(true); }} bewaard={(data) => setStaat?.((s) => (s ? { ...s, data } : s))} />}
       {deel === "projecten" && <Suspense fallback={null}>
-        <Projecten ingebed staat={staat} open={(g) => { setProjectVan(g); setOpen(g); }} naarChat={() => setDeel("chats")} />
+        <Projecten ingebed staat={staat} open={(g) => {projectGeopend?.(g);setProjectVan(g);setBronBericht(null);setOpen(g); }} naarChat={() => setDeel("chats")} />
       </Suspense>}
       {rij.length > 1 && <AppMenu naam="Chat" actief={deel} kies={setDeel}
         items={rij.map(([k, naam, Icoon]) => [k, naam, Icoon,
@@ -814,8 +816,11 @@ function NieuwVeld({ sluit, gestart }: { sluit: () => void; gestart: (id: number
   );
 }
 
-function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat,gelezen:markeer,beginConcept="",bewaarConcept }: { beginConcept?:string;bewaarConcept?:(id:number,tekst:string)=>void; gelezen?:(id:number)=>void; id: number; ik: number; begin?: Gesprek; terug: () => void; projectOpen?: boolean; staat?: Staat; setStaat?: React.Dispatch<React.SetStateAction<Staat | null>> }) {
+function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat,gelezen:markeer,bronBericht,projectGeopend,beginConcept="",bewaarConcept }: { projectGeopend?:(id:number)=>void; bronBericht?:number|null;beginConcept?:string;bewaarConcept?:(id:number,tekst:string)=>void; gelezen?:(id:number)=>void; id: number; ik: number; begin?: Gesprek; terug: () => void; projectOpen?: boolean; staat?: Staat; setStaat?: React.Dispatch<React.SetStateAction<Staat | null>> }) {
   const [g, setG] = useState<Gesprek | undefined>(begin);
+  const [taakBericht,setTaakBericht]=useState<Regel|null>(null);
+  const [bronGeladen,setBronGeladen]=useState<number|null>(null);
+  const geblokkeerdeBron=useRef<number|null>(null);
   const [regels, setRegels] = useState<Regel[]>([]);
   const [invoer, setInvoer] = useState(beginConcept);
   useEffect(()=>{bewaarConcept?.(id,invoer);},[id,invoer,bewaarConcept]);
@@ -845,7 +850,7 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat,gele
       if (r.hoogste) {tot.current = r.hoogste;markeer?.(id);}
       if (r.regels.length) setRegels((oud) => {
         const al = new Set(oud.map((x) => x.id));
-        return [...oud, ...r.regels.filter((x) => !al.has(x.id))];
+        return [...oud, ...r.regels.filter((x) => !al.has(x.id)&&x.id!==geblokkeerdeBron.current)].sort((a,b)=>a.id-b.id);
       });
       return r.regels.length > 0;
     } finally {
@@ -859,7 +864,15 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat,gele
     const p = peilen(bijwerken, 2500, 15_000);
     return p.stop;
   }, [bijwerken,actief]);
-  useEffect(() => { if(actief)onder.current?.scrollIntoView?.({ block: "end" }); }, [regels.length,actief]);
+  useEffect(() => { if(actief&&!bronBericht)onder.current?.scrollIntoView?.({ block: "end" }); }, [regels.length,actief,bronBericht]);
+
+  useEffect(()=>{
+    if(!bronBericht){geblokkeerdeBron.current=null;setBronGeladen(null);return;}if(!actief)return;let gestopt=false;
+    geblokkeerdeBron.current=null;setBronGeladen(null);setRegels(oud=>oud.filter(r=>r.id!==bronBericht));
+    chatBronLezen(id,bronBericht,false).then(r=>{if(gestopt)return;setG(r.gesprek);setRegels(oud=>[...oud.filter(x=>x.id!==r.regel.id),r.regel].sort((a,b)=>a.id-b.id));setBronGeladen(bronBericht);setFout("");}).catch(e=>{if(!gestopt){geblokkeerdeBron.current=bronBericht;setRegels(oud=>oud.filter(r=>r.id!==bronBericht));setFout(e instanceof Error?e.message:"Het bronbericht is niet meer beschikbaar.");}});
+    return()=>{gestopt=true;};
+  },[id,bronBericht,actief]);
+  useEffect(()=>{if(!actief||!bronGeladen)return;const r=requestAnimationFrame(()=>{const e=document.getElementById(`chat-bericht-${bronGeladen}`);e?.scrollIntoView?.({block:"center",behavior:"auto"});e?.focus({preventScroll:true});});return()=>cancelAnimationFrame(r);},[bronGeladen,actief]);
 
   async function stuur(e: FormEvent) {
     e.preventDefault();
@@ -944,7 +957,7 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat,gele
 
       {g?.status === "lid" && <details open={extraOpen} className="border-b border-lijn" onToggle={e=>{if(e.target===e.currentTarget)setExtraOpen(e.currentTarget.open);}}><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-medium">＋ Meer in dit gesprek</summary>
       {g?.soort === "twee" && g.status === "lid" && magSchrijven && !g.verdwijnen && g.leden.filter(l=>l.status==="lid"&&l.id!==ik).length===1 && <BetaalverzoekMaken gesprek={id} ander={g.leden.find(l=>l.status==="lid"&&l.id!==ik)!.id} vernieuw={async () => { await bijwerken(); }} />}
-      {g?.status === "lid" && <ProjectWerkruimte beginOpen={projectOpen} gesprek={id} regels={regels} schrijven={magSchrijven} verdwijnend={!!g.verdwijnen} ik={ik} leden={g.leden} vernieuw={async () => { await bijwerken(); }} aiMogelijk={!g.alleen_beheer} staat={staat} setData={data => setStaat?.(oud => oud ? { ...oud, data } : oud)} />}
+      {g?.status === "lid" && <ProjectWerkruimte geopend={()=>projectGeopend?.(id)} beginOpen={projectOpen} gesprek={id} regels={regels} schrijven={magSchrijven} verdwijnend={!!g.verdwijnen} ik={ik} leden={g.leden} vernieuw={async () => { await bijwerken(); }} aiMogelijk={!g.alleen_beheer} staat={staat} setData={data => setStaat?.(oud => oud ? { ...oud, data } : oud)} />}
       </details>}
       <main className="flex flex-1 flex-col gap-1 px-4 py-4" aria-live="polite">
         {regels.filter(r => !["project", "projectactie"].includes(r.bericht?.t ?? "")).map((r, i, zichtbaar) => {
@@ -959,15 +972,17 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat,gele
           return (
             <Fragment key={r.id}>
               <span id={`chat-bericht-${r.id}`} tabIndex={-1} />
-              {r.bericht?.t === "tekst" && !r.weg && !r.fout && g?.status === "lid" && magSchrijven && <button
-                className="min-h-11 self-start px-2 text-xs text-accent" onClick={() => window.dispatchEvent(new CustomEvent("assistent-projectbron", { detail: { gesprek: id, id: r.id } }))}>
-                Maak projectvoorstel uit dit bericht
-              </button>}
+              {r.bericht?.t === "tekst" && !r.weg && !r.fout && g?.status === "lid" && <details className="self-start"><summary className="min-h-11 cursor-pointer px-2 py-3 text-xs text-accent">Acties bij bericht</summary><div className="flex flex-wrap gap-2">
+                {staat&&setStaat&&!g.verdwijnen&&<button className="min-h-11 rounded-full bg-vlak px-3 text-xs text-accent" onClick={()=>setTaakBericht(r)}>Maak persoonlijke taak</button>}
+                {magSchrijven&&<button className="min-h-11 rounded-full bg-vlak px-3 text-xs text-accent" onClick={() => window.dispatchEvent(new CustomEvent("assistent-projectbron", { detail: { gesprek: id, id: r.id } }))}>Maak projectvoorstel uit dit bericht</button>}
+                {g.verdwijnen&&<p className="text-xs text-rustig">Een blijvende taak is niet beschikbaar bij verdwijnende berichten.</p>}
+              </div></details>}
               {nieuweDag && (
                 <p className="my-3 text-center text-xs font-medium text-zacht">
                   {datumTekst(new Date(r.tijd)) === datumTekst(new Date()) ? "Vandaag" : dagTitel(new Date(r.tijd))}
                 </p>
               )}
+              {bronGeladen===r.id&&<p className="text-xs font-semibold text-accent">Bronbericht bij je taak</p>}
               <div className={`flex flex-col ${mijn ? "items-end" : "items-start"} ${zelfde ? "" : "mt-2"}`}>
                 {groep && !mijn && !zelfde && <span className="mb-0.5 ml-3 text-xs font-medium text-rustig">{lid?.naam}</span>}
                 <div className={`max-w-[80%] rounded-3xl px-3.5 py-2 ${mijn ? "rounded-br-md bg-accent text-white" : "rounded-bl-md bg-vlak"}
@@ -980,6 +995,7 @@ function Gesprekscherm({ id, ik, begin, terug, projectOpen, staat, setStaat,gele
                   </span>
                 </div>
               </div>
+              {taakBericht?.id===r.id&&staat&&setStaat&&<BerichtTaak key={r.id} gesprek={id} regel={taakBericht} staat={staat} setData={data=>setStaat(oud=>oud?.gebruiker.id===staat.gebruiker.id?{...oud,data}:oud)} sluit={()=>setTaakBericht(null)}/>}
             </Fragment>
           );
         })}

@@ -1,3 +1,4 @@
+import TaakBron from "./TaakBron";
 // Drie panelen in de agenda: je mail (met een korte samenvatting), je taken en je herinneringen.
 // Toevoegen gebeurt in een veld bovenaan, zonder venster, zodat het scherm stil blijft staan.
 import { useEffect, useMemo, useState, type FormEvent } from "react";
@@ -184,6 +185,7 @@ export function TakenPaneel({ staat, setStaat, naarMail }: TakenProps) {
                       ) : null}
                     </button>
                   </div>
+                  <div className="ml-9"><TaakBron taak={t}/></div>
                   {open === t.id && <TaakBewerken t={t} pas={(f) => pas(t.id, f)}
                     weg={() => wijzig((g) => { g.taken = g.taken.filter((x) => x.id !== t.id); })} />}
                 </li>
@@ -199,7 +201,7 @@ export function TakenPaneel({ staat, setStaat, naarMail }: TakenProps) {
             {klaar.map((t) => (
               <li key={t.id} className="flex items-center gap-3 py-1.5 text-rustig">
                 <span className="flex size-6 items-center justify-center rounded-full bg-vlak"><Vinkje className="size-3.5" /></span>
-                <span className="min-w-0 flex-1 truncate line-through">{t.titel}</span>
+                <span className="min-w-0 flex-1"><span className="block truncate line-through">{t.titel}</span><TaakBron taak={t}/></span>
                 <button onClick={() => pas(t.id, (x) => ({ ...x, klaar: false }))}
                   aria-label={`${t.titel} terugzetten`} className="flex size-8 items-center justify-center rounded-full hover:bg-vlak">
                   <Herstel className="size-4" />

@@ -1,0 +1,5 @@
+import {expect,it} from "vitest";
+import {onthoudWerkplek,recenteWerkplekken} from "./werkplekken";
+import type {Gegevens} from "../api";
+it("bewaart hoogstens zes unieke verwijzingen en geen meegegeven privétekst",()=>{const g:Gegevens={taken:[],afspraken:[],volgend_id:1};for(let n=1;n<=9;n++)onthoudWerkplek(g,{soort:"project",gesprek:n});onthoudWerkplek(g,{soort:"project",gesprek:5,tekst:"NIET BEWAREN"}as never);expect(recenteWerkplekken(g)).toHaveLength(6);expect(recenteWerkplekken(g)[0]).toEqual({soort:"project",gesprek:5});expect(JSON.stringify(g)).not.toContain("NIET BEWAREN");onthoudWerkplek(g,{soort:"app",app:"notities"});expect(recenteWerkplekken(g)[0]).toEqual({soort:"app",app:"notities"});});
+it("houdt beschadigde of onbekende geschiedenis buiten de interface",()=>{const g:Gegevens={taken:[],afspraken:[],volgend_id:1,werkruimte_recent:[null,{soort:"app",app:"bestaat-niet"},{soort:"project",gesprek:-1},{soort:"app",app:"documenten"}]};expect(recenteWerkplekken(g)).toEqual([{soort:"app",app:"documenten"}]);});

@@ -9,6 +9,7 @@ import { terugVanBank } from "./lib/bank";
 import { cursusLinkVragen, terugVanCursus } from "./lib/cursus";
 import { Ballon, Kalender, Persoon, Projectmap, Tandwiel, Vonk, Zon } from "./iconen";
 import Inloggen from "./schermen/Inloggen";
+import { useWerkplekken } from "./schermen/useWerkplekken";
 import MijnDag from "./schermen/MijnDag";
 import BewaarScherm from "./schermen/BewaarScherm";
 import { weergaveToepassen, type Weergave } from "./schermen/Algemeen";
@@ -105,6 +106,7 @@ export type { Staat };
 export default function App() {
   const [klaar, setKlaar] = useState(false);
   const [staat, setStaat] = useState<Staat | null>(null);
+  const gebruikWerkplek=useWerkplekken(staat,setStaat);
   const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL || CURSUS || CURSUSLINK ? "chat" : ZEG ? "assistent" : BANK || SPORT_TERUG ? "projecten" : "vandaag");
   const [voorafVraag, setVooraf] = useState(ZEG);
   const [vorige, setVorige] = useState<Tab>("vandaag");
@@ -244,13 +246,13 @@ export default function App() {
   // Tijdens de bliksemstart is er nog geen sessie, maar wel de vorige stand: die laten we alvast zien.
   if (!staat || (!huidigeSessie() && !voorlopig)) return <Inloggen opIngelogd={herladen} />;
 
-  const openProject = (gesprek:number) => { setWerkGesprek(oud => ({ id:gesprek,ronde:(oud?.ronde??0)+1,gebruiker:staat.gebruiker.id }));setTab("chat"); };
+  const openProject = (gesprek:number) => {gebruikWerkplek({soort:"project",gesprek});setWerkGesprek(oud => ({ id:gesprek,ronde:(oud?.ronde??0)+1,gebruiker:staat.gebruiker.id }));setTab("chat"); };
   const scherm = {
     vandaag: <MijnDag staat={staat} setStaat={setStaat} deel={dagDeel} ga={setTab} vernieuw={herladen}
       naarProject={openProject} vraag={t=>{setVooraf(t);setTab("assistent");}} />,
-    projecten: <Werkruimte staat={staat} vernieuw={herladen} start={startOnderdeel} vraag={t=>{setVooraf(t);setTab("assistent");}}
+    projecten: <Werkruimte gebruik={gebruikWerkplek} staat={staat} vernieuw={herladen} start={startOnderdeel} vraag={t=>{setVooraf(t);setTab("assistent");}}
       naarChat={()=>{setWerkGesprek(null);setTab("chat");}} openProject={openProject}/>,
-    chat: <Chat key={staat.gebruiker.id} werkGesprek={werkGesprek} ongelezenGewijzigd={setOngelezen} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
+    chat: <Chat key={staat.gebruiker.id} werkGesprek={werkGesprek} projectGeopend={id=>gebruikWerkplek({soort:"project",gesprek:id})} ongelezenGewijzigd={setOngelezen} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
       verlaat={() => setTab(voorChat)} terugNaam={TABS.find((t) => t.id === voorChat)?.naam}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
     assistent: <Assistent staat={staat} vernieuw={herladen} teKopen={teKopen}

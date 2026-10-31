@@ -1,3 +1,4 @@
+import TaakBron from "./TaakBron";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { bijwerken, instellingenBijwerken, huidigeSessie, type Afspraak } from "../api";
 import type { Staat, Tab } from "../App";
@@ -340,6 +341,7 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
                     <span className="min-w-0 flex-1 break-words">{t.titel}</span>
                     {t.deadline && t.deadline.slice(0, 10) < vandaag && <span className="text-sm text-red-600 dark:text-red-400">te laat</span>}
                   </label>
+                  {t.chatbron&&<div className="ml-9"><TaakBron taak={t}/></div>}
                   <ProjectHerkomst taak={t} open={naarProject} />
                 </li>
               ))}

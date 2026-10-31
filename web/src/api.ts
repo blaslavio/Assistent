@@ -223,7 +223,7 @@ export type Afspraak = {
   sport?: string; notitie?: string; extern?: boolean; kaartpunt?: {lat:number;lon:number};
   projectplanning?: { gesprek:number; aanpak:string; stap:string; opdracht:string };
 };
-export type Taak = { id: number; titel: string; deadline?: string | null; klaar: boolean; prioriteit?: string; notitie?: string;
+export type Taak = { chatbron?: {gesprek:number;bericht:number}; id: number; titel: string; deadline?: string | null; klaar: boolean; prioriteit?: string; notitie?: string;
   herhaal?: Herhaal | null };
 export type Herhaal = "dag" | "week" | "maand";
 export type Gegevens = {

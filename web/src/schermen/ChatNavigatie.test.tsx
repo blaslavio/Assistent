@@ -2,10 +2,10 @@ import {act,cleanup,fireEvent,render,screen,waitFor} from "@testing-library/reac
 import {afterEach,expect,it,vi} from "vitest";
 import Chat from "./Chat";
 import BewaarScherm from "./BewaarScherm";
-import {berichten} from "../lib/chat";
+import {berichten,chatBronLezen} from "../lib/chat";
 import {openVragen} from "../lib/bestellingen";
 import {chatOpenen,winkelAppOpenen} from "../lib/naar";
-vi.mock("../lib/chat",async o=>({...await o<object>(),starten:async()=>1,overzicht:async()=>({gesprekken:[],communities:[]}),berichten:vi.fn()}));
+vi.mock("../lib/chat",async o=>({...await o<object>(),starten:async()=>1,overzicht:async()=>({gesprekken:[],communities:[]}),berichten:vi.fn(),chatBronLezen:vi.fn()}));
 vi.mock("../lib/gasten",async o=>({...await o<object>(),gesprekken:async()=>({gesprekken:[]})}));
 vi.mock("../lib/bellen",async o=>({...await o<object>(),luisteren:vi.fn()}));
 vi.mock("./Bellen",()=>({useBellen:()=>({bel:null})}));
@@ -32,4 +32,15 @@ it("opent nieuwe winkelopdrachten ook nadat Chat en de winkel al bezocht zijn",a
 it("geeft een vanuit een andere hoofdplek geopende winkel de juiste terugroute",async()=>{
  const verlaat=vi.fn();render(<Chat verlaat={verlaat} terugNaam="Werkruimte" staat={{gebruiker:{id:1,naam:"test"},data:{taken:[],afspraken:[],volgend_id:1}}} naarInstellingen={vi.fn()} bestel={vi.fn()}/>);
  await screen.findByRole("searchbox",{name:"Zoek een gesprek"});act(()=>winkelAppOpenen());fireEvent.click(await screen.findByRole("button",{name:"Werkruimte"}));expect(verlaat).toHaveBeenCalledOnce();
+});
+
+it("opent ook een bronbericht dat buiten de eerste geladen berichten ligt",async()=>{
+ const gesprek={id:8,naam:"Bron",status:"lid" as const,soort:"groep" as const,leden:[],ongelezen:0};
+ vi.mocked(berichten).mockResolvedValue({gesprek,regels:[],hoogste:0,meer:false});vi.mocked(chatBronLezen).mockResolvedValue({gesprek,regel:{id:777,afzender:2,tijd:"2026-10-31T12:00:00Z",weg:false,bericht:{t:"tekst",tekst:"Specifieke bron verder terug"}},tekst:"Specifieke bron verder terug"});
+ chatOpenen(8,777);render(<Chat staat={{gebruiker:{id:1,naam:"test"},data:{taken:[],afspraken:[],volgend_id:1}}} naarInstellingen={vi.fn()} bestel={vi.fn()}/>);await screen.findByText("Specifieke bron verder terug");expect(chatBronLezen).toHaveBeenCalledWith(8,777,false);expect(screen.getByText("Bronbericht bij je taak")).toBeTruthy();
+});
+it("verbergt een eerder geladen bronbericht zodra de verse broncontrole faalt",async()=>{
+ const gesprek={id:8,naam:"Bron",status:"lid" as const,soort:"groep" as const,leden:[],ongelezen:0};
+ vi.mocked(berichten).mockResolvedValue({gesprek,regels:[{id:777,afzender:2,tijd:"2026-10-31T12:00:00Z",weg:false,bericht:{t:"tekst",tekst:"Oude broninhoud"}}],hoogste:777,meer:false});vi.mocked(chatBronLezen).mockRejectedValue(new Error("Het bronbericht is verwijderd."));
+ chatOpenen(8);render(<Chat staat={{gebruiker:{id:1,naam:"test"},data:{taken:[],afspraken:[],volgend_id:1}}} naarInstellingen={vi.fn()} bestel={vi.fn()}/>);await screen.findByText("Oude broninhoud");act(()=>chatOpenen(8,777));await screen.findByText("Het bronbericht is verwijderd.");expect(screen.queryByText("Oude broninhoud")).toBeNull();
 });

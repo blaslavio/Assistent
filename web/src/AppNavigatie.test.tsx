@@ -4,7 +4,7 @@ import {useEffect,useState} from "react";
 import App from "./App";
 import {naar} from "./lib/naar";
 const test=vi.hoisted(()=>({staat:{gebruiker:{id:1,naam:"test"},data:{taken:[],afspraken:[],volgend_id:1}}}));
-vi.mock("./api",async o=>({...await o<object>(),huidigeSessie:()=>({naam:"test",token:"fixture"}),opstarten:()=>({vorige:Promise.resolve(null),vers:Promise.resolve(test.staat)}),gegevensLaden:async()=>test.staat,overstappen:async()=>{},momentopnameBewaren:async()=>{}}));
+vi.mock("./api",async o=>({...await o<object>(),huidigeSessie:()=>({naam:"test",token:"fixture"}),opstarten:()=>({vorige:Promise.resolve(null),vers:Promise.resolve(test.staat)}),gegevensLaden:async()=>test.staat,bijwerken:async(f:(g:import("./api").Gegevens)=>void)=>{f(test.staat.data);return test.staat.data;},overstappen:async()=>{},momentopnameBewaren:async()=>{}}));
 vi.mock("./lib/sport",async o=>({...await o<object>(),vanzelf:async()=>false}));
 vi.mock("./lib/chat",async o=>({...await o<object>(),startenAlsBekend:async()=>null}));
 vi.mock("./schermen/Bellen",()=>({default:()=>null}));

@@ -36,8 +36,12 @@ export function evenementenOpenen() {
   naar({ tab: "agenda" });
 }
 let gesprekGevraagd: number | null = null;
-export function chatOpenen(id: number) {
+let berichtGevraagd:number|null=null;
+export function gevraagdBericht(){const id=berichtGevraagd;berichtGevraagd=null;return id;}
+export function chatOpenen(id: number,bericht?:number) {
   if (!Number.isSafeInteger(id) || id < 1) return;
+  if(bericht!==undefined&&(!Number.isSafeInteger(bericht)||bericht<1))return;
+  berichtGevraagd=bericht??null;
   gesprekGevraagd = id;
   window.dispatchEvent(new Event("chat-open"));
   naar({ tab: "chat" });
@@ -64,4 +68,4 @@ export function agendaPlekOpenen(naam:string,punt:Punt){
   window.dispatchEvent(new Event("agenda-kaartplek"));naar({tab:"agenda"});
 }
 export function agendaPlekLezen(){const p=agendaPlek;agendaPlek=null;return p;}
-if(typeof window!=="undefined")window.addEventListener("assistent-sessie",()=>{kaartBestemming=null;agendaPlek=null;gesprekGevraagd=null;kaartVerzoek=false;winkelAppVerzoek=false;});
+if(typeof window!=="undefined")window.addEventListener("assistent-sessie",()=>{kaartBestemming=null;agendaPlek=null;gesprekGevraagd=null;berichtGevraagd=null;kaartVerzoek=false;winkelAppVerzoek=false;});

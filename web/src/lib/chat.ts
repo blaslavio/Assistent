@@ -150,7 +150,7 @@ export type Gesprek = { id: number; soort: "twee" | "groep"; naam?: string; stat
   ongelezen: number; laatste_id?: number; leden: Lid[]; community?: number | null; alleen_beheer?: boolean;
   beheerder?: boolean; verdwijnen?: number | null; community_naam?: string | null };
 export type Bericht = { t: string; tekst?: string; titel?: string; vraag?: string; naam?: string; [k: string]: unknown };
-type RuwBericht = { id: number; afzender: number; apparaat: number; aangemaakt: string; weg: boolean; inhoud?: string;
+type RuwBericht = { verloopt?:string|null;id: number; afzender: number; apparaat: number; aangemaakt: string; weg: boolean; inhoud?: string;
   iv: string; epk: Jwk; sleutel?: { i: string; w: string }; handtekening: string; teken: Jwk };
 export type Regel = { id: number; afzender: number; tijd: string; weg: boolean; bericht?: Bericht; fout?: string };
 
@@ -343,6 +343,20 @@ export async function berichten(gesprek: number, na: number, magLezen:()=>boolea
   const hoogste = r.berichten.length ? r.berichten[r.berichten.length - 1].id : 0;
   if (hoogste && r.gesprek?.status === "lid" && magLezen()) rpc("chat_gelezen", { p_gesprek: gesprek, p_tot: hoogste }).catch(() => {});
   return { regels, gesprek: r.gesprek, hoogste, meer: r.berichten.length === 200 };
+}
+
+/** Lees één aangewezen tekstbron, zonder een leesbevestiging voor de rest van het gesprek. */
+export async function chatBronLezen(gesprek:number,bericht:number,blijvend=true){
+ if(!ik||![gesprek,bericht].every(n=>Number.isSafeInteger(n)&&n>0))throw new Error("Open eerst een geldig bronbericht.");
+ const apparaat=ik,sessie=huidigeSessie();
+ const r=await rpc<{berichten:RuwBericht[];gesprek:Gesprek}>("chat_berichten",{p_gesprek:gesprek,p_na:bericht-1,p_apparaat:apparaat.apparaat});
+ if(ik!==apparaat||huidigeSessie()!==sessie)throw new Error("Het account is gewijzigd.");
+ if(r.gesprek?.id!==gesprek||r.gesprek.status!=="lid"||(blijvend&&r.gesprek.verdwijnen))throw new Error("Dit bronbericht is niet beschikbaar voor een blijvende taak.");
+ const b=r.berichten.find(b=>b.id===bericht);if(!b||b.weg||!b.inhoud||(b.verloopt&&(!Number.isFinite(Date.parse(b.verloopt))||Date.parse(b.verloopt)<=Date.now())))throw new Error("Het bronbericht is verwijderd of niet meer beschikbaar.");
+ const inhoud=await ontsleutel(apparaat,gesprek,b);
+ if(ik!==apparaat||huidigeSessie()!==sessie)throw new Error("Het account is gewijzigd.");
+ if(inhoud.bericht?.t!=="tekst"||typeof inhoud.bericht.tekst!=="string")throw new Error("Dit bronbericht is niet leesbaar als tekst.");
+ return {gesprek:r.gesprek,regel:{id:b.id,afzender:b.afzender,tijd:b.aangemaakt,weg:false,bericht:inhoud.bericht} as Regel,tekst:inhoud.bericht.tekst};
 }
 
 /** Alleen voor expliciet projectadvies: haal een volledige, actuele leesbare bewijsbasis op. */

@@ -9,7 +9,7 @@ import { bestandDelen, bestandMaken, MAX_TEKST, projectLezen, werkruimte, type W
 import type { Regel } from "../lib/chat";
 import { huidigeSessie } from "../api";
 
-export default function ProjectWerkruimte({ gesprek, regels, schrijven, verdwijnend, beginOpen = false, ik, leden = [], vernieuw = async () => {}, staat, setData, aiMogelijk = false }: {
+export default function ProjectWerkruimte({ gesprek, regels, schrijven, verdwijnend, beginOpen = false, ik, leden = [], vernieuw = async () => {}, staat, setData, aiMogelijk = false,geopend }: { geopend?:()=>void;
   gesprek: number; regels: Regel[]; schrijven: boolean; verdwijnend: boolean; beginOpen?: boolean; ik?: number; leden?: Lid[]; vernieuw?: () => Promise<void>; staat?: Staat; setData?: (data: Staat["data"]) => void; aiMogelijk?: boolean;
 }) {
   const [open, setOpen] = useState(beginOpen);
@@ -34,11 +34,11 @@ export default function ProjectWerkruimte({ gesprek, regels, schrijven, verdwijn
     const bron = (e: Event) => {
       const d = (e as CustomEvent).detail;
       if (d?.gesprek !== gesprek || !Number.isSafeInteger(d?.id) || !regels.some(r => r.id === d.id && !r.weg && !r.fout && r.bericht?.t === "tekst")) return;
-      setOpen(true); setBronVoorstel({ soort: "bericht", id: d.id });
+      geopend?.();setOpen(true); setBronVoorstel({ soort: "bericht", id: d.id });
     };
     window.addEventListener("assistent-projectbron", bron);
     return () => window.removeEventListener("assistent-projectbron", bron);
-  }, [gesprek, regels]);
+  }, [gesprek, regels,geopend]);
   function bronOpenen(bron: Bron) {
     if (bron.soort === "eigen") { setFout("Deze bron is eigen inbreng van de bevestigende deelnemer."); return; }
     if (bron.soort === "bericht") {
@@ -82,7 +82,7 @@ export default function ProjectWerkruimte({ gesprek, regels, schrijven, verdwijn
   }
 
   return <section className="mx-4 mt-3 rounded-2xl border border-lijn p-4" aria-label="Samen aan project werken">
-    <button onClick={() => setOpen(!open)} aria-expanded={open} className="min-h-11 w-full text-left font-semibold">
+    <button onClick={() => {if(!open)geopend?.();setOpen(!open);}} aria-expanded={open} className="min-h-11 w-full text-left font-semibold">
       Projectwerkruimte · {r.bestanden.size} bestanden
     </button>
     {open && <div className="my-2 rounded-xl bg-vlak p-2"><button className="min-h-11 text-accent" onClick={() => setAfgeschermd(!afgeschermd)}>{afgeschermd ? "Project weer tonen" : "Project afschermen"}</button>

@@ -1,0 +1,64 @@
+{
+  "gemaakt_op": "2026-10-31T18:30:48.436102+00:00",
+  "scope": "persoonlijke taak vanuit tekstbericht, gerichte bronverwijzing en recente werkplekken",
+  "webtests": {
+    "geslaagd": 360,
+    "bestanden": 79
+  },
+  "laatste_componentcontrole": {
+    "geslaagd": 5,
+    "bestanden": 1
+  },
+  "builds": [
+    "webinterface",
+    "Streamlit-bundel"
+  ],
+  "browsercontrole": {
+    "mobiel": [
+      390,
+      844
+    ],
+    "extra_breedtes": [
+      320,
+      1024
+    ],
+    "echte_browsercryptografie_met_lokaal_voorbeeld": true,
+    "persoonlijke_taak_na_bevestiging": true,
+    "verwijderd_verdwijnend_en_geen_toegang_geweigerd": true,
+    "geen_extra_chatbericht": true,
+    "bronbericht_teruggevonden": true,
+    "recente_app_teruggevonden": true,
+    "horizontale_overloop": false,
+    "uitsluitend_lokale_fixture": true
+  },
+  "broncontrole_en_opslaan_afzonderlijke_verzoeken": true,
+  "taakinhoud_na_bronwijziging_niet_automatisch_gewist": true,
+  "recent_maximaal_zes_identifiers_geen_namen_of_berichtinhoud": true,
+  "navigatie_blijft_werken_bij_recent_opslagfout": true,
+  "databasemigratie_nodig": false,
+  "aanmeldgedrag_ongewijzigd": true,
+  "livepublicatie_bevestigd": false,
+  "bron_sha256": {
+    "web/src/App.tsx": "f87dc564ffc1996e323f158a9bc17911366d198eaa5d4c5109167970c714314a",
+    "web/src/AppNavigatie.test.tsx": "2c5b2bbe9258cbca9cdff7a6c9ad61e9cee6934f521186a6769bdbb133356d43",
+    "web/src/api.ts": "40fefd73eebcd04e1ac453495bec3b5a7fa388bbc8e423c27780bee8a41b08c9",
+    "web/src/lib/berichttaak.test.ts": "53e067d7270ef0ea4245a52fd031ea3747e53b01de3c2a4c952a05a36ec8222a",
+    "web/src/lib/berichttaak.ts": "6924206f0738bc77f4e1706c15328f59f766876c71b0f9718e6d7e38f361c4ce",
+    "web/src/lib/chat.ts": "62235666c6fd8762b323c94693b2a24a42a06495eaaa366fe5364363b8a07648",
+    "web/src/lib/naar.ts": "61fd0f1c184c6e74b62fb056f7b5de9d425753a66c493fe4ce4fa2b3fd0d1e00",
+    "web/src/lib/werkplekken.test.ts": "ca272e985d67d4fd7e7ebd0f29dced62909b0a2b04608290c66fca520cb741b2",
+    "web/src/lib/werkplekken.ts": "0731a731873533b0867908ffe64b93430114652742ec2e65352211e324dbb8fb",
+    "web/src/schermen/AgendaPanelen.tsx": "ac0c53e32ed4a587fefc4b9e96401742c4049502042788acbe8fc076a2ed013a",
+    "web/src/schermen/BerichtTaak.test.tsx": "40eed5526db21a95be8520e9d9682209de0ce479123899be437009b4eb578280",
+    "web/src/schermen/BerichtTaak.tsx": "8a82e083d96ac9ad856b5fda6165b817b128e25d1fe1d0affb700128deeea0ad",
+    "web/src/schermen/Chat.tsx": "74a5f4ab12183e64993ea9a4fba5bf94c8c25cb214de8c1c41b82f5840763faf",
+    "web/src/schermen/ChatNavigatie.test.tsx": "430dc35cb5ecf5b7de53898b3c365a76ebe920832e13a72a8e93247855935f0d",
+    "web/src/schermen/ProjectWerkruimte.tsx": "abfec31f35d020afe7a6a890b051847affcd8eb3fb9bacb57d3f2a37e55f0b59",
+    "web/src/schermen/TaakBron.tsx": "405539655dfcf613f373796bf40387f7ac13b817cf85b2f3f07e17ec7ab5419b",
+    "web/src/schermen/Vandaag.tsx": "d392d61e0dc4540b620e40024be7e8d75a27d97bc0a428632686d8b9b39fe45a",
+    "web/src/schermen/Werkruimte.test.tsx": "9ab40f8f33a3a35342fef74d9b99e4a0a8d88d7fff84227f2e02a57b6875313a",
+    "web/src/schermen/Werkruimte.tsx": "c1b88d1d4cefea0aa4fc411ef75fc4b6a86bb6b2f637e026d74408837db854e7",
+    "web/src/schermen/useWerkplekken.test.tsx": "ecc03cc68619f4f382719bb83fa8a1846c6b1adc21331fdae70b8c80af055c7c",
+    "web/src/schermen/useWerkplekken.ts": "e32a512cae210819bea758d4e274394b43ce040a26590aadece8d0b284c0ea20"
+  }
+}
