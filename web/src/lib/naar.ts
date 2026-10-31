@@ -1,5 +1,6 @@
 // Ergens anders in de app heen gaan, ook vanuit een app in de app (chat, winkel) die het hoofdmenu niet ziet.
 import { kaartContext, agendaKaartplek, type KaartContext, type AgendaKaartplek } from "./kaartverbinding";
+import { studioVerzoek,type StudioVerzoek } from "./studio";
 import type { Punt } from "./kaart";
 import type { OnderdeelNaam } from "./onderdeel-lijst";
 
@@ -35,6 +36,10 @@ export function evenementenOpenen() {
   window.dispatchEvent(new Event("agenda-evenementen"));
   naar({ tab: "agenda" });
 }
+let studioVraag:StudioVerzoek|null=null;
+export function studioOpenen(verzoek:StudioVerzoek={tool:"winkel"}){const v=studioVerzoek(verzoek);if(!v)return;studioVraag=v;window.dispatchEvent(new Event("studio-openen"));naar({tab:"projecten",onderdeel:"studio"});}
+export function studioVerzoekBekijken(){return studioVraag?{...studioVraag}:null;}
+export function studioVerzoekLezen(){const v=studioVraag;studioVraag=null;return v;}
 let gesprekGevraagd: number | null = null;
 let berichtGevraagd:number|null=null;
 export function gevraagdBericht(){const id=berichtGevraagd;berichtGevraagd=null;return id;}
@@ -68,4 +73,4 @@ export function agendaPlekOpenen(naam:string,punt:Punt){
   window.dispatchEvent(new Event("agenda-kaartplek"));naar({tab:"agenda"});
 }
 export function agendaPlekLezen(){const p=agendaPlek;agendaPlek=null;return p;}
-if(typeof window!=="undefined")window.addEventListener("assistent-sessie",()=>{kaartBestemming=null;agendaPlek=null;gesprekGevraagd=null;berichtGevraagd=null;kaartVerzoek=false;winkelAppVerzoek=false;});
+if(typeof window!=="undefined")window.addEventListener("assistent-sessie",()=>{studioVraag=null;kaartBestemming=null;agendaPlek=null;gesprekGevraagd=null;berichtGevraagd=null;kaartVerzoek=false;winkelAppVerzoek=false;});

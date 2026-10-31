@@ -1,0 +1,10 @@
+import {afterEach,expect,it,vi} from "vitest";
+import {alsIk} from "../api";
+import {eventGegevens,ticketCode,ticketQR,ticketControleren,ticketsInstellen} from "./tickets";
+vi.mock("../api",async o=>({...await o<object>(),alsIk:vi.fn()}));
+afterEach(()=>{vi.resetAllMocks();});
+const code="a".repeat(64),payload=ticketQR(42,code);
+it("accepteert alleen het eigen ticketformaat en het gekozen evenement",async()=>{expect(ticketCode(payload)).toEqual({evenement:42,code});for(const v of ["https://extern.invalid/"+payload,"javascript:alert(1)",payload+"\nextra",payload.replace(code,"kort")])expect(ticketCode(v)).toBeNull();await expect(ticketControleren(41,payload,"opdracht")).rejects.toThrow("gekozen evenement");expect(alsIk).not.toHaveBeenCalled();});
+it("vraagt standaard alleen controle en zet toegang alleen na expliciete keuze",async()=>{vi.mocked(alsIk).mockResolvedValue({status:"geldig"});await ticketControleren(42,payload,"zelfde");expect(alsIk).toHaveBeenLastCalledWith("event_ticket_controleren",expect.objectContaining({p_toelaten:false,p_event:42,p_code:code}));await ticketControleren(42,payload,"zelfde",true);expect(alsIk).toHaveBeenLastCalledWith("event_ticket_controleren",expect.objectContaining({p_toelaten:true,p_opdracht:"zelfde"}));});
+it("accepteert lege serverantwoorden niet als toegang of bewaarde instellingen",async()=>{vi.mocked(alsIk).mockResolvedValue({});await expect(ticketControleren(42,payload,"zelfde",true)).rejects.toThrow("niet bevestigd");await expect(ticketsInstellen(42,{versie:1,open:true,iedereen:false,capaciteit:100})).rejects.toThrow("niet bevestigd");});
+it("valideert evenementtype en werkelijke begin- en eindtijd",()=>{const p={event_type:"workshop" as const,groep:1,titel:"Workshop",start:"2030-03-01T12:00",einde:"2030-03-01T14:00",plaats:"Zaal",notitie:"Programma"};expect(eventGegevens(p)).toMatchObject({event_type:"workshop",soort:"evenement"});expect(()=>eventGegevens({...p,event_type:"onbekend"}as never)).toThrow("type");expect(()=>eventGegevens({...p,einde:p.start})).toThrow("eindtijd");expect(()=>eventGegevens({...p,start:"2030-02-30T12:00"})).toThrow();});

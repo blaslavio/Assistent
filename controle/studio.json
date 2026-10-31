@@ -1,0 +1,83 @@
+{
+  "gemaakt_op": "2026-10-31T21:41:35.695303+00:00",
+  "scope": "Studio: winkel en evenementen, zestien gereedschappen, deellinks, tien eventtypes en gratis tickets met toegangscontrole",
+  "webtests": {
+    "geslaagd": 377,
+    "bestanden": 86
+  },
+  "databasetests": {
+    "geslaagd": 64,
+    "nieuwe_studio_tests": 17,
+    "database": "geïsoleerde PostgreSQL 17"
+  },
+  "builds": [
+    "docs/app",
+    "nieuwe_app"
+  ],
+  "browsercontrole": {
+    "mobiel": [
+      390,
+      844
+    ],
+    "extra_breedtes": [
+      320,
+      1024
+    ],
+    "studio_onder_een_kopje": true,
+    "eventtype_bewaard": true,
+    "event_na_bevestiging": true,
+    "qr_lokaal_getekend_en_gedecodeerd": true,
+    "toegang_na_bevestiging": true,
+    "tweede_scan_geweigerd": true,
+    "deellinks_zonder_ticketcode": true,
+    "gedeelde_ticketpagina_geopend": true,
+    "horizontale_overloop": false,
+    "werkelijke_nieuwe_ticket_RPCS_op_lokale_postgres": true,
+    "bootstrap_en_bestaande_winkeldata_fixture": true,
+    "camera_hardware_getest": false,
+    "productiegegevens": false,
+    "database": {
+      "events": 1,
+      "toegang": 1,
+      "uitgegeven": 1
+    }
+  },
+  "productie_afhankelijkheden_kwetsbaarheden": 0,
+  "databasemigratie_nodig": "sql/studio_tickets.sql",
+  "productiemigratie_toegepast": false,
+  "livepublicatie_bevestigd": false,
+  "betaalde_tickets": false,
+  "bron_sha256": {
+    ".github/workflows/project-checks.yml": "a6d4b54f8fa0ea45f98d1df75b3dbc842142ea109f6587c4f74b27d8960e1f8e",
+    "BEDIENING.md": "4dc42559f2da8c1f951c7e0ca8db1d0d49922719d53bacda4a443a14a9aa237c",
+    "STUDIO.md": "cd78fcbfbbf82633d696555d351a687fb1134c9f272435afdec67f4330e08efd",
+    "sql/studio_tickets.sql": "33cc7bbaec0ae5992642dffa6038faec6c8845b703046e4758a9b8afc6ce69eb",
+    "test_studio_tickets.py": "a9542c804b0a3997a0523586ad3fcde21d37074e80a2e6764a06a24d2a63eb10",
+    "web/package-lock.json": "2363eb861b7db89de8930441bd6f0cfbe0f43daf01f43d361bce4e6c4ab40271",
+    "web/package.json": "054975a36addb391358fc4e1b497b45a3efdc6f3d8d105f62b9eb3acb2ce9821",
+    "web/src/App.tsx": "a7974ac5da7b00a9dc5a132b887c7d95a1aafa3a8ca1d4e7766febc38bb1a7eb",
+    "web/src/lib/assistent.ts": "001a19e52aff26c4994bce968fe0c44b2f5b504e9dc9916277c06349008a1bfe",
+    "web/src/lib/assistentStudio.test.ts": "7892df3bb82ecf63da146a0e7984d2e5570d343e4355e96f3141f79078e51783",
+    "web/src/lib/mijnwinkel.ts": "37dc0949f6011b1b608a557895e2638ef7fd4b4dc323fc574614eade166fb22c",
+    "web/src/lib/naar.ts": "a338121b962afa748dab3efb214a0e4d6a34ff33a42ea3f12f628cd404422f91",
+    "web/src/lib/onderdeel-lijst.ts": "33bf17970aafd483be1201773d134560e36c6f7748e71db3c20e123fcf354056",
+    "web/src/lib/studio.test.ts": "b3f81be0e33d37cac32d0a00633de69947bbd24d4ca69600f705cd21ba2b6e32",
+    "web/src/lib/studio.ts": "afcb6c23cbfecdb1a761089cde9a7f0379a5897cf1125a373fbe7ebf5a079c78",
+    "web/src/lib/tickets.test.ts": "3491fd9f57d0f5179e7180fdd1c837841d10e4beacbd0027e14d64a0d5912766",
+    "web/src/lib/tickets.ts": "30c8d8ee6649ce017f1f8ce4022208fd4b22a4ac5b9001fc71505d0093b5ebaf",
+    "web/src/schermen/ClubAgenda.tsx": "eb6a39490a71004a97d5dae0639e4d82f8d16f476258933a7c97c48b3e44de2d",
+    "web/src/schermen/EventBouwer.test.tsx": "3dcc4633f15e649f4e8834500e0bad361980eb123c214fd7040736c0895d23e8",
+    "web/src/schermen/EventBouwer.tsx": "57a1152aefce9a529c23cbca3ca982ae2eb734ce46fd70566c973288ad38c2fd",
+    "web/src/schermen/MijnWinkel.tsx": "f9539004b598d2cb733e7f6ff6a18d9357617a24ebb18f714b963c27ff1468d9",
+    "web/src/schermen/Onderdelen.tsx": "9928bb2a1982afa9ffae4280c10eb8629e7e3923f17f1d0186a14a37c523695d",
+    "web/src/schermen/Studio.test.tsx": "ed1c9977d19489b828442c75d4a5d82da1e16e1e355e31c715eae91ee1fb5a27",
+    "web/src/schermen/Studio.tsx": "2cfc6e8360c13af80d19372c732008becc59ee697b1e7f538a4cc91b6c96dc9a",
+    "web/src/schermen/StudioDelen.test.tsx": "ef31b1f1033d3f654cf29f9a3dbe7343ed8abe67faa3f4c0d23f0b93f10641c9",
+    "web/src/schermen/StudioDelen.tsx": "09f6f22e211218316427c7d798360f538042a6cdc80bf212393ff04a4e3599be",
+    "web/src/schermen/TicketDesk.tsx": "0a591f62a6ad718ecd85f68f5a3fdf4a36ac8b6d39831fd722a329dbe05c2a6e",
+    "web/src/schermen/TicketScanner.test.tsx": "4e01e24521ff2eff8cf47f2eefc38feef24b037683fafdf4ccafa7b7573e648e",
+    "web/src/schermen/TicketScanner.tsx": "797dc5a101dbf6d99e91afc338550d3359a038319aa2e502e8825acbcdf9e76e",
+    "web/src/schermen/Werkruimte.tsx": "bdb32fe5ac22e149fc36eba9f682bafe46c11d635010aa88d8df8324c6916463",
+    "web/src/schermen/useStudioSessie.ts": "75fa58bc90d449d75f83c0c281a79339bbfb354a9233da44c1d145453bb10b8d"
+  }
+}

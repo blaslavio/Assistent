@@ -1,0 +1,10 @@
+import {cleanup,fireEvent,render,screen} from "@testing-library/react";
+import {afterEach,expect,it,vi} from "vitest";
+import EventBouwer from "./EventBouwer";
+import {eventMaken} from "../lib/tickets";
+const sessie=vi.hoisted(()=>({naam:"host",token:"fixture"}));
+vi.mock("../api",async o=>({...await o<object>(),huidigeSessie:()=>sessie}));
+vi.mock("../lib/chat",async o=>({...await o<object>(),overzicht:async()=>({gesprekken:[],communities:[{id:1,naam:"Mijn groep",status:"lid",rol:"eigenaar"}]})}));
+vi.mock("../lib/tickets",async o=>({...await o<object>(),eventMaken:vi.fn()}));
+afterEach(()=>{cleanup();vi.clearAllMocks();});
+it("bewaart eventtype en invoer tussen stappen en schrijft pas na het voorbeeld",async()=>{vi.mocked(eventMaken).mockResolvedValue({id:42});const klaar=vi.fn();render(<EventBouwer klaar={klaar}/>);await screen.findByRole("option",{name:"Mijn groep"});fireEvent.change(screen.getByLabelText("Groep"),{target:{value:"1"}});fireEvent.change(screen.getByLabelText("Type evenement"),{target:{value:"festival"}});fireEvent.change(screen.getByLabelText("Naam evenement"),{target:{value:"Ons festival"}});fireEvent.click(screen.getByRole("button",{name:"Verder naar programma"}));fireEvent.change(screen.getByLabelText("Locatie"),{target:{value:"Testpark"}});fireEvent.click(screen.getByRole("button",{name:"Terug naar basis"}));expect((screen.getByLabelText("Type evenement")as HTMLSelectElement).value).toBe("festival");fireEvent.click(screen.getByRole("button",{name:"Verder naar programma"}));expect((screen.getByLabelText("Locatie")as HTMLInputElement).value).toBe("Testpark");fireEvent.click(screen.getByRole("button",{name:"Bekijk het voorbeeld"}));expect(eventMaken).not.toHaveBeenCalled();fireEvent.click(screen.getByRole("button",{name:"Bevestig evenement"}));await screen.findByText("Ons festival");await vi.waitFor(()=>expect(klaar).toHaveBeenCalledWith(1,42));expect(eventMaken).toHaveBeenCalledWith(expect.objectContaining({event_type:"festival",titel:"Ons festival",groep:1}),expect.any(String));});

@@ -63,13 +63,9 @@ export const verkoperWorden = () => doe("niveau_instellen", { p_niveau: "verkope
 
 /** De link om te delen. Op Streamlit is dat het adres van het venster eromheen. */
 export function winkelLink(adres: string) {
-  let basis = location.origin + location.pathname;
-  try {
-    basis = window.top!.location.origin + "/";
-  } catch {
-    /* ander adres */
-  }
-  return `${basis}?winkel=${adres}`;
+  if(!/^[a-z0-9][a-z0-9-]{2,29}$/.test(adres))throw new Error("Ongeldig winkeladres.");
+  let url:URL;try{url=new URL(window.top!.location.href);}catch{url=new URL(location.href);}
+  url.search="";url.hash="";url.searchParams.set("winkel",adres);return url.toString();
 }
 
 // Een gedeelde winkellink (?winkel=adres) opent die winkel in de app, ook na het inloggen.

@@ -1,0 +1,11 @@
+import {cleanup,fireEvent,render,screen} from "@testing-library/react";
+import {afterEach,expect,it,vi} from "vitest";
+import StudioDelen from "./StudioDelen";
+const sessie=vi.hoisted(()=>({naam:"host",token:"fixture"}));
+vi.mock("../api",async o=>({...await o<object>(),huidigeSessie:()=>sessie}));
+vi.mock("../lib/mijnwinkel",async o=>({...await o<object>(),mijnWinkel:async()=>({winkel:{naam:"Mijn shop",adres:"mijn-shop",open:false}})}));
+vi.mock("../lib/chat",async o=>({...await o<object>(),overzicht:async()=>({gesprekken:[],communities:[{id:1,naam:"Mijn groep",status:"lid"}]})}));
+vi.mock("../lib/club",async o=>({...await o<object>(),agenda:async()=>({activiteiten:[{id:42,titel:"Festival",soort:"evenement"}]})}));
+vi.mock("../lib/tickets",()=>({studioEvenementen:async()=>[{id:42,titel:"Festival",event_type:"festival"}],ticketStand:async()=>({evenement:{event_type:"festival"},instellingen:{open:true,iedereen:true}})}));
+afterEach(()=>{cleanup();vi.clearAllMocks();});
+it("toont winkel-, evenement- en ticketlinks met de juiste toegang en type",async()=>{const kopieer=vi.fn().mockResolvedValue(undefined);Object.defineProperty(navigator,"clipboard",{configurable:true,value:{writeText:kopieer}});render(<StudioDelen/>);await screen.findByLabelText("Je winkel link");expect(screen.getByText(/Je winkel is nog gesloten/)).toBeTruthy();await screen.findByRole("option",{name:"Mijn groep"});fireEvent.change(screen.getByLabelText("Groep"),{target:{value:"1"}});await screen.findByRole("option",{name:"Festival"});fireEvent.change(screen.getByLabelText("Evenement"),{target:{value:"42"}});await screen.findByText("Type evenement: Festival");expect((screen.getByLabelText("Ticketpagina link")as HTMLInputElement).value).toContain("ticket_event=42");expect((screen.getByLabelText("Evenementpagina link")as HTMLInputElement).value).toContain("evenement=42");fireEvent.click(screen.getAllByRole("button",{name:"Kopieer link"})[2]);await screen.findByText("Link gekopieerd.");expect(kopieer).toHaveBeenCalledWith(expect.stringContaining("ticket_event=42"));});

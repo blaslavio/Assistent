@@ -20,14 +20,14 @@ const zachteKnop = "h-10 rounded-full bg-vlak px-4 text-sm font-medium";
 export const kanInWinkel = (p: EigenProduct) =>
   p.betaalwijzen.includes("app") && p.levering.some((l) => l === "verzenden" || l === "ophalen");
 
-export function MijnWinkel({ bekijk }: { bekijk: (adres: string) => void }) {
+export function MijnWinkel({ bekijk,start }: { start?:"winkel"|"ontwerp"|"voorbeeld"|"voorraad"|"levering"|"contact";bekijk: (adres: string) => void }) {
   const [g, setG] = useState<Gegevens | null>(null);
   const [fout, setFout] = useState("");
-  const [bouwen, setBouwen] = useState(false);
-  const [contact, setContact] = useState(false);
-  const [instellen, setInstellen] = useState(false);
+  const [bouwen, setBouwen] = useState(start==="winkel");
+  const [contact, setContact] = useState(start==="contact");
+  const [instellen, setInstellen] = useState(start==="levering");
   const [melding, setMelding] = useState("");
-  const [ontwerpen, setOntwerpen] = useState<"bewerken" | "voorbeeld" | null>(null);
+  const [ontwerpen, setOntwerpen] = useState<"bewerken" | "voorbeeld" | null>(start==="ontwerp"?"bewerken":start==="voorbeeld"?"voorbeeld":null);
 
   const laden = useCallback(() => {
     mijnWinkel().then(setG).catch((e) => setFout(foutVan(e)));
@@ -50,6 +50,8 @@ export function MijnWinkel({ bekijk }: { bekijk: (adres: string) => void }) {
       </>
     );
   }
+
+  if(start==="voorraad")return <section aria-label="Producten en voorraad"><Producten producten={g.producten} bijgewerkt={laden}/></section>;
 
   async function openZetten(open: boolean) {
     setMelding("");

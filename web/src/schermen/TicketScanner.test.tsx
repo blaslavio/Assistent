@@ -1,0 +1,15 @@
+import {act,cleanup,fireEvent,render,screen,waitFor} from "@testing-library/react";
+import {afterEach,expect,it,vi} from "vitest";
+import TicketScanner from "./TicketScanner";
+import BewaarScherm from "./BewaarScherm";
+import {ticketControleren,ticketQR} from "../lib/tickets";
+const camera=vi.hoisted(()=>({decode:vi.fn(),stop:vi.fn()}));
+const sessie=vi.hoisted(()=>({naam:"scan",token:"fixture"}));
+vi.mock("../api",async o=>({...await o<object>(),huidigeSessie:()=>sessie}));
+vi.mock("../lib/tickets",async o=>({...await o<object>(),ticketControleren:vi.fn()}));
+vi.mock("@zxing/browser",()=>({BrowserQRCodeReader:class{decodeFromConstraints=camera.decode;}}));
+afterEach(()=>{cleanup();vi.resetAllMocks();});
+const code=ticketQR(42,"a".repeat(64));
+it("start camera niet vanzelf en geeft pas na bevestiging toegang",async()=>{vi.mocked(ticketControleren).mockResolvedValueOnce({status:"geldig",naam:"Bezoeker"}).mockResolvedValueOnce({status:"toegelaten",naam:"Bezoeker"});const gewijzigd=vi.fn();render(<TicketScanner evenement={42} gewijzigd={gewijzigd}/>);expect(camera.decode).not.toHaveBeenCalled();fireEvent.change(screen.getByLabelText("Ticketcode"),{target:{value:code}});fireEvent.click(screen.getByRole("button",{name:"Ticket controleren"}));await screen.findByText("Ticket geldig · nog niet toegelaten");expect(ticketControleren).toHaveBeenCalledTimes(1);expect(gewijzigd).not.toHaveBeenCalled();fireEvent.click(screen.getByRole("button",{name:"Toegang bevestigen"}));await screen.findByText("Toegang bevestigd");const calls=vi.mocked(ticketControleren).mock.calls;expect(calls[0][2]).toBe(calls[1][2]);expect(calls[1][3]).toBe(true);expect(gewijzigd).toHaveBeenCalledOnce();});
+it("laat een gebruikt ticket of een fout nooit als nieuwe toegang zien",async()=>{vi.mocked(ticketControleren).mockResolvedValueOnce({status:"al_binnen"});render(<TicketScanner evenement={42} gewijzigd={vi.fn()}/>);fireEvent.change(screen.getByLabelText("Ticketcode"),{target:{value:code}});fireEvent.click(screen.getByRole("button",{name:"Ticket controleren"}));await screen.findByText("Al gebruikt · geen tweede toegang");expect(screen.queryByRole("button",{name:"Toegang bevestigen"})).toBeNull();vi.mocked(ticketControleren).mockRejectedValueOnce(new Error("Geen internet"));fireEvent.click(screen.getByRole("button",{name:"Ticket controleren"}));await screen.findByRole("alert");expect(screen.queryByText("Toegang bevestigd")).toBeNull();});
+it("stopt de camera als de gebruiker naar een andere hoofdplek gaat",async()=>{camera.decode.mockResolvedValue({stop:camera.stop});const beeld=(actief:boolean)=><BewaarScherm actief={actief} naam="Studio"><TicketScanner evenement={42} gewijzigd={vi.fn()}/></BewaarScherm>;const r=render(beeld(true));fireEvent.click(screen.getByRole("button",{name:"Scan met camera"}));await waitFor(()=>expect(camera.decode).toHaveBeenCalledOnce());await act(async()=>{await Promise.resolve();});r.rerender(beeld(false));expect(camera.stop).toHaveBeenCalled();});

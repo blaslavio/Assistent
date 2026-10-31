@@ -1,6 +1,6 @@
 // De onderdelen uit de vorige app: boodschappen, kooplijst, wenslijst, notities, documenten, budget en leren.
 // Lijstjes staan in je gegevens (dezelfde plek als in de vorige app); documenten en uitgaven hebben eigen tabellen.
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { lazy, Suspense,useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { alsIk, bijwerken, instellingenBijwerken, type Gegevens } from "../api";
 import { BankKoppeling } from "./Bank";
 import { AfschriftFout, afschriftLezen, categorieRaden, decoderen, metSleutels } from "../lib/afschrift";
@@ -18,6 +18,7 @@ import { LijstVergelijken, ProductZoeken } from "./Prijsvergelijk";
 import { ONDERDELEN, type OnderdeelNaam } from "../lib/onderdeel-lijst";
 export { ONDERDELEN, type OnderdeelNaam };
 
+const Studio=lazy(()=>import("./Studio"));
 const foutVan = (e: unknown) => (e instanceof Error && e.message ? e.message : "Dat lukte niet. Probeer het opnieuw.");
 const veld = "h-12 min-w-0 flex-1 rounded-2xl bg-vlak px-4 outline-none placeholder:text-zacht";
 const knop = "flex h-12 shrink-0 items-center justify-center rounded-2xl bg-accent px-4 font-medium text-white disabled:opacity-30";
@@ -41,6 +42,7 @@ function Scherm({ titel, terug, terugNaam = "Instellingen", children, rechts }: 
 export function Onderdeel({ naam, staat, vernieuw, terug, terugNaam, vraag }: { naam: OnderdeelNaam; staat: Staat;
   vernieuw: () => Promise<void>; terug: () => void; terugNaam?: string; vraag: (tekst: string) => void }) {
   const titel = ONDERDELEN.find(([id]) => id === naam)![1];
+  if(naam==="studio")return <Suspense fallback={<p role="status" className="p-6">Studio laden…</p>}><Studio staat={staat} vernieuw={vernieuw} terug={terug}/></Suspense>;
   if (naam === "documenten") return <Documenten terug={terug} terugNaam={terugNaam} />;
   if (naam === "sport") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Sport staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
   if (naam === "leren") return <Scherm titel={titel} terug={terug} terugNaam={terugNaam}><Leren staat={staat} vernieuw={vernieuw} vraag={vraag} /></Scherm>;
@@ -56,7 +58,7 @@ export function Onderdeel({ naam, staat, vernieuw, terug, terugNaam, vraag }: { 
 type Item = { id: number; tekst?: string; naam_product?: string; titel?: string; prijs?: number | null; gekocht?: boolean };
 const tekstVan = (i: Item) => i.tekst ?? i.naam_product ?? i.titel ?? "";
 
-function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documenten" | "budget" | "beleggen" | "leren" | "sport" | "zakelijk" | "huishouden">; data: Gegevens;
+function Lijst({ naam, data, vernieuw }: { naam: Exclude<OnderdeelNaam, "documenten" | "budget" | "beleggen" | "leren" | "sport" | "zakelijk" | "huishouden" | "studio">; data: Gegevens;
   vernieuw: () => Promise<void> }) {
   const [invoer, setInvoer] = useState("");
   const [notitie, setNotitie] = useState<Item | null>(null);

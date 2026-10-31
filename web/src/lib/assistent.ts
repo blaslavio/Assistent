@@ -1,3 +1,4 @@
+import {STUDIO_TOOLS,studioVerzoek} from "./studio";
 import { privacyVoorbeeld } from "./projectprivacy";
 // De assistent in de nieuwe app: Claude met hulpmiddelen voor je agenda, taken en geheugen, en zoeken op internet.
 // Met je eigen Anthropic-sleutel praat de app rechtstreeks met Claude; anders via de functie `ai` van het platform,
@@ -83,6 +84,7 @@ Werkwijze:
   sportdoel_maken. Geef geen medisch advies; bij pijn of klachten verwijs je naar een huisarts of fysiotherapeut.
 - Mail: met mail_bekijken lees je de inbox. Een antwoord of nieuwe mail zet je klaar met mail_opstellen; de gebruiker
   verstuurt zelf. Schrijf nooit iets wat je niet zeker weet (data, bedragen, toezeggingen).
+- Winkel en evenementen bouwen of tickets scannen: gebruik studio_openen. Dit opent alleen een gereedschap; de gebruiker controleert en bevestigt wijzigingen zelf.
 - Kaart: gebruik kaart_openen om een bestemming klaar te zetten. Zoeken en navigatie starten pas door de gebruiker.
 - Vakantie en particuliere verhuur: open vakantie_openen voor privéplannen, verblijf zoeken en je woning aanbieden.
   Boek, bevestig of betaal nooit zelf een verblijf. De gebruiker controleert de aanvraag en voorwaarden in dat scherm.
@@ -103,6 +105,7 @@ const tekst = (beschrijving: string) => ({ type: "string", description: beschrij
 
 type Hulpmiddel = { name: string; description: string; input_schema: Schema };
 const LIJST: Hulpmiddel[] = [
+  { name: "studio_openen", description: "Open een eigen Studio-gereedschap voor winkelbouw, ontwerp, producten, voorraad, bestellingen, evenementen, gratis tickets, QR-scannen of scanteam. Dit publiceert niets, maakt geen ticket, scant niets en betaalt niets automatisch.", input_schema: { type: "object", properties: { gereedschap: { type: "string", enum: STUDIO_TOOLS.map(t=>t.id) }, evenement: { type: "integer", minimum: 1 }, groep: { type: "integer", minimum: 1 } }, required: ["gereedschap"] } },
   { name: "kaart_openen", description: "Open de centrale kaart en zet eventueel een adres klaar. Zoekt niet automatisch, deelt geen adres met een kaartdienst en plant niets in.", input_schema: { type: "object", properties: { adres: { type: "string", description: "Optioneel adres of plaats om klaar te zetten" } } } },
   { name: "vakantie_openen", description: "Open Vakantie en verblijf in de agenda. Voor een vakantieplan, particuliere woning aanbieden of verblijf zoeken. Reserveert niets en leest geen privéplannen voor AI.", input_schema: { type: "object", properties: {} } },
   {
@@ -545,6 +548,10 @@ export function uitgavenOverzicht(regels: Regel[]) {
 export async function uitvoeren(naam: string, v: Record<string, unknown>): Promise<Uitkomst> {
   const s = (k: string) => (typeof v[k] === "string" ? (v[k] as string).trim() : "");
   switch (naam) {
+    case "studio_openen": {
+      const p=studioVerzoek({tool:s("gereedschap"),evenement:v.evenement,groep:v.groep});if(!p)return{resultaat:"Kies een geldig Studio-gereedschap."};
+      const {studioOpenen}=await import("./naar");studioOpenen(p);return{resultaat:`${STUDIO_TOOLS.find(t=>t.id===p.tool)!.naam} geopend. De gebruiker controleert en bevestigt zelf. Er is niets gepubliceerd, uitgegeven of betaald.`};
+    }
     case "kaart_openen": {
       const { kaartOpenen, kaartBestemmingOpenen } = await import("./naar");
       const { kaartContext } = await import("./kaartverbinding");
@@ -1008,6 +1015,7 @@ export function zonderLabels(t: string) {
 }
 
 export const BEZIG: Record<string, string> = {
+  studio_openen:"Opent een Studio-gereedschap",
   kaart_openen: "Opent de kaart en zet een bestemming klaar",
   vakantie_openen: "Opent Vakantie en verblijf",
   agenda_bekijken: "Kijkt in je agenda", taken_bekijken: "Kijkt naar je taken", afspraak_toevoegen: "Zet het in je agenda",

@@ -2,7 +2,7 @@ name: Project privacy and integration
 on:
   push:
     branches: [main]
-    paths: ['web/**', 'sql/project_archief.sql', 'test_project_archief.py', 'test_nieuwe_integraties.py', 'test_vakantie_verhuur.py', 'sql/vakantie_verhuur.sql', 'sql/extern_inloggen.sql', 'sql/winkel_contact.sql', 'sql/evenementpagina.sql', 'sql/community_agenda.sql', 'os_release_evidence.py', 'tests/test_os_release_evidence.py', '.github/workflows/project-checks.yml']
+    paths: ['web/**', 'sql/project_archief.sql', 'test_project_archief.py', 'test_nieuwe_integraties.py', 'test_vakantie_verhuur.py', 'sql/vakantie_verhuur.sql', 'sql/extern_inloggen.sql', 'sql/winkel_contact.sql', 'sql/evenementpagina.sql', 'sql/studio_tickets.sql', 'test_studio_tickets.py', 'sql/community_agenda.sql', 'os_release_evidence.py', 'tests/test_os_release_evidence.py', '.github/workflows/project-checks.yml']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -44,7 +44,7 @@ jobs:
           done
           exit 1
       - name: Test archive access, limits and repeat requests
-        run: python -m unittest -v test_project_archief test_nieuwe_integraties test_vakantie_verhuur
+        run: python -m unittest -v test_project_archief test_nieuwe_integraties test_vakantie_verhuur test_studio_tickets
       - name: Remove test database
         if: always()
         run: docker rm -f project-privacy-db

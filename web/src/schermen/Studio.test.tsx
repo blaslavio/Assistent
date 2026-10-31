@@ -1,0 +1,12 @@
+import {act,cleanup,fireEvent,render,screen} from "@testing-library/react";
+import {afterEach,expect,it,vi} from "vitest";
+import Studio from "./Studio";
+import {studioOpenen} from "../lib/naar";
+vi.mock("./MijnWinkel",()=>({MijnWinkel:({start}:{start:string})=><p>Winkelgereedschap {start}</p>}));
+vi.mock("./TicketDesk",()=>({default:({start}:{start:{tool:string;evenement?:number}})=><p>Ticketgereedschap {start.tool} {start.evenement}</p>}));
+vi.mock("./StudioDelen",()=>({default:()=> <p>Winkel- en evenementlinks samen</p>}));
+afterEach(()=>{cleanup();window.dispatchEvent(new Event("assistent-sessie"));history.replaceState(null,"","/");});
+const props={staat:{gebruiker:{id:1,naam:"test"},data:{taken:[],afspraken:[],volgend_id:1}},vernieuw:vi.fn(),terug:vi.fn()};
+it("houdt beide bouwers en deellinks onder Studio, met ingeklapte extra gereedschappen",async()=>{render(<Studio {...props}/>);expect(screen.getByRole("button",{name:"Winkel bouwen"})).toBeTruthy();expect(screen.getByRole("button",{name:"Evenement bouwen"})).toBeTruthy();expect(screen.getByRole("button",{name:"Deellinks"})).toBeTruthy();expect(screen.getByText("Tickets en toegang").closest("details")?.open).toBe(false);fireEvent.change(screen.getByRole("searchbox"),{target:{value:"ontwerp"}});fireEvent.click(screen.getByRole("button",{name:/Winkel ontwerpen/}));await screen.findByText("Winkelgereedschap ontwerp");});
+it("opent een doelgericht gereedschap ook als Studio al bezocht is",async()=>{render(<Studio {...props}/>);act(()=>studioOpenen({tool:"scannen",evenement:42}));await screen.findByText("Ticketgereedschap scannen 42");});
+it("neemt een gedeelde ticketpagina na inloggen over en ruimt alleen die adresparameter op",async()=>{history.replaceState(null,"","/?ticket_event=42&schil=1");render(<Studio {...props}/>);await screen.findByText("Ticketgereedschap tickets 42");expect(location.search).toBe("?schil=1");});

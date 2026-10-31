@@ -16,6 +16,12 @@ Verborgen chatgesprekken stoppen met berichten ophalen en bevestigen late antwoo
 
 Bij een tekstbericht kun je via **Acties bij bericht** een persoonlijke taak voorbereiden, titel en datum controleren en de opslag bevestigen. In Vandaag en Taken brengt **Naar bronbericht** je terug bij de precieze bron. Werkruimte begint met **Verdergaan waar je was**: recente persoonlijke apps en projecten waarvoor je nog toegang hebt. De rest blijft daaronder bereikbaar. De opslag-, privacy- en controlegrenzen staan in [BERICHT_NAAR_TAAK.md](BERICHT_NAAR_TAAK.md).
 
+## Studio voor winkel en evenementen
+
+In Werkruimte staan **Winkel en evenementen onder één kopje: Studio**. Winkel bouwen, Evenement bouwen, Tickets scannen en Deellinks zijn directe ingangen. De overige gereedschappen blijven ingeklapt en doorzoekbaar. De evenementbouwer toont één stap tegelijk, met Terug en een laatste bevestiging. Het gekozen evenementtype wordt opgeslagen. Deellinks toont de winkel-, evenement- en ticketpagina met uitleg over de doelgroep; een persoonlijke ticketcode wordt niet als openbare link gedeeld.
+
+De nieuwe gratis ticketbackend vereist nog toepassing van `sql/studio_tickets.sql` op de doelserver. Wat al werkt, de controles en de grenzen staan in [STUDIO.md](STUDIO.md).
+
 ## Eén volgende stap
 
 De projectwerkruimte heet in de bediening **Samen aan het werk**. Direct zichtbaar zijn **Overzicht**, **Stappen** en **Toevoegen**. Onder het doorzoekbare **Meer** staan Aanpak, Planning, Voorwaarden, Werkdruk, Wijzigingen, Oefenen, Overdracht, Privacy en Assistent. Dit zijn andere labels voor dezelfde functies; de onderliggende projectberichten zijn niet gewijzigd.

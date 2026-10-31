@@ -1,3 +1,4 @@
+import { ticketAdres } from "./lib/studio";
 import { isExterneTerugkomst } from "./lib/externAanmelden";
 import HoofdNavigatie from "./schermen/HoofdNavigatie";
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -38,6 +39,7 @@ const BOEK = boekAdres();
 const PROFIEL = profielAdres();
 // Terug van inloggen bij een sportapp (?state=gz....): meteen naar Sport en gezondheid, daar wordt het afgemaakt.
 const SPORT_TERUG = !!terugkomst();
+const TICKET_EVENT=ticketAdres();
 const BOEKING = boekingCode();
 // Stemmen op een datum via een gedeelde link (?prik=code), ook zonder account.
 const PRIK = prikCode();
@@ -107,7 +109,7 @@ export default function App() {
   const [klaar, setKlaar] = useState(false);
   const [staat, setStaat] = useState<Staat | null>(null);
   const gebruikWerkplek=useWerkplekken(staat,setStaat);
-  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL || CURSUS || CURSUSLINK ? "chat" : ZEG ? "assistent" : BANK || SPORT_TERUG ? "projecten" : "vandaag");
+  const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL || CURSUS || CURSUSLINK ? "chat" : ZEG ? "assistent" : BANK || SPORT_TERUG || TICKET_EVENT ? "projecten" : "vandaag");
   const [voorafVraag, setVooraf] = useState(ZEG);
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [voorAssistent, setVoorAssistent] = useState<Tab>("vandaag");
@@ -123,7 +125,7 @@ export default function App() {
   const [voorChat, setVoorChat] = useState<Tab>("vandaag");
   // Een onderdeel dat je via "Je apps" opent; het getal laat Instellingen weten dat het opnieuw gevraagd is.
   const [startOnderdeel, setStartOnderdeel] = useState<{ naam: OnderdeelNaam; n: number } | null>(
-    BANK ? { naam: "budget", n: 1 } : SPORT_TERUG ? { naam: "sport", n: 1 } : null);
+    TICKET_EVENT?{naam:"studio",n:1}:BANK ? { naam: "budget", n: 1 } : SPORT_TERUG ? { naam: "sport", n: 1 } : null);
   const setTab = (t: Tab) => {
     if(t==="vandaag"||t==="agenda")setDagDeel(t);
     // Instellingen en de assistent leggen zich over een scherm heen; sluiten brengt je terug waar je was.
