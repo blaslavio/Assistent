@@ -7,6 +7,7 @@
 // Wie je bent, staat in de kop x-api-key: "abo." + base64(JSON [naam, wachtwoord of sessie]).
 
 import { openaiAntwoord } from "./openai.ts";
+import { authorizeAction } from "../_shared/action_policy.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -122,6 +123,27 @@ export async function verwerk(verzoek: Request): Promise<Response> {
     if (tekst.length > MAX_GROOTTE) return fout(413, "Dit is te groot.", "request_too_large");
     const body = JSON.parse(tekst);
     if (!MODELLEN.has(body.model)) return fout(400, "Dit model is niet beschikbaar.");
+    // Do not let the generic AI proxy become an implicit action executor.
+    // Actor identity comes from the authenticated server-side RPC, never from the request body.
+    // Actual writes require a separate server endpoint with replay-safe idempotency persistence.
+    if (body.assistant_action !== undefined) {
+      const action = body.assistant_action;
+      if (!action || typeof action !== "object" || Array.isArray(action) ||
+          typeof action.action !== "string" || typeof action.resourceOwnerId !== "string") {
+        return fout(400, "Ongeldige assistentactie.");
+      }
+      const decision = authorizeAction({
+        action: action.action,
+        actorId: String(id),
+        resourceOwnerId: action.resourceOwnerId,
+        confirmed: action.confirmed === true,
+        idempotencyKey: action.idempotencyKey,
+      });
+      if (!decision.allowed) return fout(403, "Assistentactie niet toegestaan.");
+      // This endpoint only serves model messages. Never forward action metadata to AI providers
+      // or claim an action was executed here, even when authorization would permit it.
+      return fout(409, "Acties vereisen een afzonderlijk, beveiligd uitvoeringsendpoint.");
+    }
     body.max_tokens = Math.min(Number(body.max_tokens) || 4096, 32000);
 
     const claudeSleutel = Deno.env.get("ANTHROPIC_API_KEY") || toegang.sleutel;
