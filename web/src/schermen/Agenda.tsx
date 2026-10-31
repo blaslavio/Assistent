@@ -64,6 +64,7 @@ export default function Agenda({ staat, setStaat, ingebed }: Props) {
   useEffect(()=>{const open=()=>{const p=agendaPlekLezen();if(p){setKaartplek(p);setPaneel(null);setNieuw(true);}};window.addEventListener("agenda-kaartplek",open);return()=>window.removeEventListener("agenda-kaartplek",open);},[]);
   const [open, setOpen] = useState<Afspraak | null>(null);
   const [paneel, setPaneel] = useState<Paneel | null>(bewaardPaneel);
+  const [meerOpen,setMeerOpen]=useState(false);
   useEffect(() => { const open = () => setPaneel("evenementen"); window.addEventListener("agenda-evenementen", open); return () => window.removeEventListener("agenda-evenementen", open); }, []);
   useEffect(() => { const open = () => setPaneel("vakanties"); window.addEventListener("agenda-vakanties", open); return () => window.removeEventListener("agenda-vakanties", open); }, []);
   const [telStemmen, setTelStemmen] = useState(0);
@@ -77,6 +78,7 @@ export default function Agenda({ staat, setStaat, ingebed }: Props) {
 
   function kiesPaneel(p: Paneel | null) {
     setPaneel(p);
+    setMeerOpen(false);
     try { sessionStorage.setItem("assistent.agendapaneel", p ?? ""); } catch { /* alleen voor nu */ }
   }
 
@@ -135,7 +137,7 @@ export default function Agenda({ staat, setStaat, ingebed }: Props) {
       <header className={`flex flex-col gap-3 px-6 pb-3 ${ingebed?"pt-4":"pt-14"}`}>
         <div className="flex items-center justify-between gap-2">
           {paneel ? (
-            <h1 key={paneel} className={`opkomen ${ingebed?"text-2xl":"text-[32px]"} font-bold tracking-tight`}>{AGENDA_ONDERDELEN.find(x => x.id === paneel)?.naam}</h1>
+            <h1 key={paneel} className={`opkomen ${ingebed?"text-2xl":"text-[32px]"} font-bold tracking-tight`}>{meerOpen ? "Meer opties" : AGENDA_ONDERDELEN.find(x => x.id === paneel)?.naam}</h1>
           ) : (
             <button onClick={() => verschuif(0)} aria-label="Naar vandaag" className="min-w-0 text-left">
               <h1 className={`truncate ${ingebed?"text-2xl":"text-[32px]"} font-bold tracking-tight`}>
@@ -149,7 +151,7 @@ export default function Agenda({ staat, setStaat, ingebed }: Props) {
               className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Plus className="size-5" /></button>
           )}</div>
         </div>
-        <AgendaNavigatie actief={paneel} kies={kiesPaneel} tellingen={{taken:telTaken,herinneringen:telHerinneringen,prikken:telStemmen,mail:telMail}} />
+        <AgendaNavigatie actief={paneel} kies={kiesPaneel} onMeerChange={setMeerOpen} tellingen={{taken:telTaken,herinneringen:telHerinneringen,prikken:telStemmen,mail:telMail}} />
         {!paneel && (
           <div className="flex items-center gap-2">
             <div role="tablist" aria-label="Weergave" className="flex flex-1 rounded-full bg-vlak p-1">
