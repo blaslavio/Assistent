@@ -25,8 +25,29 @@ export function ChatBetaalkaart({bericht,ander,mijn}:{bericht:unknown;ander:numb
     else {const vers=await eigenBetaalverzoek(v.bestelling,ander,mijn?"verkoper":"koper");if(huidigeSessie()===s)setB(vers);}
   }catch(e){if(huidigeSessie()===s){setB(null);setFout((e as Error).message);}}finally{slot.current=false;setBezig(false);}}
   if(!v)return <p>Ongeldig betaalverzoek.</p>;
-  return <div className="not-italic"><p className="font-semibold">Betaalverzoek #{v.bestelling}</p><p className="text-xs">Chattekst bewijst geen betaling. Controleer je eigen administratie.</p>
-    {fout&&<p role="alert">{fout}</p>}<button disabled={bezig} className="min-h-11 underline" onClick={()=>doe()}>Actueel bedrag en status controleren</button>
-    {b&&<><p>{b.titel} · {euro(b.bedrag)}</p><p>{stand(b)}</p>{!mijn&&b.status==="geaccepteerd"&&<button disabled={bezig} className="min-h-11 underline" onClick={()=>doe(true)}>Zelf verder naar beveiligd betalen</button>}</>}
-  </div>;
+  return <section aria-label={`Betaalkaart voor bestelling ${v.bestelling}`} className="not-italic w-full min-w-[240px] max-w-sm space-y-3 rounded-2xl border border-lijn bg-white p-3 text-zinc-900 shadow-sm dark:bg-[#202026] dark:text-white">
+    <header className="flex items-center justify-between gap-2">
+      <span className="text-xs font-semibold uppercase tracking-wide text-rustig">Bestelling #{v.bestelling}</span>
+      <span className="rounded-full bg-vlak px-2 py-1 text-[11px]">Veilig afrekenen</span>
+    </header>
+    <p className="text-xs text-rustig">Dit betaalverzoek is geen betalingsbewijs. De actuele gegevens komen uit je eigen administratie.</p>
+    {fout&&<p role="alert" className="text-sm text-red-600">{fout}</p>}
+    {b ? <>
+      <div className="flex items-start gap-3 rounded-xl bg-vlak p-3">
+        <div aria-hidden="true" className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-white text-2xl font-semibold text-zinc-500 dark:bg-[#34343a]">#</div>
+        <div className="min-w-0 flex-1">
+          <p className="break-words font-semibold leading-snug">{b.titel}</p>
+          <p className="mt-1 text-xs text-rustig">{b.aantal&&b.aantal>0?`${b.aantal} stuks · `:""}{b.levering||"Levering volgens afspraak"}</p>
+          <p className="mt-1 text-sm font-semibold">{euro(b.bedrag)}</p>
+        </div>
+      </div>
+      <dl className="space-y-2 text-sm">
+        <div className="flex justify-between gap-3"><dt className="text-rustig">Totaal volgens bestelling</dt><dd className="font-semibold">{euro(b.bedrag)}</dd></div>
+        <div className="flex justify-between gap-3"><dt className="text-rustig">Status</dt><dd className="text-right">{stand(b)}</dd></div>
+      </dl>
+      <p className="text-xs text-rustig">Controleer eventuele verzendkosten en de definitieve afrekening vóór betaling.</p>
+      {!mijn&&b.status==="geaccepteerd"&&<button disabled={bezig} className="min-h-11 w-full rounded-xl bg-accent px-4 font-semibold text-white disabled:opacity-50" onClick={()=>doe(true)}>{bezig?"Bezig…":"Verder naar beveiligd betalen"}</button>}
+      <button disabled={bezig} className="min-h-11 w-full rounded-xl border border-lijn px-3 text-sm disabled:opacity-50" onClick={()=>doe()}>Bedrag en status opnieuw controleren</button>
+    </> : <button disabled={bezig} className="min-h-11 w-full rounded-xl bg-accent px-4 font-semibold text-white disabled:opacity-50" onClick={()=>doe()}>{bezig?"Ophalen…":"Bestelling en prijs bekijken"}</button>}
+  </section>;
 }
