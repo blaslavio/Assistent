@@ -2,6 +2,7 @@ import { authorizeAction } from "../_shared/action_policy.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const ACTIONS_ENABLED = Deno.env.get("ASSISTANT_ACTIONS_ENABLED") === "true";
 
 export async function handleAssistantAction(request: Request): Promise<Response> {
   if (request.method !== "POST") return Response.json({ error: "method_not_allowed" }, { status: 405 });
@@ -42,9 +43,39 @@ export async function handleAssistantAction(request: Request): Promise<Response>
     idempotencyKey: typeof payload.idempotencyKey === "string" ? payload.idempotencyKey : undefined,
   });
   if (!decision.allowed) return Response.json({ error: decision.reason }, { status: 403 });
-  // Phase 1: validation only. No database writes, external messages, or payments.
-  // A later PR must provide atomic replay protection and action-specific permissions.
-  return Response.json({ status: "validated_not_executed", action, executed: false }, { status: 202 });
+  if (!ACTIONS_ENABLED) return Response.json({ status: "validated_not_executed", action, executed: false }, { status: 202 });
+  if (action !== "tasks.create" && action !== "agenda.create") {
+    return Response.json({ error: "execution_not_supported" }, { status: 403 });
+  }
+  const title = typeof payload.title === "string" ? payload.title.trim() : "";
+  if (!title || title.length > 180) return Response.json({ error: "invalid_title" }, { status: 400 });
+  const startsAt = typeof payload.startsAt === "string" ? payload.startsAt : "";
+  const endsAt = typeof payload.endsAt === "string" ? payload.endsAt : "";
+  if (action === "agenda.create" &&
+      (!/^\\d{4}-\\d\\d-\\d\\dT/.test(startsAt) || !Number.isFinite(Date.parse(startsAt)) ||
+       !Number.isFinite(Date.parse(endsAt)) || Date.parse(endsAt) <= Date.parse(startsAt))) {
+    return Response.json({ error: "invalid_schedule" }, { status: 400 });
+  }
+  // The RPC uses auth.uid() and an atomic unique (owner_id, idempotency_key)
+  // constraint. Never pass a service-role key to this endpoint.
+  const endpoint = new URL("/rest/v1/rpc/assistant_create_item", SUPABASE_URL);
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: { authorization, apikey: SUPABASE_ANON_KEY, "content-type": "application/json" },
+      body: JSON.stringify({
+        p_action: action, p_title: title, p_idempotency_key: payload.idempotencyKey,
+        p_starts_at: action === "agenda.create" ? startsAt : null,
+        p_ends_at: action === "agenda.create" ? endsAt : null,
+      }),
+    });
+  } catch {
+    return Response.json({ error: "database_unavailable" }, { status: 503 });
+  }
+  if (!response.ok) return Response.json({ error: "action_failed" }, { status: 502 });
+  return Response.json({ status: "completed", action, result: await response.json(), executed: true });
+
 }
 
 if (import.meta.main) Deno.serve(handleAssistantAction);
