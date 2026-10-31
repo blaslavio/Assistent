@@ -83,6 +83,7 @@ Werkwijze:
   sportdoel_maken. Geef geen medisch advies; bij pijn of klachten verwijs je naar een huisarts of fysiotherapeut.
 - Mail: met mail_bekijken lees je de inbox. Een antwoord of nieuwe mail zet je klaar met mail_opstellen; de gebruiker
   verstuurt zelf. Schrijf nooit iets wat je niet zeker weet (data, bedragen, toezeggingen).
+- Kaart: gebruik kaart_openen om een bestemming klaar te zetten. Zoeken en navigatie starten pas door de gebruiker.
 - Vakantie en particuliere verhuur: open vakantie_openen voor privéplannen, verblijf zoeken en je woning aanbieden.
   Boek, bevestig of betaal nooit zelf een verblijf. De gebruiker controleert de aanvraag en voorwaarden in dat scherm.
 - Datum prikken: wil de gebruiker met anderen een moment kiezen, kijk eerst in de agenda en maak dan met datum_prikken
@@ -102,6 +103,7 @@ const tekst = (beschrijving: string) => ({ type: "string", description: beschrij
 
 type Hulpmiddel = { name: string; description: string; input_schema: Schema };
 const LIJST: Hulpmiddel[] = [
+  { name: "kaart_openen", description: "Open de centrale kaart en zet eventueel een adres klaar. Zoekt niet automatisch, deelt geen adres met een kaartdienst en plant niets in.", input_schema: { type: "object", properties: { adres: { type: "string", description: "Optioneel adres of plaats om klaar te zetten" } } } },
   { name: "vakantie_openen", description: "Open Vakantie en verblijf in de agenda. Voor een vakantieplan, particuliere woning aanbieden of verblijf zoeken. Reserveert niets en leest geen privéplannen voor AI.", input_schema: { type: "object", properties: {} } },
   {
     name: "agenda_bekijken", description: "Toon afspraken in een periode.",
@@ -543,6 +545,13 @@ export function uitgavenOverzicht(regels: Regel[]) {
 export async function uitvoeren(naam: string, v: Record<string, unknown>): Promise<Uitkomst> {
   const s = (k: string) => (typeof v[k] === "string" ? (v[k] as string).trim() : "");
   switch (naam) {
+    case "kaart_openen": {
+      const { kaartOpenen, kaartBestemmingOpenen } = await import("./naar");
+      const { kaartContext } = await import("./kaartverbinding");
+      if (s("adres") && !kaartContext(s("adres"))) return { resultaat: "Dit adres is ongeldig of te lang. Geef een adres van maximaal 300 tekens." };
+      if (s("adres")) kaartBestemmingOpenen(s("adres"), { bron: "chat", titel: "Bestemming uit gesprek" }); else kaartOpenen();
+      return { resultaat: "Kaart geopend. Een eventueel adres staat klaar; de gebruiker kiest zelf Zoeken of navigeren. Er is niets ingepland." };
+    }
     case "vakantie_openen": {
       const { vakantiesOpenen } = await import("./naar"); vakantiesOpenen();
       return { resultaat: "Vakantie en verblijf geopend. De gebruiker kan daar een plan maken of een reserveringsaanvraag controleren. Er is niets geboekt of betaald." };
@@ -999,6 +1008,7 @@ export function zonderLabels(t: string) {
 }
 
 export const BEZIG: Record<string, string> = {
+  kaart_openen: "Opent de kaart en zet een bestemming klaar",
   vakantie_openen: "Opent Vakantie en verblijf",
   agenda_bekijken: "Kijkt in je agenda", taken_bekijken: "Kijkt naar je taken", afspraak_toevoegen: "Zet het in je agenda",
   afspraak_verwijderen: "Haalt het uit je agenda", taak_toevoegen: "Zet het op je lijst", taak_afronden: "Vinkt af",

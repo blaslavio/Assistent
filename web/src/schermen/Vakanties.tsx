@@ -80,7 +80,7 @@ export default function Vakanties({ staat, setStaat, openAgenda }: { staat: Staa
         <button className={knop} onClick={() => { setZoekstart(v); setDeel("verblijven"); }}>Verblijf voor deze reis zoeken</button>
         <details><summary className="min-h-11 cursor-pointer py-2">Plan bijstellen, kaart en agenda</summary><div className="flex flex-wrap gap-2">
           <button className={knop} disabled={bezig || !!voorstel} onClick={() => { setBewerk(v); setVoorstel(null); }}>Plan bijstellen</button>
-          <button className={knop} onClick={() => kaartBestemmingOpenen(v.plaats)}>Bestemming op kaart</button>
+          <button className={knop} onClick={() => kaartBestemmingOpenen(v.plaats,{bron:"vakantie",titel:v.titel})}>Bestemming op kaart</button>
           {agenda === "ontbreekt" && <button className={knop} disabled={bezig} onClick={() => wijzig(g => inAgenda(g,v), "Vakantie in de agenda gezet, inclusief terugreisdag. Er is niets gereserveerd.")}>Bevestig: in mijn agenda zetten</button>}
           {agenda !== "ontbreekt" && <p className="text-sm text-rustig">{agenda === "actueel" ? "Je agenda loopt gelijk met dit plan." : "Je agenda-afspraak is apart aangepast. Controleer die vóór vertrek."}</p>}
           {openAgenda && <button className={knop} onClick={() => openAgenda(v.van)}>Bekijk deze dagen in mijn agenda</button>}

@@ -1,3 +1,4 @@
+import { kaartBestemmingOpenen } from "../lib/naar";
 import { evenementBekijken, evenementLink } from "../lib/evenementen";
 // Agenda in een community: trainingen, wedstrijden en uitjes. Met één tik zeg je of je komt; afmelden (ziek,
 // blessure, vakantie) zet je in één keer af voor alles in die periode en zet het ook in je eigen agenda.
@@ -189,6 +190,7 @@ function Details({ a, c, beheer, sluit, doe, bewerk, bijgewerkt }: { a: Activite
       {a.uitslag && <p className="font-medium">Uitslag {a.uitslag}</p>}
       <div className="flex flex-wrap gap-2">
         <button onClick={agenda} className={pil(false)}>In mijn agenda</button>
+        {a.plaats?.trim()&&<button className={pil(false)} onClick={()=>{kaartBestemmingOpenen(a.plaats!,{bron:"evenement",titel:a.titel});sluit();}}>Locatie op kaart</button>}
         <button onClick={async () => { try { const url = evenementLink(c.id, a.id); if (navigator.share) await navigator.share({ title: a.titel, url }); else { await navigator.clipboard.writeText(url); setTekst("Link naar evenementpagina gekopieerd. Alleen groepsleden kunnen deze openen."); } } catch { setTekst("Delen lukte niet. Probeer het opnieuw."); } }} className={pil(false)}>Deel evenementpagina</button>
         {a.mag_bewerken && <button onClick={bewerk} className={pil(false)}>Aanpassen</button>}
         {a.mag_bewerken && <button onClick={() => setZeker(true)} className={pil(false)}>Weghalen</button>}

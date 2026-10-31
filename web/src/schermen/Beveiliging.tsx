@@ -10,6 +10,7 @@ import {
 } from "../lib/beveiliging";
 import { codeSturen, mailBevestigen, mailIngesteld } from "../lib/aanmelden";
 import { PRIVACY, VOORWAARDEN } from "../lib/teksten";
+import { Slot, Scherm, Zoek, Terug } from "../iconen";
 import { kop } from "./instellingen-ui";
 
 const veld = "h-12 min-w-0 rounded-2xl bg-vlak px-4 outline-none";
@@ -54,26 +55,30 @@ export function Beveiliging({ gebruiker }: { gebruiker: Gebruiker }) {
   if (!stand) return fout ? <Melding tekst={fout} fout /> : <p className="px-1 text-rustig">Laden…</p>;
   return <>
     <Check stand={stand} gebruiker={gebruiker} />
-    <Uitleg titel="Extra controle bij aanmelden" kort={stand.twee_stap ? "Staat aan: naast je wachtwoord gebruik je een code." : "Nog niet ingesteld: voeg een extra code toe aan je wachtwoord."}>
+    <BeveiligingsOptie icoon={Slot} titel="Extra controle bij aanmelden" kort={stand.twee_stap ? "Staat aan: naast je wachtwoord gebruik je een code." : "Nog niet ingesteld: voeg een extra code toe aan je wachtwoord."}>
       <p className="text-sm text-rustig">Deze extra stap helpt als iemand je wachtwoord weet. Een app op je telefoon maakt een tijdelijke code. Bewaar ook de herstelcodes: daarmee kun je weer binnen als je die telefoon kwijt bent.</p>
       <TweeStap stand={stand} gebruiker={gebruiker} klaar={laden} />
-    </Uitleg>
-    <Uitleg titel="Je apparaten en aanmeldingen" kort={stand.sessies.length === 1 ? "Je bent op 1 plek ingelogd. Bekijk of je die herkent." : `Je bent op ${stand.sessies.length} plekken ingelogd. Bekijk welke je herkent.`}>
+    </BeveiligingsOptie>
+    <BeveiligingsOptie icoon={Scherm} titel="Je apparaten en aanmeldingen" kort={stand.sessies.length === 1 ? "Je bent op 1 plek ingelogd. Bekijk of je die herkent." : `Je bent op ${stand.sessies.length} plekken ingelogd. Bekijk welke je herkent.`}>
       <p className="text-sm text-rustig">‘Nu ingelogd’ zijn aanmeldingen die nog toegang hebben. ‘Dit apparaat onthouden’ betekent dat de app op dat apparaat opnieuw mag openen zonder telkens je wachtwoord te vragen. Meerdere regels met ‘iPhone’ kunnen van dezelfde telefoon komen; de naam bewijst niet dat het een ander toestel is.</p>
       <p className="text-sm text-rustig">Met ‘Vergeten’ stop je het automatisch aanmelden op dat apparaat. Een al geopende aanmelding kan nog actief zijn. Wil je andere actieve aanmeldingen ook stoppen, kies dan ‘Op alle andere apparaten uitloggen’.</p>
       <Ingelogd stand={stand} lijst={lijst} klaar={laden} />
-    </Uitleg>
-    <Uitleg titel="Controleer je wachtwoord op datalekken" kort="Bekijk of dit wachtwoord voorkomt in bekende gelekte lijsten.">
+    </BeveiligingsOptie>
+    <BeveiligingsOptie icoon={Zoek} titel="Controleer je wachtwoord op datalekken" kort="Bekijk of dit wachtwoord voorkomt in bekende gelekte lijsten.">
       <p className="text-sm text-rustig">Deze controle verandert je wachtwoord niet. Wordt het gevonden, kies dan een nieuw en uniek wachtwoord. Niet gevonden betekent niet dat een wachtwoord zeker veilig is.</p>
       <Lekcheck />
-    </Uitleg>
+    </BeveiligingsOptie>
   </>;
 }
 
-function Uitleg({titel,kort,children}:{titel:string;kort:string;children:ReactNode}) {
-  return <details className="rounded-2xl border border-lijn p-4">
-    <summary className="min-h-11 cursor-pointer py-2"><span className="font-medium">{titel}</span><span className="mt-1 block text-sm text-rustig">{kort}</span></summary>
-    <div className="mt-4 flex flex-col gap-4">{children}</div>
+export function BeveiligingsOptie({titel,kort,children,icoon:Icoon}:{titel:string;kort:string;children:ReactNode;icoon:(p:{className?:string})=>ReactNode}) {
+  return <details className="groep-uitleg shrink-0 overflow-hidden rounded-2xl border border-lijn">
+    <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-vlak text-accent"><Icoon className="size-5"/></span>
+      <span className="min-w-0 flex-1"><span className="block text-[15px] font-medium leading-5">{titel}</span><span className="mt-1 block text-[13px] leading-5 text-rustig">{kort}</span></span>
+      <Terug className="size-4 shrink-0 rotate-180 text-rustig"/>
+    </summary>
+    <div className="flex flex-col gap-4 border-t border-lijn p-4 text-sm">{children}</div>
   </details>;
 }
 

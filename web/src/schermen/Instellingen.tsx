@@ -10,7 +10,7 @@ import { BoekpaginaInstellen, MailVersturen } from "./Gasten";
 import type { Staat } from "../App";
 import { Boek, Envelop, Euro, Grafiek, Huis, Kalender, Lijstje, Persoon, Schuiven, Slot, Terug, Vonk, Vraag, Winkelpand } from "../iconen";
 import { Schakelaar, kop } from "./instellingen-ui";
-import { Account, Beveiliging, Techniek } from "./Beveiliging";
+import { Account, Beveiliging, BeveiligingsOptie, Techniek } from "./Beveiliging";
 import { ONDERDELEN, Onderdeel, type OnderdeelNaam } from "./Onderdelen";
 import { AlgemeenScherm, IdeeScherm, type Weergave } from "./Algemeen";
 import { Profiel, useEigenFoto } from "./Profiel";
@@ -104,9 +104,9 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
 
   if (pagina === "privacy") {
     const feiten = ((staat.data.geheugen as Feit[] | undefined) ?? []).slice().reverse();
-    return scherm("Privacy en beveiliging", <>
+    return scherm("Privacy en beveiliging", <div className="flex flex-col gap-3">
       <Beveiliging gebruiker={g} />
-      <details className="rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer py-2 font-medium">Wat de assistent van mij onthoudt</summary><div className="mt-3 flex flex-col gap-4">
+      <BeveiligingsOptie icoon={Vonk} titel="Wat de assistent van mij onthoudt" kort="Kies wat bewaard blijft en bekijk je persoonlijke voorkeuren.">
       <Schakelaar label="De assistent onthoudt dingen over mij"
         uitleg="Bijvoorbeeld je voorkeuren en gewoontes, zodat hij je beter helpt."
         aan={!inst.geheugen_uit} zet={(aan) => bewaar((i) => { i.geheugen_uit = !aan; })} />
@@ -129,9 +129,9 @@ export default function Instellingen({ staat, vernieuw, terug, opUitgelogd, setS
         )}
         <p className="mt-2 px-1 text-sm text-rustig">Je vragen worden verwerkt door de ingestelde AI-dienst: Claude of Azure OpenAI. Deel alleen gegevens die nodig zijn voor je vraag.</p>
       </section>
-      </div></details>
-      <details className="rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer py-2 font-medium">Technische uitleg</summary><Techniek /></details>
-    </>);
+      </BeveiligingsOptie>
+      <BeveiligingsOptie icoon={Schuiven} titel="Technische uitleg" kort="Meer achtergrond bij de werking van de app."><Techniek /></BeveiligingsOptie>
+    </div>);
   }
 
   if (pagina === "account") return scherm("Account", <Account gebruiker={g} vernieuw={vernieuw} opUitgelogd={opUitgelogd} />);

@@ -1,0 +1,41 @@
+{
+  "gemaakt_op": "2026-10-31T17:17:21.353692+00:00",
+  "scope": "centrale kaart en compacte beveiligingsopties met iconen",
+  "webtests": {
+    "geslaagd": 333,
+    "bestanden": 71
+  },
+  "builds": [
+    "webinterface",
+    "Streamlit-bundel"
+  ],
+  "mobiele_fixture": {
+    "breedte": 390,
+    "hoogte": 844,
+    "kop_px": 15,
+    "uitleg_px": 13,
+    "zelfde_letterfamilie": true,
+    "uitklappen": true,
+    "horizontale_overloop": false,
+    "werkelijk_maplibre_canvas": true,
+    "lokale_kaartstijl_zonder_geografische_tegels": true,
+    "marker_en_schematische_lijn": true,
+    "productiegegevens": false
+  },
+  "externe_kaartstijl_http": 403,
+  "live_kaarttegels_geverifieerd": false,
+  "livepublicatie_bevestigd": false,
+  "aanmeldgedrag_ongewijzigd": true,
+  "databasemigratie_nodig": false,
+  "bron_sha256": {
+    "web/src/schermen/Kaart.tsx": "7a409a7a12c602b36dda2be02c012e9960783a36a4edc7793f08d2a613cdc8b7",
+    "web/src/schermen/WinkelKaart.tsx": "e8312b086dc43a75d3e0257854f05fe6d675f3c31248867ef01e4341059c52c4",
+    "web/src/schermen/Beveiliging.tsx": "a7a15a1750a614eadaf3fc1afd8f986849b99a627bd7c8dd57620c223741f340",
+    "web/src/schermen/Instellingen.tsx": "b4e4c04edbe94044967fa7b7d278fce8941c3fb5bf56ddcde90abda2673335a6",
+    "web/src/lib/kaartverbinding.ts": "1c4904f0c41df114aa34190a777f1b786adbb624c365f97dd58a0885fa533415",
+    "web/src/lib/kaartstijl.ts": "c70afc0b554f45b5c9fdf1b996b6cf498067caeb3588ab392689397561ebbb52",
+    "web/src/lib/naar.ts": "68f9333366c00bf0c2a305331f6702d354dc6f7f0c8067a8dfd931f153c50f6d",
+    "web/src/lib/assistent.ts": "93f2ae4ef85ea0561cc63b455b60e83103ce4e3e1b45ba3da7e5edd0120cf639",
+    "web/src/schermen/Agenda.tsx": "dbc1b447e898715bab4bab13d3e2c3d908d55c4e5aedba19c71a46448916e1c5"
+  }
+}

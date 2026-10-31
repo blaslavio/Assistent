@@ -12,7 +12,7 @@ function alsStop(w:KaartWinkel):Stop {
 }
 const knop="min-h-11 rounded-full bg-vlak px-4 text-sm font-medium disabled:opacity-40";
 const foutTekst=(e:unknown)=>e instanceof Error?e.message:"Bewaren is nog niet bevestigd. Probeer opnieuw.";
-export default function KaartKompas({staat,setData,gekozen,vanaf,kies,reiswijze}:{reiswijze:Reiswijze;staat:Staat;setData:(g:Gegevens)=>void;gekozen:KaartWinkel|null;vanaf:Punt|null;kies:(p:KaartWinkel)=>void}) {
+export default function KaartKompas({staat,setData,gekozen,vanaf,kies,reiswijze,vertrekGewijzigd}:{reiswijze:Reiswijze;staat:Staat;setData:(g:Gegevens)=>void;gekozen:KaartWinkel|null;vanaf:Punt|null;kies:(p:KaartWinkel)=>void;vertrekGewijzigd?:(p:Punt)=>void}) {
   const [stops,setStops]=useState<Stop[]>([]),[start,setStart]=useState<Punt|null>(null),[rond,setRond]=useState(false);
   const [voorstel,setVoorstel]=useState<ReturnType<typeof vergelijkVolgordes>|null>(null);
   const [nu,setNu]=useState(Date.now),[bezoek,setBezoek]=useState(15);
@@ -22,7 +22,7 @@ export default function KaartKompas({staat,setData,gekozen,vanaf,kies,reiswijze}
   const [bezig,setBezig]=useState(false),slot=useRef(false);
   const [opdracht,setOpdracht]=useState<{plek:Plek;basis:Plek[]}|null>(null),[weg,setWeg]=useState<Plek|null>(null);
   const [deelPrive,setDeelPrive]=useState(false),[briefOpen,setBriefOpen]=useState(false);
-  const vertrek=start??vanaf;
+  const vertrek=vertrekGewijzigd?vanaf:start??vanaf;
   useEffect(()=>{const t=setInterval(()=>setNu(Date.now()),30_000);return()=>clearInterval(t);},[]);
   useEffect(()=>{setVoorstel(null);},[stops,vertrek?.lat,vertrek?.lon,rond]);
   const plekken=useMemo(()=>{try{return{lijst:leesPlekken(staat.data),fout:""};}catch(e){return{lijst:[],fout:foutTekst(e)};}},[staat.data]);
@@ -54,7 +54,7 @@ export default function KaartKompas({staat,setData,gekozen,vanaf,kies,reiswijze}
     {heen&&<p className="rounded-xl bg-vlak p-3 text-sm"><strong>Heenreis: ongeveer {heen.laag}–{heen.hoog} minuten</strong><br/><span className="text-xs text-rustig">Automatische indicatie, geen live verkeersinformatie.</span></p>}
     {gekozen&&<div className="flex flex-wrap gap-2">
       <button className={knop} onClick={()=>{try{setStops(voegStopToe(stops,alsStop(gekozen)));setFout("");}catch(e){setFout(foutTekst(e));}}}>Deze plek als stop</button>
-      <button className={knop} onClick={()=>setStart({lat:gekozen.lat,lon:gekozen.lon})}>Vertrek vanaf deze plek</button>
+      <button className={knop} onClick={()=>{const p={lat:gekozen.lat,lon:gekozen.lon};setStart(p);vertrekGewijzigd?.(p);}}>Vertrek vanaf deze plek</button>
       <button className={knop} onClick={()=>{setNaam(gekozen.naam.slice(0,120));setBewaar(true);setOpdracht(null);}}>Bewaar privéplek</button>
     </div>}
     <details><summary className="min-h-11 cursor-pointer py-3 font-medium">Past één extra bezoek vóór mijn volgende afspraak?</summary>

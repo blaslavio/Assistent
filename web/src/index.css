@@ -207,3 +207,7 @@ body[data-gesprek] [data-onderbalk] { display: none; }
 .toetsenbord-open [data-onderbalk]:not(:focus-within) { display: none; }
 /* Met het toetsenbord open vult een venster dat van onderen komt het hele zichtbare deel, zodat niets half wegvalt. */
 .toetsenbord-open [role=dialog] { max-height: 100% !important; }
+
+/* Kaartbediening gebruikt dezelfde letterfamilie als de rest van de app. */
+.maplibregl-map.maplibregl-map, .maplibregl-map .maplibregl-ctrl { font-family: inherit; }
+.groep-uitleg[open] > summary > svg { transform: rotate(-90deg); }

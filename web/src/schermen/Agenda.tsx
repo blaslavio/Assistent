@@ -1,6 +1,6 @@
 import AgendaNavigatie, { AGENDA_ONDERDELEN, type AgendaPaneel } from "./AgendaNavigatie";
 import { KaartVouw } from "../iconen";
-import { kaartBestemmingOpenen, kaartOpenen } from "../lib/naar";
+import { kaartBestemmingOpenen, kaartOpenen, agendaPlekLezen } from "../lib/naar";
 import Evenementen from "./Evenementen";
 const Vakanties = lazy(() => import("./Vakanties"));
 import { evenementVerwijzing } from "../lib/evenementen";
@@ -58,7 +58,9 @@ export default function Agenda({ staat, setStaat }: Props) {
   const vandaag = datumTekst(new Date());
   const [weergave, setWeergaveRuw] = useState<Weergave>(bewaardeWeergave);
   const [gekozen, setGekozen] = useState(vandaag);
-  const [nieuw, setNieuw] = useState(false);
+  const [kaartplek,setKaartplek] = useState(agendaPlekLezen);
+  const [nieuw, setNieuw] = useState(!!kaartplek);
+  useEffect(()=>{const open=()=>{const p=agendaPlekLezen();if(p){setKaartplek(p);setPaneel(null);setNieuw(true);}};window.addEventListener("agenda-kaartplek",open);return()=>window.removeEventListener("agenda-kaartplek",open);},[]);
   const [open, setOpen] = useState<Afspraak | null>(null);
   const [paneel, setPaneel] = useState<Paneel | null>(bewaardPaneel);
   useEffect(() => { const open = () => setPaneel("evenementen"); window.addEventListener("agenda-evenementen", open); return () => window.removeEventListener("agenda-evenementen", open); }, []);
@@ -142,7 +144,7 @@ export default function Agenda({ staat, setStaat }: Props) {
           )}
           <div className="flex gap-2"><button onClick={kaartOpenen} aria-label="Kaart en routes" className="flex size-10 items-center justify-center rounded-full bg-vlak"><KaartVouw className="size-5" /></button><InstellingenKnop pagina={paneel === "mail" ? "mail" : "afspraken"} label={paneel === "mail" ? "Mail instellen" : "Boekingspagina instellen"} />
           {!paneel && (
-            <button onClick={() => setNieuw(true)} aria-label="Nieuwe afspraak"
+            <button onClick={() => {setKaartplek(null);setNieuw(true);}} aria-label="Nieuwe afspraak"
               className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Plus className="size-5" /></button>
           )}</div>
         </div>
@@ -184,7 +186,7 @@ export default function Agenda({ staat, setStaat }: Props) {
       )}
       </div>}
 
-      {nieuw && <NieuweAfspraak datum={gekozen} sluit={() => setNieuw(false)}
+      {nieuw && <NieuweAfspraak kaartplek={kaartplek} datum={gekozen} sluit={() => setNieuw(false)}
         bewaard={(data) => { setStaat({ ...staat, data }); setNieuw(false); }} />}
       {open && <AfspraakBlad a={open} sluit={() => setOpen(null)}
         weg={(data) => { setStaat({ ...staat, data }); setOpen(null); }} />}
@@ -434,13 +436,13 @@ function Blad({ titel, sluit, children }: { titel: string; sluit: () => void; ch
 
 const veld = "h-12 w-full rounded-2xl bg-vlak px-4 outline-none placeholder:text-zacht";
 
-function NieuweAfspraak({ datum, sluit, bewaard }: { datum: string; sluit: () => void; bewaard: (d: Staat["data"]) => void }) {
-  const [titel, setTitel] = useState("");
+function NieuweAfspraak({ datum, sluit, bewaard,kaartplek }: { kaartplek?:ReturnType<typeof agendaPlekLezen>;datum: string; sluit: () => void; bewaard: (d: Staat["data"]) => void }) {
+  const [titel, setTitel] = useState(kaartplek?.titel??"");
   const [dag, setDag] = useState(datum);
   const [heel, setHeel] = useState(false);
   const [van, setVan] = useState("09:00");
   const [tot, setTot] = useState("10:00");
-  const [plaats, setPlaats] = useState("");
+  const [plaats, setPlaats] = useState(kaartplek?.locatie??"");
   const [soort, setSoort] = useState("afspraak");
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState("");
@@ -454,7 +456,7 @@ function NieuweAfspraak({ datum, sluit, bewaard }: { datum: string; sluit: () =>
     try {
       bewaard(await bijwerken((g) => {
         g.afspraken.push({ id: g.volgend_id, titel: titel.trim().slice(0, 120), start: heel ? dag : `${dag}T${van}`,
-          einde: heel || !tot ? null : `${dag}T${tot}`, locatie: plaats.trim().slice(0, 120), soort });
+          einde: heel || !tot ? null : `${dag}T${tot}`, locatie: plaats.trim().slice(0, 120), soort,...(kaartplek&&plaats.trim()===kaartplek.locatie?{kaartpunt:kaartplek.kaartpunt}:{}) });
         g.volgend_id += 1;
       }));
     } catch (e) {
@@ -521,7 +523,7 @@ function AfspraakBlad({ a, sluit, weg }: { a: Afspraak; sluit: () => void; weg: 
         {a.notitie && <p className="mt-2 whitespace-pre-line text-rustig">{a.notitie}</p>}
       </div>
       {fout && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{fout}</p>}
-      {a.locatie?.trim()&&<button onClick={()=>{kaartBestemmingOpenen(a.locatie!);sluit();}} className="min-h-11 rounded-full bg-vlak px-4 font-medium">Locatie klaarzetten op kaart</button>}
+      {a.locatie?.trim()&&<button onClick={()=>{kaartBestemmingOpenen(a.locatie!,{bron:"agenda",titel:a.titel,punt:a.kaartpunt});sluit();}} className="min-h-11 rounded-full bg-vlak px-4 font-medium">Locatie klaarzetten op kaart</button>}
       {a.extern ? (
         <p className="text-sm text-rustig">Deze afspraak komt uit een gekoppelde agenda. Wijzig hem daar.</p>
       ) : (
