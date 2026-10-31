@@ -25,5 +25,5 @@ it("deelt geen verzoek als het bedrag intussen gewijzigd is",async()=>{
 it("haalt geen financiële details op voordat de ontvanger daar zelf om vraagt",async()=>{
  vi.mocked(eigenBetaalverzoek).mockResolvedValue({...b,rol:"koper"});render(<ChatBetaalkaart bericht={{t:"projectbetaling",versie:1,bestelling:42}} ander={2} mijn={false}/>);
  expect(eigenBetaalverzoek).not.toHaveBeenCalled();expect(chatCheckout).not.toHaveBeenCalled();fireEvent.click(screen.getByText("Actueel bedrag en status controleren"));await screen.findByText("Wacht op betaling");
- expect(eigenBetaalverzoek).toHaveBeenCalledWith(42,2,"koper");expect(chatCheckout).not.toHaveBeenCalled();expect(screen.getByText("Zelf verder naar beveiligd betalen")).toBeTruthy();
+ expect(eigenBetaalverzoek).toHaveBeenCalledWith(42,2,"koper");expect(chatCheckout).not.toHaveBeenCalled();expect(screen.getByText("Verder naar beveiligd betalen")).toBeTruthy();
 });
