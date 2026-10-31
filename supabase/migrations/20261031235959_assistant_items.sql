@@ -39,13 +39,14 @@ begin
   end if;
   insert into public.assistant_items(owner_id,kind,title,starts_at,ends_at,idempotency_key)
   values (v_owner,p_action,trim(p_title),p_starts_at,p_ends_at,p_idempotency_key)
-  on conflict (owner_id,idempotency_key) do nothing returning id into v_id;
-  if v_id is null then
-    select id into v_id from public.assistant_items
-    where owner_id = v_owner and idempotency_key = p_idempotency_key
-      and kind = p_action and title = trim(p_title)
-      and starts_at is not distinct from p_starts_at and ends_at is not distinct from p_ends_at;
-    if v_id is null then raise exception 'idempotency_conflict'; end if;
+  on conflict (owner_id,idempotency_key) do update
+    set idempotency_key = excluded.idempotency_key
+    returning id into v_id;
+  if not exists (select 1 from public.assistant_items
+    where id = v_id and owner_id = v_owner and kind = p_action
+      and title = trim(p_title) and starts_at is not distinct from p_starts_at
+      and ends_at is not distinct from p_ends_at) then
+    raise exception 'idempotency_conflict';
   end if;
   return v_id;
 end;
@@ -53,7 +54,11 @@ $$;
 revoke all on function public.assistant_create_item(text,text,text,timestamptz,timestamptz) from public, anon;
 grant execute on function public.assistant_create_item(text,text,text,timestamptz,timestamptz) to authenticated;
 -- The invoker needs INSERT permissions and RLS scoped to auth.uid().
-grant insert on public.assistant_items to authenticated;
+grant insert, update on public.assistant_items to authenticated;
+drop policy if exists assistant_items_owner_update on public.assistant_items;
+create policy assistant_items_owner_update on public.assistant_items
+for update to authenticated using ((select auth.uid()) = owner_id)
+with check ((select auth.uid()) = owner_id);
 drop policy if exists assistant_items_owner_insert on public.assistant_items;
 create policy assistant_items_owner_insert on public.assistant_items
 for insert to authenticated with check ((select auth.uid()) = owner_id);
