@@ -5,6 +5,7 @@ import { apparaatNaam, inloggen } from "../api";
 import { accountMaken, codeSturen, herstelAanvragen, herstelAfronden, mailIngesteld, voorbereiden } from "../lib/aanmelden";
 import AanmeldLogo from "./AanmeldLogo";
 import { Onderblad } from "./Onderblad";
+import { VertrouwenRegels } from "./vertrouwen";
 
 const Opmaak = lazy(() => import("./Beveiliging").then((m) => ({ default: m.Opmaak })));
 const Teksten = lazy(() => import("../lib/teksten").then((m) => ({
@@ -37,7 +38,10 @@ export default function Inloggen({ opIngelogd }: { opIngelogd: () => Promise<voi
   useEffect(() => { let actief = true; mailIngesteld().then(v => { if (actief) setMail(v); }).catch(() => { if (actief) setMail(false); }); return () => { actief = false; }; }, []);
   return (
     <main className="h-full overflow-y-auto"><div className="mx-auto flex min-h-full max-w-md flex-col justify-center gap-6 px-6 py-10">
-      <p className="text-lg font-semibold tracking-tight">Assistent</p>
+      <div className="flex flex-col gap-3">
+        <p className="text-lg font-semibold tracking-tight">Assistent</p>
+        <VertrouwenRegels />
+      </div>
       {externFout && <p role="alert" className="text-sm text-red-600">{externFout}</p>}
       {externBezig ? <p role="status">Je aanmelding wordt gecontroleerd…</p> : stand === "inloggen" && <Inlog opIngelogd={opIngelogd} naar={setStand} mail={!!mail} />}
       {stand === "nieuw" && <Nieuw opIngelogd={opIngelogd} naar={setStand} mail={!!mail} />}
