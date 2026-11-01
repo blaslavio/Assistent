@@ -31,6 +31,10 @@ jobs:
       - name: Bouw beide webvarianten
         run: npm run build
         working-directory: web
+      - name: Maak bestandsmanifest voor onafhankelijke review
+        run: |
+          find docs/app nieuwe_app -type f -print0 | sort -z | xargs -0 -r sha256sum > "$RUNNER_TEMP/web-build.sha256"
+          test -s "$RUNNER_TEMP/web-build.sha256"
       - name: Bewaar gegenereerde bestanden als controle-artifact
         uses: actions/upload-artifact@v4
         with:
@@ -38,6 +42,7 @@ jobs:
           path: |
             docs/app
             nieuwe_app
+            ${{ runner.temp }}/web-build.sha256
           if-no-files-found: error
           retention-days: 3
       - name: Controleer gegenereerde bestanden
