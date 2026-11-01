@@ -28,7 +28,7 @@ jobs:
           python-version: '3.12'
       - name: Install pinned browser harness
         run: |
-          python -m pip install playwright==1.56.0
+          python -m pip install playwright==1.56.0 pillow==11.3.0
           python -m playwright install chromium --with-deps
       - name: Check public app in a real browser
         run: python scripts/cloud_browser_smoke.py
