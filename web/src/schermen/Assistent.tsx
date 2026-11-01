@@ -1,1 +1,1 @@
-RESTORED_VIA_ARTIFACT
+export { default } from "./AssistentVolledig";
