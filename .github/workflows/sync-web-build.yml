@@ -31,9 +31,20 @@ jobs:
       - name: Bouw beide webvarianten
         run: npm run build
         working-directory: web
+      - name: Bewaar gegenereerde bestanden als controle-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build-voor-review
+          path: |
+            docs/app
+            nieuwe_app
+          if-no-files-found: error
+          retention-days: 3
       - name: Controleer gegenereerde bestanden
         run: |
-          if ! git diff --exit-code -- docs/app nieuwe_app; then
-            echo "::error::Generated assets differ. Commit rebuilt assets through a reviewed PR."
+          git add -N -- docs/app nieuwe_app
+          if ! git diff --quiet -- docs/app nieuwe_app; then
+            git diff --stat -- docs/app nieuwe_app
+            echo "::error::Generated assets differ. Download the build artifact and commit changes through a reviewed PR."
             exit 1
           fi
