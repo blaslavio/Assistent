@@ -31,6 +31,26 @@ jobs:
       - name: Bouw beide webvarianten
         run: npm run build
         working-directory: web
+      - name: Controleer build-startpunten en versieverwijzing
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, stat } from 'node:fs/promises';
+          import { join } from 'node:path';
+          const checks = ['docs/app/index.html', 'docs/app/versie.json', 'nieuwe_app/app.js', 'nieuwe_app/app.css'];
+          for (const file of checks) {
+            const details = await stat(file);
+            if (!details.isFile() || details.size === 0) throw new Error('Leeg of ontbrekend buildbestand: ' + file);
+          }
+          const version = JSON.parse(await readFile('docs/app/versie.json', 'utf8'));
+          if (typeof version.script !== 'string' || !/^assets\\/[a-zA-Z0-9_-]+\\.js$/.test(version.script)) {
+            throw new Error('Ongeldige scriptreferentie in docs/app/versie.json');
+          }
+          const scriptFile = join('docs/app', version.script);
+          if (!(await stat(scriptFile)).isFile()) throw new Error('Versiescript bestaat niet: ' + scriptFile);
+          const html = await readFile('docs/app/index.html', 'utf8');
+          if (!html.includes('assets/') || !html.includes('<script')) throw new Error('Webapp-index mist een script-entry');
+          NODE
       - name: Maak bestandsmanifest voor onafhankelijke review
         run: |
           find docs/app nieuwe_app -type f -print0 | sort -z | xargs -0 -r sha256sum > "$RUNNER_TEMP/web-build.sha256"
