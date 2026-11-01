@@ -211,7 +211,7 @@ export function MascotteMetTip({ tips: eigen }: { tips?: string[] }) {
       <p
         key={tekst ?? i}
         aria-live="polite"
- repclassName="opkomen relative mb-4 rounded-2xl rounded-bl-md bg-vlak px-4 py-3 text-[15px] leading-snug text-rustig"
+        className="opkomen relative mb-4 rounded-2xl rounded-bl-md bg-vlak px-4 py-3 text-[15px] leading-snug text-rustig"
       >
         {tekst ?? tips[i]}
       </p>
