@@ -54,7 +54,7 @@ export default function EersteStappen({ vraag, naarAssistent }: Props) {
       className="relative overflow-hidden rounded-[24px] border border-lijn bg-gradient-to-br from-vlak to-white p-5 shadow-sm dark:to-[#16161a]"
     >
       <div className="flex items-start gap-3">
-        <Mascotte stemming="wijts" className="h-14 w-[46px] shrink-0" />
+        <Mascotte stemming="wijst" className="h-14 w-[46px] shrink-0" />
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold tracking-tight">Welkom. Dit blijft van jou.</h2>
           <p className="mt-1.5 text-[15px] leading-snug text-rustig">

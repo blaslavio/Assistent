@@ -2,6 +2,8 @@ import { lazy, Suspense } from "react";
 import type { Staat, Tab } from "../App";
 import { Ballon, Kalender, Projectmap, Vonk, Zon } from "../iconen";
 import BewaarScherm from "./BewaarScherm";
+import EersteStappen from "./EersteStappen";
+import { Laden } from "./Status";
 import Vandaag from "./Vandaag";
 const Agenda = lazy(() => import("./Agenda"));
 type Props = { staat: Staat; setStaat: (s: Staat) => void; deel: "vandaag" | "agenda"; ga: (t: Tab) => void;
@@ -15,9 +17,14 @@ export default function MijnDag({staat,setStaat,deel,ga,vernieuw,vraag,naarProje
     {deel==="vandaag"&&<nav aria-label="Snel naar" className="grid grid-cols-3 gap-2 px-6 pb-2">
       {([[ "chat", "Berichten", Ballon ], [ "projecten", "Werkruimte", Projectmap ], [ "assistent", "Assistent", Vonk ]] as const).map(([id,naam,Icoon])=><button key={id} type="button" onClick={()=>ga(id)} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-lijn px-2 text-xs font-medium text-inkt focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><Icoon className="size-4 shrink-0"/><span>{naam}</span></button>)}
     </nav>}
-    <div className="min-h-0 flex-1">
-      <BewaarScherm actief={deel==="vandaag"} naam="Vandaag"><Vandaag ingebed staat={staat} setStaat={setStaat} ga={ga} vernieuw={vernieuw} vraag={vraag} naarProject={naarProject} naarInstellingen={()=>ga("instellingen")} naarAssistent={()=>ga("assistent")}/></BewaarScherm>
-      <BewaarScherm actief={deel==="agenda"} naam="Agenda"><Suspense fallback={<p role="status" className="p-6 text-sm text-rustig">Agenda laden…</p>}><Agenda ingebed staat={staat} setStaat={setStaat}/></Suspense></BewaarScherm>
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <BewaarScherm actief={deel==="vandaag"} naam="Vandaag">
+        <div className="flex flex-col gap-3 px-6 pt-2">
+          <EersteStappen vraag={vraag} naarAssistent={() => ga("assistent")} />
+        </div>
+        <Vandaag ingebed staat={staat} setStaat={setStaat} ga={ga} vernieuw={vernieuw} vraag={vraag} naarProject={naarProject} naarInstellingen={()=>ga("instellingen")} naarAssistent={()=>ga("assistent")}/>
+      </BewaarScherm>
+      <BewaarScherm actief={deel==="agenda"} naam="Agenda"><Suspense fallback={<Laden tekst="Agenda laden…" />}><Agenda ingebed staat={staat} setStaat={setStaat}/></Suspense></BewaarScherm>
     </div>
   </section>;
 }
