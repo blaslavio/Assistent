@@ -12,6 +12,17 @@ import { BETAALWIJZE, LEVERING, euro, klaarzetten, zoeken, type Bestelling, type
 import type { Grafiek } from "../grafiek";
 
 const MODEL = "claude-opus-5-5";
+const AZURE_MODEL = "azure-gpt-5-mini";
+const OPENAI_MODEL = "gpt-5.4";
+
+/** Platformmodel is instelbaar; persoonlijke Claude-sleutels blijven Claude gebruiken. */
+export function gekozenAiModel(data: Gegevens): string {
+  const instellingen = (data.instellingen ?? {}) as { anthropic_sleutel?: string; ai_model?: string };
+  if (instellingen.anthropic_sleutel) return MODEL;
+  return [MODEL, AZURE_MODEL, OPENAI_MODEL].includes(instellingen.ai_model ?? "")
+    ? instellingen.ai_model! : MODEL;
+}
+
 
 /** Geïsoleerde projecthulp: uitsluitend expliciet gecontroleerde broncontext, zonder tools of geheugen. */
 export async function projectHulp(data: Gegevens, context: string, signal?: AbortSignal) {
@@ -1054,7 +1065,7 @@ export async function antwoord(client: Anthropic, berichten: Anthropic.MessagePa
   let gezegd = false;
   for (let ronde = 0; ronde < MAX_RONDES; ronde++) {
     const stroom = client.messages.stream({
-      model: MODEL, max_tokens: 16000, system: systeem, messages: berichten,
+      model: gekozenAiModel(data), max_tokens: 16000, system: systeem, messages: berichten,
       tools: [...HULPMIDDELEN, ...SERVER_HULPMIDDELEN], output_config: { effort },
     } as Anthropic.MessageStreamParams, { signal: signaal });
     let nieuweRonde = true;
