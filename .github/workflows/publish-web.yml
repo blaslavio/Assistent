@@ -1,5 +1,12 @@
 name: Publish web interface
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'docs/**'
+      - 'nieuwe_app/**'
+      - '.github/workflows/publish-web.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,6 +22,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -26,6 +34,13 @@ jobs:
         working-directory: web
       - run: npm run build
         working-directory: web
+      - name: Check committed assets match tested source
+        run: |
+          git add -N -- docs/app nieuwe_app
+          if ! git diff --quiet -- docs/app nieuwe_app; then
+            echo "::error::Generated assets differ from committed files. Reject Pages deployment."
+            exit 1
+          fi
       - name: Identify published interface
         run: |
           python - <<'PY'
