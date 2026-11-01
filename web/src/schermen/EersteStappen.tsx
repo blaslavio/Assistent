@@ -1,6 +1,6 @@
-// Eerste stappen: vertrouwen + één duidelijke aha (typen → agenda/taak).
+// Eerste stappen: vertrouwen + Clippy-begeleiding. Geen voorbeeldzinnen of fictieve bedragen.
 import { useEffect, useState } from "react";
-import { Mascotte } from "../mascotte";
+import { Mascotte, type Stemming } from "../mascotte";
 
 const SLEUTEL = "assistent-eerste-stappen-v1";
 
@@ -20,22 +20,23 @@ function markeerKlaar() {
   }
 }
 
+const GIDS = [
+  "Alles wat je typt blijft op dit toestel, versleuteld.",
+  "Ik plan niets en raak geen geld of mail aan zonder jouw ja.",
+  "Bij betalen zie je altijd eerst bedrag en ontvanger — jij bevestigt.",
+  "Tik op mij als je een tip wilt. Klaar? Open de assistent of ga verder.",
+] as const;
+
 type Props = {
-  /** Stuurt een voorbeeldzin naar de assistent (kernflow). */
-  vraag?: (tekst: string) => void;
-  /** Opent de assistent zonder vooraf-tekst. */
   naarAssistent?: () => void;
 };
 
-const VOORBEELDEN = [
-  "Morgen 9 uur tandarts",
-  "€12,50 lunch",
-  "Plan mijn dag",
-] as const;
-
-/** Compacte kaart op Vandaag: privacy + één aha, wegklikbaar. */
-export default function EersteStappen({ vraag, naarAssistent }: Props) {
+/** Strakke welkomstkaart: Clippy leidt, geen vooraf ingevulde teksten. */
+export default function EersteStappen({ naarAssistent }: Props) {
   const [zichtbaar, setZichtbaar] = useState(false);
+  const [i, setI] = useState(0);
+  const [stemming, setStemming] = useState<Stemming>("wijst");
+  const [hup, setHup] = useState(0);
 
   useEffect(() => {
     setZichtbaar(!eersteStappenKlaar());
@@ -48,69 +49,56 @@ export default function EersteStappen({ vraag, naarAssistent }: Props) {
     setZichtbaar(false);
   }
 
+  function volgendeTip() {
+    setHup((h) => h + 1);
+    setI((x) => (x + 1) % GIDS.length);
+    setStemming("wijst");
+    window.setTimeout(() => setStemming("wacht"), 1400);
+  }
+
   return (
     <section
       aria-label="Welkom bij Assistent"
-      className="relative overflow-hidden rounded-[24px] border border-lijn bg-gradient-to-br from-vlak to-white p-5 shadow-sm dark:to-[#16161a]"
+      className="rounded-2xl border border-lijn bg-vlak p-4"
     >
       <div className="flex items-start gap-3">
-        <Mascotte stemming="wijst" className="h-14 w-[46px] shrink-0" />
-        <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold tracking-tight">Welkom. Dit blijft van jou.</h2>
-          <p className="mt-1.5 text-[15px] leading-snug text-rustig">
-            Gesprekken en gegevens staan versleuteld op dit toestel. Ik plan niets in je agenda en
-            raak geen geld of mail aan zonder dat jij eerst ja zegt.
+        <button
+          type="button"
+          onClick={volgendeTip}
+          aria-label="Volgende tip van de paperclip"
+          className="shrink-0 rounded-xl active:scale-95"
+        >
+          <Mascotte hup={hup} stemming={stemming} className="h-12 w-10" />
+        </button>
+        <div className="min-w-0 flex-1 pt-0.5">
+          <h2 className="text-base font-semibold tracking-tight">Welkom</h2>
+          <p
+            key={i}
+            aria-live="polite"
+            className="mt-1 text-[15px] leading-snug text-rustig"
+          >
+            {GIDS[i]}
           </p>
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl bg-white/80 p-4 dark:bg-black/20">
-        <p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig">
-          Probeer dit meteen
-        </p>
-        <p className="mt-1 text-sm text-inkt">
-          Typ iets gewoons — de assistent zet het om in een taak of afspraak.
-        </p>
-        <ul className="mt-3 flex flex-col gap-2">
-          {VOORBEELDEN.map((tekst) => (
-            <li key={tekst}>
-              <button
-                type="button"
-                className="flex min-h-11 w-full items-center rounded-xl border border-lijn bg-vlak px-3 text-left text-[15px] font-medium transition active:scale-[0.99]"
-                onClick={() => {
-                  markeerKlaar();
-                  setZichtbaar(false);
-                  if (vraag) vraag(tekst);
-                  else naarAssistent?.();
-                }}
-              >
-                <span className="text-rustig">“</span>
-                {tekst}
-                <span className="text-rustig">”</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => {
-            markeerKlaar();
-            setZichtbaar(false);
+            klaar();
             naarAssistent?.();
           }}
-          className="min-h-11 rounded-full bg-accent px-5 text-sm font-medium text-white"
+          className="min-h-10 rounded-full bg-accent px-4 text-sm font-medium text-white"
         >
-          Open de assistent
+          Naar de assistent
         </button>
         <button
           type="button"
           onClick={klaar}
-          className="min-h-11 px-3 text-sm text-rustig"
+          className="min-h-10 px-3 text-sm text-rustig"
         >
-          Ik snap het
+          Verder
         </button>
       </div>
     </section>
