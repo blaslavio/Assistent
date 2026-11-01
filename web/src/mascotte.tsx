@@ -1,16 +1,17 @@
 // Paperclip-mascotte (Clippy-stijl). Ogen volgen, tips, dutje, feest (inklappen).
+// Tips beschrijven mogelijkheden — geen vooraf ingevulde teksten of fictieve bedragen.
 import { useEffect, useRef, useState } from "react";
 
 const ALTIJD = [
-  "Typ morgen 9 uur tandarts en het staat in je agenda.",
-  "Typ €12,50 lunch en je budget weet het.",
   "Ik doe nooit iets met geld of mail zonder dat jij eerst ja zegt.",
+  "Bij betalen zie je eerst bedrag en ontvanger. Jij bevestigt.",
   "Veeg de balk in de chat omlaag voor het hele scherm.",
   "Je gesprekken zijn versleuteld op je eigen toestel.",
+  "Tik op mij voor de volgende tip.",
 ];
-const OCHTEND = ["Goedemorgen. Vraag plan mijn dag en ik zet je taken tussen je afspraken."];
-const MIDDAG = ["Halverwege de dag. Vraag wat er nog open staat."];
-const AVOND = ["Wat staat er morgen? Vraag het voor je gaat slapen."];
+const OCHTEND = ["Goedemorgen. Vraag gerust wat er vandaag openstaat."];
+const MIDDAG = ["Halverwege de dag. Ik help als je wilt bijsturen."];
+const AVOND = ["Tot morgen. Je kunt me vragen wat er op de planning staat."];
 
 const schud = (l: string[]) =>
   l.map((t) => [Math.random(), t] as const).sort((x, y) => x[0] - y[0]).map(([, t]) => t);
@@ -210,7 +211,7 @@ export function MascotteMetTip({ tips: eigen }: { tips?: string[] }) {
       <p
         key={tekst ?? i}
         aria-live="polite"
-        className="opkomen relative mb-4 rounded-2xl rounded-bl-md bg-vlak px-4 py-3 text-[15px] leading-snug text-rustig"
+ repclassName="opkomen relative mb-4 rounded-2xl rounded-bl-md bg-vlak px-4 py-3 text-[15px] leading-snug text-rustig"
       >
         {tekst ?? tips[i]}
       </p>
