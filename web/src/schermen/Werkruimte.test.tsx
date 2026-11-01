@@ -2,7 +2,7 @@ import {act,cleanup,fireEvent,render,screen,within} from "@testing-library/react
 import {afterEach,expect,it,vi} from "vitest";
 import Werkruimte from "./Werkruimte";
 import {overzicht} from "../lib/chat";
-import {winkelAppGevraagd,kaartGevraagd} from "../lib/naar";
+import {kaartGevraagd} from "../lib/naar";
 const account=vi.hoisted(()=>({sessie:{naam:"test",token:"fixture"}}));
 vi.mock("../api",async o=>({...await o<object>(),huidigeSessie:()=>account.sessie}));
 vi.mock("../lib/chat",async o=>({...await o<object>(),overzicht:vi.fn()}));
@@ -18,7 +18,7 @@ it("vindt ingeklapte apps en bewaart de zoekopdracht na teruggaan",async()=>{
  render(<Werkruimte {...props}/>);fireEvent.change(screen.getByRole("searchbox"),{target:{value:"budget"}});fireEvent.click(screen.getByRole("button",{name:/Budget/}));expect(await screen.findByRole("heading",{name:"App budget"})).toBeTruthy();fireEvent.click(screen.getByRole("button",{name:"Werkruimte terug"}));expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("budget");
 });
 it("houdt kaart en winkel bereikbaar zonder een bestelling of bericht te maken",()=>{
- render(<Werkruimte {...props}/>);fireEvent.click(screen.getByRole("button",{name:"Winkel en aanbod"}));expect(winkelAppGevraagd()).toBe(true);fireEvent.click(screen.getByRole("button",{name:"Kaart en routes"}));expect(kaartGevraagd()).toBe(true);
+ render(<Werkruimte {...props}/>);fireEvent.click(screen.getByRole("button",{name:"Winkel en aanbod"}));expect(screen.getByRole("heading",{name:"App studio"})).toBeTruthy();fireEvent.click(screen.getByRole("button",{name:"Werkruimte terug"}));fireEvent.click(screen.getByRole("button",{name:"Kaart en routes"}));expect(kaartGevraagd()).toBe(true);
 });
 
 it("toont recente apps en alleen projecten waarvoor de gebruiker nog lid is",async()=>{
