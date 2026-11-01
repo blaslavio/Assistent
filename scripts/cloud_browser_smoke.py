@@ -1,16 +1,23 @@
-"""Read-only browser smoke of the public Streamlit Cloud app.
+"""Browser-level verification of hosted Streamlit + embedded React app.
 
-Avoid plain HTTP health probes: Streamlit Cloud can redirect non-browser clients
-in a loop while normal browser sessions work. No account credentials are used.
+An HTTP 200 or an existing '#root' is not enough; we require visible app text
+and a nonblank viewport screenshot. No user credentials or writes.
 """
 from pathlib import Path
 import sys
 import time
 
+from PIL import Image
 from playwright.sync_api import sync_playwright
 
 URL = "https://eisreyyrtvlgtjpqiyhpm2.streamlit.app/"
 SCREENSHOT = Path("streamlit-cloud-smoke.png")
+
+
+def nonwhite_pixels(path: Path) -> int:
+    with Image.open(path) as image:
+        pixels = image.convert("RGB").resize((78, 168)).getdata()
+        return sum(1 for red, green, blue in pixels if min(red, green, blue) < 230)
 
 
 def main() -> int:
@@ -23,8 +30,9 @@ def main() -> int:
         try:
             page.goto(URL, wait_until="domcontentloaded", timeout=60000)
             print(f"Browser URL: {page.url}")
-            deadline = time.monotonic() + 105
+            deadline = time.monotonic() + 95
             woke = False
+            last_text = ""
             while time.monotonic() < deadline:
                 if not woke:
                     button = page.get_by_text("Yes, get this app back up!", exact=False)
@@ -38,14 +46,26 @@ def main() -> int:
                 for frame in page.frames:
                     try:
                         root = frame.locator("#root")
-                        if root.count() and root.first.locator(":scope > *").count():
-                            print(f"Webapp rendered: title={page.title()!r}, frames={len(page.frames)}")
+                        if not root.count() or not root.first.is_visible():
+                            continue
+                        rendered = root.first.inner_text(timeout=5000).strip()
+                        if len(rendered) > len(last_text):
+                            last_text = rendered[:300]
+                        if len(rendered) < 20:
+                            continue
+                        page.wait_for_timeout(1500)
+                        page.screenshot(path=str(SCREENSHOT), full_page=False)
+                        visual = nonwhite_pixels(SCREENSHOT)
+                        print(f"Candidate app visible text length={len(rendered)}; screenshot non-white pixels={visual}")
+                        if visual > 35:
+                            print("Browser UI verified: app text and visible pixels present")
                             print("Browser JavaScript errors:", errors[:3])
                             return 0
                     except Exception:
                         continue
                 page.wait_for_timeout(2500)
-            print(f"::error::Browser could not render app after loading: url={page.url}; title={page.title()!r}")
+            print(f"::error::Cloud UI did not become visibly usable. url={page.url}; title={page.title()!r}")
+            print("Last root text snippet:", repr(last_text))
             print("Browser JavaScript errors:", errors[:5])
             return 1
         except Exception as exc:
@@ -54,6 +74,7 @@ def main() -> int:
         finally:
             try:
                 page.screenshot(path=str(SCREENSHOT), full_page=False, timeout=10000)
+                print("Final screenshot non-white pixels:", nonwhite_pixels(SCREENSHOT))
             except Exception as exc:
                 print("Screenshot not available:", type(exc).__name__)
             browser.close()
