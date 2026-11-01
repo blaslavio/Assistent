@@ -113,6 +113,7 @@ export default function App() {
   const [voorafVraag, setVooraf] = useState(ZEG);
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [voorAssistent, setVoorAssistent] = useState<Tab>("vandaag");
+  const tabRef = useRef(tab);
   const [teKopen, setTeKopen] = useState<Product | null>(null);
   const [fout, setFout] = useState("");
   const [dagDeel,setDagDeel]=useState<"vandaag"|"agenda">("vandaag");
@@ -129,12 +130,16 @@ export default function App() {
   const setTab = (t: Tab) => {
     if(t==="vandaag"||t==="agenda")setDagDeel(t);
     // Instellingen en de assistent leggen zich over een scherm heen; sluiten brengt je terug waar je was.
-    if (t === "instellingen") setVorige(tab === "instellingen" ? vorige : tab === "assistent" ? voorAssistent : tab);
-    if (t === "assistent" && tab !== "assistent") setVoorAssistent(tab);
+    if (t === "instellingen") setVorige(tabRef.current === "instellingen" ? vorige : tabRef.current === "assistent" ? voorAssistent : tabRef.current);
+    if (t === "assistent" && tabRef.current !== "assistent") setVoorAssistent(tabRef.current);
     else if (t !== "projecten") setStartOnderdeel(null);
-    if (t === "chat" && tab !== "chat") setVoorChat(tab);
+    if (t === "chat" && tabRef.current !== "chat") setVoorChat(tabRef.current);
     setTabRuw(t);
   };
+
+  useEffect(() => {
+    tabRef.current = tab;
+  }, [tab]);
 
   const herladen = useCallback(async () => {
     try {
@@ -227,12 +232,12 @@ export default function App() {
       const b = (e as CustomEvent<Bestemming>).detail;
       if (b.tab === "instellingen" && !b.onderdeel) setStartOnderdeel(null);
       if (b.onderdeel) setStartOnderdeel((o) => ({ naam: b.onderdeel!, n: (o?.n ?? 0) + 1 }));
-      if(b.tab==="chat")setVoorChat(tab);
+      if(b.tab==="chat")setVoorChat(tabRef.current);
       setTab(b.onderdeel ? "projecten" : b.tab);
     };
     window.addEventListener("app-naar", ga);
     return () => window.removeEventListener("app-naar", ga);
-  });
+  }, [tab, vorige, voorAssistent]);
 
   // Kleur, tekstgrootte en toegankelijkheid uit je instellingen op de hele app.
   useLayoutEffect(()=>{setOngelezen(0);},[staat?.gebruiker.id]);
@@ -254,7 +259,7 @@ export default function App() {
       naarProject={openProject} vraag={t=>{setVooraf(t);setTab("assistent");}} />,
     projecten: <Werkruimte gebruik={gebruikWerkplek} staat={staat} vernieuw={herladen} start={startOnderdeel} vraag={t=>{setVooraf(t);setTab("assistent");}}
       naarChat={()=>{setWerkGesprek(null);setTab("chat");}} openProject={openProject}/>,
-    chat: <Chat key={staat.gebruiker.id} werkGesprek={werkGesprek} projectGeopend={id=>gebruikWerkplek({soort:"project",gesprek:id})} ongelezenGewijzigd={setOngelezen} staat={staat} setStaat={setStaat} naarInstellingen={() => setTab("instellingen")}
+    chat: <Chat key={staat.gebruiker.id} werkGesprek={werkGesprek} projectGeopend={id=>gebruikWerkplek({soort:"project",gesprek:id})} ongelezenGewijzigd={setOngelezen} staat={staat} setStaat={setStaat}
       verlaat={() => setTab(voorChat)} terugNaam={TABS.find((t) => t.id === voorChat)?.naam}
       bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
     assistent: <Assistent staat={staat} vernieuw={herladen} teKopen={teKopen}
@@ -275,9 +280,9 @@ export default function App() {
           <button onClick={() => (huidigeSessie() ? herladen() : starten())}
             className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white">Opnieuw</button>
         </div>}
-      {tab!=="assistent"&&<header className="flex shrink-0 items-center justify-between gap-3 px-6 pt-[max(env(safe-area-inset-top),8px)] pb-2">
-        <button onClick={()=>setTab("assistent")} aria-label="Open de AI-assistent" className="flex min-h-11 items-center gap-2 rounded-full bg-vlak px-3 text-[13px] font-medium"><Vonk className="size-5 text-accent"/>Assistent <span className="text-xs text-rustig">AI</span></button>
-        <button onClick={()=>setTab("instellingen")} aria-label="Profiel en instellingen" aria-current={tab==="instellingen"?"page":undefined} className="flex size-11 items-center justify-center overflow-hidden rounded-full bg-vlak text-rustig">
+      {tab!="assistent"&&<header className="flex shrink-0 items-center justify-between gap-3 px-6 pt-[max(env(safe-area-inset-top),8px)] pb-2">
+        <button onClick={()=>setTab("assistent")} aria-label="Open de AI-assistent" className="flex min-h-11 items-center gap-2 rounded-full bg-vlak px-3 text-[13px] font-medium"><Vonk className="size-4"/><span>Assistent</span></button>
+        <button onClick={()=>setTab("instellingen")} aria-label="Profiel en instellingen" aria-current={tab==="instellingen"?"page":undefined} className="flex size-11 items-center justify-center rounded-full bg-vlak text-rustig ring-1 ring-transparent transition hover:ring-accent/20">
           {staat.gebruiker.foto?<img src={staat.gebruiker.foto} alt="" className="size-full object-cover"/>:<Persoon className="size-5"/>}
         </button>
       </header>}
