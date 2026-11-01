@@ -43,7 +43,7 @@ jobs:
             if (!details.isFile() || details.size === 0) throw new Error('Leeg of ontbrekend buildbestand: ' + file);
           }
           const version = JSON.parse(await readFile('docs/app/versie.json', 'utf8'));
-          if (typeof version.script !== 'string' || !/^assets\\/[a-zA-Z0-9_-]+\\.js$/.test(version.script)) {
+          if (typeof version.script !== 'string' || !version.script.startsWith('assets/') || !version.script.endsWith('.js') || version.script.includes('..') || version.script.includes('\\\\')) {
             throw new Error('Ongeldige scriptreferentie in docs/app/versie.json');
           }
           const scriptFile = join('docs/app', version.script);
