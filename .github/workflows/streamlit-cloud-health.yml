@@ -8,6 +8,10 @@ on:
       - 'nieuwe_app.py'
       - 'scripts/cloud_browser_smoke.py'
       - '.github/workflows/streamlit-cloud-health.yml'
+  pull_request:
+    paths:
+      - 'scripts/cloud_browser_smoke.py'
+      - '.github/workflows/streamlit-cloud-health.yml'
   workflow_dispatch:
 permissions:
   contents: read
