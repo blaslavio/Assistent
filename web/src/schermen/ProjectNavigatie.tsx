@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from "react";
-const HOOFD=["Overzicht","Bord","Voorstel"];
-export const PROJECT_LABELS:Record<string,string>={Overzicht:"Overzicht",Bord:"Stappen",Voorstel:"Toevoegen",Hoe:"Aanpak",Wanneer:"Planning",Als:"Voorwaarden",Werkdruk:"Werkdruk",Wijzigingen:"Wijzigingen",Oefenen:"Oefenen",Overdracht:"Overdracht",Privacy:"Privacy",Assistent:"Assistent"};
-const EXTRA=["Hoe","Wanneer","Als","Werkdruk","Wijzigingen","Oefenen","Overdracht","Privacy","Assistent"];
+const HOOFD=["Overzicht","Bord","Checklist"];
+export const PROJECT_LABELS:Record<string,string>={Overzicht:"Overzicht",Bord:"Stappen",Checklist:"Checklist",Voorstel:"Toevoegen",Hoe:"Aanpak",Wanneer:"Planning",Als:"Voorwaarden",Werkdruk:"Werkdruk",Wijzigingen:"Wijzigingen",Oefenen:"Oefenen",Overdracht:"Overdracht",Privacy:"Privacy",Assistent:"Assistent"};
+const EXTRA=["Voorstel","Hoe","Wanneer","Als","Werkdruk","Wijzigingen","Oefenen","Overdracht","Privacy","Assistent"];
 export default function ProjectNavigatie({deel,kies,wijzigingen}:{deel:string;kies:(d:string)=>void;wijzigingen:number}){
  const [meer,setMeer]=useState(false),[zoek,setZoek]=useState("");const knop=useRef<HTMLButtonElement>(null),id=useId();
  const kiezen=(d:string)=>{kies(d);setMeer(false);setZoek("");};
