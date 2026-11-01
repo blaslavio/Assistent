@@ -1,1 +1,1 @@
-export { default } from "./AssistentVolledig";
+PLACEHOLDER_WILL_FAIL
