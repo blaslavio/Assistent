@@ -1,0 +1,73 @@
+name: One-time sync generated assets on review branch
+on:
+  push:
+    branches:
+      - fix/auto-sync-generated-web-20261101
+    paths:
+      - .github/workflows/review-branch-assets-sync.yml
+permissions:
+  contents: write
+jobs:
+  sync-only-review-branch:
+    if: github.repository == 'blaslavio/Assistent' && github.ref == 'refs/heads/fix/auto-sync-generated-web-20261101'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install locked dependencies
+        working-directory: web
+        run: npm ci
+      - name: Run tests
+        working-directory: web
+        run: npm test
+      - name: Build review assets
+        working-directory: web
+        run: npm run build
+      - name: Check generated entrypoints
+        run: |
+          test -s docs/app/index.html
+          test -s docs/app/versie.json
+          test -s nieuwe_app/app.js
+          test -s nieuwe_app/app.css
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d = json.loads(Path('docs/app/versie.json').read_text())
+          script = d.get('script', '')
+          assert script.startswith('assets/') and script.endswith('.js') and '..' not in script
+          assert (Path('docs/app') / script).is_file()
+          PY
+      - name: Upload reviewed build snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-generated-assets-for-review
+          path: |
+            docs/app
+            nieuwe_app
+          retention-days: 3
+          if-no-files-found: error
+      - name: Commit generated assets ONLY to review branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/heads/fix/auto-sync-generated-web-20261101"
+          test "${GITHUB_REPOSITORY}" = "blaslavio/Assistent"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          git add -A -- docs/app nieuwe_app
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit"
+            exit 0
+          fi
+          git diff --cached --stat
+          git -c core.hooksPath=/dev/null -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "build: synchronize reviewed web assets on PR branch"
+          AUTH="$(printf "x-access-token:%s" "$GH_TOKEN" | base64 -w0)"
+          git -c core.hooksPath=/dev/null -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${AUTH}" push https://github.com/blaslavio/Assistent.git HEAD:refs/heads/fix/auto-sync-generated-web-20261101
