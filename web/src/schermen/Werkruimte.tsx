@@ -6,7 +6,7 @@ import { useSchermActief } from "./BewaarScherm";
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { Staat } from "../App";
 import { ONDERDELEN, type OnderdeelNaam } from "../lib/onderdeel-lijst";
-import { studioOpenen, kaartOpenen, winkelAppOpenen } from "../lib/naar";
+import { studioOpenen, kaartOpenen } from "../lib/naar";
 import { KaartVouw, Projectmap, Tas, Terug, Zoek } from "../iconen";
 import BewaarScherm from "./BewaarScherm";
 const Onderdeel=lazy(()=>import("./Onderdelen").then(m=>({default:m.Onderdeel})));
@@ -46,7 +46,7 @@ export default function Werkruimte({staat,vernieuw,vraag,openProject,naarChat,st
    {(!term||studioMatch)&&<button onClick={()=>kiesApp("studio")} className="flex min-h-16 flex-col justify-center rounded-2xl bg-vlak px-4 py-3 text-left"><span className="text-[15px] font-medium">Studio · Winkel en evenementen</span><span className="text-[13px] text-rustig">Bouwers, deellinks, tickets, scanner en scanteam</span></button>}
    {term&&studioZoeken(zoek).slice(0,6).map(t=><button key={t.id} onClick={()=>studioOpenen({tool:t.id})} className="min-h-11 rounded-xl bg-vlak px-4 py-2 text-left text-sm">{t.naam}</button>)}
    {(!term||kaartMatch)&&<button onClick={kaartOpenen} className="flex min-h-12 items-center gap-3 rounded-2xl bg-vlak px-4 text-left text-[15px]"><KaartVouw className="size-5 text-accent"/>Kaart en routes</button>}
-   {(!term||winkelMatch)&&<button onClick={winkelAppOpenen} className="flex min-h-12 items-center gap-3 rounded-2xl bg-vlak px-4 text-left text-[15px]"><Tas className="size-5 text-accent"/>Winkel en aanbod</button>}
+   {(!term||winkelMatch)&&<button onClick={()=>kiesApp("studio")} className="flex min-h-12 items-center gap-3 rounded-2xl bg-vlak px-4 text-left text-[15px]"><Tas className="size-5 text-accent"/>Winkel en aanbod</button>}
    {!term&&<details className="rounded-2xl border border-lijn p-3"><summary className="min-h-11 cursor-pointer py-2 text-[15px] font-medium">Zakelijke opties</summary>{rijen(ONDERDELEN.filter(([id])=>id==="zakelijk"))}</details>}
   </div></BewaarScherm>
   <BewaarScherm actief={deel==="projecten"} naam="Samenwerken"><button onClick={()=>setDeel(null)} className="mx-4 mt-2 flex min-h-11 items-center gap-1 text-sm text-accent"><Terug className="size-5"/>Werkruimte</button><Suspense fallback={<p role="status" className="p-6">Projecten laden…</p>}><Projecten ingebed staat={staat} open={openProject} naarChat={naarChat}/></Suspense></BewaarScherm>
