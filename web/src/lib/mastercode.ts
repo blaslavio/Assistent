@@ -38,7 +38,7 @@ export function masterOverzicht(taken: readonly Taak[], feiten: readonly Feit[],
     const plan=plannen[0];
     for (const {stap,status} of volgendeStappen(plan,[...feiten])) {
       items.push({sleutel:`project:${plan.actie.sleutel}:${stap.id}`,soort:"projectstap",titel:stap.titel,
-        waarom:doel.actie.tekst,voortgang:status,verantwoordelijke:stap.eigenaar,
+        waarom:doel.actie.tekst,voortgang:status==="klaar"||status==="bezig"||status==="vast"?status:"te_doen",verantwoordelijke:stap.eigenaar,
         projectDoel:doel.actie.sleutel,
         ...(plan.actie.uiterlijk?{deadline:plan.actie.uiterlijk}:{})});
     }
