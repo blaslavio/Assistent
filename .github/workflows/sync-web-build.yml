@@ -1,7 +1,6 @@
-name: Synchroniseer gebouwde webapp
+name: Controleer gegenereerde webapp
 on:
-  push:
-    branches: [main]
+  pull_request:
     paths:
       - 'web/**'
       - 'docs/app/**'
@@ -9,19 +8,15 @@ on:
       - '.github/workflows/sync-web-build.yml'
   workflow_dispatch:
 permissions:
-  contents: write
-concurrency:
-  group: sync-web-main
-  cancel-in-progress: false
+  contents: read
 jobs:
-  sync:
-    if: github.repository == 'blaslavio/Assistent'
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -36,14 +31,9 @@ jobs:
       - name: Bouw beide webvarianten
         run: npm run build
         working-directory: web
-      - name: Synchroniseer alleen gegenereerde bestanden
+      - name: Controleer gegenereerde bestanden
         run: |
-          git add -- docs/app nieuwe_app
-          if git diff --cached --quiet; then
-            echo "Gebouwde bestanden zijn actueel."
-            exit 0
+          if ! git diff --exit-code -- docs/app nieuwe_app; then
+            echo "::error::Generated assets differ. Commit rebuilt assets through a reviewed PR."
+            exit 1
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "build: synchroniseer gegenereerde webapp"
-          git push origin HEAD:main
