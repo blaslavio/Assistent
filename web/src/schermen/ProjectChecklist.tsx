@@ -8,7 +8,7 @@ type Props={feiten:Feit[];ik:number;leden:number[];namen:Map<number,string>;schr
 export default function ProjectChecklist({feiten,ik,leden,namen,schrijven,voorstel,naarAanpak}:Props) {
   const [fout,setFout]=useState("");
   const [uitleg,setUitleg]=useState("");
-  const doelen=feiten.filter(f=>["actie","besluit","vraag"].includes(f.actie.soort));
+  const doelen=feiten.filter(f=>["actie","besluit","vraag"].includes(f.actie.soort) && !f.actie.doel);
   const plannen=doelen.flatMap(d=>actueleAanpakken(d.actie.sleutel,feiten).map(plan=>({doel:d,plan})));
   function bereid(maak:()=>ProjectActie) {try{voorstel(maak());setFout("");}catch(e){setFout((e as Error).message);}}
   return <section aria-label="Projectchecklists" className="space-y-3">
