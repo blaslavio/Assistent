@@ -108,38 +108,45 @@ export type { Staat };
 export default function App() {
   const [klaar, setKlaar] = useState(false);
   const [staat, setStaat] = useState<Staat | null>(null);
-  const gebruikWerkplek=useWerkplekken(staat,setStaat);
+  const gebruikWerkplek = useWerkplekken(staat, setStaat);
   const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL || CURSUS || CURSUSLINK ? "chat" : ZEG ? "assistent" : BANK || SPORT_TERUG || TICKET_EVENT ? "projecten" : "vandaag");
   const [voorafVraag, setVooraf] = useState(ZEG);
   const [vorige, setVorige] = useState<Tab>("vandaag");
   const [voorAssistent, setVoorAssistent] = useState<Tab>("vandaag");
   const tabRef = useRef(tab);
+  const vorigeRef = useRef(vorige);
+  const voorAssistentRef = useRef(voorAssistent);
   const [teKopen, setTeKopen] = useState<Product | null>(null);
   const [fout, setFout] = useState("");
-  const [dagDeel,setDagDeel]=useState<"vandaag"|"agenda">("vandaag");
+  const [dagDeel, setDagDeel] = useState<"vandaag" | "agenda">("vandaag");
   const [ongelezen, setOngelezen] = useState(0);
   const [werkGesprek, setWerkGesprek] = useState<{ id: number; ronde: number; gebruiker: number } | null>(null);
-  // De vorige stand staat op het scherm terwijl het inloggen nog loopt (of zonder verbinding).
   const [voorlopig, setVoorlopig] = useState(false);
-
-
   const [voorChat, setVoorChat] = useState<Tab>("vandaag");
-  // Een onderdeel dat je via "Je apps" opent; het getal laat Instellingen weten dat het opnieuw gevraagd is.
   const [startOnderdeel, setStartOnderdeel] = useState<{ naam: OnderdeelNaam; n: number } | null>(
-    TICKET_EVENT?{naam:"studio",n:1}:BANK ? { naam: "budget", n: 1 } : SPORT_TERUG ? { naam: "sport", n: 1 } : null);
-  const setTab = (t: Tab) => {
-    if(t==="vandaag"||t==="agenda")setDagDeel(t);
-    // Instellingen en de assistent leggen zich over een scherm heen; sluiten brengt je terug waar je was.
-    if (t === "instellingen") setVorige(tabRef.current === "instellingen" ? vorige : tabRef.current === "assistent" ? voorAssistent : tabRef.current);
-    if (t === "assistent" && tabRef.current !== "assistent") setVoorAssistent(tabRef.current);
-    else if (t !== "projecten") setStartOnderdeel(null);
-    if (t === "chat" && tabRef.current !== "chat") setVoorChat(tabRef.current);
-    setTabRuw(t);
-  };
+    TICKET_EVENT ? { naam: "studio", n: 1 } : BANK ? { naam: "budget", n: 1 } : SPORT_TERUG ? { naam: "sport", n: 1 } : null);
 
   useEffect(() => {
     tabRef.current = tab;
   }, [tab]);
+  useEffect(() => {
+    vorigeRef.current = vorige;
+  }, [vorige]);
+  useEffect(() => {
+    voorAssistentRef.current = voorAssistent;
+  }, [voorAssistent]);
+
+  const setTab = useCallback((t: Tab) => {
+    if (t === "vandaag" || t === "agenda") setDagDeel(t);
+    if (t === "instellingen") {
+      const vorigeTab = tabRef.current === "instellingen" ? vorigeRef.current : tabRef.current === "assistent" ? voorAssistentRef.current : tabRef.current;
+      setVorige(vorigeTab);
+    }
+    if (t === "assistent" && tabRef.current !== "assistent") setVoorAssistent(tabRef.current);
+    else if (t !== "projecten") setStartOnderdeel(null);
+    if (t === "chat" && tabRef.current !== "chat") setVoorChat(tabRef.current);
+    setTabRuw(t);
+  }, []);
 
   const herladen = useCallback(async () => {
     try {
@@ -153,8 +160,6 @@ export default function App() {
     }
   }, []);
 
-  // Bliksemstart: meteen de stand van de vorige keer, en zodra het inloggen met de sleutel van dit apparaat klaar is
-  // de nieuwste. Zonder verbinding blijft de vorige stand staan en proberen we het opnieuw als je weer online bent.
   const starten = useCallback(() => {
     if (EXTERN_TERUG) { setStaat(null); setKlaar(true); return; }
     let vers = false;
@@ -180,10 +185,8 @@ export default function App() {
     return vooraf();
   }, [starten]);
 
-  // Een gedeeld bericht (?post=id) opent over de app zodra je bent ingelogd.
   const [gedeeldePost, setGedeeldePost] = useState<number | null>(() => (POST ? postGevraagd() : null));
 
-  // Komt de verbinding terug, dan halen we meteen de nieuwste stand op.
   const online = useOnline();
   const wasOffline = useRef(false);
   useEffect(() => {
@@ -199,48 +202,42 @@ export default function App() {
     return () => window.removeEventListener("online", starten);
   }, [fout, klaar, starten]);
 
-  // Wat je nu ziet, bewaren we versleuteld voor de volgende keer openen (alleen als je hier ingelogd blijft).
   useEffect(() => {
     if (!staat || !huidigeSessie()) return;
     const t = setTimeout(() => { momentopnameBewaren(staat).catch(() => {}); }, 800);
     return () => clearTimeout(t);
   }, [staat]);
 
-  // Trainingen, stappen en slaap uit gekoppelde sportapps op de achtergrond bijhalen (hooguit eens per 2 uur per app).
   useEffect(() => {
     if (!staat || SPORT_TERUG) return;
     sportVanzelf(staat.data).then((n) => { if (n) herladen(); }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!staat]);
 
-  // Oproepen komen overal in de app binnen, als dit apparaat al eens in de chat was.
   const ingelogd = !!staat;
   useEffect(() => {
     if (!ingelogd) return;
     startenAlsBekend().then((id) => id && luisteren(id)).catch(() => {});
   }, [ingelogd]);
 
-  // Nieuwe boekingen van gasten in je agenda zetten, als je een boekingspagina hebt.
   const boekpagina = !!staat?.data.instellingen?.boekpagina;
   useEffect(() => {
     if (boekpagina) verwerken().catch(() => {});
   }, [boekpagina]);
 
-  // Vanuit een app in de app (chat, winkel) naar een ander deel van de app.
   useEffect(() => {
     const ga = (e: Event) => {
       const b = (e as CustomEvent<Bestemming>).detail;
       if (b.tab === "instellingen" && !b.onderdeel) setStartOnderdeel(null);
       if (b.onderdeel) setStartOnderdeel((o) => ({ naam: b.onderdeel!, n: (o?.n ?? 0) + 1 }));
-      if(b.tab==="chat")setVoorChat(tabRef.current);
+      if (b.tab === "chat") setVoorChat(tabRef.current);
       setTab(b.onderdeel ? "projecten" : b.tab);
     };
     window.addEventListener("app-naar", ga);
     return () => window.removeEventListener("app-naar", ga);
-  }, [tab, vorige, voorAssistent]);
+  }, [setTab]);
 
-  // Kleur, tekstgrootte en toegankelijkheid uit je instellingen op de hele app.
-  useLayoutEffect(()=>{setOngelezen(0);},[staat?.gebruiker.id]);
+  useLayoutEffect(() => { setOngelezen(0); }, [staat?.gebruiker.id]);
   const weergave = staat?.data.instellingen;
   useEffect(() => { weergaveToepassen((weergave ?? {}) as Weergave); }, [weergave]);
 
@@ -250,10 +247,9 @@ export default function App() {
   if (PROFIEL) return <Suspense fallback={null}><ProfielScherm adres={PROFIEL} /></Suspense>;
   if (PRIK) return <Suspense fallback={null}><PrikScherm code={PRIK} /></Suspense>;
   if (!klaar) return <div className="h-full" />;
-  // Tijdens de bliksemstart is er nog geen sessie, maar wel de vorige stand: die laten we alvast zien.
   if (!staat || (!huidigeSessie() && !voorlopig)) return <Inloggen opIngelogd={herladen} />;
 
-  const openProject = (gesprek:number) => {gebruikWerkplek({soort:"project",gesprek});setWerkGesprek(oud => ({ id:gesprek,ronde:(oud?.ronde??0)+1,gebruiker:staat.gebruiker.id }));setTab("chat"); };
+  const openProject = (gesprek:number) => {gebruikWerkplek({soort:"project",gesprek});setWerkGesprek(oud => ({ id:gesprek,ronde:(oud?.ronde??0)+1,gebruiker:staat.gebruiker.id }));setTab("chat");};
   const scherm = {
     vandaag: <MijnDag staat={staat} setStaat={setStaat} deel={dagDeel} ga={setTab} vernieuw={herladen}
       naarProject={openProject} vraag={t=>{setVooraf(t);setTab("assistent");}} />,
@@ -280,14 +276,14 @@ export default function App() {
           <button onClick={() => (huidigeSessie() ? herladen() : starten())}
             className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white">Opnieuw</button>
         </div>}
-      {tab!="assistent"&&<header className="flex shrink-0 items-center justify-between gap-3 px-6 pt-[max(env(safe-area-inset-top),8px)] pb-2">
-        <button onClick={()=>setTab("assistent")} aria-label="Open de AI-assistent" className="flex min-h-11 items-center gap-2 rounded-full bg-vlak px-3 text-[13px] font-medium"><Vonk className="size-4"/><span>Assistent</span></button>
-        <button onClick={()=>setTab("instellingen")} aria-label="Profiel en instellingen" aria-current={tab==="instellingen"?"page":undefined} className="flex size-11 items-center justify-center rounded-full bg-vlak text-rustig ring-1 ring-transparent transition hover:ring-accent/20">
-          {staat.gebruiker.foto?<img src={staat.gebruiker.foto} alt="" className="size-full object-cover"/>:<Persoon className="size-5"/>}
+      {tab !== "assistent" && <header className="flex shrink-0 items-center justify-between gap-3 px-6 pt-[max(env(safe-area-inset-top),8px)] pb-2">
+        <button onClick={() => setTab("assistent")} aria-label="Open de AI-assistent" className="flex min-h-11 items-center gap-2 rounded-full bg-vlak px-3 text-[13px] font-medium"><Vonk className="size-4" /><span>Assistent</span></button>
+        <button onClick={() => setTab("instellingen")} aria-label="Profiel en instellingen" aria-current={tab === "instellingen" ? "page" : undefined} className="flex size-11 items-center justify-center rounded-full bg-vlak text-rustig ring-1 ring-transparent transition hover:ring-accent/20">
+          {staat.gebruiker.foto ? <img src={staat.gebruiker.foto} alt="" className="size-full object-cover" /> : <Persoon className="size-5" />}
         </button>
       </header>}
       <main className="min-h-0 flex-1 overflow-hidden">
-        {(Object.keys(scherm) as (keyof typeof scherm)[]).map(id=><BewaarScherm key={id} actief={hoofd===id} naam={TABS.find(t=>t.id===id)!.naam}>
+        {(Object.keys(scherm) as (keyof typeof scherm)[]).map(id => <BewaarScherm key={id} actief={hoofd === id} naam={TABS.find(t => t.id === id)!.naam}>
           <Vangnet naam={id}><Suspense fallback={<p role="status" className="px-6 py-8 text-rustig">Scherm laden…</p>}>{scherm[id]}</Suspense></Vangnet>
         </BewaarScherm>)}
       </main>
@@ -296,7 +292,7 @@ export default function App() {
       {gedeeldePost !== null && huidigeSessie() && (
         <Suspense fallback={null}><PostBlad id={gedeeldePost} sluit={() => setGedeeldePost(null)} /></Suspense>
       )}
-      <div data-onderbalk className="shrink-0"><HoofdNavigatie actief={hoofd==="assistent"?voorAssistent:hoofd} ongelezen={ongelezen} kies={t=>setTab(t==="vandaag"?dagDeel:t)}/></div>
+      <div data-onderbalk className="shrink-0"><HoofdNavigatie actief={hoofd === "assistent" ? voorAssistent : hoofd} ongelezen={ongelezen} kies={t => setTab(t === "vandaag" ? dagDeel : t)} /></div>
     </div>
   );
 }
