@@ -30,7 +30,7 @@ export function masterOverzicht(taken: readonly Taak[], feiten: readonly Feit[],
     }
   }
   if (!context.projectleden.includes(context.actor)) return items;
-  const doelen = feiten.filter(f=>["actie","besluit","vraag"].includes(f.actie.soort) && !isAfgerond(f,[...feiten]));
+  const doelen = feiten.filter(f=>["actie","besluit","vraag"].includes(f.actie.soort) && !f.actie.doel && !isAfgerond(f,[...feiten]));
   for (const doel of doelen) {
     const plannen=actueleAanpakken(doel.actie.sleutel,[...feiten]);
     // Multiple concurrent plans must be resolved explicitly, never silently combined.
