@@ -1,3 +1,12 @@
+## 2026-11-03 · Evenementen met betaalde tickets
+Wat:
+- In Agenda › Evenementen staan nu drie delen: Ontdekken, Mijn tickets en Organiseren.
+- Bij Ontdekken zie je komende evenementen met de begintijd en tot wanneer het loopt. Je kiest een ticketsoort en een aantal en betaalt in de app.
+- Na betalen krijg je per ticket een eigen QR-code bij Mijn tickets. Bij terugbetalen worden niet-gebruikte tickets ingetrokken.
+- Organisatoren maken in Studio › Tickets en inschrijvingen ticketsoorten (bijvoorbeeld Ringside en Staanplaats) met prijs en aantal, plus een omschrijving.
+- Na de eindtijd verdwijnt een evenement vanzelf van de pagina en stopt de verkoop. Er wordt niets gewist.
+Waarom: je wilt het boksgala van 28 februari helemaal via de app regelen. Tickets lopen via je eigen webshop en de bestaande betaling, zodat geld en controle op één plek blijven.
+
 ## 2026-11-03 · App bouwt weer (#198)
 Wat: 23 bouwfouten en 13 falende tests opgelost. Het volledige gespreksscherm (nieuwe berichten, betaalverzoeken, projecten) en de volledige winkel staan er weer, en de terugknop na de assistent gaat weer naar de juiste plek. Al het nieuwe werk is bewaard.
 Waarom: sinds 1 november gingen 76 wijzigingen direct naar de hoofdversie terwijl de controles rood waren. Daardoor bouwde de app niet meer en bleef de live app op 1 november staan.
