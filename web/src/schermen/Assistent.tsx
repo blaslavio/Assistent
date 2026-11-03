@@ -92,7 +92,10 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
     gesprek.beurten = beurten;
     if(schermActief)onder.current?.scrollIntoView?.({ block: "end" });
   }, [beurten, bezig,schermActief]);
-  useEffect(() => () => stoppen.current?.abort(), []);
+  useEffect(() => () => {
+    stoppen.current?.abort();
+    herkenning.current?.stop();
+  }, []);
   // Na elk afgerond antwoord de tekst bewaren bij je eerdere gesprekken.
   useEffect(() => {
     if (!klaarNr || !bewarenAan(staat.data)) return;
@@ -109,8 +112,10 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
     if ((!v && !bijlagen.length) || bezig) return;
     setInvoer("");
     setKlaar([]);
-    if (veld.current) veld.current.style.height = "auto";
+    pasHoogteAan(veld.current);
     void praat(v, undefined, bijlagen);
+    // Houd de focus op het veld zodat je meteen door kunt typen.
+    requestAnimationFrame(() => veld.current?.focus({ preventScroll: true }));
   }
 
   async function bestandenGekozen(lijst: FileList | null) {
@@ -251,6 +256,18 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [herhaal]);
 
+  function pasHoogteAan(el: HTMLTextAreaElement | null) {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  }
+
+  function stopAntwoord() {
+    // Alleen afbreken; finally ruimt op en catch negeert aborted requests.
+    stoppen.current?.abort();
+    setBezig(null);
+  }
+
   function luisteren() {
     if (!Spraak || bezig || luistert) return;
     const r = new Spraak();
@@ -384,12 +401,19 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
       {leeg ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-10">
           <button type="button" onClick={() => { setHup((h) => h + 1); setVoorstelNr((n) => n + 1); }}
-            aria-label="Ander voorstel">
+            aria-label="Andere suggesties">
             <Mascotte className="h-20 w-16" hup={hup} stemming={stemming} />
           </button>
           <p className="text-center text-[15px] text-rustig">Waarmee kan ik helpen?</p>
-          <button type="button" onClick={() => vraag(voorstel)}
-            className="max-w-sm rounded-full bg-vlak px-5 py-2.5 text-sm">{voorstel}</button>
+          <div className="flex max-w-md flex-wrap justify-center gap-2">
+            {lijstVoorstellen.slice(voorstelNr % lijstVoorstellen.length, (voorstelNr % lijstVoorstellen.length) + 3)
+              .concat(lijstVoorstellen.slice(0, Math.max(0, (voorstelNr % lijstVoorstellen.length) + 3 - lijstVoorstellen.length)))
+              .slice(0, 3)
+              .map((s) => (
+                <button key={s} type="button" onClick={() => vraag(s)}
+                  className="rounded-full bg-vlak px-4 py-2.5 text-sm text-left">{s}</button>
+              ))}
+          </div>
         </div>
       ) : (
         <main className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-2">
@@ -462,26 +486,34 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
             aria-label="Bestand toevoegen" className="flex size-10 shrink-0 items-center justify-center rounded-full text-rustig disabled:opacity-40">
             <Bijlage className="size-5" />
           </button>
-          <textarea ref={veld} value={invoer} onChange={(e) => setInvoer(e.target.value)} rows={1}
-            placeholder={luistert ? "Luisteren…" : "Stel een vraag…"}
-            className="max-h-32 min-h-10 flex-1 resize-none bg-transparent px-1 py-2 outline-none"
+          <textarea ref={veld} value={invoer}
+            onChange={(e) => { setInvoer(e.target.value); pasHoogteAan(e.target); }}
+            rows={1}
+            disabled={!!bezig}
+            placeholder={bezig ? "Even geduld…" : luistert ? "Luisteren…" : "Stel een vraag…"}
+            className="max-h-32 min-h-10 flex-1 resize-none bg-transparent px-1 py-2 outline-none disabled:opacity-60"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); vraag(invoer, klaar); }
             }} />
-          {luistert ? (
+          {bezig ? (
+            <button type="button" onClick={stopAntwoord} aria-label="Stoppen"
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-vlak text-rustig">
+              <Kruis className="size-5" />
+            </button>
+          ) : luistert ? (
             <button type="button" onClick={stopLuisteren} aria-label="Stoppen met luisteren"
               className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-white">
               <Kruis className="size-5" />
             </button>
           ) : invoer.trim() || klaar.length || !Spraak ? (
-            <button type="submit" disabled={!!bezig || (!invoer.trim() && !klaar.length)}
+            <button type="submit" disabled={!invoer.trim() && !klaar.length}
               className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-white disabled:opacity-40"
               aria-label="Versturen">
               <Pijl className="size-5" />
             </button>
           ) : (
-            <button type="button" onClick={luisteren} disabled={!!bezig}
-              aria-label="Spreken" className="flex size-10 shrink-0 items-center justify-center rounded-full text-rustig disabled:opacity-40">
+            <button type="button" onClick={luisteren}
+              aria-label="Spreken" className="flex size-10 shrink-0 items-center justify-center rounded-full text-rustig">
               <Microfoon className="size-5" />
             </button>
           )}
