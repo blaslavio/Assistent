@@ -21,29 +21,8 @@ export default function EersteMinuut({
     track("app_open", pad);
     if (pad === "assistent") openAssistent();
     else if (pad === "community") openChat();
-    else if (pad === "studio") {
-      try {
-        studioOpenen();
-      } catch {
-        /* */
-      }
-    } else {
-      try {
-        // Studio social agents
-        import("../lib/naar").then((n) => {
-          // @ts-expect-error optioneel als helper bestaat
-          if (typeof n.studioVerzoek === "function") {
-            /* */
-          }
-        });
-        studioOpenen();
-        window.dispatchEvent(
-          new CustomEvent("studio-openen", { detail: { tool: "social_bots" } }),
-        );
-      } catch {
-        openAssistent();
-      }
-    }
+    else if (pad === "studio") studioOpenen({ tool: "winkel" });
+    else studioOpenen({ tool: "social_bots" });
     sluit();
   }
 
