@@ -3,14 +3,13 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { useSchermActief } from "./BewaarScherm";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Staat } from "../App";
-import { Opstellen } from "./MailOpstellen";
-import { Herstel, Kruis, Pijl } from "../iconen";
+import { Kruis, Pijl } from "../iconen";
 import { GrafiekKaart, type Grafiek } from "../grafiek";
 import type { Bijlage as Bijlagebestand } from "../lib/bijlagen";
-import { antwoord, gebruikerBeurt, notitie, verbinding, zonderLabels, type Actie, type Keuze } from "../lib/assistent";
+import { antwoord, gebruikerBeurt, gesprekLeeg, notitie, verbinding, zonderLabels, type Actie, type Keuze } from "../lib/assistent";
 import { KeuzeKaart } from "../keuzekaart";
 import { Mascotte, type Stemming } from "../mascotte";
-import { alsBerichten, bewaar, bewarenAan, nieuwId, schoon } from "../lib/geschiedenis";
+import { alsBerichten, bewaar, bewarenAan, nieuwId, schoon, type Opgeslagen } from "../lib/geschiedenis";
 import { Gesprekken } from "./Gesprekken";
 import { Opmaak } from "../lib/opmaak";
 import { GEEN_INTERNET } from "../lib/net";
@@ -285,6 +284,17 @@ export default function Assistent({
     vraag(invoer);
   }
 
+  function verderIn(g: Opgeslagen) {
+    stoppen.current?.abort();
+    gesprekLeeg();
+    gesprek.id = g.id;
+    gesprek.berichten = alsBerichten(g.beurten);
+    gesprek.gebruikt = 0;
+    setBezig(null);
+    setBeurten(g.beurten.map((b) => ({ ...b, acties: [] })));
+    setGeschiedenis(false);
+  }
+
   const leeg = beurten.length === 0;
 
   return (
@@ -304,7 +314,7 @@ export default function Assistent({
           <span className="font-semibold">Assistent</span>
           <span className="text-[13px] text-rustig">Vraag wat je wilt regelen</span>
         </span>
-        <InstellingenKnop />
+        <InstellingenKnop pagina="assistent" label="Assistent instellen" />
         <button
           type="button"
           onClick={() => setGeschiedenis(true)}
@@ -401,14 +411,7 @@ export default function Assistent({
       {geschiedenis && (
         <Gesprekken
           sluit={() => setGeschiedenis(false)}
-          open={(id, berichten) => {
-            gesprek.id = id;
-            gesprek.beurten = [];
-            gesprek.berichten = berichten;
-            gesprek.gebruikt = 0;
-            setBeurten([]);
-            setGeschiedenis(false);
-          }}
+          open={verderIn}
           huidig={leeg ? undefined : gesprek.id}
         />
       )}
