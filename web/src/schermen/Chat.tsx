@@ -19,7 +19,7 @@ import { DELEN, chatDelenVan, type Deel } from "./chatdelen";
 import type { Staat } from "../App";
 import { peilen } from "../lib/peilen";
 import type { Product } from "../lib/winkelen";
-import { Chats, Communitys } from "./ChatPanelen";
+import { Chats, Communitys, CommunityScherm } from "./ChatPanelen";
 import { WinkelApp } from "./ChatWinkel";
 import { NieuwVeld, Gesprekscherm } from "./ChatGesprek";
 
@@ -277,10 +277,16 @@ export default function Chat({
     const c = groepen.find((x) => x.id === openCommunity);
     if (c)
       return (
-        <Communitys
-          lijst={groepen}
-          open={setOpenCommunity}
-          vernieuw={laden}
+        <CommunityScherm
+          c={c}
+          openKanaal={(id) => {
+            setBronBericht(null);
+            setOpen(id);
+          }}
+          terug={() => {
+            setOpenCommunity(null);
+            laden().catch(() => {});
+          }}
           staat={staat}
         />
       );
