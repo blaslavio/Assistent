@@ -1,35 +1,141 @@
-// BotBeheer: agent-wachtrij, signalen, retentie — jij tikt akkoord, agents doen het werk.
+// BotBeheer: alle social-kanalen, één wachtrij, jij geeft akkoord.
 import { useMemo, useState } from "react";
 import {
   AGENT_DOELEN,
+  ALLE_KANALEN,
   BOT_DOEL,
   bouwDigest,
   demoSignalen,
   demoVoorstellen,
+  filterKanaal,
   keurLaagRisicoGoed,
   keurSelectie,
+  markeerGeplaatst,
+  standaardBeleidAlles,
+  type BotBeleid,
+  type BotKanaal,
   type BotVoorstel,
   type KlantSignaal,
 } from "../lib/bots";
 
+type Filter = BotKanaal | "alle";
+
 export default function BotBeheer() {
   const [voorstellen, setVoorstellen] = useState<BotVoorstel[]>(() => demoVoorstellen());
   const [signalen, setSignalen] = useState<KlantSignaal[]>(() => demoSignalen());
+  const [beleid, setBeleid] = useState<BotBeleid[]>(() => standaardBeleidAlles());
+  const [filter, setFilter] = useState<Filter>("alle");
   const [gekozen, setGekozen] = useState<string[]>([]);
-  const digest = useMemo(() => bouwDigest(voorstellen, signalen), [voorstellen, signalen]);
+
+  const digest = useMemo(
+    () => bouwDigest(voorstellen, signalen, beleid),
+    [voorstellen, signalen, beleid],
+  );
+  const wachtrij = useMemo(
+    () => filterKanaal(digest.wachtend, filter),
+    [digest.wachtend, filter],
+  );
 
   function toggle(id: string) {
     setGekozen((g) => (g.includes(id) ? g.filter((x) => x !== id) : [...g, id]));
   }
 
+  function zetKanaalAan(id: BotKanaal, aan: boolean) {
+    setBeleid((lijst) =>
+      lijst.map((b) =>
+        b.kanaal === id
+          ? {
+              ...b,
+              aan,
+              // Echte OAuth kan alleen jij afronden; wij zetten ‘actief’ klaar als simulatie van gekoppeld.
+              status: aan ? (b.status === "uit" ? "wacht_op_koppeling" : b.status) : "uit",
+            }
+          : b,
+      ),
+    );
+  }
+
+  /** Simuleer geslaagde koppeling (tot echte OAuth-backend er is). */
+  function simuleerKoppeling(id: BotKanaal) {
+    setBeleid((lijst) =>
+      lijst.map((b) =>
+        b.kanaal === id ? { ...b, aan: true, status: "actief" as const } : b,
+      ),
+    );
+  }
+
+  const goedGekeurd = voorstellen.filter((v) => v.status === "goedgekeurd");
+
   return (
     <div className="flex flex-col gap-5 pb-4">
       <header className="flex flex-col gap-1">
         <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-accent">Agents</p>
-        <h2 className="text-xl font-bold tracking-tight">Social & retentie</h2>
+        <h2 className="text-xl font-bold tracking-tight">Alle kanalen</h2>
         <p className="text-[13px] text-rustig">{BOT_DOEL}</p>
       </header>
 
+      {/* Kanaalgrid */}
+      <section aria-label="Kanalen" className="flex flex-col gap-2">
+        <h3 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">
+          Kanalen
+        </h3>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {ALLE_KANALEN.map((k) => {
+            const b = beleid.find((x) => x.kanaal === k.id) ?? standaardBeleidAlles()[0];
+            const w = digest.perKanaal[k.id]?.wachtend ?? 0;
+            return (
+              <div
+                key={k.id}
+                className="flex flex-col gap-2 rounded-2xl border border-lijn p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{k.naam}</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={b.aan}
+                    onClick={() => zetKanaalAan(k.id, !b.aan)}
+                    className={`relative h-6 w-11 rounded-full transition-colors ${
+                      b.aan ? "bg-accent" : "bg-vlak"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${
+                        b.aan ? "translate-x-5" : ""
+                      }`}
+                    />
+                  </button>
+                </div>
+                <p className="text-[11px] text-rustig">
+                  {b.status === "actief"
+                    ? "Gekoppeld"
+                    : b.status === "wacht_op_koppeling"
+                      ? "Wacht op koppeling"
+                      : b.status === "fout"
+                        ? "Fout — opnieuw koppelen"
+                        : "Uit"}
+                  {w > 0 ? ` · ${w} in wachtrij` : ""}
+                </p>
+                {b.aan && b.status !== "actief" && (
+                  <button
+                    type="button"
+                    onClick={() => simuleerKoppeling(k.id)}
+                    className="h-8 rounded-full bg-vlak text-[12px] font-medium"
+                  >
+                    Koppel {k.naam}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[12px] text-zacht">
+          Echte publicatie vereist jouw login per netwerk (OAuth). Tot die tijd kun je de hele
+          wachtrij al goedkeuren; plaatsen gebeurt zodra het kanaal actief is.
+        </p>
+      </section>
+
+      {/* Digest + acties */}
       <section className="rounded-2xl border border-accent/20 bg-accent/5 p-4" aria-label="Digest">
         <h3 className="text-[13px] font-semibold">Vandaag</h3>
         <p className="mt-1 text-[15px]">{digest.samenvatting}</p>
@@ -63,18 +169,60 @@ export default function BotBeheer() {
           >
             Afwijzen
           </button>
+          <button
+            type="button"
+            disabled={!goedGekeurd.length}
+            className="h-10 rounded-full bg-vlak px-4 text-[13px] font-medium disabled:opacity-40"
+            onClick={() =>
+              setVoorstellen((v) => markeerGeplaatst(
+                v,
+                v.filter((x) => x.status === "goedgekeurd").map((x) => x.id),
+              ))
+            }
+          >
+            Plaats goedgekeurde ({goedGekeurd.length})
+          </button>
         </div>
       </section>
 
+      {/* Filter */}
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 [scrollbar-width:thin]">
+        <button
+          type="button"
+          onClick={() => setFilter("alle")}
+          className={`h-9 shrink-0 rounded-full px-3 text-[13px] font-medium ${
+            filter === "alle" ? "bg-inkt text-white dark:bg-white dark:text-black" : "bg-vlak"
+          }`}
+        >
+          Alle
+        </button>
+        {ALLE_KANALEN.map((k) => (
+          <button
+            key={k.id}
+            type="button"
+            onClick={() => setFilter(k.id)}
+            className={`h-9 shrink-0 rounded-full px-3 text-[13px] font-medium ${
+              filter === k.id ? "bg-inkt text-white dark:bg-white dark:text-black" : "bg-vlak"
+            }`}
+          >
+            {k.naam}
+            {(digest.perKanaal[k.id]?.wachtend ?? 0) > 0
+              ? ` ${digest.perKanaal[k.id].wachtend}`
+              : ""}
+          </button>
+        ))}
+      </div>
+
+      {/* Wachtrij */}
       <section aria-label="Wachtrij" className="flex flex-col gap-2">
         <h3 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">
-          Wachtrij · {digest.wachtend.length}
+          Wachtrij · {wachtrij.length}
         </h3>
-        {!digest.wachtend.length ? (
-          <p className="text-sm text-rustig">Geen open voorstellen. Agents luisteren verder.</p>
+        {!wachtrij.length ? (
+          <p className="text-sm text-rustig">Niets open op dit filter.</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {digest.wachtend.map((v) => (
+            {wachtrij.map((v) => (
               <li key={v.id}>
                 <label className="flex cursor-pointer gap-3 rounded-2xl border border-lijn p-3">
                   <input
@@ -105,7 +253,6 @@ export default function BotBeheer() {
                     {v.bronVraag && (
                       <span className="mt-1 block text-[12px] text-rustig">Op: “{v.bronVraag}”</span>
                     )}
-                    {v.doel && <span className="mt-0.5 block text-[12px] text-zacht">Doel: {v.doel}</span>}
                   </span>
                 </label>
               </li>
@@ -114,6 +261,7 @@ export default function BotBeheer() {
         )}
       </section>
 
+      {/* Signalen */}
       <section aria-label="KlantSignaal" className="flex flex-col gap-2">
         <h3 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">
           KlantSignaal · {digest.signalen.length}
@@ -171,8 +319,8 @@ export default function BotBeheer() {
           ))}
         </ul>
         <p className="mt-3 text-zacht">
-          Publiceren en gevoelige antwoorden blijven achter jouw akkoord. Laag risico mag je in batch
-          doorzetten — het werk verdwijnt uit je handen, de regie niet.
+          Kanalen: Instagram, Facebook, TikTok, X, LinkedIn, YouTube. Jij koppelt en keurt goed;
+          agents vullen de wachtrij op elk kanaal.
         </p>
       </section>
     </div>
