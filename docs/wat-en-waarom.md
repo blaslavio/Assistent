@@ -1,3 +1,7 @@
+## 2026-11-03 · App bouwt weer (#198)
+Wat: 23 bouwfouten en 13 falende tests opgelost. Het volledige gespreksscherm (nieuwe berichten, betaalverzoeken, projecten) en de volledige winkel staan er weer, en de terugknop na de assistent gaat weer naar de juiste plek. Al het nieuwe werk is bewaard.
+Waarom: sinds 1 november gingen 76 wijzigingen direct naar de hoofdversie terwijl de controles rood waren. Daardoor bouwde de app niet meer en bleef de live app op 1 november staan.
+
 
 ## 2026-10-30 · Azure in de assistent (#163, #164)
 Wat: de assistent gebruikt nu vanzelf Azure OpenAI als er geen Claude-sleutel is. De functie `ai` is live gezet (v13), met akkoord.
