@@ -57,33 +57,36 @@ export async function bewaren(m: Momentopname, account: string) {
   }
 }
 
-/** De vorige stand, als die er is en niet ouder dan 30 dagen. */
+/** De vorige stand, als die er is en niet te oud is. */
 export async function lezen(account: string): Promise<Momentopname | null> {
-  if (!kan()) return null;
+  if (!kan() || !account) return null;
   try {
     const s = await sleutel(false);
-    const r = await bak<{ iv: Uint8Array; geheim: ArrayBuffer; bewaard: number } | undefined>("readonly", (b) => b.get("stand"));
-    if (!s || !r || Date.now() - r.bewaard > 30 * 864e5) return null;
-    const tekst = await crypto.subtle.decrypt({ name: "AES-GCM", iv: r.iv as Uint8Array<ArrayBuffer> }, s, r.geheim);
-    const { account: van, m } = JSON.parse(new TextDecoder().decode(tekst)) as { account: string; m: Momentopname };
-    return van === account && m?.data && m.gebruiker ? m : null;
+    const rij = await bak<{ iv: Uint8Array; geheim: ArrayBuffer; bewaard: number } | undefined>("readonly", (b) => b.get("stand"));
+    if (!s || !rij || Date.now() - rij.bewaard > 7 * 864e5) return null;
+    const tekst = await crypto.subtle.decrypt({ name: "AES-GCM", iv: rij.iv }, s, rij.geheim);
+    const p = JSON.parse(new TextDecoder().decode(tekst)) as { account?: string; m?: Momentopname };
+    if (p.account !== account || !p.m?.gebruiker || !p.m?.data) return null;
+    return p.m;
   } catch {
     return null;
   }
 }
 
-/** Wist de stand én de sleutel, zodat er niets meer van je gegevens op dit apparaat staat. */
 export async function wissen() {
   if (!kan()) return;
   try {
-    await bak("readwrite", (b) => b.clear());
+    await bak("readwrite", (b) => b.delete("stand"));
   } catch {
-    /* niets te wissen */
+    /* */
   }
 }
 
-/** Een korte, niet terug te rekenen naam voor het account van deze apparaatsleutel. */
 export async function accountVan(apparaatToken: string) {
-  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`snelstart:${apparaatToken}`));
-  return [...new Uint8Array(h).slice(0, 12)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return apparaatToken.slice(0, 32);
+}
+
+/** Compat; echte cache via lezen(account). */
+export async function laden(): Promise<null> {
+  return null;
 }
