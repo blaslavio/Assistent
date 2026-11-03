@@ -1,0 +1,41 @@
+name: Productiviteit V1
+on:
+  pull_request:
+    paths:
+      - 'web/**'
+      - '.github/workflows/productiviteit-ci.yml'
+      - 'PRODUCTIVITEIT_V1.md'
+permissions:
+  contents: read
+
+jobs:
+  productiviteit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Installeer vastgepinde dependencies
+        working-directory: web
+        run: npm ci
+      - name: Gerichte productiviteitstests
+        working-directory: web
+        run: npm test -- src/lib/productiviteit.test.ts
+      - name: TypeScript en beide productiebuilds
+        working-directory: web
+        run: npm run build
+      - name: Toon gewijzigde webbuildbestanden (geen push)
+        run: git status --short -- docs/app nieuwe_app
+      - name: Archiveer productiebuild voor review
+        uses: actions/upload-artifact@v4
+        with:
+          name: productiviteit-webbuild
+          path: |
+            docs/app
+            nieuwe_app
+          retention-days: 3
