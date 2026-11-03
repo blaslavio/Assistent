@@ -12,21 +12,15 @@ import {
   type KernEvent,
 } from "./platform-kern";
 
-// ——— 1. OAuth-flow (fase 1: X + Instagram) ———
-
 export type OAuthStartResult =
   | { ok: true; provider: OAuthProvider; url: string; state: string }
   | { ok: false; reden: string };
 
-/** Bouw authorize-URL via Edge Function (of duidelijke fout als nog niet geconfigureerd). */
 export function oauthStartUrl(provider: OAuthProvider, returnPath = "/studio"): OAuthStartResult {
   const plan = OAUTH_PLAN.find((p) => p.id === provider);
   if (!plan) return { ok: false, reden: "Onbekend kanaal" };
   if (plan.fase > 1) {
-    return {
-      ok: false,
-      reden: `${provider} zit in fase 2 — eerst X en Instagram live.`,
-    };
+    return { ok: false, reden: `${provider} zit in fase 2 — eerst X en Instagram live.` };
   }
   const state = `oauth_${provider}_${Date.now().toString(36)}`;
   try {
@@ -35,8 +29,7 @@ export function oauthStartUrl(provider: OAuthProvider, returnPath = "/studio"): 
     /* */
   }
   zetOAuthStatus(provider, "bezig");
-  track("oauth_start" as KernEvent, provider);
-  // Edge Function pad; deploy zet echte client_id/redirect.
+  track("oauth_start", provider);
   const base = (import.meta as { env?: { VITE_SUPABASE_URL?: string } }).env?.VITE_SUPABASE_URL;
   if (!base) {
     return {
@@ -52,17 +45,15 @@ export function oauthStartUrl(provider: OAuthProvider, returnPath = "/studio"): 
 
 export function oauthCallbackVerwerk(provider: OAuthProvider, ok: boolean) {
   zetOAuthStatus(provider, ok ? "actief" : "verlopen");
-  track(ok ? ("oauth_ok" as KernEvent) : ("oauth_fout" as KernEvent), provider);
+  track(ok ? "oauth_ok" : "oauth_fout", provider);
   if (ok) auditLog("oauth_gekoppeld", { provider });
 }
-
-// ——— 2. Akkoord → post → meten ———
 
 export type LusStap = "voorstel" | "akkoord" | "geplaatst" | "mislukt";
 
 export function trackSocialLus(stap: LusStap, meta?: string) {
-  const map: Record<LusStap, string> = {
-    voorstel: "social_voorstel",
+  const map: Record<LusStap, KernEvent | string> = {
+    voorstel: "social_voorstel_goed",
     akkoord: "social_voorstel_goed",
     geplaatst: "social_geplaatst",
     mislukt: "social_mislukt",
@@ -72,14 +63,13 @@ export function trackSocialLus(stap: LusStap, meta?: string) {
 }
 
 export function socialLusSamenvatting(dagen = 7) {
-  // Hergebruik metrics uit kern via localStorage events-sleutel
   try {
-    const raw = localStorage.getItem("assistent.metrics.v1");
+    const raw = localStorage.getItem("assistent.kernmetrics.v1");
     const events = raw ? (JSON.parse(raw) as { t: number; e: string }[]) : [];
     const grens = Date.now() - dagen * 864e5;
     const inVenster = events.filter((x) => x.t >= grens);
     const tel = (e: string) => inVenster.filter((x) => x.e === e).length;
-    const akkoord = tel("social_voorstel_goed") + tel("akkoord");
+    const akkoord = tel("social_voorstel_goed");
     const geplaatst = tel("social_geplaatst");
     return {
       akkoord,
@@ -90,8 +80,6 @@ export function socialLusSamenvatting(dagen = 7) {
     return { akkoord: 0, geplaatst: 0, conversie: 0 };
   }
 }
-
-// ——— 5. Offline-wachtrij (IndexedDB-achtig via localStorage v1) ———
 
 export type WachtrijItem = {
   id: string;
@@ -122,28 +110,23 @@ export function wachtrijPush(
     gemaakt: new Date().toISOString(),
     pogingen: 0,
   };
-  const lijst = [item, ...wachtrijLees()].slice(0, 100);
   try {
-    localStorage.setItem(WACHTRIJ_KEY, JSON.stringify(lijst));
+    localStorage.setItem(WACHTRIJ_KEY, JSON.stringify([item, ...wachtrijLees()].slice(0, 100)));
   } catch {
     /* */
   }
-  track("offline_enqueue" as KernEvent, soort);
+  track("offline_enqueue", soort);
   return item;
 }
 
 export function wachtrijVerwijder(id: string) {
   try {
-    localStorage.setItem(
-      WACHTRIJ_KEY,
-      JSON.stringify(wachtrijLees().filter((x) => x.id !== id)),
-    );
+    localStorage.setItem(WACHTRIJ_KEY, JSON.stringify(wachtrijLees().filter((x) => x.id !== id)));
   } catch {
     /* */
   }
 }
 
-/** Probeer items te flushen wanneer online; `verstuur` retourneert true bij succes. */
 export async function wachtrijFlush(
   verstuur: (item: WachtrijItem) => Promise<boolean>,
 ): Promise<{ ok: number; mis: number }> {
@@ -152,14 +135,10 @@ export async function wachtrijFlush(
   let mis = 0;
   for (const item of wachtrijLees()) {
     try {
-      const gelukt = await verstuur(item);
-      if (gelukt) {
+      if (await verstuur(item)) {
         wachtrijVerwijder(item.id);
         ok++;
-      } else {
-        mis++;
-        item.pogingen += 1;
-      }
+      } else mis++;
     } catch {
       mis++;
     }
@@ -167,21 +146,13 @@ export async function wachtrijFlush(
   return { ok, mis };
 }
 
-// ——— 6. Meldingen afdwingen ———
-
 export type MeldSoort = "akkoordWachtrij" | "eigenEvents" | "communityMention" | "marketing";
 
-/** Toon alleen als beleid het toelaat; anders stil. */
-export function toonMeldingAlsMag(
-  soort: MeldSoort,
-  toon: () => void,
-): boolean {
+export function toonMeldingAlsMag(soort: MeldSoort, toon: () => void): boolean {
   if (!magMelden(soort)) return false;
   toon();
   return true;
 }
-
-// ——— 7. Studio-rollen + audit ———
 
 export type StudioRol = "eigenaar" | "medewerker" | "scanner";
 
@@ -217,20 +188,10 @@ export function magStudioActie(
   return false;
 }
 
-export type AuditRij = {
-  id: string;
-  actie: string;
-  meta?: Record<string, unknown>;
-  t: string;
-};
+export type AuditRij = { id: string; actie: string; meta?: Record<string, unknown>; t: string };
 
 export function auditLog(actie: string, meta?: Record<string, unknown>) {
-  const rij: AuditRij = {
-    id: `a-${Date.now()}`,
-    actie,
-    meta,
-    t: new Date().toISOString(),
-  };
+  const rij: AuditRij = { id: `a-${Date.now()}`, actie, meta, t: new Date().toISOString() };
   try {
     const lijst = JSON.parse(localStorage.getItem(AUDIT_KEY) || "[]") as AuditRij[];
     localStorage.setItem(AUDIT_KEY, JSON.stringify([rij, ...lijst].slice(0, 100)));
@@ -247,10 +208,7 @@ export function auditLees(max = 20): AuditRij[] {
   }
 }
 
-// ——— 9. Monetisatie (zonder kern te blokkeren) ———
-
 export type MonetisatieModel = {
-  /** App blijft gratis; verdienmodel naast de kern. */
   appGratis: true;
   commissieHandelPct: number;
   commissieTicketsPct: number;
@@ -284,20 +242,14 @@ export function commissieCenten(bedragCent: number, soort: "handel" | "ticket"):
   return Math.round((bedragCent * pct) / 100);
 }
 
-// ——— 10. A11y helpers ———
-
 export const A11Y = {
-  /** Minimale touch target (px). */
   minTouch: 44,
   livePolite: { "aria-live": "polite" as const, role: "status" as const },
   liveAssertive: { "aria-live": "assertive" as const, role: "alert" as const },
 };
 
-// ——— 12. Scope: v1-guard ———
-
 export function isBuitenV1Focus(feature: string): boolean {
-  const later = ["dating", "crypto_trading", "random_mini_apps", "paywall_kern"];
-  return later.includes(feature);
+  return ["dating", "crypto_trading", "random_mini_apps", "paywall_kern"].includes(feature);
 }
 
 export function oauthFase1Providers(): OAuthProvider[] {
