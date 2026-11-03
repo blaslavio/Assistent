@@ -8,7 +8,7 @@ export const V1_FOCUS = {
     "Community-feed met privacy",
     "Social agents op 2 kanalen (X + Instagram)",
   ],
-  later: ["Overige kanalen", "Volledige Studio-diepte", "Teamrollen auditlog"],
+  later: ["Overige kanalen", "Volledige Studio-diepte", "Server-side audit"],
 } as const;
 
 /** Lokale events — geen server, geen tracking-pixel. */
@@ -19,9 +19,15 @@ export type KernEvent =
   | "akkoord_gegeven"
   | "social_voorstel_goed"
   | "social_geplaatst"
+  | "social_mislukt"
   | "signaal_in_planning"
   | "rapport_community"
-  | "zoek_gebruikt";
+  | "zoek_gebruikt"
+  | "oauth_start"
+  | "oauth_ok"
+  | "oauth_fout"
+  | "offline_enqueue"
+  | "moderatie_blok";
 
 type EventRij = { t: number; e: KernEvent; meta?: string };
 
@@ -62,6 +68,8 @@ export function metricsSamenvatting(dagen = 7) {
     signalen: tel("signaal_in_planning"),
     rapporten: tel("rapport_community"),
     zoek: tel("zoek_gebruikt"),
+    oauth_ok: tel("oauth_ok"),
+    offline: tel("offline_enqueue"),
   };
 }
 
@@ -71,7 +79,7 @@ export type MeldBeleid = {
   eigenEvents: boolean;
   communityMention: boolean;
   marketing: boolean;
-  stilNaUur: number | null; // 22 = stil na 22:00 lokale tijd
+  stilNaUur: number | null;
 };
 
 const MELD_KEY = "assistent.meldbeleid.v1";
@@ -104,7 +112,6 @@ export function bewaarMeldBeleid(b: Partial<MeldBeleid>) {
   return next;
 }
 
-/** Mag er nú een melding getoond worden volgens beleid? */
 export function magMelden(soort: keyof Omit<MeldBeleid, "stilNaUur">, nu = new Date()): boolean {
   const b = leesMeldBeleid();
   if (!b[soort]) return false;
@@ -112,7 +119,6 @@ export function magMelden(soort: keyof Omit<MeldBeleid, "stilNaUur">, nu = new D
   return true;
 }
 
-/** Community-moderatie (lokaal tot server-RPC er is). */
 export type RapportReden = "spam" | "misleiding" | "haat" | "privacy" | "anders";
 
 export type Rapport = {
@@ -148,6 +154,7 @@ export function blokkeerGebruiker(id: string) {
     const s = new Set<string>(JSON.parse(localStorage.getItem(BLOK_KEY) || "[]"));
     s.add(id);
     localStorage.setItem(BLOK_KEY, JSON.stringify([...s]));
+    track("moderatie_blok", id.slice(0, 40));
   } catch {
     /* */
   }
@@ -162,7 +169,6 @@ export function isGeblokkeerd(id: string): boolean {
   }
 }
 
-/** OAuth: eerst X + Instagram (v1), rest volgt. Tokens nooit in repo. */
 export type OAuthProvider = "x" | "instagram" | "facebook" | "tiktok" | "linkedin" | "youtube";
 
 export const OAUTH_PLAN: {
@@ -236,7 +242,6 @@ export function zetOAuthStatus(id: OAuthProvider, status: OAuthStatus) {
   return cur;
 }
 
-/** Eerste-minuut vlag. */
 const EERSTE_KEY = "assistent.eerste_minuut.v1";
 
 export function eersteMinuutKlaar(): boolean {
@@ -256,7 +261,6 @@ export function markeerEersteMinuutKlaar() {
   track("eerste_minuut_klaar");
 }
 
-/** Eenvoudige in-app zoekindex (labels → bestemming). */
 export type ZoekDoel =
   | { soort: "tab"; tab: "vandaag" | "chat" | "projecten" | "assistent" | "instellingen" }
   | { soort: "studio"; tool: string }
@@ -266,8 +270,8 @@ export const ZOEK_INDEX: { trefwoorden: string; label: string; doel: ZoekDoel }[
   { trefwoorden: "assistent ai vraag hulp", label: "Assistent", doel: { soort: "tab", tab: "assistent" } },
   { trefwoorden: "chat community netwerk handel", label: "Chat en community", doel: { soort: "tab", tab: "chat" } },
   { trefwoorden: "studio winkel evenement tickets agents social", label: "Studio", doel: { soort: "tab", tab: "projecten" } },
-  { trefwoorden: "social bot agent instagram x tiktok", label: "Social agents", doel: { soort: "studio", tool: "social_bots" } },
-  { trefwoorden: "privacy beveiliging account", label: "Privacy", doel: { soort: "tab", tab: "instellingen" } },
+  { trefwoorden: "social bot agent instagram x tiktok oauth koppel", label: "Social agents", doel: { soort: "studio", tool: "social_bots" } },
+  { trefwoorden: "privacy beveiliging account status meldingen", label: "Privacy en status", doel: { soort: "tab", tab: "instellingen" } },
   { trefwoorden: "bestelling betalen stripe", label: "Bestellingen / betalen", doel: { soort: "tekst", uitleg: "Studio → Bestellingen of Instellingen → Betalingen" } },
 ];
 
