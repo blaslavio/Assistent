@@ -10,6 +10,7 @@ import {
   secundaireKnopKlasse,
 } from "./BetaalBevestiging";
 import { Vergelijken, ZoekBalk } from "./ZoekVergelijk";
+import { StatusBanner, ProductLijn, BestelTotalen } from "./BestelStatus";
 
 export default function Bestellingen({ terug, melding: begin }: { terug?: () => void; melding?: string }) {
   const [alle, setAlle] = useState<Bestelling[] | null>(null);
@@ -66,37 +67,30 @@ export default function Bestellingen({ terug, melding: begin }: { terug?: () => 
         </p>
       )}
       {fout && <FoutBalk tekst={fout} opnieuw={laden} />}
-      {alle === null && !fout && <Laden tekst="Bestellingen laden…" />}
-      {q && gevonden?.length === 0 && (
-        <p className="text-sm text-rustig">Geen bestelling met "{zoek.trim()}".</p>
-      )}
-      <Vergelijken
-        term={term}
-        betaald={
-          vergelijk?.rol === "koper" ? vergelijk.bedrag / (vergelijk.aantal || 1) : undefined
-        }
-      />
+      {alle === null && !fout && <Laden tekst="Bestellingen laden" />}
       {alle?.length === 0 && (
-        <p className="py-6 text-rustig">
-          Nog geen bestellingen. Zoek iets in de winkel of vraag het de assistent.
-        </p>
+        <p className="text-rustig">Nog geen bestellingen. Zodra je iets koopt of verkoopt, staat het hier.</p>
       )}
       {groepen.map(
-        ([naam, l]) =>
-          l.length > 0 && (
-            <section key={naam} className="flex flex-col gap-2">
-              <h3 className="text-sm font-medium text-rustig">{naam}</h3>
+        ([naam, items]) =>
+          items.length > 0 && (
+            <section key={naam}>
+              <h3 className="mb-2 px-1 text-[13px] font-semibold uppercase tracking-[0.06em] text-rustig">
+                {naam}
+              </h3>
               <ul className="flex flex-col gap-3">
-                {l.map((b) => (
+                {items.map((b) => (
                   <Regel
                     key={b.id}
                     b={b}
                     klaar={(m) => {
                       setMelding(m);
                       laden();
+                      window.scrollTo?.(0, 0);
                     }}
                     vergelijk={() => {
                       setVergelijk(b);
+                      setZoek(b.titel);
                       window.scrollTo?.(0, 0);
                     }}
                   />
@@ -105,6 +99,7 @@ export default function Bestellingen({ terug, melding: begin }: { terug?: () => 
             </section>
           ),
       )}
+      {term && vergelijk && <Vergelijken term={term} />}
       <p className="text-[13px] text-zacht">
         Bij betalen via de app staat je geld veilig bij Stripe en gaat het pas naar de verkoper als
         jij bevestigt dat alles goed is.
@@ -156,25 +151,35 @@ function Regel({
   }
 
   return (
-    <li className="flex flex-col gap-2.5 rounded-2xl border border-lijn px-4 py-3">
+    <li className="flex flex-col gap-3 rounded-2xl border border-lijn px-4 py-3">
+      <StatusBanner b={b} />
       <div className="flex items-start gap-3">
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate font-medium">
-            {(b.aantal ?? 1) > 1 ? `${b.aantal}× ` : ""}
-            {b.titel}
-          </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="font-semibold">{b.ander}</span>
           <span className="text-[13px] text-rustig">
-            {b.rol === "koper" ? "Van" : "Aan"} {b.ander}
+            {b.rol === "koper" ? "Verkoper" : "Koper"}
+            {b.levering ? ` · ${b.levering}` : ""}
           </span>
         </span>
-        <span className="shrink-0 font-semibold tabular-nums">{bedragTekst(totaal)}</span>
+        <span className="shrink-0 text-lg font-bold tabular-nums">{bedragTekst(totaal)}</span>
       </div>
+      <ProductLijn titel={b.titel} aantal={b.aantal ?? 1} bedrag={b.bedrag} />
+      {(Number(b.kosten) > 0 || Number(b.verzendkosten) > 0) && (
+        <BestelTotalen
+          regels={[
+            { label: "Producten", bedrag: b.bedrag },
+            ...(Number(b.verzendkosten) > 0 ? [{ label: "Verzending", bedrag: Number(b.verzendkosten) }] : []),
+            ...(Number(b.kosten) > 0 ? [{ label: "Servicekosten", bedrag: Number(b.kosten) }] : []),
+            { label: "Totaal", bedrag: totaal, nadruk: true },
+          ]}
+        />
+      )}
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[14px] text-rustig">
+        <p className="text-[13px] text-rustig">
           {stand(b)}
           {b.track_code ? ` · ${b.vervoerder ?? ""} ${b.track_code}` : ""}
         </p>
-        <button onClick={vergelijk} className="shrink-0 text-[13px] font-medium text-accent">
+        <button onClick={vergelijk} className="shrink-0 text-sm font-medium text-accent">
           Vergelijk
         </button>
       </div>
@@ -188,7 +193,7 @@ function Regel({
           details={
             b.track_code ? (
               <p>
-                {b.vervoerder ?? "Vervoer"} · {b.track_code}
+                {b.vervoerder} {b.track_code}
               </p>
             ) : undefined
           }
@@ -198,7 +203,7 @@ function Regel({
               className={betaalKnopKlasse}
               onClick={() => doe(betaalStap)}
             >
-              {bezig ? "Bezig…" : `Betalen · ${bedragTekst(totaal)}`}
+              {bezig ? "Bezig\u2026" : `Betalen \u00b7 ${bedragTekst(totaal)}`}
             </button>
           }
           secundair={
@@ -252,7 +257,7 @@ function Regel({
                   s.hoofd ? "bg-accent text-white" : "bg-vlak"
                 }`}
               >
-                {s.actie === "betalen" ? `Betalen · ${bedragTekst(totaal)}` : s.naam}
+                {s.actie === "betalen" ? `Betalen \u00b7 ${bedragTekst(totaal)}` : s.naam}
               </button>
             ))}
           </div>
