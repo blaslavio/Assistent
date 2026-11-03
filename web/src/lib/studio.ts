@@ -18,6 +18,7 @@ export const STUDIO_TOOLS=[
  {id:"bezoekers",groep:"Tickets en toegang",naam:"Bezoekers en aanwezigheid",uitleg:"Zoek in uitgegeven tickets en zie wie binnen is",zoek:"gasten deelnemers bezoekerslijst gastenlijst"},
  {id:"team",groep:"Tickets en toegang",naam:"Scanteam beheren",uitleg:"Geef groepsleden toegang tot de ticketcontrole",zoek:"medewerkers crew rechten personeel"},
  {id:"deellinks",groep:"Delen en samenwerken",naam:"Deellinks voor winkel en evenementen",uitleg:"Winkelpagina, evenementpagina en ticketinschrijving",zoek:"delen share link url uitnodiging qr publiceren"},
+ {id:"social_bots",groep:"Groei en agents",naam:"Social agents",uitleg:"Wachtrij, KlantSignaal en retentie — jij keurt goed, agents werken",zoek:"bot social media instagram tiktok x linkedin agent feedback retentie"},
 ] as const;
 export type StudioTool=(typeof STUDIO_TOOLS)[number]["id"];
 export type StudioVerzoek={tool:StudioTool;groep?:number;evenement?:number};
