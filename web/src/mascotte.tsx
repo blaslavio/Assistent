@@ -82,26 +82,28 @@ export function Mascotte({
       <svg
         viewBox="0 0 80 120"
         aria-hidden
-        className="mascotte-lijf pointer-events-none size-full select-none overflow-visible text-[#145b48] dark:text-[#6fcfae]"
+        className="mascotte-lijf pointer-events-none size-full select-none overflow-visible text-[#0f766e] dark:text-[#5eead4]"
       >
         <path
           fill="none"
           stroke="currentColor"
-          strokeWidth="10"
+          strokeWidth="9"
           strokeLinecap="round"
           strokeLinejoin="round"
           d="M28 108C18 108 12 98 12 88L12 28C12 14 22 6 34 6L48 6C62 6 70 16 70 28L70 78C70 90 62 98 50 98L36 98C28 98 24 92 24 86L24 36C24 28 30 24 36 24L44 24C50 24 54 28 54 34L54 72"
         />
         <g ref={blik} className="mascotte-blik">
-          <ellipse className="mascotte-ogen" cx="34" cy="42" rx="4.2" ry="5.5" fill="currentColor" />
-          <ellipse className="mascotte-ogen" cx="50" cy="42" rx="4.2" ry="5.5" fill="currentColor" />
+          <ellipse className="mascotte-ogen" cx="34" cy="42" rx="4.5" ry="5.8" fill="currentColor" />
+          <ellipse className="mascotte-ogen" cx="50" cy="42" rx="4.5" ry="5.8" fill="currentColor" />
+          <circle cx="32.5" cy="40" r="1.4" fill="white" className="opacity-90 dark:opacity-70" />
+          <circle cx="48.5" cy="40" r="1.4" fill="white" className="opacity-90 dark:opacity-70" />
         </g>
         <path
           className="mascotte-arm mascotte-arm-l"
           d="M22 70Q12 78 16 92"
           fill="none"
           stroke="currentColor"
-          strokeWidth="8"
+          strokeWidth="7.5"
           strokeLinecap="round"
         />
         <path
@@ -109,7 +111,7 @@ export function Mascotte({
           d="M78 70Q90 76 86 92"
           fill="none"
           stroke="currentColor"
-          strokeWidth="8"
+          strokeWidth="7.5"
           strokeLinecap="round"
         />
       </svg>
@@ -149,7 +151,7 @@ export function MascotteMetTip({ tips: eigen }: { tips?: string[] }) {
       setStemming((s) => (s === "slaapt" ? "wacht" : s));
       stil.current = window.setTimeout(() => {
         setStemming("slaapt");
-        setTekst("Zzz… tik op me als je me nodig hebt.");
+        setTekst("Zzz\u2026 tik op me als je me nodig hebt.");
       }, 60_000);
     };
     wakker();
