@@ -100,15 +100,21 @@ export default function App() {
   tabRef.current = tab;
   const gebruikWerkplek = useWerkplekken(staat, setStaat);
 
-  const setTab = useCallback((t: string) => {
-    setTabRuw((oud) => {
-      const next = t as Tab;
-      if (oud === next) return oud;
-      if (oud === "assistent") setVoorAssistent(next === "assistent" ? "vandaag" : next);
-      if (next === "vandaag" || next === "agenda") setDagDeel(next);
-      if (oud !== "instellingen") setVorige(oud);
-      return next;
-    });
+  const vorigeRef = useRef(vorige);
+  vorigeRef.current = vorige;
+  const voorAssistentRef = useRef(voorAssistent);
+  voorAssistentRef.current = voorAssistent;
+  // Instellingen en de assistent leggen zich over een scherm heen; sluiten brengt je terug waar je was.
+  const setTab = useCallback((naar: string) => {
+    const t = naar as Tab;
+    const nu = tabRef.current;
+    if (t === "vandaag" || t === "agenda") setDagDeel(t);
+    if (t === "instellingen") setVorige(nu === "instellingen" ? vorigeRef.current : nu === "assistent" ? voorAssistentRef.current : nu);
+    if (t === "assistent" && nu !== "assistent") setVoorAssistent(nu);
+    else if (t !== "projecten") setStartOnderdeel(null);
+    if (t === "chat" && nu !== "chat") setVoorChat(nu);
+    tabRef.current = t;
+    setTabRuw(t);
   }, []);
 
   const herladen = useCallback(async () => {
