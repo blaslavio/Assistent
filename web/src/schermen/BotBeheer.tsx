@@ -18,6 +18,15 @@ import {
   type KlantSignaal,
 } from "../lib/bots";
 import { track, zetOAuthStatus, type OAuthProvider } from "../lib/platform-kern";
+import {
+  oauthStartUrl,
+  trackSocialLus,
+  leesStudioRol,
+  zetStudioRol,
+  magStudioActie,
+  auditLees,
+  type StudioRol,
+} from "../lib/platform-uitbouw";
 
 type Filter = BotKanaal | "alle";
 
@@ -27,6 +36,8 @@ export default function BotBeheer() {
   const [beleid, setBeleid] = useState<BotBeleid[]>(() => standaardBeleidAlles());
   const [filter, setFilter] = useState<Filter>("alle");
   const [gekozen, setGekozen] = useState<string[]>([]);
+  const [rol, setRol] = useState<StudioRol>(() => leesStudioRol());
+  const [oauthMelding, setOauthMelding] = useState("");
 
   const digest = useMemo(
     () => bouwDigest(voorstellen, signalen, beleid),
@@ -66,6 +77,24 @@ export default function BotBeheer() {
     }
   }
 
+  function startEchteKoppeling(id: BotKanaal) {
+    if (!magStudioActie("instellingen", rol)) {
+      setOauthMelding("Alleen eigenaar kan kanalen koppelen.");
+      return;
+    }
+    if (id !== "x" && id !== "instagram") {
+      setOauthMelding("Fase 1 is X en Instagram. Andere kanalen volgen.");
+      return;
+    }
+    const r = oauthStartUrl(id);
+    if (!r.ok) {
+      setOauthMelding(r.reden + " — tijdelijk simuleren mogelijk.");
+      return;
+    }
+    setOauthMelding("Doorsturen naar " + id + "…");
+    (window.top ?? window).location.href = r.url;
+  }
+
   const goedGekeurd = voorstellen.filter((v) => v.status === "goedgekeurd");
 
   return (
@@ -94,7 +123,9 @@ export default function BotBeheer() {
                     className={`relative h-6 w-11 rounded-full transition-colors ${b.aan ? "bg-accent" : "bg-vlak"}`}
                   >
                     <span
-                      className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${b.aan ? "translate-x-5" : ""}`}
+                      className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${
+                        b.aan ? "translate-x-5" : ""
+                      }`}
                     />
                   </button>
                 </div>
@@ -109,17 +140,35 @@ export default function BotBeheer() {
                   {w > 0 ? ` · ${w} in wachtrij` : ""}
                 </p>
                 {b.aan && b.status !== "actief" && (
-                  <button type="button" onClick={() => simuleerKoppeling(k.id)} className="h-8 rounded-full bg-vlak text-[12px] font-medium">
-                    Koppel {k.naam}
-                  </button>
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => startEchteKoppeling(k.id)}
+                      className="h-8 rounded-full bg-accent text-[12px] font-semibold text-white"
+                    >
+                      Koppel echt {k.naam}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => simuleerKoppeling(k.id)}
+                      className="h-8 rounded-full bg-vlak text-[12px] font-medium"
+                    >
+                      Simuleer (dev)
+                    </button>
+                  </div>
                 )}
               </div>
             );
           })}
         </div>
+        {oauthMelding && (
+          <p role="status" className="text-[13px] text-accent">
+            {oauthMelding}
+          </p>
+        )}
         <p className="text-[12px] text-zacht">
-          Echte publicatie vereist jouw login per netwerk (OAuth). Tot die tijd kun je de hele
-          wachtrij al goedkeuren; plaatsen gebeurt zodra het kanaal actief is.
+          Echte publicatie: OAuth via Edge Function (fase 1: X + Instagram). Secrets horen op de
+          server. Dev: simuleren blijft beschikbaar.
         </p>
       </section>
 
@@ -129,21 +178,24 @@ export default function BotBeheer() {
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
-            className="h-10 rounded-full bg-accent px-4 text-[13px] font-semibold text-white"
+            disabled={!magStudioActie("keuren", rol)}
+            className="h-10 rounded-full bg-accent px-4 text-[13px] font-semibold text-white disabled:opacity-40"
             onClick={() => {
               setVoorstellen((v) => keurLaagRisicoGoed(v));
               track("social_voorstel_goed", "laag");
+              trackSocialLus("akkoord", "laag");
             }}
           >
             Keur laag risico goed
           </button>
           <button
             type="button"
-            disabled={!gekozen.length}
+            disabled={!gekozen.length || !magStudioActie("keuren", rol)}
             className="h-10 rounded-full bg-vlak px-4 text-[13px] font-medium disabled:opacity-40"
             onClick={() => {
               setVoorstellen((v) => keurSelectie(v, gekozen, "goedgekeurd"));
               track("social_voorstel_goed", "selectie");
+              trackSocialLus("akkoord", "selectie");
               setGekozen([]);
             }}
           >
@@ -151,7 +203,7 @@ export default function BotBeheer() {
           </button>
           <button
             type="button"
-            disabled={!gekozen.length}
+            disabled={!gekozen.length || !magStudioActie("keuren", rol)}
             className="h-10 rounded-full bg-vlak px-4 text-[13px] font-medium disabled:opacity-40"
             onClick={() => {
               setVoorstellen((v) => keurSelectie(v, gekozen, "afgewezen"));
@@ -162,7 +214,7 @@ export default function BotBeheer() {
           </button>
           <button
             type="button"
-            disabled={!goedGekeurd.length}
+            disabled={!goedGekeurd.length || !magStudioActie("plaatsen", rol)}
             className="h-10 rounded-full bg-vlak px-4 text-[13px] font-medium disabled:opacity-40"
             onClick={() => {
               setVoorstellen((v) =>
@@ -172,6 +224,7 @@ export default function BotBeheer() {
                 ),
               );
               track("social_geplaatst");
+              trackSocialLus("geplaatst");
             }}
           >
             Plaats goedgekeurde ({goedGekeurd.length})
@@ -214,7 +267,7 @@ export default function BotBeheer() {
           <ul className="flex flex-col gap-2">
             {wachtrij.map((v) => (
               <li key={v.id}>
-                <label className="flex cursor-pointer gap-3 rounded-2xl border border-lijn p-3">
+                <label className="flex min-h-11 cursor-pointer gap-3 rounded-2xl border border-lijn p-3">
                   <input
                     type="checkbox"
                     checked={gekozen.includes(v.id)}
@@ -240,9 +293,6 @@ export default function BotBeheer() {
                       </span>
                     </span>
                     <span className="mt-1 block text-[14px] leading-snug">{v.inhoud}</span>
-                    {v.bronVraag && (
-                      <span className="mt-1 block text-[12px] text-rustig">Op: “{v.bronVraag}”</span>
-                    )}
                   </span>
                 </label>
               </li>
@@ -263,7 +313,6 @@ export default function BotBeheer() {
                 <span className="text-[12px] text-rustig">
                   {s.bron}
                   {s.thema ? ` · ${s.thema}` : ""}
-                  {s.aantal ? ` · ×${s.aantal}` : ""}
                 </span>
               </span>
               <button
@@ -283,14 +332,32 @@ export default function BotBeheer() {
         </ul>
       </section>
 
-      <section aria-label="Retentie" className="flex flex-col gap-2">
-        <h3 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">
-          Platform actief houden
-        </h3>
-        <ul className="flex flex-col gap-1.5">
-          {digest.retentieTips.map((tip) => (
-            <li key={tip} className="rounded-xl border border-lijn px-3 py-2.5 text-[13px]">
-              {tip}
+      <section aria-label="Rollen" className="flex flex-col gap-2">
+        <h3 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">Studio-rol</h3>
+        <div className="flex flex-wrap gap-2">
+          {(["eigenaar", "medewerker", "scanner"] as StudioRol[]).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => {
+                zetStudioRol(r);
+                setRol(r);
+              }}
+              className={`min-h-10 rounded-full px-3 text-[13px] font-medium ${
+                rol === r ? "bg-inkt text-white dark:bg-white dark:text-black" : "bg-vlak"
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        <p className="text-[12px] text-zacht">
+          Scanner: tickets. Medewerker: keuren/plaatsen. Eigenaar: alles + OAuth.
+        </p>
+        <ul className="flex flex-col gap-1">
+          {auditLees(5).map((a) => (
+            <li key={a.id} className="text-[11px] text-rustig">
+              {new Date(a.t).toLocaleString("nl-NL")} · {a.actie}
             </li>
           ))}
         </ul>
@@ -305,10 +372,6 @@ export default function BotBeheer() {
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-zacht">
-          Kanalen: Instagram, Facebook, TikTok, X, LinkedIn, YouTube. Jij koppelt en keurt goed;
-          agents vullen de wachtrij op elk kanaal.
-        </p>
       </section>
     </div>
   );
