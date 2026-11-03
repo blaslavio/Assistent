@@ -38,7 +38,7 @@ export default function Studio({
   });
   const [zoek, setZoek] = useState("");
   const [ronde, setRonde] = useState(0);
-  const [melding, setMelding] decuseState("");
+  const [melding, setMelding] = useState("");
 
   useEffect(() => {
     const eerste = studioVerzoekLezen();
