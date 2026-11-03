@@ -82,6 +82,7 @@ export function BestelKaart({
             type="button"
             onClick={bestel}
             disabled={kaart.status === "bezig"}
+            aria-busy={kaart.status === "bezig"}
             className={betaalKnopKlasse}
           >
             {kaart.status === "bezig"
