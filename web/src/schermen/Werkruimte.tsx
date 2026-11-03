@@ -14,8 +14,9 @@ import BewaarScherm from "./BewaarScherm";
 
 const Onderdeel = lazy(() => import("./Onderdelen").then((m) => ({ default: m.Onderdeel })));
 const Projecten = lazy(() => import("./Projecten"));
+const Productiviteit = lazy(() => import("./Productiviteit"));
 
-type Deel = OnderdeelNaam | "projecten" | null;
+type Deel = OnderdeelNaam | "projecten" | "productiviteit" | null;
 type Props = {
   gebruik?: (p: Werkplek) => void;
   staat: Staat;
@@ -166,6 +167,7 @@ export default function Werkruimte({
     studioZoeken(zoek).length > 0 || "studio winkel evenementen deellinks tickets".includes(term);
   const resultaten = priveApps.filter(([id, naam]) => match(id, naam));
   const projectMatch = match("projecten", "Projecten samen werken gesprekken");
+  const productiviteitMatch = "productiviteit automatiseren automatisering inbox dagplanner focus taken werkregels".includes(term);
   const kaartMatch = match("kaart", "Kaart routes locaties reizen");
   const winkelMatch = match("winkel", "Winkel aanbod verkopen bestellingen");
   const zakelijkMatch =
@@ -246,6 +248,13 @@ export default function Werkruimte({
           {term ? (
             <section className="flex flex-col gap-2" aria-label="Zoekresultaten">
               {resultaten.map((a) => appKnop(a))}
+              {productiviteitMatch && (
+                <button type="button" onClick={() => setDeel("productiviteit")}
+                  className="flex min-h-14 items-center gap-3 rounded-2xl bg-vlak px-4 text-left">
+                  <Projectmap className="size-5 text-accent" />
+                  <span className="font-medium">Productiviteit · Inbox, dagplanner en automatiseren</span>
+                </button>
+              )}
               {projectMatch && (
                 <button
                   type="button"
@@ -287,7 +296,7 @@ export default function Werkruimte({
                   ))}
                 </>
               )}
-              {!resultaten.length && !projectMatch && !kaartMatch && !winkelMatch && !zakelijkMatch && (
+              {!resultaten.length && !projectMatch && !productiviteitMatch && !kaartMatch && !winkelMatch && !zakelijkMatch && (
                 <p role="status" className="text-sm text-rustig">
                   Niets gevonden. Probeer notities, budget of studio.
                 </p>
@@ -300,6 +309,17 @@ export default function Werkruimte({
                   <h2 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">Privé</h2>
                   <span className="text-[11px] text-zacht">Alleen jij</span>
                 </div>
+                <button type="button" onClick={() => setDeel("productiviteit")}
+                  className="flex min-h-16 items-center gap-3 rounded-2xl border border-accent/30 bg-accent/5 px-4 text-left">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-white">
+                    <Projectmap className="size-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold">Productiviteit</span>
+                    <span className="block text-[13px] text-rustig">Inbox, slimme dagplanner en werkregels</span>
+                  </span>
+                  <Terug className="size-4 rotate-180 text-rustig" />
+                </button>
                 <div className="flex flex-col gap-2">{hoofd.map((a) => appKnop(a))}</div>
                 <details className="group rounded-2xl border border-lijn">
                   <summary className="flex min-h-11 cursor-pointer list-none items-center px-4 py-2 text-[14px] font-medium marker:content-none">
@@ -390,7 +410,18 @@ export default function Werkruimte({
         </Suspense>
       </BewaarScherm>
 
-      {deel && deel !== "projecten" && (
+      <BewaarScherm actief={deel === "productiviteit"} naam="Productiviteit">
+        <button type="button" onClick={() => setDeel(null)} className="mx-4 mt-2 flex min-h-11 items-center gap-1 text-sm text-accent">
+          <Terug className="size-5" /> Werkruimte
+        </button>
+        {deel === "productiviteit" && (
+          <Suspense fallback={<p role="status" className="p-6">Productiviteit laden…</p>}>
+            <Productiviteit staat={staat} vernieuw={vernieuw} />
+          </Suspense>
+        )}
+      </BewaarScherm>
+
+      {deel && deel !== "projecten" && deel !== "productiviteit" && (
         <Suspense fallback={<p role="status" className="p-6">App laden…</p>}>
           <Onderdeel
             key={deel}
