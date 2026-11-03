@@ -1,1 +1,1 @@
-file:///tmp/Chat_final.tsx
+@/tmp/split_Chat.tsx
