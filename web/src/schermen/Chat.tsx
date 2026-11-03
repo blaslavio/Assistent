@@ -156,6 +156,43 @@ export default function Chat({
     return () => window.removeEventListener("winkel-app-openen", openWinkel);
   }, []);
 
+  useEffect(() => {
+    const dienst = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      if (d?.gesprek === open && d?.dienst === "betaling") {
+        setOpen(null);
+        setWinkel({ deel: "bestellingen", melding: "Controleer de bestelling en bevestig zelf de gewenste betaalhandeling." });
+      }
+    };
+    window.addEventListener("assistent-projectdienst", dienst);
+    return () => window.removeEventListener("assistent-projectdienst", dienst);
+  }, [open]);
+
+  useEffect(() => {
+    const bestelling = () => {
+      const v = openGevraagd();
+      if (v) {
+        setVanBuiten(true);
+        verlaatGesprek();
+        setWinkel((oud) => ({ deel: "bestellingen", melding: v.melding, ronde: (oud?.ronde ?? 0) + 1 }));
+      }
+    };
+    const adres = () => {
+      const a = winkelGevraagd();
+      if (a) {
+        setVanBuiten(true);
+        verlaatGesprek();
+        setWinkel((oud) => ({ deel: "ontdekken", adres: a, ronde: (oud?.ronde ?? 0) + 1 }));
+      }
+    };
+    window.addEventListener("bestellingen-openen", bestelling);
+    window.addEventListener("winkel-adres-openen", adres);
+    return () => {
+      window.removeEventListener("bestellingen-openen", bestelling);
+      window.removeEventListener("winkel-adres-openen", adres);
+    };
+  }, []);
+
   const vorige = useRef("");
   const kijkNieuw = useCallback(async () => {
     const o = await overzicht();

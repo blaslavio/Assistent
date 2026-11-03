@@ -750,7 +750,7 @@ function Betalingen({ eigenaar }: { eigenaar: boolean }) {
       {st && (
         <div className="rounded-2xl border border-lijn p-4 text-sm">
           <p>
-            Status: <span className="font-medium">{st.klaar ? "Klaar voor betalingen" : "Nog instellen"}</span>
+            Status: <span className="font-medium">{st.ik_kan_ontvangen ? "Klaar voor betalingen" : "Nog instellen"}</span>
           </p>
           {eigenaar && (
             <button
@@ -772,9 +772,9 @@ function Betalingen({ eigenaar }: { eigenaar: boolean }) {
         <ul className="flex flex-col gap-2">
           {lijst.slice(0, 8).map((b) => (
             <li key={b.id} className="rounded-2xl bg-vlak px-4 py-3 text-sm">
-              <span className="font-medium">{b.omschrijving || `Bestelling ${b.id}`}</span>
+              <span className="font-medium">{b.titel || `Bestelling ${b.id}`}</span>
               <span className="mt-0.5 block text-rustig">
-                {euro(b.bedrag_centen)} · {b.status}
+                {euro(b.bedrag)} · {b.status}
               </span>
             </li>
           ))}

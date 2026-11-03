@@ -11,20 +11,20 @@ vi.mock("./Projecten",()=>({default:({open}:{open:(id:number)=>void})=><button o
 afterEach(()=>{cleanup();vi.clearAllMocks();window.dispatchEvent(new Event("assistent-sessie"));});
 const props={staat:{gebruiker:{id:1,naam:"test"},data:{taken:[],afspraken:[],volgend_id:1}},vernieuw:vi.fn(),vraag:vi.fn(),openProject:vi.fn(),naarChat:vi.fn()};
 it("zet persoonlijke apps voorop en laat projecten via hun bestaande gesprek openen",async()=>{
- render(<Werkruimte {...props}/>);expect(screen.getByText("Zakelijke opties").closest("details")?.open).toBe(false);expect(screen.getByText("Meer persoonlijke apps").closest("details")?.open).toBe(false);
- fireEvent.click(screen.getByRole("button",{name:/Projecten en samenwerken/}));fireEvent.click(await screen.findByRole("button",{name:"Testproject openen"}));expect(props.openProject).toHaveBeenCalledWith(42);
+ render(<Werkruimte {...props}/>);expect(screen.getByText("Meer privé-apps").closest("details")?.open).toBe(false);
+ fireEvent.click(screen.getByRole("button",{name:/Samenwerken/}));fireEvent.click(await screen.findByRole("button",{name:"Testproject openen"}));expect(props.openProject).toHaveBeenCalledWith(42);
 });
 it("vindt ingeklapte apps en bewaart de zoekopdracht na teruggaan",async()=>{
  render(<Werkruimte {...props}/>);fireEvent.change(screen.getByRole("searchbox"),{target:{value:"budget"}});fireEvent.click(screen.getByRole("button",{name:/Budget/}));expect(await screen.findByRole("heading",{name:"App budget"})).toBeTruthy();fireEvent.click(screen.getByRole("button",{name:"Werkruimte terug"}));expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("budget");
 });
 it("houdt kaart en winkel bereikbaar zonder een bestelling of bericht te maken",()=>{
- render(<Werkruimte {...props}/>);fireEvent.click(screen.getByRole("button",{name:"Winkel en aanbod"}));expect(winkelAppGevraagd()).toBe(true);fireEvent.click(screen.getByRole("button",{name:"Kaart en routes"}));expect(kaartGevraagd()).toBe(true);
+ render(<Werkruimte {...props}/>);fireEvent.change(screen.getByRole("searchbox"),{target:{value:"winkel"}});fireEvent.click(screen.getByRole("button",{name:"Winkel en aanbod"}));expect(winkelAppGevraagd()).toBe(true);fireEvent.change(screen.getByRole("searchbox"),{target:{value:"kaart"}});fireEvent.click(screen.getByRole("button",{name:"Kaart en routes"}));expect(kaartGevraagd()).toBe(true);
 });
 
 it("toont recente apps en alleen projecten waarvoor de gebruiker nog lid is",async()=>{
  vi.mocked(overzicht).mockResolvedValue({gesprekken:[{id:8,naam:"Mijn project",soort:"groep",status:"lid",leden:[],ongelezen:0},{id:9,naam:"Geen toegang meer",soort:"groep",status:"verzoek",leden:[],ongelezen:0}],communities:[]});
  const gebruik=vi.fn();render(<Werkruimte {...props} gebruik={gebruik} staat={{...props.staat,data:{...props.staat.data,werkruimte_recent:[{soort:"app",app:"notities"},{soort:"project",gesprek:8},{soort:"project",gesprek:9}]}}}/>);
- const recent=screen.getByRole("region",{name:"Verdergaan"});fireEvent.click(await within(recent).findByRole("button",{name:/Mijn project/}));expect(props.openProject).toHaveBeenCalledWith(8);expect(screen.queryByText("Geen toegang meer")).toBeNull();fireEvent.click(within(recent).getByRole("button",{name:/Notities/}));expect(gebruik).toHaveBeenCalledWith({soort:"app",app:"notities"});
+ const recent=screen.getByRole("region",{name:"Recent gebruikt"});fireEvent.click(await within(recent).findByRole("button",{name:/Mijn project/}));expect(props.openProject).toHaveBeenCalledWith(8);expect(screen.queryByText("Geen toegang meer")).toBeNull();fireEvent.click(within(recent).getByRole("button",{name:/Notities/}));expect(gebruik).toHaveBeenCalledWith({soort:"app",app:"notities"});
 });
 it("toont geen laat projectantwoord uit een vorige sessie",async()=>{
  let klaar!:(r:Awaited<ReturnType<typeof overzicht>>)=>void;vi.mocked(overzicht).mockImplementation(()=>new Promise(r=>{klaar=r;}));render(<Werkruimte {...props} staat={{...props.staat,data:{...props.staat.data,werkruimte_recent:[{soort:"project",gesprek:8}]}}}/>);
