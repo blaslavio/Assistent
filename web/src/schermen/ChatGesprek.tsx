@@ -1,8 +1,13 @@
-// Nieuw gesprek en open gespreksscherm (kernflow).
+// Nieuw gesprek en open gespreksscherm — privé, versleuteld, delen alleen bewust.
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Pijl, Terug } from "../iconen";
+import { Pijl, Slot, Terug } from "../iconen";
 import {
-  berichten, gesprekNaam, nieuwGesprek, versturen, type Gesprek, type Regel,
+  berichten,
+  gesprekNaam,
+  nieuwGesprek,
+  versturen,
+  type Gesprek,
+  type Regel,
 } from "../lib/chat";
 import type { Staat } from "../App";
 
@@ -26,7 +31,9 @@ export function NieuwVeld({
   }
   return (
     <form onSubmit={start} className="flex flex-col gap-3 px-5 pb-4">
-      <p className="text-sm text-rustig">Typ een naam of mailadres om te beginnen.</p>
+      <p className="text-sm text-rustig">
+        Typ een naam of mailadres. Het gesprek is privé: alleen jullie lezen mee.
+      </p>
       <input
         value={wie}
         onChange={(e) => setWie(e.target.value)}
@@ -36,8 +43,14 @@ export function NieuwVeld({
       />
       {fout && <p className="text-sm text-red-600">{fout}</p>}
       <div className="flex gap-2">
-        <button type="button" onClick={sluit} className="h-11 flex-1 rounded-2xl bg-vlak">Annuleren</button>
-        <button type="submit" disabled={!wie.trim()} className="h-11 flex-1 rounded-2xl bg-accent text-white disabled:opacity-40">
+        <button type="button" onClick={sluit} className="h-11 flex-1 rounded-2xl bg-vlak">
+          Annuleren
+        </button>
+        <button
+          type="submit"
+          disabled={!wie.trim()}
+          className="h-11 flex-1 rounded-2xl bg-accent text-white disabled:opacity-40"
+        >
           Start
         </button>
       </div>
@@ -46,7 +59,7 @@ export function NieuwVeld({
 }
 
 export function Gesprekscherm({
-  id, ik, begin, terug, beginConcept, bewaarConcept, gelezen, staat, setStaat, projectOpen, projectGeopend, bronBericht,
+  id, ik, begin, terug, beginConcept, bewaarConcept, gelezen,
 }: {
   id: number;
   ik: number;
@@ -69,7 +82,7 @@ export function Gesprekscherm({
 
   useEffect(() => {
     gelezen(id);
-    berichten(id)
+    berichten(id, 0)
       .then((r) => {
         setRegels(r);
         requestAnimationFrame(() => onder.current?.scrollIntoView({ behavior: "smooth" }));
@@ -85,8 +98,8 @@ export function Gesprekscherm({
     if (!tekst) return;
     setInvoer("");
     try {
-      await versturen(id, tekst);
-      const r = await berichten(id);
+      await versturen(id, { t: "tekst", tekst });
+      const r = await berichten(id, 0);
       setRegels(r);
       onder.current?.scrollIntoView({ behavior: "smooth" });
     } catch (er) {
@@ -101,12 +114,17 @@ export function Gesprekscherm({
         <button type="button" onClick={terug} className="flex size-10 items-center justify-center text-accent">
           <Terug className="size-5" />
         </button>
-        <h1 className="truncate font-semibold">{naam}</h1>
+        <h1 className="min-w-0 flex-1 truncate font-semibold">{naam}</h1>
+        <span className="flex items-center gap-1 text-[11px] text-zacht" title="Versleuteld gesprek">
+          <Slot className="size-3.5" /> Privé
+        </span>
       </header>
       <main className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-3">
         {fout && <p className="text-sm text-red-600">{fout}</p>}
         {regels.map((r) => {
-          const mijn = r.van === ik;
+          const mijn = r.afzender === ik;
+          const tekst = r.bericht?.tekst ?? r.bericht?.t ?? "";
+          if (r.weg || !tekst) return null;
           return (
             <div key={r.id} className={`flex ${mijn ? "justify-end" : "justify-start"}`}>
               <div
@@ -114,7 +132,7 @@ export function Gesprekscherm({
                   mijn ? "bg-accent text-white" : "bg-vlak"
                 }`}
               >
-                {r.tekst}
+                {tekst}
               </div>
             </div>
           );
@@ -122,6 +140,9 @@ export function Gesprekscherm({
         <div ref={onder} />
       </main>
       <form onSubmit={stuur} className="border-t border-lijn px-3 py-2">
+        <p className="px-1 pb-1 text-[11px] text-zacht">
+          Alleen in dit gesprek. Wil je iets buiten de app delen, kopieer of deel dat zelf.
+        </p>
         <label className="flex items-center gap-2 rounded-3xl bg-vlak py-1.5 pr-1.5 pl-4">
           <input
             value={invoer}
