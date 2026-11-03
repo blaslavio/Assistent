@@ -64,7 +64,7 @@ export async function lezen(account: string): Promise<Momentopname | null> {
     const s = await sleutel(false);
     const rij = await bak<{ iv: Uint8Array; geheim: ArrayBuffer; bewaard: number } | undefined>("readonly", (b) => b.get("stand"));
     if (!s || !rij || Date.now() - rij.bewaard > 7 * 864e5) return null;
-    const tekst = await crypto.subtle.decrypt({ name: "AES-GCM", iv: rij.iv }, s, rij.geheim);
+    const tekst = await crypto.subtle.decrypt({ name: "AES-GCM", iv: rij.iv as Uint8Array<ArrayBuffer> }, s, rij.geheim);
     const p = JSON.parse(new TextDecoder().decode(tekst)) as { account?: string; m?: Momentopname };
     if (p.account !== account || !p.m?.gebruiker || !p.m?.data) return null;
     return p.m;

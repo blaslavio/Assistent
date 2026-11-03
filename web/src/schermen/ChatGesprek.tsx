@@ -23,7 +23,7 @@ export function NieuwVeld({
     e.preventDefault();
     setFout("");
     try {
-      const id = await nieuwGesprek(wie.trim());
+      const { id } = await nieuwGesprek(wie.trim());
       gestart(id);
     } catch (er) {
       setFout(er instanceof Error ? er.message : "Starten lukte niet.");
@@ -84,7 +84,7 @@ export function Gesprekscherm({
     gelezen(id);
     berichten(id, 0)
       .then((r) => {
-        setRegels(r);
+        setRegels(r.regels);
         requestAnimationFrame(() => onder.current?.scrollIntoView({ behavior: "smooth" }));
       })
       .catch(() => setFout("Berichten laden lukte niet."));
@@ -100,7 +100,7 @@ export function Gesprekscherm({
     try {
       await versturen(id, { t: "tekst", tekst });
       const r = await berichten(id, 0);
-      setRegels(r);
+      setRegels(r.regels);
       onder.current?.scrollIntoView({ behavior: "smooth" });
     } catch (er) {
       setFout(er instanceof Error ? er.message : "Versturen lukte niet.");

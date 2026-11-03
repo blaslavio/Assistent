@@ -66,7 +66,7 @@ const ProfielScherm = lazy(() => import("./schermen/ProfielPagina").then((m) => 
 const BoekScherm = lazy(() => import("./schermen/Gasten").then((m) => ({ default: m.BoekScherm })));
 const PrikScherm = lazy(() => import("./schermen/Prikken").then((m) => ({ default: m.PrikScherm })));
 
-type Tab = "vandaag" | "agenda" | "projecten" | "chat" | "assistent" | "instellingen";
+export type Tab = "vandaag" | "agenda" | "projecten" | "chat" | "assistent" | "instellingen";
 const TABS: { id: Tab; naam: string }[] = [
   { id: "vandaag", naam: "Vandaag" },
   { id: "projecten", naam: "Werkruimte" },
@@ -81,7 +81,7 @@ export default function App() {
   const [klaar, setKlaar] = useState(false);
   const [fout, setFout] = useState("");
   const [tab, setTabRuw] = useState<Tab>(BETAALD !== null || WINKEL || CURSUS || CURSUSLINK ? "chat" : ZEG ? "assistent" : BANK || SPORT_TERUG || TICKET_EVENT ? "projecten" : "vandaag");
-  const [dagDeel, setDagDeel] = useState("vandaag");
+  const [dagDeel, setDagDeel] = useState<"vandaag" | "agenda">("vandaag");
   const [voorAssistent, setVoorAssistent] = useState<Tab>("vandaag");
   const [voorChat, setVoorChat] = useState<Tab>("vandaag");
   const [vorige, setVorige] = useState<Tab>("vandaag");
@@ -92,13 +92,13 @@ export default function App() {
   const [voorafVraag, setVooraf] = useState(ZEG);
   const [teKopen, setTeKopen] = useState<Product | null>(null);
   const [ongelezen, setOngelezen] = useState(0);
-  const [gedeeldePost, setGedeeldePost] = useState<number | null>(() => POST ?? postGevraagd());
+  const [gedeeldePost, setGedeeldePost] = useState<number | null>(() => postGevraagd());
   const [toonEerste, setToonEerste] = useState(() => !eersteMinuutKlaar());
   const [toonZoek, setToonZoek] = useState(false);
   const [voorlopig, setVoorlopig] = useState(false);
   const tabRef = useRef(tab);
   tabRef.current = tab;
-  const { gebruikWerkplek } = useWerkplekken(staat);
+  const gebruikWerkplek = useWerkplekken(staat, setStaat);
 
   const setTab = useCallback((t: string) => {
     setTabRuw((oud) => {
@@ -200,7 +200,7 @@ export default function App() {
   const scherm = {
     vandaag: <MijnDag staat={staat} setStaat={setStaat} deel={dagDeel} ga={setTab} vernieuw={herladen} naarProject={openProject} vraag={(t) => { setVooraf(t); setTab("assistent"); }} />,
     projecten: <Werkruimte gebruik={gebruikWerkplek} staat={staat} vernieuw={herladen} start={startOnderdeel} vraag={(t) => { setVooraf(t); setTab("assistent"); }} naarChat={() => { setWerkGesprek(null); setTab("chat"); }} openProject={openProject} />,
-    chat: <Chat key={staat.gebruiker.id} werkGesprek={werkGesprek} projectGeopend={(id) => gebruikWerkplek({ soort: "project", gesprek: id })} ongelezenGewijzigd={setOngelezen} staat={staat} setStaat={setStaat} verlaat={() => setTab(voorChat)} terugNaam={TABS.find((t) => t.id === voorChat)?.naam} bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
+    chat: <Chat key={staat.gebruiker.id} naarInstellingen={() => setTab("instellingen")} werkGesprek={werkGesprek} projectGeopend={(id) => gebruikWerkplek({ soort: "project", gesprek: id })} ongelezenGewijzigd={setOngelezen} staat={staat} setStaat={setStaat} verlaat={() => setTab(voorChat)} terugNaam={TABS.find((t) => t.id === voorChat)?.naam} bestel={(p) => { setTeKopen(p); setTab("assistent"); }} />,
     assistent: <Assistent staat={staat} vernieuw={herladen} teKopen={teKopen} gekocht={() => setTeKopen(null)} vooraf={voorafVraag} voorafGebruikt={() => setVooraf("")} naarBestellingen={() => { setWerkGesprek(null); openVragen(); setTab("chat"); }} sluit={() => setTabRuw(voorAssistent)} />,
     instellingen: <Instellingen staat={staat} vernieuw={herladen} terug={() => setTab(vorige)} opUitgelogd={() => setStaat(null)} setStaat={setStaat} vraag={(t) => { setVooraf(t); setTab("assistent"); }} vorigeNaam={TABS.find((t) => t.id === vorige)?.naam} />,
   };
