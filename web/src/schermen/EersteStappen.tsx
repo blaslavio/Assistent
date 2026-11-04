@@ -1,4 +1,4 @@
-// Eerste stappen: vertrouwen + Clippy-begeleiding. Geen voorbeeldzinnen of fictieve bedragen.
+// Eerste stappen: vertrouwen, met de mascotte als gids. Geen voorbeeldzinnen of fictieve bedragen.
 import { useEffect, useState } from "react";
 import { Mascotte, type Stemming } from "../mascotte";
 
@@ -31,7 +31,7 @@ type Props = {
   naarAssistent?: () => void;
 };
 
-/** Strakke welkomstkaart: Clippy leidt, geen vooraf ingevulde teksten. */
+/** Strakke welkomstkaart: de mascotte leidt, geen vooraf ingevulde teksten. */
 export default function EersteStappen({ naarAssistent }: Props) {
   const [zichtbaar, setZichtbaar] = useState(false);
   const [i, setI] = useState(0);
@@ -65,7 +65,7 @@ export default function EersteStappen({ naarAssistent }: Props) {
         <button
           type="button"
           onClick={volgendeTip}
-          aria-label="Volgende tip van de paperclip"
+          aria-label="Volgende tip van de mascotte"
           className="shrink-0 rounded-xl active:scale-95"
         >
           <Mascotte hup={hup} stemming={stemming} className="h-12 w-10" />

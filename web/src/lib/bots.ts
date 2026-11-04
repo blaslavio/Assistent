@@ -220,7 +220,7 @@ export const BOT_STEM = {
       "Klopt, instellingen kunnen een doolhof zijn. In de app: Assistent → zeg wat je wilt. Wij vragen eerst ja.",
     vraag_is_het_gratis:
       "De kern is gratis. Geld alleen als jij iets koopt of extra’s wilt — geen verrassingsabonnement.",
-    compliment: "Zie je wel dat die paperclip ergens goed voor is. Kom gerust vaker lastigvallen in de app.",
+    compliment: "Dankjewel! Kom gerust vaker langs in de app.",
     meme_chaos: "POV: drie apps voor één afspraak. Of Assistent. Keuze is aan jou.",
     retentie_stil:
       "We misten je. Één tik in de app en je bent bij — of negeer dit stoer.",

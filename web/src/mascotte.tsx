@@ -1,4 +1,5 @@
-// Paperclip-mascotte (Clippy-stijl). Ogen volgen, tips, dutje, feest (inklappen).
+// De eigen mascotte van de app: een rond figuurtje met een vonkje, in de kleur van de app. Ogen volgen je,
+// hij geeft tips, doet een dutje en viert feest.
 // Tips beschrijven mogelijkheden — geen vooraf ingevulde teksten of fictieve bedragen.
 import { useEffect, useRef, useState } from "react";
 
@@ -42,7 +43,7 @@ export function mascotteZeg(tekst: string) {
   window.dispatchEvent(new CustomEvent("mascotte", { detail: tekst }));
 }
 
-/** Paperclip-figuur met Clippy-beweging (CSS-klassen in index.css). */
+/** Het figuurtje zelf; de bewegingen staan in index.css (mascotte-*, stemming-*). */
 export function Mascotte({
   className = "",
   hup = 0,
@@ -63,7 +64,7 @@ export function Mascotte({
       const dx = e.clientX - (r.left + r.width / 2);
       const dy = e.clientY - (r.top + r.height / 3);
       const lengte = Math.hypot(dx, dy) || 1;
-      g.style.transform = `translate(${(dx / lengte) * 6}px, ${(dy / lengte) * 5}px)`;
+      g.style.transform = `translate(${(dx / lengte) * 3}px, ${(dy / lengte) * 2.5}px)`;
     };
     window.addEventListener("pointermove", kijk);
     window.addEventListener("pointerdown", kijk);
@@ -80,40 +81,41 @@ export function Mascotte({
       className={`mascotte stemming-${stemming} inline-block ${hup ? "mascotte-hup" : ""} ${className}`}
     >
       <svg
-        viewBox="0 0 80 120"
+        viewBox="0 0 100 120"
         aria-hidden
         className="mascotte-lijf pointer-events-none size-full select-none overflow-visible text-accent"
       >
-        <path
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="9"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M28 108C18 108 12 98 12 88L12 28C12 14 22 6 34 6L48 6C62 6 70 16 70 28L70 78C70 90 62 98 50 98L36 98C28 98 24 92 24 86L24 36C24 28 30 24 36 24L44 24C50 24 54 28 54 34L54 72"
-        />
-        <g ref={blik} className="mascotte-blik">
-          <ellipse className="mascotte-ogen" cx="34" cy="42" rx="4.5" ry="5.8" fill="currentColor" />
-          <ellipse className="mascotte-ogen" cx="50" cy="42" rx="4.5" ry="5.8" fill="currentColor" />
-          <circle cx="32.5" cy="40" r="1.4" fill="white" className="opacity-90 dark:opacity-70" />
-          <circle cx="48.5" cy="40" r="1.4" fill="white" className="opacity-90 dark:opacity-70" />
-        </g>
+        <path d="M50 1.5 52.4 7.6 58.5 10 52.4 12.4 50 18.5 47.6 12.4 41.5 10 47.6 7.6Z" fill="currentColor" opacity="0.75" />
         <path
           className="mascotte-arm mascotte-arm-l"
-          d="M22 70Q12 78 16 92"
+          d="M17 70Q6 73 7 85"
           fill="none"
           stroke="currentColor"
-          strokeWidth="7.5"
+          strokeWidth="7"
           strokeLinecap="round"
         />
         <path
           className="mascotte-arm mascotte-arm-r"
-          d="M78 70Q90 76 86 92"
+          d="M83 70Q94 73 93 85"
           fill="none"
           stroke="currentColor"
-          strokeWidth="7.5"
+          strokeWidth="7"
           strokeLinecap="round"
         />
+        <path d="M50 20C75 20 87 41 87 67 87 94 71 110 50 110 29 110 13 94 13 67 13 41 25 20 50 20Z" fill="currentColor" />
+        <ellipse cx="50" cy="84" rx="23" ry="18" fill="white" opacity="0.16" />
+        <ellipse cx="33" cy="38" rx="7" ry="3.6" transform="rotate(-35 33 38)" fill="white" opacity="0.35" />
+        <ellipse className="mascotte-ogen" cx="38" cy="60" rx="8.5" ry="10" fill="white" />
+        <ellipse className="mascotte-ogen" cx="62" cy="60" rx="8.5" ry="10" fill="white" />
+        <g ref={blik} className="mascotte-blik">
+          <circle cx="38" cy="62" r="4.6" fill="#1c1c22" />
+          <circle cx="62" cy="62" r="4.6" fill="#1c1c22" />
+          <circle cx="39.6" cy="60.2" r="1.5" fill="white" />
+          <circle cx="63.6" cy="60.2" r="1.5" fill="white" />
+        </g>
+        <ellipse cx="29" cy="76" rx="5" ry="3" fill="#fb7185" opacity="0.35" />
+        <ellipse cx="71" cy="76" rx="5" ry="3" fill="#fb7185" opacity="0.35" />
+        <path d="M44 79Q50 84 56 79" fill="none" stroke="#1c1c22" strokeWidth="2.6" strokeLinecap="round" opacity="0.8" />
       </svg>
     </span>
   );
@@ -205,10 +207,10 @@ export function MascotteMetTip({ tips: eigen }: { tips?: string[] }) {
       <button
         type="button"
         onClick={tik}
-        aria-label="Tik op de paperclip voor een volgende tip"
+        aria-label="Tik op de mascotte voor een volgende tip"
         className="shrink-0 rounded-2xl active:scale-95"
       >
-        <Mascotte hup={hup} stemming={stemming} className="h-16 w-[52px]" />
+        <Mascotte hup={hup} stemming={stemming} className="h-16 w-[54px]" />
       </button>
       <p
         key={tekst ?? i}
@@ -246,7 +248,7 @@ export function MascotteFeest() {
       className="pointer-events-none fixed inset-x-0 bottom-24 z-40 flex justify-center px-6 opkomen"
     >
       <div className="flex max-w-sm items-end gap-2 rounded-3xl bg-white/95 py-2 pl-2 pr-4 shadow-lg ring-1 ring-lijn backdrop-blur dark:bg-[#16161a]/95">
-        <Mascotte stemming="feest" className="h-12 w-[39px] shrink-0" />
+        <Mascotte stemming="feest" className="h-12 w-10 shrink-0" />
         <p className="mb-1.5 text-[15px] leading-snug">{tekst}</p>
       </div>
     </div>
