@@ -1,3 +1,15 @@
+# Wat en waarom
+
+Afspraak: elke update begint met **Wat wordt makkelijker**: in één of twee zinnen wat de gebruiker hierdoor sneller, rustiger of zekerer kan doen. Lukt dat niet, dan bouwen we het niet. Daarna volgen Wat en Waarom.
+
+## 2026-11-04 · Een proefrondje als gebruiker bij elke wijziging
+Wat wordt makkelijker: je hoeft niet meer zelf te controleren of de app na een update nog samenhangt. Bij elke wijziging loopt een robot als gebruiker door de app, en breekt er iets, dan gaat de update niet live.
+Wat:
+- Negen rondjes door de echte app in een telefoonformaat: een taak toevoegen en terugvinden na wisselen en herladen, je afspraak van vandaag zien op Mijn dag en in de Agenda, een nieuwe afspraak die blijft staan, half getypte tekst die bewaard blijft tussen schermen, in Handel iets kiezen en bij de assistent uitkomen, elke Handel-soort met een eigen scherm, zoeken die doorgaat naar de assistent, terug uit een app in de Werkruimte en geen foutmeldingen op een rondje langs alle schermen.
+- De rondjes gebruiken een nepserver: er gaat niets naar productie en er worden geen echte gegevens gelezen.
+- De rondjes draaien automatisch op GitHub bij elke wijziging, naast de bestaande tests.
+Waarom: de app moet eerst bewijzen dat alles samenwerkt voordat er nieuwe onderdelen bijkomen.
+
 ## 2026-11-04 · Hele app strakker en compacter
 Wat:
 - Bovenbalk: "Assistent", "Zoek" en je profiel zijn samengevoegd tot één zoekbalk ("Zoek of vraag iets") met een knop voor de assistent en je profiel ernaast. In het zoekvenster kun je je vraag meteen aan de assistent stellen.
