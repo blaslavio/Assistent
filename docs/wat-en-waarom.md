@@ -1,3 +1,13 @@
+## 2026-11-04 · Handel: een eigen scherm per soort
+Wat: bovenin Handel kies je Ontdek, Tweedehands, Winkels, Diensten of Eten, en dan verandert het hele scherm: kleur, zoekvraag en indeling.
+- Ontdek: vier grote gekleurde deuren, de winkels en wat net binnen is.
+- Tweedehands: een fotomuur met staande foto's, verkoper, prijs en plaats.
+- Winkels: een lijst met foto, winkelnaam, grote prijs en of het bezorgd wordt.
+- Diensten: de aanbieder voorop, met "vanaf"-prijs en of het op locatie of online is.
+- Eten: eetzaken als grote kaarten met een banner. De app herkent ze aan hun naam en omschrijving.
+Het blok Categorieën is weg; elke soort heeft nu eigen zoekwoorden als kleine labels.
+Waarom: je vond het categorieënblok storend en wilde geen algemene opmaak voor alles, maar een eigen, creatiever scherm per soort.
+
 ## 2026-11-04 · Feedbackronde: sneller openen, mooier inloggen, Community
 Wat:
 - De app opent sneller: de kaart wordt pas geladen als je hem opent. De app zelf is daardoor bijna de helft kleiner (van 4,0 naar 2,4 MB).

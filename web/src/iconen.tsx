@@ -147,3 +147,6 @@ export const Projectmap = (p: P) => (
 );
 
 export const KaartVouw = (p: P) => <svg {...basis} {...p}><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6zM9 3v15M15 6v15" /></svg>;
+export const Bestek = (p: P) => (
+  <svg {...basis} {...p}><path d="M7 3v8M4 3v5a3 3 0 0 0 6 0V3M7 11v10" /><path d="M17 21V3c-2.5 1.5-3.5 4-3.5 7.5V13H17" /></svg>
+);
