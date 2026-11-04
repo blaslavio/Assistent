@@ -148,58 +148,57 @@
 .document a { color: var(--color-accent); text-decoration: underline; }
 .document img { max-width: 100%; border-radius: 12px; }
 
-/* De mascotte: zweeft, wiegt vanaf zijn voet en knippert. Bij een nieuwe tip maakt hij een klein sprongetje. */
+/* De mascotte Vonk: zweeft, wiegt rond zijn midden en knippert. Twee vonkjes fonkelen om hem heen.
+   Bij een nieuwe tip maakt hij een klein sprongetje. */
 .mascotte { animation: mascotte-zweef 4.2s ease-in-out infinite; }
-.mascotte-lijf { transform-origin: 50% 95%; animation: mascotte-wieg 6s ease-in-out infinite; overflow: visible; }
+.mascotte-lijf { transform-box: view-box; transform-origin: 60px 60px; animation: mascotte-wieg 7s ease-in-out infinite; }
 .mascotte-ogen { transform-box: fill-box; transform-origin: center; animation: mascotte-knipper 5s infinite; }
-.mascotte-hup .mascotte-lijf { animation: mascotte-hup 0.6s ease-out, mascotte-wieg 6s ease-in-out 0.6s infinite; }
+.mascotte-hup .mascotte-lijf { animation: mascotte-hup 0.6s ease-out, mascotte-wieg 7s ease-in-out 0.6s infinite; }
 @keyframes mascotte-zweef { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-@keyframes mascotte-wieg { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes mascotte-wieg { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
 @keyframes mascotte-knipper { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
-@keyframes mascotte-hup { 0% { transform: translateY(0) scale(1, 1); } 30% { transform: translateY(-10%) scale(0.96, 1.04); }
-  60% { transform: translateY(0) scale(1.04, 0.96); } 100% { transform: translateY(0) scale(1, 1); } }
+@keyframes mascotte-hup { 0% { transform: translateY(0) scale(1); } 30% { transform: translateY(-10%) scale(0.92, 1.08); }
+  60% { transform: translateY(0) scale(1.08, 0.92); } 100% { transform: translateY(0) scale(1); } }
 /* Stemmingen: waar hij naar kijkt en hoe hij beweegt. */
 .mascotte-blik { transition: transform 0.35s ease; }
-.stemming-kijkt .mascotte-blik { transform: translate(-2px, 3px); }
+.stemming-kijkt .mascotte-blik { transform: translate(-2px, 2.5px); }
 .stemming-kijkt .mascotte-lijf { animation: mascotte-buig 2.4s ease-in-out infinite; }
-.stemming-luistert .mascotte-blik { transform: translate(1px, -2.5px); }
+.stemming-luistert .mascotte-blik { transform: translate(1px, -2px); }
 .stemming-luistert { animation: mascotte-luister 0.9s ease-in-out infinite; }
-.stemming-denkt .mascotte-blik { transform: translate(2.5px, -3px); }
+.stemming-denkt .mascotte-blik { transform: translate(2px, -2.5px); }
 .stemming-denkt .mascotte-lijf { animation: mascotte-wieg 2.2s ease-in-out infinite; }
 .stemming-blij .mascotte-lijf { animation: mascotte-blij 0.8s ease-in-out 2; }
 .stemming-slaapt .mascotte-ogen { animation: none; transform: scaleY(0.12); }
-.stemming-slaapt .mascotte-lijf { animation: mascotte-wieg 9s ease-in-out infinite; }
-.stemming-slaapt { animation: mascotte-adem 4s ease-in-out infinite; }
-@keyframes mascotte-blij { 0%, 100% { transform: rotate(0) translateY(0); } 25% { transform: rotate(-10deg) translateY(-6%); }
-  75% { transform: rotate(10deg) translateY(-6%); } }
+.stemming-slaapt .mascotte-lijf { animation: mascotte-wieg 12s ease-in-out infinite; }
+.stemming-slaapt { animation: mascotte-adem 4s ease-in-out infinite; opacity: 0.85; }
+@keyframes mascotte-blij { 0%, 100% { transform: rotate(0) translateY(0); } 25% { transform: rotate(-20deg) translateY(-6%); }
+  75% { transform: rotate(20deg) translateY(-6%); } }
 @keyframes mascotte-adem { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03, 0.98); } }
-@keyframes mascotte-buig { 0%, 100% { transform: rotate(-7deg) translateY(2%); } 50% { transform: rotate(-4deg) translateY(2%); } }
+@keyframes mascotte-buig { 0%, 100% { transform: rotate(-12deg) translateY(2%); } 50% { transform: rotate(-6deg) translateY(2%); } }
 @keyframes mascotte-luister { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
-/* Armen: draaien vanaf de schouder. In rust zwaaien ze een beetje mee. */
-.mascotte-arm { transform-box: view-box; transition: transform 0.35s cubic-bezier(.3,1.4,.5,1); }
-.mascotte-arm-l { transform-origin: 17px 70px; animation: mascotte-arm-rust 6s ease-in-out infinite; }
-.mascotte-arm-r { transform-origin: 83px 70px; animation: mascotte-arm-rust 6s ease-in-out 1.5s infinite reverse; }
-@keyframes mascotte-arm-rust { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(6deg); } }
-/* Wijzen: de rechterarm gaat omhoog naar wat hij laat zien en tikt er twee keer naar. */
-.stemming-wijst .mascotte-arm-r { animation: mascotte-wijs 0.45s ease-in-out 0.2s 4 alternate; transform: rotate(-22deg); }
-.stemming-wijst .mascotte-arm-l { animation: none; transform: rotate(14deg); }
+/* Vonkjes: fonkelen in rust. Bij wijzen schiet het rechter vonkje naar wat hij laat zien. */
+.mascotte-arm, .mascotte-vonkje { transform-box: fill-box; transform-origin: center; transition: transform 0.35s cubic-bezier(.3,1.4,.5,1); }
+.mascotte-arm-l { animation: mascotte-fonkel 2.4s ease-in-out infinite; }
+.mascotte-arm-r { animation: mascotte-fonkel 2.4s ease-in-out 0.8s infinite; }
+.mascotte-vonkje { animation: mascotte-fonkel 2.4s ease-in-out 1.5s infinite; }
+@keyframes mascotte-fonkel { 0%, 100% { opacity: 0.35; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1.15); } }
+.stemming-wijst .mascotte-arm-r { animation: mascotte-wijs 0.45s ease-in-out 0.2s 4 alternate; opacity: 1; }
 .stemming-wijst .mascotte-lijf { animation: mascotte-leun 1.8s ease-in-out; }
-.stemming-wijst .mascotte-blik { transform: translate(3px, 1px); }
-@keyframes mascotte-wijs { from { transform: rotate(-24deg); } to { transform: rotate(-6deg); } }
-@keyframes mascotte-leun { 0%, 100% { transform: rotate(0); } 30%, 70% { transform: rotate(5deg); } }
-/* Feest bij iets wat af is: even inveren, terugveren en met beide armen juichen. */
+.stemming-wijst .mascotte-blik { transform: translate(2.5px, -1px); }
+@keyframes mascotte-wijs { from { transform: translate(0, 0) scale(1); } to { transform: translate(6px, -4px) scale(1.5); } }
+@keyframes mascotte-leun { 0%, 100% { transform: rotate(0); } 30%, 70% { transform: rotate(14deg); } }
+/* Feest bij iets wat af is: even inveren, een rondje draaien en alle vonkjes laten springen. */
 .stemming-feest .mascotte-lijf { animation: mascotte-klap 1.1s cubic-bezier(.3,1.3,.5,1); }
-.stemming-feest .mascotte-arm-l { animation: mascotte-juich-l 0.32s ease-in-out 0.6s 6 alternate; transform: rotate(85deg); }
-.stemming-feest .mascotte-arm-r { animation: mascotte-juich-r 0.32s ease-in-out 0.6s 6 alternate; transform: rotate(-26deg); }
-.stemming-feest .mascotte-blik { transform: translate(0, -2.5px); }
+.stemming-feest .mascotte-arm, .stemming-feest .mascotte-vonkje { animation: mascotte-spat 0.32s ease-in-out 0.5s 6 alternate; opacity: 1; }
+.stemming-feest .mascotte-blik { transform: translate(0, -2px); }
 @keyframes mascotte-klap {
-  0% { transform: scale(1); } 22% { transform: scale(0.82, 0.38) rotate(-14deg); } 40% { transform: scale(0.7, 0.3) rotate(10deg); }
-  62% { transform: scale(1.08, 1.12) translateY(-8%); } 80% { transform: scale(0.97, 1.02); } 100% { transform: scale(1); } }
-@keyframes mascotte-juich-l { from { transform: rotate(70deg); } to { transform: rotate(100deg); } }
-@keyframes mascotte-juich-r { from { transform: rotate(-14deg); } to { transform: rotate(-32deg); } }
-.stemming-slaapt .mascotte-arm { animation: none; transform: rotate(8deg); }
-@media (prefers-reduced-motion: reduce) { .mascotte, .mascotte-lijf, .mascotte-ogen, .mascotte-arm { animation: none !important; } }
-.minder-beweging .mascotte, .minder-beweging .mascotte-lijf, .minder-beweging .mascotte-ogen, .minder-beweging .mascotte-arm { animation: none !important; }
+  0% { transform: scale(1) rotate(0); } 25% { transform: scale(0.75) rotate(-20deg); }
+  65% { transform: scale(1.15) rotate(200deg); } 85% { transform: scale(0.97) rotate(355deg); } 100% { transform: scale(1) rotate(360deg); } }
+@keyframes mascotte-spat { from { transform: scale(0.9); } to { transform: scale(1.8); } }
+.stemming-slaapt .mascotte-arm, .stemming-slaapt .mascotte-vonkje { animation: none; opacity: 0.25; transform: scale(0.6); }
+@media (prefers-reduced-motion: reduce) { .mascotte, .mascotte-lijf, .mascotte-ogen, .mascotte-arm, .mascotte-vonkje { animation: none !important; } }
+.minder-beweging .mascotte, .minder-beweging .mascotte-lijf, .minder-beweging .mascotte-ogen, .minder-beweging .mascotte-arm,
+.minder-beweging .mascotte-vonkje { animation: none !important; }
 
 /* Toetsenbord open: de balken onderin maken plaats, zoals in WhatsApp. */
 .toetsenbord-open nav[aria-label=Hoofdmenu] { display: none !important; }

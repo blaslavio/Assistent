@@ -1,3 +1,15 @@
+## 2026-11-04 · Kaart als eigen app
+Wat: de kaart opent nu schermvullend als eigen app. Bovenin zweven een terugknop, de zoekbalk ("Waar wil je heen?") en een knop voor je locatie, met daaronder Alles, Mijn plekken, Winkels en Zoek winkels in dit gebied. Onderin schuift een blad: zonder keuze zie je plekken in de buurt en snelle knoppen, met een gekozen plek zie je vervoer, reistijd, Start navigeren, Afspraak plannen en Winkel bekijken. De routeplanner en je bewaarde plekken zitten achter één knop. In de Winkel opent "Winkels op de kaart" dezelfde kaart-app.
+Waarom: je wilde een modernere kaart die verandert in een eigen app zodra je hem opent. De oude kaart was een vak tussen veel uitleg en uitklapblokken.
+
+## 2026-11-04 · Socialemediabots eerlijker en bruikbaar
+Wat: de knop "Simuleer" is weg, want die deed alsof een kanaal gekoppeld was. Koppelen zegt nu eerlijk dat automatisch plaatsen nog niet aan staat. Goedgekeurde berichten staan onder "Klaar om te plaatsen" met de knop Kopieer en open: de tekst wordt gekopieerd en het netwerk opent (bij X en LinkedIn staat de tekst al klaar), jij plaatst hem zelf. De voorbeelden in de wachtrij staan nu als voorbeeld gemarkeerd.
+Waarom: bij het nalopen bleek dat de bots alleen voorbeelddata tonen, dat "Plaatsen" niets online zette en dat de koppelfunctie (oauth-social) nog niet live staat en de echte koppeling nog niet af is.
+
+## 2026-11-04 · Nieuwe mascotte: Vonk
+Wat: de ronde mascotte is vervangen door Vonk, een ster met een kleurverloop van geel naar roze naar paars. Drie vonkjes fonkelen om hem heen. Hij volgt je met zijn ogen en knippert. Bij een tip schiet een vonkje naar de tekst, bij iets wat af is draait hij een rondje en springen de vonkjes, en na een minuut niets doet hij een dutje.
+Waarom: je vond het ronde figuurtje saai en ouderwets en koos uit drie ontwerpen voor Vonk.
+
 ## 2026-11-03 · Evenementen met betaalde tickets
 Wat:
 - In Agenda › Evenementen staan nu drie delen: Ontdekken, Mijn tickets en Organiseren.

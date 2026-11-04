@@ -347,3 +347,17 @@ export function demoSignalen(nu = new Date()): KlantSignaal[] {
     },
   ];
 }
+
+/** Waar je een goedgekeurd bericht zelf plaatst. Waar het netwerk het toestaat staat de tekst al klaar;
+ *  anders kopieer je hem eerst. Zo plaatst de app nooit iets zonder dat jij zelf op Plaatsen tikt. */
+export function plaatsLink(kanaal: BotKanaal, tekst: string): { url: string; tekstMee: boolean } {
+  const t = encodeURIComponent(tekst);
+  switch (kanaal) {
+    case "x": return { url: `https://x.com/intent/post?text=${t}`, tekstMee: true };
+    case "linkedin": return { url: `https://www.linkedin.com/feed/?shareActive=true&text=${t}`, tekstMee: true };
+    case "facebook": return { url: "https://www.facebook.com/", tekstMee: false };
+    case "instagram": return { url: "https://www.instagram.com/", tekstMee: false };
+    case "tiktok": return { url: "https://www.tiktok.com/upload", tekstMee: false };
+    case "youtube": return { url: "https://studio.youtube.com/", tekstMee: false };
+  }
+}
