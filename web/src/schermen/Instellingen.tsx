@@ -402,12 +402,12 @@ export default function Instellingen({
       >
         <Terug className="size-5" /> {zoek ? "Instellingen" : "Terug"}
       </button>
-      <h1 className="mt-4 mb-4 text-[32px] font-bold tracking-tight">Instellingen</h1>
+      <h1 className="mt-2 mb-3 text-[22px] font-bold tracking-tight">Instellingen</h1>
       {!term && (
         <button
           type="button"
           onClick={() => setPagina("profiel")}
-          className="mb-5 flex w-full items-center gap-3 rounded-2xl bg-vlak p-3 text-left"
+          className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-vlak p-3 text-left"
         >
           <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white dark:bg-black/40">
             {eigenFoto ? (
@@ -427,7 +427,7 @@ export default function Instellingen({
           value={zoek}
           onChange={(e) => setZoek(e.target.value)}
           placeholder="Zoek een instelling of app"
-          className="h-12 w-full rounded-2xl bg-vlak px-4"
+          className="h-10 w-full rounded-full bg-vlak px-4 text-[15px]"
         />
       </label>
       {term ? (
@@ -458,7 +458,7 @@ export default function Instellingen({
           await uitloggen();
           opUitgelogd();
         }}
-        className="mt-8 h-12 w-full rounded-2xl bg-vlak font-medium text-red-600 dark:text-red-400"
+        className="mt-6 h-11 w-full rounded-full bg-vlak font-medium text-red-600 dark:text-red-400"
       >
         Uitloggen
       </button>
@@ -468,9 +468,9 @@ export default function Instellingen({
 
 function Groep({ titel, children }: { titel: string; children: ReactNode }) {
   return (
-    <section className="mt-7">
+    <section className="mt-5">
       <h2 className={kop}>{titel}</h2>
-      <ul className="flex flex-col overflow-hidden rounded-3xl bg-vlak">{children}</ul>
+      <ul className="flex flex-col overflow-hidden rounded-2xl bg-vlak">{children}</ul>
     </section>
   );
 }
@@ -478,7 +478,7 @@ function Groep({ titel, children }: { titel: string; children: ReactNode }) {
 const ONDERDEEL_UITLEG: Record<string, string> = {
   leren: "Elke dag een beetje, met herhalen en overhoren",
   sport: "Trainingen, doelen, Strava en Apple Gezondheid",
-  boodschappen: "Wat je nog moet haalen",
+  boodschappen: "Wat je nog moet halen",
   kooplijst: "Wat je wilt kopen, met prijs",
   wenslijst: "Cadeau-ideeën en wensen",
   notities: "Snel iets opschrijven",
@@ -502,12 +502,12 @@ function Rij({
     <li className="[&+li>button>span:last-child]:border-t [&+li>button>span:last-child]:border-lijn">
       <button type="button" onClick={open} className="flex w-full items-center gap-3 pl-4 text-left">
         <span
-          style={{ background: kleur }}
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-white"
+          data-kleur={kleur}
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent"
         >
           <Icoon className="size-[18px]" />
         </span>
-        <span className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4">
+        <span className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pr-4">
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="font-medium">{titel}</span>
             <span className="truncate text-sm text-rustig">{uitleg}</span>

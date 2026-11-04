@@ -8,7 +8,7 @@ import { openVragen } from "./lib/bestellingen";
 import { winkelVragen } from "./lib/mijnwinkel";
 import { terugVanBank } from "./lib/bank";
 import { cursusLinkVragen, terugVanCursus } from "./lib/cursus";
-import { Persoon, Vonk } from "./iconen";
+import { Persoon, Vonk, Zoek } from "./iconen";
 import Inloggen from "./schermen/Inloggen";
 import { useWerkplekken } from "./schermen/useWerkplekken";
 import MijnDag from "./schermen/MijnDag";
@@ -223,10 +223,14 @@ export default function App() {
         </div>
       )}
       {tab !== "assistent" && (
-        <header className="flex shrink-0 items-center justify-between gap-3 px-6 pt-[max(env(safe-area-inset-top),8px)] pb-2">
-          <button onClick={() => setTab("assistent")} aria-label="Open de AI-assistent" className="flex min-h-11 items-center gap-2 rounded-full bg-vlak px-3 text-[13px] font-medium"><Vonk className="size-4" /><span>Assistent</span></button>
-          <button type="button" onClick={() => setToonZoek(true)} aria-label="Zoeken in de app" className="flex size-11 items-center justify-center rounded-full bg-vlak text-[13px] font-medium text-rustig">Zoek</button>
-          <button onClick={() => setTab("instellingen")} aria-label="Profiel en instellingen" aria-current={tab === "instellingen" ? "page" : undefined} className="flex size-11 items-center justify-center rounded-full bg-vlak text-rustig ring-1 ring-transparent transition hover:ring-accent/20">
+        <header className="flex shrink-0 items-center gap-2 px-5 pt-[max(env(safe-area-inset-top),8px)] pb-2">
+          <div className="flex h-10 min-w-0 flex-1 items-center rounded-full bg-vlak">
+            <button type="button" onClick={() => setToonZoek(true)} aria-label="Zoeken in de app" className="flex h-full min-w-0 flex-1 items-center gap-2 pl-3.5 text-left text-[14px] text-zacht">
+              <Zoek className="size-4 shrink-0 text-rustig" /><span className="truncate">Zoek of vraag iets</span>
+            </button>
+            <button onClick={() => setTab("assistent")} aria-label="Open de AI-assistent" className="mr-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Vonk className="size-4" /></button>
+          </div>
+          <button onClick={() => setTab("instellingen")} aria-label="Profiel en instellingen" aria-current={tab === "instellingen" ? "page" : undefined} className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-vlak text-rustig">
             {staat.gebruiker.foto ? <img src={staat.gebruiker.foto} alt="" className="size-full object-cover" /> : <Persoon className="size-5" />}
           </button>
         </header>
@@ -241,7 +245,7 @@ export default function App() {
       <Vangnet naam="bellen" klein><BelLaag naarProject={(gesprek) => { setWerkGesprek((oud) => ({ id: gesprek, ronde: (oud?.ronde ?? 0) + 1, gebruiker: staat.gebruiker.id })); setTab("chat"); }} /></Vangnet>
       <MascotteFeest />
       {toonEerste && (<Suspense fallback={null}><EersteMinuut openAssistent={() => setTab("assistent")} openChat={() => setTab("chat")} sluit={() => setToonEerste(false)} /></Suspense>)}
-      {toonZoek && (<Suspense fallback={null}><GlobaalZoek sluit={() => setToonZoek(false)} /></Suspense>)}
+      {toonZoek && (<Suspense fallback={null}><GlobaalZoek sluit={() => setToonZoek(false)} vraag={(t) => { setToonZoek(false); setVooraf(t); setTab("assistent"); }} /></Suspense>)}
       {gedeeldePost !== null && huidigeSessie() && (<Suspense fallback={null}><PostBlad id={gedeeldePost} sluit={() => setGedeeldePost(null)} /></Suspense>)}
       <div data-onderbalk className="shrink-0"><HoofdNavigatie actief={hoofd === "assistent" ? voorAssistent : hoofd} ongelezen={ongelezen} kies={(t) => setTab(t === "vandaag" ? dagDeel : t)} /></div>
     </div>

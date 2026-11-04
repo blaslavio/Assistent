@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { globaalZoeken } from "../lib/platform-kern";
 import { naar, studioOpenen } from "../lib/naar";
 
-export default function GlobaalZoek({ sluit }: { sluit: () => void }) {
+export default function GlobaalZoek({ sluit, vraag }: { sluit: () => void; vraag?: (tekst: string) => void }) {
   const [q, setQ] = useState("");
   const hits = useMemo(() => globaalZoeken(q), [q]);
 
@@ -33,11 +33,20 @@ export default function GlobaalZoek({ sluit }: { sluit: () => void }) {
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Assistent, community, agents…"
+            placeholder="Zoek in de app of vraag iets"
             className="h-12 w-full rounded-2xl bg-vlak px-4 text-[15px] outline-none"
           />
         </label>
         <ul className="mt-3 flex flex-col gap-1">
+          {vraag && q.trim() && (
+            <li>
+              <button type="button" onClick={() => vraag(q.trim())}
+                className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-accent/10 px-3 py-2 text-left">
+                <span className="font-medium text-accent">Vraag de assistent</span>
+                <span className="min-w-0 flex-1 truncate text-[13px] text-rustig">{q.trim()}</span>
+              </button>
+            </li>
+          )}
           {hits.map((h) => (
             <li key={h.label}>
               <button
