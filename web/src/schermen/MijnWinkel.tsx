@@ -5,8 +5,8 @@ import { instellingenOpenen } from "../lib/naar";
 import { useCallback, useEffect, useState } from "react";
 import { Onderblad } from "./Onderblad";
 import { Schakelaar } from "./instellingen-ui";
-import { WINKELKLEUREN, mijnWinkel, productInWinkel, verkoperWorden, vestigingBewaren, webadres, winkelBewaren, winkelLink,
-  type EigenProduct, type EigenWinkel, type MijnWinkel as Gegevens } from "../lib/mijnwinkel";
+import { WINKELKLEUREN, actieBewaren, mijnMarketing, mijnWinkel, productInWinkel, verkoperWorden, vestigingBewaren, webadres,
+  winkelBewaren, winkelLink, winkelStappen, type EigenProduct, type Marketing, type EigenWinkel, type MijnWinkel as Gegevens } from "../lib/mijnwinkel";
 import { euro } from "../lib/winkelen";
 import { Winkelpand } from "../iconen";
 import { WinkelOntwerpen } from "./WinkelOntwerpen";
@@ -20,19 +20,26 @@ const zachteKnop = "h-10 rounded-full bg-vlak px-4 text-sm font-medium";
 export const kanInWinkel = (p: EigenProduct) =>
   p.betaalwijzen.includes("app") && p.levering.some((l) => l === "verzenden" || l === "ophalen");
 
-export function MijnWinkel({ bekijk,start }: { start?:"winkel"|"ontwerp"|"voorbeeld"|"voorraad"|"levering"|"contact";bekijk: (adres: string) => void }) {
+export function MijnWinkel({ bekijk, start, nieuwProduct }: { start?: "winkel" | "ontwerp" | "voorbeeld" | "voorraad" | "levering" | "contact";
+  bekijk: (adres: string) => void; nieuwProduct?: () => void }) {
   const [g, setG] = useState<Gegevens | null>(null);
   const [fout, setFout] = useState("");
   const [bouwen, setBouwen] = useState(start==="winkel");
   const [contact, setContact] = useState(start==="contact");
   const [instellen, setInstellen] = useState(start==="levering");
   const [melding, setMelding] = useState("");
+  const [aanbieding, setAanbieding] = useState(false);
+  const [cijfers, setCijfers] = useState<Marketing | null>(null);
   const [ontwerpen, setOntwerpen] = useState<"bewerken" | "voorbeeld" | null>(start==="ontwerp"?"bewerken":start==="voorbeeld"?"voorbeeld":null);
 
   const laden = useCallback(() => {
     mijnWinkel().then(setG).catch((e) => setFout(foutVan(e)));
   }, []);
   useEffect(laden, [laden]);
+  const heeftWinkel = !!g?.winkel;
+  useEffect(() => {
+    if (heeftWinkel) mijnMarketing().then(setCijfers).catch(() => setCijfers(null));
+  }, [heeftWinkel]);
   if (!g) return fout ? <p className="px-1 text-sm text-rustig">{fout}</p> : null;
 
   const w = g.winkel;
@@ -51,7 +58,8 @@ export function MijnWinkel({ bekijk,start }: { start?:"winkel"|"ontwerp"|"voorbe
     );
   }
 
-  if(start==="voorraad")return <section aria-label="Producten en voorraad"><Producten producten={g.producten} bijgewerkt={laden}/></section>;
+  if (start === "voorraad") return <section aria-label="Producten en voorraad">
+    <Producten producten={g.producten} bijgewerkt={laden} nieuwProduct={nieuwProduct} /></section>;
 
   async function openZetten(open: boolean) {
     setMelding("");
@@ -86,8 +94,31 @@ export function MijnWinkel({ bekijk,start }: { start?:"winkel"|"ontwerp"|"voorbe
   }
 
   const inWinkel = g.producten.filter((p) => p.in_winkel).length;
+  const stappen = winkelStappen(g);
+  const volgende = stappen.find((s) => !s.klaar);
+  const stapActie: Record<string, [string, () => void] | undefined> = {
+    "Betalingen aan": ["Betalingen instellen", () => instellingenOpenen("betalingen")],
+    "Product in je winkel": nieuwProduct && !g.producten.some(kanInWinkel) ? ["Product toevoegen", nieuwProduct]
+      : ["Kies hieronder een product", () => document.getElementById("winkel-producten")?.scrollIntoView({ behavior: "smooth" })],
+    "Winkel open": ["Winkel openen", () => openZetten(true)],
+  };
+  const actie = volgende && stapActie[volgende.naam];
   return (
     <section className="flex flex-col gap-3" aria-label="Je winkel">
+      {volgende && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-lijn p-4" aria-label="Stappen naar een open winkel">
+          <span className="font-medium">Nog {stappen.filter((s) => !s.klaar).length} {stappen.filter((s) => !s.klaar).length === 1 ? "stap" : "stappen"} tot je winkel open is</span>
+          <ol className="flex flex-col gap-1.5">
+            {stappen.map((s, i) => (
+              <li key={s.naam} className={`flex items-center gap-2 text-[15px] ${s.klaar ? "text-rustig line-through" : s === volgende ? "font-medium" : "text-rustig"}`}>
+                <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs ${s.klaar ? "bg-vlak" : s === volgende ? "bg-accent text-white" : "bg-vlak"}`}>{i + 1}</span>
+                {s.naam}
+              </li>
+            ))}
+          </ol>
+          {actie && <button onClick={actie[1]} className={knop + " w-fit"}>{actie[0]}</button>}
+        </div>
+      )}
       <div className="overflow-hidden rounded-2xl bg-vlak">
         <div className="h-2" style={{ background: w.kleur }} />
         <div className="flex flex-col gap-3 p-4">
@@ -109,17 +140,28 @@ export function MijnWinkel({ bekijk,start }: { start?:"winkel"|"ontwerp"|"voorbe
             <button onClick={() => setOntwerpen("voorbeeld")} className={zachteKnop + " bg-white dark:bg-black/30"}>Voorbeeld</button>
             {w.open && <button onClick={delen} className={zachteKnop + " bg-white dark:bg-black/30"}>Delen</button>}
             {w.open && <button onClick={() => bekijk(w.adres)} className={zachteKnop + " bg-white dark:bg-black/30"}>Bekijken</button>}
+            <button onClick={() => setAanbieding(true)} className={zachteKnop + " bg-white dark:bg-black/30"}>Aanbieding</button>
           </div>
+          {cijfers && (cijfers.bezoeken > 0 || cijfers.volgers > 0 || cijfers.verkopen_30d.aantal > 0) && (
+            <p className="px-1 text-[13px] text-rustig">
+              Laatste 30 dagen: {cijfers.verkopen_30d.aantal} verkocht, {euro(cijfers.verkopen_30d.omzet)} · {cijfers.bezoeken} bezoeken · {cijfers.volgers} volgers
+            </p>
+          )}
           {melding && <p role="status" className="break-all px-1 text-[13px] text-rustig">{melding}</p>}
         </div>
       </div>
-      <Producten producten={g.producten} bijgewerkt={laden} />
+      <Producten producten={g.producten} bijgewerkt={laden} nieuwProduct={nieuwProduct} />
       {g.verkopen.commissie > 0 && (
         <p className="px-1 text-[13px] text-rustig">Kosten tot nu toe: {euro(g.verkopen.commissie)} ({g.commissie_procent}% per bestelling).</p>
       )}
       {ontwerpen && <WinkelOntwerpen start={ontwerpen} sluit={(bewaard) => {
         setOntwerpen(null);
         if (bewaard) setMelding("Ontwerp bewaard.");
+      }} />}
+      {aanbieding && <Aanbieding m={cijfers} sluit={() => setAanbieding(false)} klaar={(m) => {
+        setAanbieding(false);
+        setMelding(m);
+        mijnMarketing().then(setCijfers).catch(() => {});
       }} />}
       {contact && <WinkelContactInstellen sluit={() => setContact(false)} />}
       {instellen && <Instellen w={w} sluit={() => setInstellen(false)} klaar={() => { setInstellen(false); laden(); }} />}
@@ -269,10 +311,17 @@ function Instellen({ w, sluit, klaar }: { w: EigenWinkel; sluit: () => void; kla
 }
 
 /** Welke van je producten in de winkel staan, en hoeveel je er nog hebt. */
-function Producten({ producten, bijgewerkt }: { producten: EigenProduct[]; bijgewerkt: () => void }) {
+function Producten({ producten, bijgewerkt, nieuwProduct }: { producten: EigenProduct[]; bijgewerkt: () => void;
+  nieuwProduct?: () => void }) {
   const [fout, setFout] = useState<{ id: number; tekst: string } | null>(null);
+  const toevoegen = nieuwProduct && (
+    <button onClick={nieuwProduct} className="h-10 w-fit rounded-full px-1 text-[15px] font-medium text-accent">Product toevoegen</button>
+  );
   if (!producten.length)
-    return <p className="px-1 text-[13px] text-rustig">Zet iets te koop met betalen via de app, dan kun je het hier in je winkel zetten.</p>;
+    return <div id="winkel-producten" className="flex flex-col gap-1">
+      <p className="px-1 text-[13px] text-rustig">Zet iets te koop met betalen via de app, dan kun je het hier in je winkel zetten.</p>
+      {toevoegen}
+    </div>;
 
   async function zet(p: EigenProduct, inWinkel: boolean, voorraad: number | null) {
     setFout(null);
@@ -285,6 +334,11 @@ function Producten({ producten, bijgewerkt }: { producten: EigenProduct[]; bijge
   }
 
   return (
+    <div id="winkel-producten" className="flex flex-col gap-1">
+    <div className="flex items-center justify-between px-1">
+      <h2 className="text-sm font-medium text-rustig">Producten</h2>
+      {toevoegen}
+    </div>
     <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak" aria-label="Producten in je winkel">
       {producten.filter((p) => !p.geblokkeerd).map((p) => {
         const kan = kanInWinkel(p);
@@ -293,7 +347,9 @@ function Producten({ producten, bijgewerkt }: { producten: EigenProduct[]; bijge
             <div className="flex items-center gap-3">
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate font-medium">{p.titel}</span>
-                <span className="text-[13px] text-rustig">{kan ? euro(p.prijs) : "Alleen met betalen via de app"}</span>
+                <span className={`text-[13px] ${p.in_winkel && p.voorraad === 0 ? "text-red-600 dark:text-red-400" : "text-rustig"}`}>
+                  {!kan ? "Kan pas in je winkel met betalen via de app en verzenden of ophalen"
+                    : p.in_winkel && p.voorraad === 0 ? `${euro(p.prijs)} · Uitverkocht` : euro(p.prijs)}</span>
               </span>
               {p.in_winkel && (
                 <input inputMode="numeric" aria-label={`Voorraad ${p.titel}`} defaultValue={p.voorraad ?? ""} placeholder="Voorraad"
@@ -311,5 +367,41 @@ function Producten({ producten, bijgewerkt }: { producten: EigenProduct[]; bijge
         );
       })}
     </ul>
+    </div>
+  );
+}
+
+/** Een aanbieding als balk bovenaan je winkel, eventueel tot een datum. */
+function Aanbieding({ m, sluit, klaar }: { m: Marketing | null; sluit: () => void; klaar: (melding: string) => void }) {
+  const [tekst, setTekst] = useState(m?.actie ?? "");
+  const [tot, setTot] = useState(m?.actie_tot ?? "");
+  const [bezig, setBezig] = useState(false);
+  const [fout, setFout] = useState("");
+  async function bewaren(t: string, d: string) {
+    setBezig(true);
+    setFout("");
+    try {
+      await actieBewaren(t, d || null);
+      klaar(t.trim() ? "Aanbieding staat in je winkel." : "Aanbieding weggehaald.");
+    } catch (e) {
+      setFout(foutVan(e));
+    } finally {
+      setBezig(false);
+    }
+  }
+  return (
+    <Onderblad titel="Aanbieding" sluit={sluit}>
+      <p className="px-1 text-[15px] text-rustig">Een korte regel bovenaan je winkel, in je eigen kleur.</p>
+      <input value={tekst} onChange={(e) => setTekst(e.target.value)} maxLength={140} aria-label="Aanbieding"
+        placeholder="Bijvoorbeeld: deze week gratis verzending" className={veld} />
+      <label className="flex flex-col gap-1.5">
+        <span className="px-1 text-sm font-medium">Loopt tot en met</span>
+        <input type="date" value={tot} onChange={(e) => setTot(e.target.value)} className={veld} />
+        <span className="px-1 text-[13px] text-rustig">Leeg laten: blijft staan tot je hem weghaalt.</span>
+      </label>
+      {fout && <p role="alert" className="px-1 text-sm text-red-600">{fout}</p>}
+      <button onClick={() => bewaren(tekst, tot)} disabled={bezig || !tekst.trim()} className={knop}>{bezig ? "Bezig..." : "Bewaren"}</button>
+      {m?.actie && <button onClick={() => bewaren("", "")} disabled={bezig} className={zachteKnop}>Weghalen</button>}
+    </Onderblad>
   );
 }

@@ -18,3 +18,7 @@ Wat:
 - Winkel is één scherm geworden. Verkopen (plus) en Bestellingen (tas, met teller) zijn knoppen rechtsboven.
 - Een lege Belafspraak toont nu de knop "Zoek iemand".
 Waarom: je gaf aan dat je verdwaalt door alle opties. Minder rijen betekent minder keuzes tegelijk, en wat je weinig gebruikt zet je zelf aan.
+
+## Webshop en boekingspagina beter in te richten (2026-11-04)
+Wat: je winkel toont de vaste stappen naar open (winkel, betalingen, product, openen) met één knop voor de volgende stap, een knop Product toevoegen, uitverkocht bij voorraad 0, een Aanbieding-balk met einddatum en cijfers van de laatste 30 dagen. De boekingspagina staat nu in logische volgorde (wat, wanneer, regels, betalen, pagina), met prijs per soort, andere tijden per dag, regels (hoe kort van tevoren, hoe ver vooruit, pauze, maximum per dag), betaalgegevens en annuleerregels, en aanvragen kun je ook afwijzen of annuleren. Gasten zien de prijs.
+Waarom: de tools waren te beperkt en niet logisch geordend. Alles gebruikt databasefuncties die al live staan, dus er is geen database-wijziging nodig.

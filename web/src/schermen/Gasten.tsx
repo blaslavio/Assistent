@@ -17,6 +17,7 @@ const dag = (iso: string, lang = false) => {
     .toLocaleDateString("nl-NL", lang ? { weekday: "long", day: "numeric", month: "long" } : { weekday: "short", day: "numeric", month: "short" });
   return t.charAt(0).toUpperCase() + t.slice(1);
 };
+const euroUitCenten = (c: number) => (c / 100).toLocaleString("nl-NL", { style: "currency", currency: "EUR" });
 const uur = (iso: string) => new Date(iso).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
 const STATUS: Record<string, string> = { aangevraagd: "Aangevraagd, wacht op bevestiging", bevestigd: "Bevestigd",
   afgewezen: "Kan niet doorgaan", geannuleerd: "Geannuleerd" };
@@ -80,6 +81,7 @@ export function BoekScherm({ adres }: { adres: string }) {
             <h1 className="text-[28px] font-bold leading-tight tracking-tight">{p.titel || p.naam}</h1>
             {p.intro && <p className="whitespace-pre-wrap text-[15px] text-rustig">{p.intro}</p>}
             {p.locatie && <p className="text-[15px]">{p.locatie}</p>}
+            {p.soorten.length === 1 && !!p.soorten[0].prijs && <p className="text-[15px]">{p.soorten[0].minuten} min · {euroUitCenten(p.soorten[0].prijs)}</p>}
           </header>
           {p.soorten.length > 1 && (
             <section className="flex flex-col gap-2">
@@ -88,7 +90,7 @@ export function BoekScherm({ adres }: { adres: string }) {
                 {p.soorten.map((s, i) => (
                   <button key={i} onClick={() => setSoort(i)} aria-pressed={soort === i}
                     className={`h-10 rounded-full px-4 text-sm ${soort === i ? "bg-inkt font-medium text-white dark:text-[#0b0b0e]" : "bg-vlak"}`}>
-                    {s.naam} · {s.minuten} min</button>
+                    {s.naam} · {s.minuten} min{s.prijs ? ` · ${euroUitCenten(s.prijs)}` : ""}</button>
                 ))}
               </div>
             </section>
@@ -338,38 +340,93 @@ export function GastGesprekScherm({ boeking, terug }: { boeking: number; terug: 
 // --- Voor jou: je boekingspagina instellen -----------------------------------------------------------------------
 
 const DAGEN = [["1", "Ma"], ["2", "Di"], ["3", "Wo"], ["4", "Do"], ["5", "Vr"], ["6", "Za"], ["7", "Zo"]] as const;
+const kies = "h-12 rounded-2xl bg-vlak px-3 outline-none";
+/** Prijs in centen als tekst om in te typen, en weer terug. */
+const prijsVeld = (c?: number) => (c ? (c / 100).toFixed(2).replace(".", ",").replace(",00", "") : "");
+const centen = (t: string) => {
+  const n = Number(t.replace(",", ".").replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) && n > 0 ? Math.min(1000000, Math.round(n * 100)) : 0;
+};
+
+function Kopje({ nr, titel, uitleg }: { nr: number; titel: string; uitleg?: string }) {
+  return (
+    <div className="flex items-start gap-2 px-1">
+      <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-vlak text-xs font-medium">{nr}</span>
+      <span className="flex flex-col">
+        <span className="font-medium">{titel}</span>
+        {uitleg && <span className="text-[13px] text-rustig">{uitleg}</span>}
+      </span>
+    </div>
+  );
+}
+
+function Keuze({ label, waarde, opties, zet }: { label: string; waarde: number; opties: [number, string][]; zet: (n: number) => void }) {
+  const lijst = opties.some(([n]) => n === waarde) ? opties : [...opties, [waarde, String(waarde)] as [number, string]];
+  return (
+    <label className="flex items-center gap-3 px-1">
+      <span className="flex-1 text-[15px]">{label}</span>
+      <select value={waarde} onChange={(e) => zet(Number(e.target.value))} aria-label={label} className={`${kies} h-10 text-sm`}>
+        {lijst.map(([n, t]) => <option key={n} value={n}>{t}</option>)}
+      </select>
+    </label>
+  );
+}
 
 export function BoekpaginaInstellen({ naam }: { naam: string }) {
   const [p, setP] = useState<Boekpagina | null>(null);
   const [opgeslagen, setOpgeslagen] = useState(false);
   const [boekingen, setBoekingen] = useState<Boeking[]>([]);
+  const [perDag, setPerDag] = useState(false);
   const [bezig, setBezig] = useState(false);
   const [melding, setMelding] = useState("");
   const [fout, setFout] = useState("");
 
   const laden = useCallback(() => mijnPagina().then((m) => {
     setOpgeslagen(!!m.pagina);
-    setP((oud) => oud ?? m.pagina ?? { ...STANDAARD, adres: linkNaam(naam) || "mijn-afspraken" });
-    setBoekingen(m.boekingen.filter((b) => !b.via_chat && b.status !== "geannuleerd" && b.status !== "afgewezen"));
+    setP((oud) => {
+      const nieuw = oud ?? m.pagina ?? { ...STANDAARD, adres: linkNaam(naam) || "mijn-afspraken" };
+      if (!oud) {
+        const tijden = new Set(Object.values(nieuw.uren).filter((u) => u?.length).map((u) => JSON.stringify(u)));
+        setPerDag(tijden.size > 1);
+      }
+      return nieuw;
+    });
+    setBoekingen(m.boekingen.filter((b) => !b.via_chat && b.status !== "geannuleerd" && b.status !== "afgewezen"
+      && new Date(b.start).getTime() > Date.now() - 3600000).sort((a, b) => a.start.localeCompare(b.start)));
   }).catch((e) => setFout(foutVan(e))), [naam]);
   useEffect(() => { laden(); }, [laden]);
 
   if (!p) return <p className="bezig-tekst px-1">{fout || "Laden"}</p>;
   const zet = (n: Partial<Boekpagina>) => setP({ ...p, ...n });
-  const eersteDag = DAGEN.find(([d]) => p.uren[d]?.length)?.[0];
+  const actieveDagen: string[] = DAGEN.map(([d]) => d).filter((d) => p.uren[d]?.length);
+  const eersteDag = actieveDagen[0];
   const [van, tot] = (eersteDag && p.uren[eersteDag][0]) || ["09:00", "17:00"];
   const zetUren = (dagen: string[], v: string, t: string) =>
     zet({ uren: Object.fromEntries(dagen.map((d) => [d, [[v, t]]])) as Boekpagina["uren"] });
-  const actieveDagen = DAGEN.map(([d]) => d).filter((d) => p.uren[d]?.length);
+  const wisselDag = (d: string) => {
+    if (!perDag) return zetUren(actieveDagen.includes(d) ? actieveDagen.filter((x) => x !== d) : [...actieveDagen, d], van, tot);
+    const uren = { ...p.uren };
+    if (uren[d]?.length) delete uren[d];
+    else uren[d] = [[van, tot]];
+    zet({ uren });
+  };
+  const zetDag = (d: string, v: string, t: string) => zet({ uren: { ...p.uren, [d]: [[v, t]] } });
+  const zetSoort = (i: number, x: Partial<Boekpagina["soorten"][number]>) =>
+    zet({ soorten: p.soorten.map((s, j) => (j === i ? { ...s, ...x } : s)) });
+  const betalen = p.betalen ?? {};
+  const annuleren = p.annuleren ?? { uren: 24, procent: 50 };
+  const heeftPrijs = p.soorten.some((s) => (s.prijs ?? 0) > 0);
 
   async function bewaar() {
     setBezig(true);
     setFout("");
     setMelding("");
     try {
+      const fouteTijd = Object.values(p!.uren).some((u) => u?.some(([v, t]) => v >= t));
+      if (fouteTijd) throw new Error("Een eindtijd ligt voor de begintijd. Pas de tijden aan.");
       setP(await paginaBewaren(p!));
       setOpgeslagen(true);
-      setMelding("Bewaard");
+      setMelding(p!.aan ? "Bewaard. Je pagina staat aan." : "Bewaard. Je pagina staat nog uit.");
     } catch (e) {
       setFout(foutVan(e));
     } finally {
@@ -388,14 +445,171 @@ export function BoekpaginaInstellen({ naam }: { naam: string }) {
     }
   }
 
+  async function behandel(b: Boeking, actie: "bevestigen" | "afwijzen" | "annuleren") {
+    if (actie !== "bevestigen" && !confirm(actie === "afwijzen" ? `Aanvraag van ${b.naam} afwijzen?` : `Afspraak met ${b.naam} annuleren?`)) return;
+    setFout("");
+    try {
+      await afhandelen(b.id, actie);
+      laden();
+    } catch (e) {
+      setFout(foutVan(e));
+    }
+  }
+
   return <>
-    <p className="px-1 text-rustig">Mensen zonder account plannen zelf een afspraak in op momenten dat je vrij bent. Hun bericht komt in je chat onder Gasten; jouw antwoord krijgen ze per mail.</p>
-    <label className="flex items-center gap-4 rounded-2xl bg-vlak px-4 py-3.5">
-      <span className="flex-1 font-medium">Pagina staat aan</span>
-      <input type="checkbox" checked={p.aan} onChange={(e) => zet({ aan: e.target.checked })} className="size-5 accent-[var(--color-accent)]" />
-    </label>
+    <p className="px-1 text-rustig">Mensen plannen zelf een afspraak in op momenten dat je vrij bent. Hun bericht komt in je chat onder Gasten; jouw antwoord krijgen ze per mail.</p>
+    <div className="flex flex-col gap-3 rounded-2xl bg-vlak px-4 py-3.5">
+      <label className="flex items-center gap-4">
+        <span className="flex flex-1 flex-col">
+          <span className="font-medium">Pagina staat aan</span>
+          <span className="text-sm text-rustig">{opgeslagen ? boekLink(p.adres).replace(/^https?:\/\//, "") : "Nog niet bewaard"}</span>
+        </span>
+        <input type="checkbox" checked={p.aan} onChange={(e) => zet({ aan: e.target.checked })} className="size-5 accent-[var(--color-accent)]" />
+      </label>
+      {opgeslagen && p.aan && <button onClick={deel} className="h-10 w-fit rounded-full bg-white px-4 text-sm font-medium dark:bg-black/30">Link delen</button>}
+    </div>
+
+    {boekingen.length > 0 && (
+      <section className="flex flex-col gap-2">
+        <h2 className="px-1 text-sm font-medium text-rustig">Komende afspraken</h2>
+        <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
+          {boekingen.map((b) => (
+            <li key={b.id} className="flex flex-col gap-2 px-4 py-3">
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate font-medium">{b.naam} · {b.soort}</span>
+                <span className="text-[13px] text-rustig">{dag(b.start)} {uur(b.start)} · {b.status === "aangevraagd" ? "Wacht op jou" : "Bevestigd"}</span>
+              </span>
+              <div className="flex gap-2">
+                {b.status === "aangevraagd" && <>
+                  <button onClick={() => behandel(b, "bevestigen")} className="h-9 rounded-full bg-accent px-3.5 text-sm font-medium text-white">Bevestigen</button>
+                  <button onClick={() => behandel(b, "afwijzen")} className="h-9 rounded-full bg-white px-3.5 text-sm dark:bg-black/30">Afwijzen</button>
+                </>}
+                {b.status === "bevestigd" && (
+                  <button onClick={() => behandel(b, "annuleren")} className="h-9 rounded-full bg-white px-3.5 text-sm dark:bg-black/30">Annuleren</button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
     <section className="flex flex-col gap-2">
-      <h2 className="text-sm font-medium text-rustig">Pagina</h2>
+      <Kopje nr={1} titel="Wat bied je aan" uitleg="Naam, duur en eventueel een prijs." />
+      {p.soorten.map((s, i) => (
+        <div key={i} className="flex flex-col gap-2 rounded-2xl border border-lijn p-2">
+          <div className="flex gap-2">
+            <input value={s.naam} onChange={(e) => zetSoort(i, { naam: e.target.value })} maxLength={60}
+              placeholder="Bijvoorbeeld Kennismaking" aria-label="Naam van de afspraak" className={`${veld} flex-1`} />
+            {p.soorten.length > 1 && (
+              <button onClick={() => zet({ soorten: p.soorten.filter((_, j) => j !== i) })} aria-label={`${s.naam || "Soort"} weghalen`}
+                className="h-12 rounded-2xl px-3 text-rustig">×</button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <select value={s.minuten} onChange={(e) => zetSoort(i, { minuten: Number(e.target.value) })} aria-label="Duur" className={`${kies} flex-1`}>
+              {[...new Set([15, 20, 30, 45, 60, 90, 120, 180, 240, s.minuten])].sort((a, b) => a - b)
+                .map((m) => <option key={m} value={m}>{m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} u ${m % 60} min` : `${m / 60} uur`}</option>)}
+            </select>
+            <span key={`${p.soorten.length}-${i}`} className="flex h-12 flex-1 items-center gap-1 rounded-2xl bg-vlak px-4">
+              <span className="text-rustig">€</span>
+              <input inputMode="decimal" defaultValue={prijsVeld(s.prijs)} onBlur={(e) => zetSoort(i, { prijs: centen(e.target.value) })}
+                placeholder="Gratis" aria-label="Prijs" className="h-12 min-w-0 flex-1 bg-transparent outline-none placeholder:text-zacht" />
+            </span>
+          </div>
+        </div>
+      ))}
+      {p.soorten.length < 6 && (
+        <button onClick={() => zet({ soorten: [...p.soorten, { naam: "", minuten: 30 }] })}
+          className="h-10 w-fit rounded-full px-1 text-[15px] font-medium text-accent">Soort toevoegen</button>
+      )}
+    </section>
+
+    <section className="flex flex-col gap-2">
+      <Kopje nr={2} titel="Wanneer ben je beschikbaar" uitleg="Momenten waarop al iets in je agenda staat, worden niet aangeboden." />
+      <div className="grid grid-cols-7 gap-1">
+        {DAGEN.map(([d, n]) => {
+          const aan = actieveDagen.includes(d);
+          return (
+            <button key={d} aria-pressed={aan} onClick={() => wisselDag(d)}
+              className={`h-10 rounded-xl text-sm ${aan ? "bg-accent font-medium text-white" : "bg-vlak text-rustig"}`}>{n}</button>
+          );
+        })}
+      </div>
+      {!perDag ? (
+        <div className="flex items-center gap-2">
+          <input type="time" value={van} onChange={(e) => zetUren(actieveDagen, e.target.value, tot)} aria-label="Vanaf" className={`${veld} min-w-0 flex-1`} />
+          <span className="text-rustig">tot</span>
+          <input type="time" value={tot} onChange={(e) => zetUren(actieveDagen, van, e.target.value)} aria-label="Tot" className={`${veld} min-w-0 flex-1`} />
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {DAGEN.filter(([d]) => actieveDagen.includes(d)).map(([d, n]) => {
+            const [v, t] = p.uren[d][0];
+            return (
+              <li key={d} className="flex items-center gap-2">
+                <span className="w-8 text-sm font-medium">{n}</span>
+                <input type="time" value={v} onChange={(e) => zetDag(d, e.target.value, t)} aria-label={`${n} vanaf`} className={`${veld} min-w-0 flex-1`} />
+                <span className="text-rustig">tot</span>
+                <input type="time" value={t} onChange={(e) => zetDag(d, v, e.target.value)} aria-label={`${n} tot`} className={`${veld} min-w-0 flex-1`} />
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <button onClick={() => { if (perDag) zetUren(actieveDagen, van, tot); setPerDag(!perDag); }}
+        className="h-10 w-fit rounded-full px-1 text-[15px] font-medium text-accent">
+        {perDag ? "Overal dezelfde tijden" : "Andere tijden per dag"}</button>
+    </section>
+
+    <section className="flex flex-col gap-3">
+      <Kopje nr={3} titel="Regels" />
+      <Keuze label="Hoe kort van tevoren" waarde={p.min_vooraf} zet={(n) => zet({ min_vooraf: n })}
+        opties={[[0, "Direct"], [1, "1 uur"], [2, "2 uur"], [4, "4 uur"], [12, "12 uur"], [24, "1 dag"], [48, "2 dagen"], [168, "1 week"]]} />
+      <Keuze label="Hoe ver vooruit" waarde={p.vooruit} zet={(n) => zet({ vooruit: n })}
+        opties={[[7, "1 week"], [14, "2 weken"], [30, "1 maand"], [60, "2 maanden"], [90, "3 maanden"]]} />
+      <Keuze label="Pauze tussen afspraken" waarde={p.buffer} zet={(n) => zet({ buffer: n })}
+        opties={[[0, "Geen"], [5, "5 min"], [10, "10 min"], [15, "15 min"], [30, "30 min"], [60, "1 uur"]]} />
+      <Keuze label="Hoogstens per dag" waarde={p.max_per_dag} zet={(n) => zet({ max_per_dag: n })}
+        opties={[1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20].map((n) => [n, String(n)])} />
+      <label className="flex items-center gap-4 rounded-2xl bg-vlak px-4 py-3.5">
+        <span className="flex flex-1 flex-col">
+          <span className="font-medium">Eerst zelf bevestigen</span>
+          <span className="text-sm text-rustig">Anders staat een afspraak meteen vast.</span>
+        </span>
+        <input type="checkbox" checked={p.bevestigen} onChange={(e) => zet({ bevestigen: e.target.checked })} className="size-5 accent-[var(--color-accent)]" />
+      </label>
+    </section>
+
+    {heeftPrijs && (
+      <section className="flex flex-col gap-2">
+        <Kopje nr={4} titel="Betalen en annuleren" uitleg="Klanten zien dit pas na het boeken." />
+        {p.kan_app_betalen && (
+          <label className="flex items-center gap-4 rounded-2xl bg-vlak px-4 py-3.5">
+            <span className="flex flex-1 flex-col">
+              <span className="font-medium">Betalen via de app</span>
+              <span className="text-sm text-rustig">Voor klanten met een account.</span>
+            </span>
+            <input type="checkbox" checked={!!p.app_betalen} onChange={(e) => zet({ app_betalen: e.target.checked })} className="size-5 accent-[var(--color-accent)]" />
+          </label>
+        )}
+        <input value={betalen.iban ?? ""} onChange={(e) => zet({ betalen: { ...betalen, iban: e.target.value } })} placeholder="IBAN (mag leeg)"
+          aria-label="IBAN" autoComplete="off" className={veld} />
+        <input value={betalen.naam ?? ""} onChange={(e) => zet({ betalen: { ...betalen, naam: e.target.value } })} maxLength={70}
+          placeholder="Op naam van" aria-label="Op naam van" className={veld} />
+        <input value={betalen.link ?? ""} onChange={(e) => zet({ betalen: { ...betalen, link: e.target.value } })} maxLength={300}
+          placeholder="Betaallink, bijvoorbeeld Tikkie (mag leeg)" aria-label="Betaallink" inputMode="url" className={veld} />
+        <Keuze label="Gratis annuleren tot" waarde={annuleren.uren} zet={(n) => zet({ annuleren: { ...annuleren, uren: n } })}
+          opties={[[0, "Altijd"], [2, "2 uur ervoor"], [12, "12 uur ervoor"], [24, "1 dag ervoor"], [48, "2 dagen ervoor"], [168, "1 week ervoor"]]} />
+        {annuleren.uren > 0 && (
+          <Keuze label="Daarna terug" waarde={100 - annuleren.procent} zet={(n) => zet({ annuleren: { ...annuleren, procent: 100 - n } })}
+            opties={[[100, "Alles"], [50, "De helft"], [0, "Niets"]]} />
+        )}
+      </section>
+    )}
+
+    <section className="flex flex-col gap-2">
+      <Kopje nr={heeftPrijs ? 5 : 4} titel="Je pagina" />
       <input value={p.titel} onChange={(e) => zet({ titel: e.target.value })} maxLength={80} placeholder={`Titel, bijvoorbeeld Afspraak met ${naam}`}
         aria-label="Titel" className={veld} />
       <textarea value={p.intro} onChange={(e) => zet({ intro: e.target.value })} maxLength={400} rows={2} placeholder="Korte uitleg (mag leeg)"
@@ -408,77 +622,11 @@ export function BoekpaginaInstellen({ naam }: { naam: string }) {
           className="h-12 min-w-0 flex-1 bg-transparent outline-none" />
       </div>
     </section>
-    <section className="flex flex-col gap-2">
-      <h2 className="text-sm font-medium text-rustig">Soorten afspraken</h2>
-      {p.soorten.map((s, i) => (
-        <div key={i} className="flex gap-2">
-          <input value={s.naam} onChange={(e) => zet({ soorten: p.soorten.map((x, j) => (j === i ? { ...x, naam: e.target.value } : x)) })}
-            maxLength={60} aria-label="Naam van de afspraak" className={`${veld} flex-1`} />
-          <select value={s.minuten} onChange={(e) => zet({ soorten: p.soorten.map((x, j) => (j === i ? { ...x, minuten: Number(e.target.value) } : x)) })}
-            aria-label="Duur" className="h-12 rounded-2xl bg-vlak px-3 outline-none">
-            {[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m} min</option>)}
-          </select>
-          {p.soorten.length > 1 && (
-            <button onClick={() => zet({ soorten: p.soorten.filter((_, j) => j !== i) })} aria-label="Weghalen"
-              className="h-12 rounded-2xl px-3 text-rustig">×</button>
-          )}
-        </div>
-      ))}
-      {p.soorten.length < 6 && (
-        <button onClick={() => zet({ soorten: [...p.soorten, { naam: "", minuten: 30 }] })}
-          className="h-10 w-fit rounded-full px-1 text-[15px] font-medium text-accent">Soort toevoegen</button>
-      )}
-    </section>
-    <section className="flex flex-col gap-2">
-      <h2 className="text-sm font-medium text-rustig">Wanneer</h2>
-      <div className="grid grid-cols-7 gap-1">
-        {DAGEN.map(([d, n]) => {
-          const aan = actieveDagen.includes(d);
-          return (
-            <button key={d} aria-pressed={aan} onClick={() => zetUren(aan ? actieveDagen.filter((x) => x !== d) : [...actieveDagen, d], van, tot)}
-              className={`h-10 rounded-xl text-sm ${aan ? "bg-accent font-medium text-white" : "bg-vlak text-rustig"}`}>{n}</button>
-          );
-        })}
-      </div>
-      <div className="flex items-center gap-2">
-        <input type="time" value={van} onChange={(e) => zetUren(actieveDagen, e.target.value, tot)} aria-label="Vanaf" className={`${veld} min-w-0 flex-1`} />
-        <span className="text-rustig">tot</span>
-        <input type="time" value={tot} onChange={(e) => zetUren(actieveDagen, van, e.target.value)} aria-label="Tot" className={`${veld} min-w-0 flex-1`} />
-      </div>
-      <p className="px-1 text-[13px] text-zacht">Momenten waarop al iets in je agenda staat, worden niet aangeboden.</p>
-    </section>
-    <label className="flex items-center gap-4 rounded-2xl bg-vlak px-4 py-3.5">
-      <span className="flex flex-1 flex-col">
-        <span className="font-medium">Eerst zelf bevestigen</span>
-        <span className="text-sm text-rustig">Anders staat een afspraak meteen vast.</span>
-      </span>
-      <input type="checkbox" checked={p.bevestigen} onChange={(e) => zet({ bevestigen: e.target.checked })} className="size-5 accent-[var(--color-accent)]" />
-    </label>
-    <div className="flex gap-2">
-      <button disabled={bezig} onClick={bewaar} className="h-12 flex-1 rounded-2xl bg-accent font-medium text-white disabled:opacity-50">Bewaar</button>
-      {opgeslagen && p.aan && <button onClick={deel} className="h-12 flex-1 rounded-2xl bg-vlak font-medium">Link delen</button>}
-    </div>
+
+    <button disabled={bezig} onClick={bewaar} className="h-12 rounded-2xl bg-accent font-medium text-white disabled:opacity-50">
+      {bezig ? "Bezig..." : "Bewaar"}</button>
     {melding && <p role="status" className={`px-1 text-sm text-rustig ${melding.startsWith("http") ? "break-all" : ""}`}>{melding}</p>}
     {fout && <p role="alert" className="px-1 text-sm text-red-600 dark:text-red-400">{fout}</p>}
-    {boekingen.length > 0 && (
-      <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-rustig">Komende afspraken</h2>
-        <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
-          {boekingen.map((b) => (
-            <li key={b.id} className="flex items-center gap-3 px-4 py-3">
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate font-medium">{b.naam} · {b.soort}</span>
-                <span className="text-[13px] text-rustig">{dag(b.start)} {uur(b.start)} · {b.status}</span>
-              </span>
-              {b.status === "aangevraagd" && (
-                <button onClick={() => afhandelen(b.id, "bevestigen").then(laden).catch((e) => setFout(foutVan(e)))}
-                  className="h-9 shrink-0 rounded-full bg-accent px-3.5 text-sm font-medium text-white">Bevestigen</button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-    )}
   </>;
 }
 

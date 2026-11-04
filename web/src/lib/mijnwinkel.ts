@@ -82,3 +82,30 @@ export function winkelGevraagd() {
   return a;
 }
 export const isWinkelGevraagd = () => gevraagd !== null;
+
+export type Marketing = { actie: string; actie_tot: string | null; bezoeken: number; volgers: number;
+  verkopen_30d: { aantal: number; omzet: number } };
+
+/** Cijfers en de aanbieding van je winkel (sql/reviews_marketing.sql). */
+export async function mijnMarketing(): Promise<Marketing> {
+  const r = await alsIk<Partial<Marketing> & { fout?: string }>("mijn_marketing");
+  if (r.fout) throw new Error(r.fout);
+  return { actie: r.actie ?? "", actie_tot: r.actie_tot ?? null, bezoeken: getal(r.bezoeken), volgers: getal(r.volgers),
+    verkopen_30d: { aantal: getal(r.verkopen_30d?.aantal), omzet: getal(r.verkopen_30d?.omzet) } };
+}
+
+/** Een balk bovenaan je winkel, bijvoorbeeld "Deze week 10% korting". Leeg haalt hem weg. */
+export const actieBewaren = (tekst: string, tot: string | null) =>
+  doe("winkel_actie", { p_tekst: tekst.trim(), p_tot: tot || null });
+
+export type Stap = { naam: string; klaar: boolean };
+/** De vaste volgorde om een winkel live te krijgen. De eerste die nog niet klaar is, is de volgende stap. */
+export function winkelStappen(g: MijnWinkel): Stap[] {
+  const w = g.winkel;
+  return [
+    { naam: "Winkel gemaakt", klaar: !!w },
+    { naam: "Betalingen aan", klaar: g.kan_betalen },
+    { naam: "Product in je winkel", klaar: g.producten.some((p) => p.in_winkel) },
+    { naam: "Winkel open", klaar: !!w?.open },
+  ];
+}
