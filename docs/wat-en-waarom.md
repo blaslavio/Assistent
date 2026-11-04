@@ -35,3 +35,7 @@ Waarom: de tools waren te beperkt en niet logisch geordend. Alles gebruikt datab
 ## 2026-11-04 · Controle van de hele app: community's terug, mascotte past bij de app
 Wat: community's in de chat openen weer als eigen app met kanalen, agenda, cursussen, leden en beheer (verlaten, opruimen, tijdelijke community). Die delen waren bij het inkorten van Chat op 1 november weggevallen, waardoor cursussen kopen en clubagenda niet meer te bereiken waren. De mascotte gebruikt nu de kleur van de app, een tip over een veeggebaar dat niet bestaat is vervangen, en ongebruikte code (losse mascotteknop, oude invoerbalk) is weg. sql/bijwerken_2026_11_04.sql bundelt drie databasestukken die nog niet live stonden: veilig inloggen met Google/Apple/Microsoft, contactgegevens van winkels en vakantieverhuur.
 Waarom: je vroeg om alles na te lopen zodat alles op elkaar aansluit.
+
+## 2026-11-04 · Eigen mascotte
+Wat: de paperclip is vervangen door een eigen rond figuurtje met een vonkje, in de kleur van de app (licht en donker). Ogen volgen je nog steeds, hij knippert, wijst, juicht, slaapt en geeft tips. De bewegingen van ogen en armen zijn nu afgestemd op het figuur zelf (die waren nog ingesteld op een veel grotere tekening, waardoor ogen en armen te ver verschoven).
+Waarom: je koos voor een eigen figuur. Een nagemaakte Clippy is een bekend figuur van Microsoft en dat is riskant voor een openbare app.
