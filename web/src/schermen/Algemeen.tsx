@@ -4,6 +4,7 @@ import { DOK_KEUZES } from "./HoofdNavigatie";
 import { DELEN, chatDelenVan, type Deel } from "./chatdelen";
 import { alsIk } from "../api";
 import { Schakelaar, kop } from "./instellingen-ui";
+import { INTERESSES, leesInteresses } from "../lib/interesses";
 import { LANDEN, REGIO_S, REGIO_UITLEG, type FeestInstellingen } from "../lib/feestdagen";
 
 export type Stijl = { kleur?: "hemel" | "indigo" | "zeegroen" | "oranje" | "grafiet"; vorm?: "rond" | "strak"; ruimte?: "ruim" | "compact" };
@@ -83,6 +84,7 @@ export function AlgemeenScherm({ inst, bewaar }: { inst: Weergave;
     </div>
     </div></details>
     <details className="rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer font-medium">Startpagina en navigatie</summary><div className="mt-3 flex flex-col gap-4">
+    <Interesses inst={inst} bewaar={bewaar} />
     <Feestdagen inst={inst} bewaar={bewaar} />
     <Dok />
     <ChatRij inst={inst} bewaar={bewaar} />
@@ -108,6 +110,24 @@ function Dok() {
 }
 
 /** Welke onderdelen in de rij bovenin Chat staan. Chats staat er altijd; Bellen zit ook als knop rechtsboven. */
+function Interesses({ inst, bewaar }: { inst: Weergave; bewaar: (aanpassen: (i: Record<string, unknown>) => void) => void }) {
+  const gekozen = leesInteresses(inst);
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className={kop}>Waar gebruik je de app voor</h2>
+      <p className="text-[13px] text-rustig">Je keuzes staan bovenaan in Werkruimte. Alles blijft beschikbaar.</p>
+      <div className="flex flex-wrap gap-2">
+        {INTERESSES.map((i) => {
+          const aan = gekozen.includes(i.id);
+          return <button key={i.id} type="button" aria-pressed={aan}
+            onClick={() => bewaar((x) => { x.interesses = aan ? gekozen.filter((g) => g !== i.id) : [...gekozen, i.id]; })}
+            className={`min-h-10 rounded-full px-4 text-[14px] font-medium ${aan ? "bg-accent text-white" : "bg-vlak text-inkt"}`}>{i.naam}</button>;
+        })}
+      </div>
+    </section>
+  );
+}
+
 function ChatRij({ inst, bewaar }: { inst: Weergave; bewaar: (aanpassen: (i: Record<string, unknown>) => void) => void }) {
   const gekozen = chatDelenVan((inst as Record<string, unknown>).chatdelen);
   const wissel = (id: Deel) => bewaar((i) => {

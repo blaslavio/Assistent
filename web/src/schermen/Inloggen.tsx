@@ -5,7 +5,8 @@ import { apparaatNaam, inloggen } from "../api";
 import { accountMaken, codeSturen, herstelAanvragen, herstelAfronden, mailIngesteld, voorbereiden } from "../lib/aanmelden";
 import AanmeldLogo from "./AanmeldLogo";
 import { Onderblad } from "./Onderblad";
-import { VertrouwenRegels } from "./vertrouwen";
+import { VERTROUWEN_PUNTEN } from "./vertrouwen";
+import { Mascotte } from "../mascotte";
 
 const Opmaak = lazy(() => import("./Beveiliging").then((m) => ({ default: m.Opmaak })));
 const Teksten = lazy(() => import("../lib/teksten").then((m) => ({
@@ -37,15 +38,21 @@ export default function Inloggen({ opIngelogd }: { opIngelogd: () => Promise<voi
   const [mail, setMail] = useState<boolean | null>(null);
   useEffect(() => { let actief = true; mailIngesteld().then(v => { if (actief) setMail(v); }).catch(() => { if (actief) setMail(false); }); return () => { actief = false; }; }, []);
   return (
-    <main className="h-full overflow-y-auto"><div className="mx-auto flex min-h-full max-w-md flex-col justify-center gap-6 px-6 py-10">
-      <div className="flex flex-col gap-3">
-        <p className="text-lg font-semibold tracking-tight">Assistent</p>
-        <VertrouwenRegels />
+    <main className="inlog-achtergrond h-full overflow-y-auto"><div className="mx-auto flex min-h-full max-w-md flex-col justify-center gap-6 px-6 py-10">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <div className="relative flex size-32 items-center justify-center">
+          <span aria-hidden className="absolute inset-3 rounded-full bg-gradient-to-br from-amber-300/50 via-rose-300/50 to-violet-400/50 blur-2xl" />
+          <Mascotte className="relative size-24" />
+        </div>
+        <p className="text-[15px] leading-snug text-rustig">Je dag, je geld, je winkel en je club.<br />Op één plek.</p>
       </div>
       {externFout && <p role="alert" className="text-sm text-red-600">{externFout}</p>}
       {externBezig ? <p role="status">Je aanmelding wordt gecontroleerd…</p> : stand === "inloggen" && <Inlog opIngelogd={opIngelogd} naar={setStand} mail={!!mail} />}
       {stand === "nieuw" && <Nieuw opIngelogd={opIngelogd} naar={setStand} mail={!!mail} />}
       {stand === "vergeten" && <Vergeten opIngelogd={opIngelogd} naar={setStand} />}
+      <ul aria-label="Zo gaan we met je gegevens om" className="flex flex-wrap justify-center gap-1.5">
+        {VERTROUWEN_PUNTEN.map((p) => <li key={p} className="rounded-full bg-white/70 px-3 py-1.5 text-[12px] text-rustig ring-1 ring-lijn dark:bg-white/5">{p}</li>)}
+      </ul>
       <footer className="flex flex-wrap justify-center gap-x-5 text-sm text-rustig">
         <button type="button" className="min-h-11 underline underline-offset-4" onClick={() => setLezen("voorwaarden")}>Voorwaarden</button>
         <button type="button" className="min-h-11 underline underline-offset-4" onClick={() => setLezen("privacy")}>Privacy</button>
@@ -64,7 +71,7 @@ function Formulier({ titel, uitleg, fout, onSubmit, children, vooraf }: { titel:
   onSubmit: (e: FormEvent) => void; children: ReactNode }) {
   return <>
     <div className="flex flex-col gap-1">
-      <h1 className="text-[32px] font-bold tracking-tight">{titel}</h1>
+      <h1 className="text-[26px] font-bold leading-tight tracking-tight [text-wrap:balance]">{titel}</h1>
       {uitleg && <p className="text-[15px] text-rustig">{uitleg}</p>}
     </div>
     {vooraf}
@@ -102,7 +109,7 @@ function Inlog({ opIngelogd, naar, mail }: Deel & { mail: boolean }) {
   }
 
   return <>
-    <Formulier titel={codeNodig ? "Bevestig je aanmelding" : "Aanmelden of registreren"} fout={fout} onSubmit={versturen}>
+    <Formulier titel={codeNodig ? "Bevestig je aanmelding" : "Welkom"} fout={fout} onSubmit={versturen}>
       {!codeNodig ? (
         <>
           <label className="sr-only" htmlFor="naam">Gebruikersnaam of mailadres</label>

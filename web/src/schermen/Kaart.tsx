@@ -1,6 +1,6 @@
-import workerBron from "../kaartwerker.bundel";
 import { useEffect, useRef, useState } from "react";
-import * as maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
+import { maplibreLaden } from "../lib/maplibreLaden";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { KaartWinkel, Punt } from "../lib/kaart";
 import { kaartDonker, kaartStijlURL, eigenKaartkleur } from "../lib/kaartstijl";
@@ -72,11 +72,18 @@ export function Kaart({ midden, zet, punten, gekozen, kies, ik, vanaf, stops = [
     volgendeAfspraak,
   ]);
   const [melding, setMelding] = useState("");
+  const [ml, setMl] = useState<typeof maplibregl | null>(null);
 
   useEffect(() => {
-    if (!vak.current) return;
-    const workerURL = URL.createObjectURL(new Blob([workerBron], { type: "text/javascript" }));
-    maplibregl.setWorkerUrl(workerURL);
+    let actief = true;
+    maplibreLaden().then((m) => { if (actief) setMl(() => m); })
+      .catch(() => { if (actief) setMelding("De kaart kon niet laden. Controleer je verbinding. Je bestemmingen en navigatieknop blijven beschikbaar."); });
+    return () => { actief = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!vak.current || !ml) return;
+    const maplibregl = ml;
     let m: maplibregl.Map;
     let donker = kaartDonker();
     try {
@@ -87,7 +94,6 @@ export function Kaart({ midden, zet, punten, gekozen, kies, ik, vanaf, stops = [
         attributionControl: { compact: true }, canvasContextAttributes: { antialias: true },
       });
     } catch {
-      URL.revokeObjectURL(workerURL);
       setMelding("De kaart kan hier niet worden getekend. Je bestemmingen en navigatieknop blijven beschikbaar.");
       return;
     }
@@ -130,9 +136,9 @@ export function Kaart({ midden, zet, punten, gekozen, kies, ik, vanaf, stops = [
     maat.observe(vak.current);
     return () => {
       kijken.disconnect(); voorkeur.removeEventListener("change", thema); maat.disconnect();
-      m.remove(); URL.revokeObjectURL(workerURL); kaart.current = null;
+      m.remove(); kaart.current = null;
     };
-  }, []);
+  }, [ml]);
 
   useEffect(() => {
     const m = kaart.current;
@@ -153,7 +159,8 @@ export function Kaart({ midden, zet, punten, gekozen, kies, ik, vanaf, stops = [
 
   useEffect(() => {
     const m = kaart.current;
-    if (!m) return;
+    if (!m || !ml) return;
+    const maplibregl = ml;
     const markers: maplibregl.Marker[] = [];
     const stopIds = new Set(stops.map((s) => s.id));
     for (const w of punten.filter(geldigKaartpunt)) {

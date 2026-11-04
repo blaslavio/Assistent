@@ -161,9 +161,10 @@ export default function Werkruimte({
   );
 
   const priveApps = ONDERDELEN.filter(([id]) => PRIVE.includes(id));
-  const hoofd = priveApps.filter(([id]) =>
-    ["notities", "documenten", "boodschappen", "budget"].includes(id),
-  );
+  // Belangrijkste eerst: werk en geld gaan voor lijstjes.
+  const VOLGORDE = ["documenten", "notities", "budget", "boodschappen"];
+  const hoofd = priveApps.filter(([id]) => VOLGORDE.includes(id))
+    .sort((a, b) => VOLGORDE.indexOf(a[0]) - VOLGORDE.indexOf(b[0]));
   const extra = priveApps.filter(
     ([id]) => !["notities", "documenten", "boodschappen", "budget"].includes(id),
   );
@@ -365,41 +366,14 @@ export default function Werkruimte({
                 </button>
               </section>
 
-              <section
-                aria-label="Zakelijk"
-                className="flex flex-col gap-3 rounded-3xl border border-accent/20 bg-gradient-to-b from-accent/[0.06] to-transparent p-4"
-              >
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-accent">Zakelijk</h2>
-                  <span className="text-[11px] text-rustig">Winkel · events · klanten</span>
+              <section aria-label="Zakelijk" className="flex flex-col gap-3">
+                <div className="flex items-center justify-between px-0.5">
+                  <h2 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">Zakelijk</h2>
+                  <span className="text-[11px] text-zacht">Winkel, events en klanten</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => kiesApp("studio")}
-                  className="flex min-h-16 items-center gap-3 rounded-2xl bg-white px-4 text-left shadow-sm dark:bg-[#121216]"
-                >
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-white">
-                    <Winkelpand className="size-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-semibold">Studio</span>
-                    <span className="block text-[13px] text-rustig">Winkel, evenementen, tickets en scanner</span>
-                  </span>
-                  <Terug className="size-4 rotate-180 text-rustig" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => kiesApp("zakelijk")}
-                  className="flex min-h-14 items-center gap-3 rounded-2xl border border-lijn bg-white/80 px-4 text-left dark:bg-[#121216]/80"
-                >
-                  <span className="flex size-9 items-center justify-center rounded-lg bg-vlak">
-                    <Projectmap className="size-[18px] text-accent" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-medium">Zakelijk</span>
-                    <span className="block text-[13px] text-rustig">{UIT.zakelijk}</span>
-                  </span>
-                </button>
+                <div className="flex flex-col gap-2">
+                  {ONDERDELEN.filter(([id]) => ZAKELIJK.includes(id)).map((a) => appKnop(a))}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <button type="button" onClick={winkelAppOpenen} className="flex h-10 items-center gap-2 rounded-full bg-vlak px-3 text-[13px] font-medium">
                     <Tas className="size-4 text-accent" /> Winkel

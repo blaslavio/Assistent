@@ -106,9 +106,12 @@ begin
      or coalesce(p_vingerafdruk, '') !~ '^[0-9a-f]{64}$' then
     return jsonb_build_object('fout', 'Ongeldige sleutel.');
   end if;
-  if (select count(*) from private.chat_apparaten where gebruiker = v_id and not weg) >= 10 then
-    return jsonb_build_object('fout', 'Je hebt al 10 apparaten voor de chat. Haal er eerst een weg.');
-  end if;
+  -- Hooguit 10 apparaten tegelijk. Bij een nieuw apparaat vervalt het apparaat dat het langst niet gebruikt is,
+  -- net als bij ingelogd blijven. Zo loopt de chat nooit vast op oude apparaten.
+  update private.chat_apparaten set weg = true
+  where id in (select id from private.chat_apparaten where gebruiker = v_id and not weg
+               order by coalesce(laatst, aangemaakt) asc
+               offset 0 limit greatest(0, (select count(*) from private.chat_apparaten where gebruiker = v_id and not weg) - 9));
   insert into private.chat_apparaten (gebruiker, naam, ecdh, teken, vingerafdruk)
   values (v_id, left(coalesce(p_apparaat, ''), 60),
           jsonb_build_object('kty', 'EC', 'crv', p_ecdh ->> 'crv', 'x', p_ecdh ->> 'x', 'y', p_ecdh ->> 'y'),

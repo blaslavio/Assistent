@@ -5,7 +5,7 @@ const m=vi.hoisted(()=>({beschikbaar:vi.fn(),begin:vi.fn(),inlog:vi.fn()}));
 vi.mock("../lib/externAanmelden",()=>({AANBIEDERS:[{id:"google",naam:"Google"},{id:"apple",naam:"Apple"},{id:"azure",naam:"Microsoft"}],beschikbareAanbieders:m.beschikbaar,externBeginnen:m.begin,externAfronden:vi.fn(),isExterneTerugkomst:()=>false}));
 vi.mock("../api",async o=>({...await o<object>(),inloggen:m.inlog}));
 vi.mock("../lib/aanmelden",async o=>({...await o<object>(),mailIngesteld:async()=>false}));
-vi.mock("../mascotte",()=>({MascotteMetTip:()=>null}));
+vi.mock("../mascotte",()=>({MascotteMetTip:()=>null,Mascotte:()=>null}));
 beforeEach(()=>{vi.clearAllMocks();m.beschikbaar.mockResolvedValue({google:true,apple:false,azure:false});});
 afterEach(cleanup);
 it("toont Google en Apple op het beginscherm en vraagt toestemming voor doorsturen",async()=>{

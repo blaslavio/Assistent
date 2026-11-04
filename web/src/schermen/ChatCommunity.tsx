@@ -35,14 +35,17 @@ export function Communitys({ lijst, open, vernieuw, staat }: { lijst: Community[
     setWeergaveRuw(w);
     try { localStorage.setItem("assistent.communitydeel", w); } catch { /* geen opslag */ }
   }
-  const keuze = (
+  const keuze = (<>
+    <p className="mx-6 mb-3 text-[13px] leading-snug text-rustig">
+      Groepen rond wat je samen doet: een club, klas, team of je klanten. Je praat in kanalen, plant samen, deelt cursussen en verkoopt tickets of lidmaatschappen.
+    </p>
     <div className="mx-6 mb-3 grid grid-cols-2 gap-1 rounded-full bg-vlak p-1">
       {([["feed", "Feed"], ["groepen", "Groepen"]] as const).map(([k, t]) => (
         <button key={k} onClick={() => setWeergave(k)} aria-pressed={weergave === k}
           className={`h-9 rounded-full text-sm font-medium ${weergave === k ? "bg-white shadow-sm dark:bg-[#2a2a30]" : "text-rustig"}`}>{t}</button>
       ))}
     </div>
-  );
+  </>);
   if (weergave === "feed") return (
     <>
       {keuze}
