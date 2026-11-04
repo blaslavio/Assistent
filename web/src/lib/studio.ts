@@ -13,7 +13,7 @@ export const STUDIO_TOOLS=[
  {id:"betalingen",groep:"Verkopen en beheren",naam:"Betalingen instellen",uitleg:"Verbind de bestaande betaalvoorziening",zoek:"stripe afrekenen checkout rekening"},
  {id:"event_maken",groep:"Evenementen bouwen",naam:"Evenement bouwen",uitleg:"Van een sjabloon naar een gecontroleerd evenement",zoek:"events builder workshop festival bijeenkomst nieuw"},
  {id:"evenementen",groep:"Evenementen bouwen",naam:"Evenementen beheren",uitleg:"Agenda, locatie, reacties en organisatietaken",zoek:"planning draaiboek vrijwilligers aanpassen"},
- {id:"tickets",groep:"Tickets en toegang",naam:"Tickets en inschrijvingen",uitleg:"Gratis tickets, capaciteit en je eigen QR-ticket",zoek:"ticketsoort reserveren aanmelden toegangsbewijs event"},
+ {id:"tickets",groep:"Tickets en toegang",naam:"Tickets en inschrijvingen",uitleg:"Gratis of betaalde tickets, capaciteit en QR-tickets",zoek:"ticketsoort reserveren aanmelden toegangsbewijs event"},
  {id:"scannen",groep:"Tickets en toegang",naam:"Tickets scannen",uitleg:"Camera of code, controleren en toegang bevestigen",zoek:"qr scanner checkin check-in deur entree"},
  {id:"bezoekers",groep:"Tickets en toegang",naam:"Bezoekers en aanwezigheid",uitleg:"Zoek in uitgegeven tickets en zie wie binnen is",zoek:"gasten deelnemers bezoekerslijst gastenlijst"},
  {id:"team",groep:"Tickets en toegang",naam:"Scanteam beheren",uitleg:"Geef groepsleden toegang tot de ticketcontrole",zoek:"medewerkers crew rechten personeel"},

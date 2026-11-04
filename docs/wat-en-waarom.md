@@ -1,3 +1,12 @@
+## 2026-11-03 · Evenementen met betaalde tickets
+Wat:
+- In Agenda › Evenementen staan nu drie delen: Ontdekken, Mijn tickets en Organiseren.
+- Bij Ontdekken zie je komende evenementen met de begintijd en tot wanneer het loopt. Je kiest een ticketsoort en een aantal en betaalt in de app.
+- Na betalen krijg je per ticket een eigen QR-code bij Mijn tickets. Bij terugbetalen worden niet-gebruikte tickets ingetrokken.
+- Organisatoren maken in Studio › Tickets en inschrijvingen ticketsoorten (bijvoorbeeld Ringside en Staanplaats) met prijs en aantal, plus een omschrijving.
+- Na de eindtijd verdwijnt een evenement vanzelf van de pagina en stopt de verkoop. Er wordt niets gewist.
+Waarom: je wilt het boksgala van 28 februari helemaal via de app regelen. Tickets lopen via je eigen webshop en de bestaande betaling, zodat geld en controle op één plek blijven.
+
 ## 2026-11-04 · Instellingen compacter
 Wat: Instellingen toont nu alleen echte instellingen, in vier korte groepen op één scherm: Account en privacy, App en assistent, Betalen en afspraken, en Hulp. Je hoeft geen groep meer open te tikken. Apps zoals Budget, Kaart en Evenementen staan niet meer dubbel in Instellingen; je opent ze via Werkruimte of vindt ze met de zoekbalk.
 Waarom: je vond dat instellingen samengevoegd konden worden. Er stonden apps tussen die geen instelling zijn, en elke groep kostte een extra tik.
