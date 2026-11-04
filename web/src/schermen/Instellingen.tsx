@@ -17,20 +17,16 @@ import { MailKoppelen } from "./AgendaPanelen";
 import { BoekpaginaInstellen, MailVersturen } from "./Gasten";
 import type { Staat } from "../App";
 import {
-  Boek,
   Envelop,
   Euro,
-  Grafiek,
   Huis,
   Kalender,
-  Lijstje,
   Persoon,
   Schuiven,
   Slot,
   Terug,
   Vonk,
   Vraag,
-  Winkelpand,
 } from "../iconen";
 import { Schakelaar, kop } from "./instellingen-ui";
 import { Account, Beveiliging, BeveiligingsOptie, Techniek } from "./Beveiliging";
@@ -116,7 +112,6 @@ export default function Instellingen({
     return () => window.removeEventListener("instellingen-pagina", open);
   }, []);
   const [bezig, setBezig] = useState(false);
-  const [categorie, setCategorie] = useState<string | null>(null);
   const [zoek, setZoek] = useState("");
   const [melding, setMelding] = useState("");
   const g = staat.gebruiker;
@@ -340,15 +335,13 @@ export default function Instellingen({
       />,
     );
 
+  // Alleen echte instellingen staan op het scherm, in drie korte groepen. Apps open je via Werkruimte; de zoekbalk vindt ze ook hier.
   const groepen = [
     {
       id: "account",
       titel: "Account en privacy",
-      uitleg: "Profiel, aanmelding en beveiliging",
-      icoon: Slot,
       kleur: "#3a8f5c",
       rijen: [
-        { titel: "Profiel", uitleg: "Naam, foto en openbare profielpagina", open: () => setPagina("profiel"), icoon: Persoon },
         { titel: "Account", uitleg: "Mailadres, wachtwoord en inloggen", open: () => setPagina("account"), icoon: Persoon },
         { titel: "Privacy en beveiliging", uitleg: "Tweestapsverificatie, apparaten en geheugen", open: () => setPagina("privacy"), icoon: Slot },
       ],
@@ -356,78 +349,45 @@ export default function Instellingen({
     {
       id: "app",
       titel: "App en assistent",
-      uitleg: "Weergave en persoonlijke voorkeuren",
-      icoon: Schuiven,
       kleur: "#4f46e5",
       rijen: [
         { titel: "Weergave", uitleg: "Kleur, tekstgrootte, navigatie en Vandaag", open: () => setPagina("algemeen"), icoon: Schuiven },
         { titel: "Assistent", uitleg: "Naam, toon, antwoorden en AI-koppeling", open: () => setPagina("assistent"), icoon: Vonk },
-        { titel: "Status en meldingen", uitleg: "Lokale activiteit en meldbeleid", open: () => setPagina("hulp"), icoon: Vraag },
-      ],
-    },
-    {
-      id: "planning",
-      titel: "Planning en koppelingen",
-      uitleg: "Agenda, reizen, mail en thuisadres",
-      icoon: Kalender,
-      kleur: "#2f80ed",
-      rijen: [
         { titel: "Mail", uitleg: gekoppeld(staat.data) ? "Mailbox gekoppeld" : "Koppel je mailbox", open: () => setPagina("mail"), icoon: Envelop },
-        { titel: "Kaart en routes", uitleg: "Bestemming zoeken en navigeren", open: kaartOpenen, icoon: Huis },
-        { titel: "Vakantie en verblijf", uitleg: "Reisplannen en reserveringen", open: vakantiesOpenen, icoon: Kalender },
-        { titel: "Evenementen", uitleg: "Organiseren en evenementpagina", open: evenementenOpenen, icoon: Kalender },
         { titel: "Thuis", uitleg: "Adres voor weer en reistijden", open: () => setPagina("thuis"), icoon: Huis },
       ],
     },
     {
       id: "geld",
-      titel: "Geldzaken",
-      uitleg: "Betalingen, budget en beleggingen",
-      icoon: Euro,
+      titel: "Betalen en afspraken",
       kleur: "#c2571a",
       rijen: [
         { titel: "Betalingen", uitleg: "Bestellingen en uitbetalen", open: () => setPagina("betalingen"), icoon: Euro },
-        { titel: "Budget", uitleg: "Uitgaven en afschriften", open: () => naar({ tab: "projecten", onderdeel: "budget" }), icoon: Lijstje },
-        { titel: "Beleggen", uitleg: "Portefeuille en markten", open: () => naar({ tab: "projecten", onderdeel: "beleggen" }), icoon: Grafiek },
-      ],
-    },
-    {
-      id: "apps",
-      titel: "Mijn apps",
-      uitleg: "Lijsten, documenten, leren en gezondheid",
-      icoon: Boek,
-      kleur: "#14866d",
-      rijen: ONDERDELEN.filter(([id]) => !["budget", "beleggen", "zakelijk"].includes(id)).map(
-        ([id, titel, icoon]) => ({
-          titel,
-          uitleg: ONDERDEEL_UITLEG[id] ?? titel,
-          icoon,
-          open: () => naar({ tab: "projecten", onderdeel: id }),
-        }),
-      ),
-    },
-    {
-      id: "zakelijk",
-      titel: "Zakelijke opties",
-      uitleg: "Klanten, rooster en afspraken",
-      icoon: Winkelpand,
-      kleur: "#346a92",
-      rijen: [
-        { titel: "Zakelijk", uitleg: "Rooster, klanten en boekhouding", open: () => naar({ tab: "projecten", onderdeel: "zakelijk" }), icoon: Winkelpand },
         { titel: "Boekingspagina", uitleg: "Afspraken laten inplannen", open: () => setPagina("afspraken"), icoon: Kalender },
       ],
     },
+    {
+      id: "hulp",
+      titel: "Hulp",
+      kleur: "#0e9fb3",
+      rijen: [
+        { titel: "Status en meldingen", uitleg: "Lokale activiteit en meldbeleid", open: () => setPagina("hulp"), icoon: Vraag },
+        { titel: "Idee of probleem", uitleg: "Hulp en feedback", open: () => setPagina("idee"), icoon: Vraag },
+      ],
+    },
   ];
-
-  const volgorde = ["account", "app", "planning", "apps", "geld"];
-  const persoonlijk = groepen
-    .filter((g) => g.id !== "zakelijk")
-    .sort((a, b) => volgorde.indexOf(a.id) - volgorde.indexOf(b.id));
+  const apps = [
+    { titel: "Kaart en routes", uitleg: "Bestemming zoeken en navigeren", open: kaartOpenen, icoon: Huis },
+    { titel: "Vakantie en verblijf", uitleg: "Reisplannen en reserveringen", open: vakantiesOpenen, icoon: Kalender },
+    { titel: "Evenementen", uitleg: "Ontdekken, tickets en organiseren", open: evenementenOpenen, icoon: Kalender },
+    ...ONDERDELEN.map(([id, titel, icoon]) => ({
+      titel, uitleg: ONDERDEEL_UITLEG[id] ?? titel, icoon, open: () => naar({ tab: "projecten", onderdeel: id }),
+    })),
+  ];
   const term = zoek.trim().toLocaleLowerCase("nl");
-  const gekozenGroep = groepen.find((g) => g.id === categorie);
   const resultaten = [
     ...groepen.flatMap((g) => g.rijen.map((r) => ({ ...r, kleur: g.kleur, groep: g.titel }))),
-    { titel: "Idee of probleem", uitleg: "Hulp en feedback", icoon: Vraag, kleur: "#0e9fb3", groep: "Hulp", open: () => setPagina("idee") },
+    ...apps.map((r) => ({ ...r, kleur: "#14866d", groep: "App" })),
   ].filter((r) => `${r.titel} ${r.uitleg} ${r.groep}`.toLocaleLowerCase("nl").includes(term));
 
   return (
@@ -435,24 +395,15 @@ export default function Instellingen({
       <button
         type="button"
         onClick={() => {
-          if (categorie || zoek) {
-            setCategorie(null);
-            setZoek("");
-          } else terug();
+          if (zoek) setZoek("");
+          else terug();
         }}
         className="-ml-2 flex h-10 items-center gap-1 pr-3 text-rustig"
       >
-        <Terug className="size-5" /> {categorie || zoek ? "Instellingen" : "Terug"}
+        <Terug className="size-5" /> {zoek ? "Instellingen" : "Terug"}
       </button>
-      <h1 className="mt-4 text-[32px] font-bold tracking-tight">
-        {gekozenGroep?.titel ?? "Instellingen"}
-      </h1>
-      {!categorie && !term && (
-        <p className="mb-4 mt-1 text-[13px] text-rustig">
-          Account, privacy, apps en status — jij houdt de regie.
-        </p>
-      )}
-      {!categorie && !term && (
+      <h1 className="mt-4 mb-4 text-[32px] font-bold tracking-tight">Instellingen</h1>
+      {!term && (
         <button
           type="button"
           onClick={() => setPagina("profiel")}
@@ -474,10 +425,7 @@ export default function Instellingen({
         <input
           type="search"
           value={zoek}
-          onChange={(e) => {
-            setZoek(e.target.value);
-            setCategorie(null);
-          }}
+          onChange={(e) => setZoek(e.target.value)}
           placeholder="Zoek een instelling of app"
           className="h-12 w-full rounded-2xl bg-vlak px-4"
         />
@@ -487,61 +435,22 @@ export default function Instellingen({
           <p role="status" className="mt-4 text-sm text-rustig">
             {resultaten.length
               ? `${resultaten.length} gevonden`
-              : "Niets gevonden. Probeer privacy, status of budget."}
+              : "Niets gevonden. Probeer privacy, mail of budget."}
           </p>
           <Groep titel="Zoekresultaten">
             {resultaten.map((r) => (
-              <Rij key={r.titel} {...r} uitleg={`${r.groep} · ${r.uitleg}`} />
+              <Rij key={r.groep + r.titel} {...r} uitleg={`${r.groep} · ${r.uitleg}`} />
             ))}
           </Groep>
         </>
-      ) : gekozenGroep ? (
-        <Groep titel={gekozenGroep.uitleg}>
-          {gekozenGroep.rijen.map((r) => (
-            <Rij key={r.titel} {...r} kleur={gekozenGroep.kleur} />
-          ))}
-        </Groep>
       ) : (
-        <>
-          <Groep titel="Voor jezelf">
-            {persoonlijk.map((g) => (
-              <Rij
-                key={g.id}
-                titel={g.titel}
-                uitleg={g.uitleg}
-                icoon={g.icoon}
-                kleur={g.kleur}
-                open={() => setCategorie(g.id)}
-              />
+        groepen.map((g) => (
+          <Groep key={g.id} titel={g.titel}>
+            {g.rijen.map((r) => (
+              <Rij key={r.titel} {...r} kleur={g.kleur} />
             ))}
           </Groep>
-          <details className="mt-5 rounded-2xl border border-lijn p-4">
-            <summary className="min-h-11 cursor-pointer py-2 font-medium">Zakelijke opties</summary>
-            <Groep titel="Voor je werk of onderneming">
-              {groepen
-                .find((g) => g.id === "zakelijk")!
-                .rijen.map((r) => (
-                  <Rij key={r.titel} {...r} kleur="#346a92" />
-                ))}
-            </Groep>
-          </details>
-          <div className="mt-5 flex flex-col gap-1">
-            <button
-              type="button"
-              onClick={() => setPagina("hulp")}
-              className="min-h-11 text-left text-sm font-medium text-accent"
-            >
-              Status en meldingen
-            </button>
-            <button
-              type="button"
-              onClick={() => setPagina("idee")}
-              className="min-h-11 text-left text-sm text-accent"
-            >
-              Hulp of een idee doorgeven
-            </button>
-          </div>
-        </>
+        ))
       )}
       <button
         type="button"

@@ -1,3 +1,7 @@
+## 2026-11-04 · Instellingen compacter
+Wat: Instellingen toont nu alleen echte instellingen, in vier korte groepen op één scherm: Account en privacy, App en assistent, Betalen en afspraken, en Hulp. Je hoeft geen groep meer open te tikken. Apps zoals Budget, Kaart en Evenementen staan niet meer dubbel in Instellingen; je opent ze via Werkruimte of vindt ze met de zoekbalk.
+Waarom: je vond dat instellingen samengevoegd konden worden. Er stonden apps tussen die geen instelling zijn, en elke groep kostte een extra tik.
+
 ## 2026-11-03 · App bouwt weer (#198)
 Wat: 23 bouwfouten en 13 falende tests opgelost. Het volledige gespreksscherm (nieuwe berichten, betaalverzoeken, projecten) en de volledige winkel staan er weer, en de terugknop na de assistent gaat weer naar de juiste plek. Al het nieuwe werk is bewaard.
 Waarom: sinds 1 november gingen 76 wijzigingen direct naar de hoofdversie terwijl de controles rood waren. Daardoor bouwde de app niet meer en bleef de live app op 1 november staan.
