@@ -1,3 +1,13 @@
+## 2026-11-04 · Handel opnieuw vormgegeven
+Wat:
+- Elke soort heeft nu een grote kop met een eigen titel ("Tweede leven", "Iemand die het kan", "Waar heb je trek in?") en zachte, zwevende kleurvlekken erachter. De zoekbalk is van glas.
+- De soortenbalk blijft bovenaan staan; de gekozen soort licht op in zijn eigen kleur.
+- Ontdek is een blokkenraster met vier grote deuren, een carrousel "Uitgelicht", winkels als rondjes met een kleurring en daaronder wat net binnen is.
+- Zonder foto tekent de app zelf een kleurvlak met de naam erop. Grijze vakken zijn weg.
+- Tweedehands is een fotomuur met wisselende hoogtes, de prijs zweeft op de foto. Winkels zijn zwevende kaarten met een grote prijs en een bezorglabel. Diensten tonen de vakman met een kleurband. Eten heeft grote kaarten met een menuknop.
+- Kaarten komen rustig binnen en geven mee als je tikt. Met "minder beweging" aan staat alles stil.
+Waarom: je vond het ontwerp mooi maar te eenvoudig voor deze tijd en wilde het vele malen beter.
+
 ## 2026-11-04 · Handel: een eigen scherm per soort
 Wat: bovenin Handel kies je Ontdek, Tweedehands, Winkels, Diensten of Eten, en dan verandert het hele scherm: kleur, zoekvraag en indeling.
 - Ontdek: vier grote gekleurde deuren, de winkels en wat net binnen is.
