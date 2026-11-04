@@ -10,9 +10,9 @@ vi.mock("../lib/kaart",async o=>({...await o<object>(),zoekPlek:vi.fn(),winkelsI
 vi.mock("../api",async o=>({...await o<object>(),bijwerken:vi.fn()}));
 afterEach(()=>{cleanup();vi.resetAllMocks();window.dispatchEvent(new Event("assistent-sessie"));});
 const staat:Staat={gebruiker:{id:1,naam:"test"},data:{taken:[],afspraken:[],volgend_id:1}};
-const scherm=()=>render(<WinkelKaart staat={staat} setData={vi.fn()} winkels={[]} thuisadres="Privé thuisadres" open={vi.fn()}/>);
+const scherm=()=>render(<WinkelKaart staat={staat} setData={vi.fn()} winkels={[]} thuisadres="Privé thuisadres" open={vi.fn()} terug={vi.fn()}/>);
 it("stuurt bij openen geen thuisadres of omgevingsquery naar een zoekdienst",()=>{
- scherm();expect(zoekPlek).not.toHaveBeenCalled();expect(winkelsInBuurt).not.toHaveBeenCalled();expect(screen.getByText(/Het kaartmidden is geen bekende locatie/)).toBeTruthy();
+ scherm();expect(zoekPlek).not.toHaveBeenCalled();expect(winkelsInBuurt).not.toHaveBeenCalled();expect(screen.getByText(/De kaart weet pas waar je bent/)).toBeTruthy();
 });
 it("neemt een bekend agendapunt over zonder geocodering en opent alleen een agendavoorstel",()=>{
  kaartBestemmingOpenen("Privéadres",{bron:"agenda",titel:"Afspraak",punt:{lat:52,lon:5}});scherm();
@@ -20,9 +20,13 @@ it("neemt een bekend agendapunt over zonder geocodering en opent alleen een agen
  fireEvent.click(screen.getByRole("button",{name:"Afspraak hier plannen"}));expect(agendaPlekLezen()?.kaartpunt).toEqual({lat:52,lon:5});expect(bijwerken).not.toHaveBeenCalled();
 });
 it("haalt winkels alleen op na de expliciete gebiedsopdracht",async()=>{
- vi.mocked(winkelsInBuurt).mockResolvedValue([]);scherm();fireEvent.click(screen.getByText("Winkels en vertrekopties"));fireEvent.click(screen.getByRole("button",{name:"Zoek winkels in dit gebied"}));await waitFor(()=>expect(winkelsInBuurt).toHaveBeenCalledOnce());
+ vi.mocked(winkelsInBuurt).mockResolvedValue([]);scherm();fireEvent.click(screen.getByRole("button",{name:"Zoek winkels in dit gebied"}));await waitFor(()=>expect(winkelsInBuurt).toHaveBeenCalledOnce());
 });
 it("behoudt zoekresultaten als eigen bestemming met een enkele navigatieactie",async()=>{
  vi.mocked(zoekPlek).mockResolvedValue({lat:41.9,lon:12.5,naam:"Rome"});scherm();fireEvent.change(screen.getByLabelText("Zoek bestemming wereldwijd"),{target:{value:"Rome"}});fireEvent.click(screen.getByRole("button",{name:"Zoek"}));
  await screen.findByRole("article",{name:"Gekozen bestemming"});expect(screen.getAllByRole("link",{name:/Start navigeren/})).toHaveLength(1);expect(screen.getByRole("link",{name:/Start navigeren/}).getAttribute("href")).toContain("destination=41.9,12.5");
+});
+it("is een eigen schermvullende app met een terugknop",()=>{
+ const terug=vi.fn();render(<WinkelKaart staat={staat} setData={vi.fn()} winkels={[]} open={vi.fn()} terug={terug} terugNaam="Chat"/>);
+ expect(screen.getByRole("region",{name:"Kaart"}).className).toContain("fixed");fireEvent.click(screen.getByRole("button",{name:"Chat"}));expect(terug).toHaveBeenCalledOnce();
 });

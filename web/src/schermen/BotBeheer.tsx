@@ -11,13 +11,15 @@ import {
   keurLaagRisicoGoed,
   keurSelectie,
   markeerGeplaatst,
+  kanaalMeta,
+  plaatsLink,
   standaardBeleidAlles,
   type BotBeleid,
   type BotKanaal,
   type BotVoorstel,
   type KlantSignaal,
 } from "../lib/bots";
-import { track, zetOAuthStatus, type OAuthProvider } from "../lib/platform-kern";
+import { track } from "../lib/platform-kern";
 import {
   oauthStartUrl,
   trackSocialLus,
@@ -29,6 +31,9 @@ import {
 } from "../lib/platform-uitbouw";
 
 type Filter = BotKanaal | "alle";
+
+/** Zet op true zodra de functie oauth-social live staat en de sleutels per netwerk zijn ingesteld. */
+const KOPPELEN_LIVE = false;
 
 export default function BotBeheer() {
   const [voorstellen, setVoorstellen] = useState<BotVoorstel[]>(() => demoVoorstellen());
@@ -66,33 +71,32 @@ export default function BotBeheer() {
     );
   }
 
-  function simuleerKoppeling(id: BotKanaal) {
-    setBeleid((lijst) =>
-      lijst.map((b) =>
-        b.kanaal === id ? { ...b, aan: true, status: "actief" as const } : b,
-      ),
-    );
-    if (["x", "instagram", "facebook", "tiktok", "linkedin", "youtube"].includes(id)) {
-      zetOAuthStatus(id as OAuthProvider, "actief");
-    }
-  }
-
   function startEchteKoppeling(id: BotKanaal) {
     if (!magStudioActie("instellingen", rol)) {
-      setOauthMelding("Alleen eigenaar kan kanalen koppelen.");
+      setOauthMelding("Alleen de eigenaar kan kanalen koppelen.");
       return;
     }
-    if (id !== "x" && id !== "instagram") {
-      setOauthMelding("Fase 1 is X en Instagram. Andere kanalen volgen.");
+    if (!KOPPELEN_LIVE) {
+      setOauthMelding(`Automatisch plaatsen op ${kanaalMeta(id).naam} staat nog niet aan. Plaats goedgekeurde berichten nu zelf met Kopieer en open.`);
       return;
     }
     const r = oauthStartUrl(id);
     if (!r.ok) {
-      setOauthMelding(r.reden + " — tijdelijk simuleren mogelijk.");
+      setOauthMelding(r.reden);
       return;
     }
-    setOauthMelding("Doorsturen naar " + id + "…");
+    setOauthMelding("Doorsturen naar " + kanaalMeta(id).naam + "\u2026");
     (window.top ?? window).location.href = r.url;
+  }
+
+  async function kopieerEnOpen(v: BotVoorstel) {
+    const { url, tekstMee } = plaatsLink(v.kanaal, v.inhoud);
+    try { await navigator.clipboard.writeText(v.inhoud); } catch { /* De tekst staat ook in de link of hieronder. */ }
+    window.open(url, "_blank", "noopener");
+    setOauthMelding(tekstMee ? "De tekst staat klaar. Controleer en plaats hem zelf." : `Tekst gekopieerd. Plak hem in ${kanaalMeta(v.kanaal).naam}.`);
+    setVoorstellen((lijst) => markeerGeplaatst(lijst, [v.id]));
+    track("social_geplaatst", v.kanaal);
+    trackSocialLus("geplaatst");
   }
 
   const goedGekeurd = voorstellen.filter((v) => v.status === "goedgekeurd");
@@ -146,14 +150,7 @@ export default function BotBeheer() {
                       onClick={() => startEchteKoppeling(k.id)}
                       className="h-8 rounded-full bg-accent text-[12px] font-semibold text-white"
                     >
-                      Koppel echt {k.naam}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => simuleerKoppeling(k.id)}
-                      className="h-8 rounded-full bg-vlak text-[12px] font-medium"
-                    >
-                      Simuleer (dev)
+                      Koppelen
                     </button>
                   </div>
                 )}
@@ -167,8 +164,8 @@ export default function BotBeheer() {
           </p>
         )}
         <p className="text-[12px] text-zacht">
-          Echte publicatie: OAuth via Edge Function (fase 1: X + Instagram). Secrets horen op de
-          server. Dev: simuleren blijft beschikbaar.
+          Er gaat nooit iets online zonder jou. Tot een kanaal gekoppeld is, plaats je goedgekeurde
+          berichten zelf met Kopieer en open.
         </p>
       </section>
 
@@ -212,23 +209,6 @@ export default function BotBeheer() {
           >
             Afwijzen
           </button>
-          <button
-            type="button"
-            disabled={!goedGekeurd.length || !magStudioActie("plaatsen", rol)}
-            className="h-10 rounded-full bg-vlak px-4 text-[13px] font-medium disabled:opacity-40"
-            onClick={() => {
-              setVoorstellen((v) =>
-                markeerGeplaatst(
-                  v,
-                  v.filter((x) => x.status === "goedgekeurd").map((x) => x.id),
-                ),
-              );
-              track("social_geplaatst");
-              trackSocialLus("geplaatst");
-            }}
-          >
-            Plaats goedgekeurde ({goedGekeurd.length})
-          </button>
         </div>
       </section>
 
@@ -257,10 +237,31 @@ export default function BotBeheer() {
         ))}
       </div>
 
+      {goedGekeurd.length > 0 && (
+        <section aria-label="Klaar om te plaatsen" className="flex flex-col gap-2">
+          <h3 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">Klaar om te plaatsen · {goedGekeurd.length}</h3>
+          <ul className="flex flex-col gap-2">
+            {goedGekeurd.map((v) => (
+              <li key={v.id} className="flex items-center gap-3 rounded-2xl border border-lijn p-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">{v.titel}</span>
+                  <span className="text-[12px] text-rustig">{kanaalMeta(v.kanaal).naam}</span>
+                </span>
+                <button type="button" disabled={!magStudioActie("plaatsen", rol)} onClick={() => kopieerEnOpen(v)}
+                  className="h-9 shrink-0 rounded-full bg-accent px-3 text-[12px] font-semibold text-white disabled:opacity-40">
+                  Kopieer en open
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section aria-label="Wachtrij" className="flex flex-col gap-2">
         <h3 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">
           Wachtrij · {wachtrij.length}
         </h3>
+        <p className="text-[12px] text-zacht">Dit zijn voorbeelden van wat de agent voorstelt. Ze worden nog niet bewaard.</p>
         {!wachtrij.length ? (
           <p className="text-sm text-rustig">Niets open op dit filter.</p>
         ) : (

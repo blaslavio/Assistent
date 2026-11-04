@@ -13,6 +13,8 @@ type Props = {
   midden: Punt; zet: (p: Punt) => void; punten: KaartWinkel[]; gekozen: KaartWinkel | null;
   kies: (w: KaartWinkel) => void; ik?: Punt | null; vanaf?: Punt | null;
   stops?: KaartStop[]; volgendeAfspraak?: VolgendeAfspraakPunt | null;
+  /** Vult het hele scherm; de bediening laat bovenin ruimte voor de zoekbalk. */
+  vol?: boolean;
 };
 
 const BRON = "assistent-verbinding";
@@ -51,7 +53,7 @@ function maakPin(w: KaartWinkel, aan: boolean, onKies: () => void): HTMLButtonEl
   return el;
 }
 
-export function Kaart({ midden, zet, punten, gekozen, kies, ik, vanaf, stops = [], volgendeAfspraak = null }: Props) {
+export function Kaart({ midden, zet, punten, gekozen, kies, ik, vanaf, stops = [], volgendeAfspraak = null, vol = false }: Props) {
   const vak = useRef<HTMLDivElement>(null);
   const kaart = useRef<maplibregl.Map | null>(null);
   const begin = useRef(midden);
@@ -221,26 +223,26 @@ export function Kaart({ midden, zet, punten, gekozen, kies, ik, vanaf, stops = [
   }
 
   return (
-    <div className="relative shrink-0 overflow-hidden rounded-[28px] border border-lijn bg-vlak shadow-sm">
-      <div ref={vak} className="h-[min(62dvh,560px)] min-h-80" aria-label="Assistent-kaart" />
-      <div className="absolute right-3 top-3 flex flex-col gap-1.5">
+    <div className={vol ? "absolute inset-0 overflow-hidden bg-vlak" : "relative shrink-0 overflow-hidden rounded-[28px] border border-lijn bg-vlak shadow-sm"}>
+      <div ref={vak} className={vol ? "h-full" : "h-[min(62dvh,560px)] min-h-80"} aria-label="Assistent-kaart" />
+      <div className={`absolute right-3 flex flex-col gap-1.5 ${vol ? "top-[calc(max(env(safe-area-inset-top),12px)+116px)]" : "top-3"}`}>
         {([
           { label: "Inzoomen", actie: () => kaart.current?.zoomIn(), teken: "+" },
           { label: "Uitzoomen", actie: () => kaart.current?.zoomOut(), teken: "−" },
           { label: "Hele verbinding bekijken", actie: overzicht, teken: "·" },
         ] as const).map(({ label, actie, teken }) => (
           <button key={label} type="button" onClick={actie} aria-label={label}
-            className="flex size-10 items-center justify-center rounded-2xl bg-white/95 text-lg font-medium text-inkt shadow-md backdrop-blur dark:bg-[#26262b]/95">
+            className="flex size-10 items-center justify-center rounded-2xl bg-white/90 text-lg font-medium text-inkt shadow-md ring-1 ring-black/5 backdrop-blur-md dark:bg-[#26262b]/90 dark:ring-white/10">
             {teken}
           </button>
         ))}
       </div>
-      <p className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-inkt shadow backdrop-blur dark:bg-[#26262b]/95">Assistent · Kaart</p>
+      {!vol && <p className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-inkt shadow backdrop-blur dark:bg-[#26262b]/95">Assistent · Kaart</p>}
       {routeData.current.features.length > 0 && (
-        <p className="absolute bottom-8 left-3 rounded-full bg-white/95 px-3 py-1.5 text-xs text-inkt shadow backdrop-blur dark:bg-[#26262b]/95">Stippellijn: schematisch · geen wegroute</p>
+        <p className={`absolute left-3 rounded-full bg-white/90 px-3 py-1.5 text-xs text-inkt shadow backdrop-blur-md dark:bg-[#26262b]/90 ${vol ? "top-[calc(max(env(safe-area-inset-top),12px)+116px)]" : "bottom-8"}`}>Stippellijn: schematisch · geen wegroute</p>
       )}
       {melding && (
-        <p role="status" className="absolute bottom-16 left-3 right-3 rounded-2xl bg-white/95 p-3 text-xs text-inkt shadow backdrop-blur dark:bg-[#26262b]/95">{melding}</p>
+        <p role="status" className={`absolute left-3 rounded-2xl ${vol ? "right-16 top-[calc(max(env(safe-area-inset-top),12px)+116px)]" : "right-3 bottom-16"} bg-white/95 p-3 text-xs text-inkt shadow backdrop-blur dark:bg-[#26262b]/95`}>{melding}</p>
       )}
     </div>
   );

@@ -42,10 +42,18 @@ export function WinkelApp({ start, melding, adres, thuisadres, bestel, terug, st
   }, [deel]);
   // Eén scherm: zoeken en kopen. Verkopen en Bestellingen zijn knoppen rechtsboven, met één stap terug naar de winkel.
   const knop = "relative flex size-10 items-center justify-center rounded-full bg-vlak";
+  if (deel === "kaart")
+    return (
+      <Suspense fallback={<p className="bezig-tekst px-6 py-6 text-[15px] text-rustig">Kaart laden</p>}>
+        <WinkelKaart staat={staat} setData={setData} thuisadres={thuisadres}
+          terug={losseKaart ? terug : () => setDeel("ontdekken")} terugNaam={losseKaart ? terugNaam ?? "Chat" : "Winkel"}
+          open={(a) => { setOpenWinkel(a); setDeel("ontdekken"); }} />
+      </Suspense>
+    );
   return (
     <div className="flex min-h-full flex-col">
-      <AppKop terug={deel === "ontdekken"||(deel==="kaart"&&losseKaart) ? terug : () => setDeel("ontdekken")} terugNaam={deel === "ontdekken"||(deel==="kaart"&&losseKaart) ? terugNaam??"Chat" : "Winkel"}
-        titel={deel === "ontdekken" ? "Winkel" : deel === "kaart" ? "Kaart en routes" : deel === "verkopen" ? "Verkopen" : "Bestellingen"}
+      <AppKop terug={deel === "ontdekken" ? terug : () => setDeel("ontdekken")} terugNaam={deel === "ontdekken" ? terugNaam??"Chat" : "Winkel"}
+        titel={deel === "ontdekken" ? "Winkel" : deel === "verkopen" ? "Verkopen" : "Bestellingen"}
         rechts={deel === "ontdekken" && (
           <span className="flex shrink-0 gap-2">
             <button onClick={() => setDeel("kaart")} aria-label="Kaart en routes" className={knop}><KaartVouw className="size-5" /></button>
@@ -56,7 +64,7 @@ export function WinkelApp({ start, melding, adres, thuisadres, bestel, terug, st
             </button>
           </span>
         )} />
-      {(deel === "ontdekken" || deel === "kaart") && <WinkelDeel staat={staat} setData={setData} key={deel} kaart={deel === "kaart"} bestel={bestel} verkoop={() => setVerkopen(true)}
+      {deel === "ontdekken" && <WinkelDeel staat={staat} setData={setData} kaartOpen={() => setDeel("kaart")} bestel={bestel} verkoop={() => setVerkopen(true)}
         winkel={openWinkel} thuisadres={thuisadres} />}
       {deel === "verkopen" && (
         <div className="flex flex-col gap-5 px-6 pb-8">
@@ -78,11 +86,11 @@ export function WinkelApp({ start, melding, adres, thuisadres, bestel, terug, st
   );
 }
 
-export function WinkelDeel({ bestel, verkoop, winkel, thuisadres, kaart, staat, setData }: { staat:Staat;setData:(g:Gegevens)=>void; bestel: (p: Product) => void; verkoop: () => void;
-  winkel?: string; thuisadres?: string; kaart?: boolean }) {
+export function WinkelDeel({ bestel, verkoop, winkel, kaartOpen }: { staat:Staat;setData:(g:Gegevens)=>void; bestel: (p: Product) => void; verkoop: () => void;
+  winkel?: string; thuisadres?: string; kaartOpen?: () => void }) {
   const [zoek, setZoek] = useState("");
   const [term, setTerm] = useState("");
-  const [bron, setBron] = useState<NonNullable<Filter["bron"]>>(kaart ? "winkels" : "alles");
+  const [bron, setBron] = useState<NonNullable<Filter["bron"]>>("alles");
   const [bezorgen, setBezorgen] = useState(false);
   const [producten, setProducten] = useState<Product[] | null>(null);
   const [winkels, setWinkels] = useState<WinkelKaartje[]>([]);
@@ -115,10 +123,13 @@ export function WinkelDeel({ bestel, verkoop, winkel, thuisadres, kaart, staat, 
           <Truck className="size-4" />Bezorgen
         </button>
       </div>
-      {bron === "winkels" && !zoekt && (
-        <Suspense fallback={<p className="bezig-tekst py-6 text-[15px] text-rustig">Kaart laden</p>}>
-          <WinkelKaart staat={staat} setData={setData} winkels={winkels} thuisadres={thuisadres} open={(a) => setStapel([{ soort: "winkel", adres: a }])} />
-        </Suspense>
+      {bron === "winkels" && !zoekt && kaartOpen && (
+        <button type="button" onClick={kaartOpen}
+          className="flex items-center gap-3 rounded-2xl bg-gradient-to-br from-accent/15 to-accent/5 p-4 text-left">
+          <span className="flex size-11 items-center justify-center rounded-2xl bg-accent text-white"><KaartVouw className="size-5" /></span>
+          <span className="flex flex-col"><span className="font-medium">Winkels op de kaart</span>
+            <span className="text-[13px] text-rustig">Zoek in de buurt en navigeer erheen</span></span>
+        </button>
       )}
       {!zoekt && bron !== "winkels" && (
         <section className="flex flex-col gap-2">
