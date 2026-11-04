@@ -1,3 +1,7 @@
+## 2026-11-04 · Zelf kiezen wat je als eerste ziet
+Wat: in de welkomstkaart op Vandaag staat nu "Kies wat je gebruikt". Je kiest uit Mijn dag, Geld, Verkopen, Community of club, Werk en projecten, en Leren. Je keuzes staan daarna bovenaan in Werkruimte onder "Voor jou", met één tik naar het juiste onderdeel. Aanpassen kan daar altijd. Niets gaat uit.
+Waarom: je koos ervoor de app voor iedereen te maken, met alles aan. Zo ziet een ondernemer, een student of een clubbeheerder toch meteen wat bij hem past.
+
 ## 2026-11-04 · Ongebruikte code weggehaald
 Wat: vijf stukjes code die nergens in de app waren aangesloten zijn verwijderd: een handelsmotor, een vertrouwensmotor, regels voor lid worden en twee stukjes voor werkruimtes. De app werkt precies hetzelfde.
 Waarom: je koos voor weghalen. Alles wat ze deden, doet de app al op een eigen, werkende manier, en één stukje zocht databasetabellen die niet bestaan.

@@ -20,7 +20,7 @@ export default function MijnDag({staat,setStaat,deel,ga,vernieuw,vraag,naarProje
     <div className="min-h-0 flex-1 overflow-y-auto">
       <BewaarScherm actief={deel==="vandaag"} naam="Vandaag">
         <div className="px-6 pt-2">
-          <EersteStappen naarAssistent={() => ga("assistent")} />
+          <EersteStappen naarAssistent={() => ga("assistent")} bewaard={(data) => setStaat({ ...staat, data })} />
         </div>
         <Vandaag ingebed staat={staat} setStaat={setStaat} ga={ga} vernieuw={vernieuw} vraag={vraag} naarProject={naarProject} naarInstellingen={()=>ga("instellingen")} naarAssistent={()=>ga("assistent")}/>
       </BewaarScherm>

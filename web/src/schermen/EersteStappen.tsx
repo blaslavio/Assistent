@@ -1,6 +1,8 @@
 // Eerste stappen: vertrouwen, met de mascotte als gids. Geen voorbeeldzinnen of fictieve bedragen.
 import { useEffect, useState } from "react";
 import { Mascotte, type Stemming } from "../mascotte";
+import type { Gegevens } from "../api";
+import { InteresseKeuze } from "./InteresseKeuze";
 
 const SLEUTEL = "assistent-eerste-stappen-v1";
 
@@ -29,11 +31,13 @@ const GIDS = [
 
 type Props = {
   naarAssistent?: () => void;
+  bewaard?: (g: Gegevens) => void;
 };
 
 /** Strakke welkomstkaart: de mascotte leidt, geen vooraf ingevulde teksten. */
-export default function EersteStappen({ naarAssistent }: Props) {
+export default function EersteStappen({ naarAssistent, bewaard }: Props) {
   const [zichtbaar, setZichtbaar] = useState(false);
+  const [kiezen, setKiezen] = useState(false);
   const [i, setI] = useState(0);
   const [stemming, setStemming] = useState<Stemming>("wijst");
   const [hup, setHup] = useState(0);
@@ -71,36 +75,45 @@ export default function EersteStappen({ naarAssistent }: Props) {
           <Mascotte hup={hup} stemming={stemming} className="size-12" />
         </button>
         <div className="min-w-0 flex-1 pt-0.5">
-          <h2 className="text-base font-semibold tracking-tight">Welkom</h2>
-          <p
+          <h2 className="text-base font-semibold tracking-tight">{kiezen ? "Waar gebruik je de app vooral voor?" : "Welkom"}</h2>
+          {kiezen ? <p className="mt-1 text-[15px] leading-snug text-rustig">Kies er zoveel als je wilt.</p> : <p
             key={i}
             aria-live="polite"
             className="mt-1 text-[15px] leading-snug text-rustig"
           >
             {GIDS[i]}
-          </p>
+          </p>}
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            klaar();
-            naarAssistent?.();
-          }}
-          className="min-h-10 rounded-full bg-accent px-4 text-sm font-medium text-white"
-        >
-          Naar de assistent
-        </button>
-        <button
-          type="button"
-          onClick={klaar}
-          className="min-h-10 px-3 text-sm text-rustig"
-        >
-          Verder
-        </button>
-      </div>
+      {kiezen ? (
+        <div className="mt-3">
+          <InteresseKeuze begin={[]} klaar={(g) => { if (g) bewaard?.(g); klaar(); }} />
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setKiezen(true)}
+            className="min-h-10 rounded-full bg-accent px-4 text-sm font-medium text-white"
+          >
+            Kies wat je gebruikt
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              klaar();
+              naarAssistent?.();
+            }}
+            className="min-h-10 rounded-full bg-white px-4 text-sm font-medium ring-1 ring-lijn dark:bg-[#121216]"
+          >
+            Naar de assistent
+          </button>
+          <button type="button" onClick={klaar} className="min-h-10 px-3 text-sm text-rustig">
+            Verder
+          </button>
+        </div>
+      )}
     </section>
   );
 }

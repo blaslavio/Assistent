@@ -8,8 +8,10 @@ import { useSchermActief } from "./BewaarScherm";
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { Staat } from "../App";
 import { ONDERDELEN, type OnderdeelNaam } from "../lib/onderdeel-lijst";
-import { studioOpenen, kaartOpenen, winkelAppOpenen, instellingenOpenen } from "../lib/naar";
-import { KaartVouw, Projectmap, Slot, Tas, Terug, Winkelpand, Zoek } from "../iconen";
+import { studioOpenen, kaartOpenen, winkelAppOpenen, instellingenOpenen, naar } from "../lib/naar";
+import { Boek, Euro, Kalender, KaartVouw, Mensen, Projectmap, Slot, Tas, Terug, Winkelpand, Zoek } from "../iconen";
+import { INTERESSES, leesInteresses, type Interesse } from "../lib/interesses";
+import { InteresseKeuze } from "./InteresseKeuze";
 import BewaarScherm from "./BewaarScherm";
 
 const Onderdeel = lazy(() => import("./Onderdelen").then((m) => ({ default: m.Onderdeel })));
@@ -41,6 +43,8 @@ const UIT: Record<string, string> = {
   studio: "Winkel, evenementen en tickets",
 };
 
+const ICOON: Record<Interesse, typeof Kalender> = { dag: Kalender, geld: Euro, verkopen: Tas, community: Mensen, werk: Projectmap, leren: Boek };
+
 const PRIVE: OnderdeelNaam[] = [
   "notities", "documenten", "huishouden", "boodschappen", "kooplijst",
   "wenslijst", "budget", "beleggen", "leren", "sport",
@@ -52,6 +56,7 @@ export default function Werkruimte({
 }: Props) {
   const [deel, setDeel] = useState<Deel>(start?.naam ?? null);
   const [zoek, setZoek] = useState("");
+  const [kiezen, setKiezen] = useState(false);
   useEffect(() => {
     if (start) {
       setDeel(start.naam);
@@ -171,6 +176,16 @@ export default function Werkruimte({
   const zakelijkMatch =
     match("zakelijk", "Zakelijk klanten rooster") || studioMatch || "zakelijk studio bedrijf".includes(term);
 
+  const interesses = leesInteresses(staat.data.instellingen);
+  function openInteresse(id: Interesse) {
+    if (id === "dag") naar({ tab: "agenda" });
+    else if (id === "geld") kiesApp("budget");
+    else if (id === "verkopen") winkelAppOpenen();
+    else if (id === "community") naar({ tab: "chat" });
+    else if (id === "werk") setDeel("projecten");
+    else kiesApp("leren");
+  }
+
   return (
     <section className="h-full" aria-label="Werkruimte">
       <BewaarScherm actief={deel === null} naam="Werkruimte overzicht">
@@ -204,6 +219,34 @@ export default function Werkruimte({
               className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-zacht"
             />
           </label>
+
+          {!term && (
+            <section aria-label="Voor jou" className="flex flex-col gap-2">
+              <div className="flex items-center justify-between px-0.5">
+                <h2 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">Voor jou</h2>
+                {!kiezen && <button type="button" onClick={() => setKiezen(true)} className="min-h-9 text-[13px] text-accent">{interesses.length ? "Aanpassen" : "Kiezen"}</button>}
+              </div>
+              {kiezen ? (
+                <InteresseKeuze begin={interesses} klaar={(g) => { setKiezen(false); if (g) void vernieuw(); }} />
+              ) : interesses.length ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {interesses.map((id) => {
+                    const { naam, uitleg } = INTERESSES.find((i) => i.id === id)!;
+                    const Icoon = ICOON[id];
+                    return (
+                      <button key={id} type="button" onClick={() => openInteresse(id)}
+                        className="flex min-h-14 items-center gap-3 rounded-2xl bg-vlak px-3 text-left">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent"><Icoon className="size-[18px]" /></span>
+                        <span className="min-w-0"><span className="block truncate text-[14px] font-medium">{naam}</span><span className="block truncate text-[12px] text-rustig">{uitleg}</span></span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-[13px] text-rustig">Kies waar je de app vooral voor gebruikt. Dan staat dat hier bovenaan.</p>
+              )}
+            </section>
+          )}
 
           {!term && (
             <section aria-label="Recent gebruikt">
