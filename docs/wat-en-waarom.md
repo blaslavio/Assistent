@@ -1,3 +1,7 @@
+## 2026-11-04 · Ongebruikte code weggehaald
+Wat: vijf stukjes code die nergens in de app waren aangesloten zijn verwijderd: een handelsmotor, een vertrouwensmotor, regels voor lid worden en twee stukjes voor werkruimtes. De app werkt precies hetzelfde.
+Waarom: je koos voor weghalen. Alles wat ze deden, doet de app al op een eigen, werkende manier, en één stukje zocht databasetabellen die niet bestaan.
+
 ## 2026-11-04 · Kaart als eigen app
 Wat: de kaart opent nu schermvullend als eigen app. Bovenin zweven een terugknop, de zoekbalk ("Waar wil je heen?") en een knop voor je locatie, met daaronder Alles, Mijn plekken, Winkels en Zoek winkels in dit gebied. Onderin schuift een blad: zonder keuze zie je plekken in de buurt en snelle knoppen, met een gekozen plek zie je vervoer, reistijd, Start navigeren, Afspraak plannen en Winkel bekijken. De routeplanner en je bewaarde plekken zitten achter één knop. In de Winkel opent "Winkels op de kaart" dezelfde kaart-app.
 Waarom: je wilde een modernere kaart die verandert in een eigen app zodra je hem opent. De oude kaart was een vak tussen veel uitleg en uitklapblokken.
