@@ -168,20 +168,30 @@ function apparaatNaam() {
   return `Nieuwe app (${/iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android" : "browser"})`;
 }
 
+// De sleutels op dit apparaat horen bij je account, niet bij hoe je inlogt (gebruikersnaam of mailadres).
+// Vroeger stonden ze onder de inlognaam; wie met zijn mailadres inlogde kreeg dan steeds een nieuw apparaat.
+const idSleutel = (gebruiker: number) => `apparaat:id:${gebruiker}`;
+const naamSleutel = () => `apparaat:${huidigeSessie()?.naam || "eigenaar"}`;
+type Opgeslagen = { apparaat: number; sleutels: Sleutels };
+
+async function bekendeSleutels(gebruiker: number) {
+  return (await idbGet<Opgeslagen>("sleutels", idSleutel(gebruiker)).catch(() => undefined))
+    ?? (await idbGet<Opgeslagen>("sleutels", naamSleutel()).catch(() => undefined));
+}
+
 /** Meldt dit apparaat aan voor de chat (eenmalig) en geeft je eigen id. */
 export async function starten() {
-  const s = huidigeSessie();
-  const sleutelNaam = `apparaat:${s?.naam || "eigenaar"}`;
-  let opgeslagen = await idbGet<{ apparaat: number; sleutels: Sleutels }>("sleutels", sleutelNaam);
+  const basis = await rpc<{ gebruiker: number }>("chat_ik", { p_apparaat: 0 });
+  let opgeslagen = await bekendeSleutels(basis.gebruiker);
   let wie = opgeslagen ? await rpc<{ gebruiker: number; apparaat_geldig: boolean }>("chat_ik", { p_apparaat: opgeslagen.apparaat }) : null;
   if (!opgeslagen || !wie?.apparaat_geldig) {
     const nieuw = await nieuwApparaat();
     const r = await rpc<{ id: number }>("chat_apparaat_aanmelden", { p_apparaat: apparaatNaam(), p_ecdh: nieuw.ecdhJwk,
       p_teken: nieuw.tekenJwk, p_vingerafdruk: nieuw.vinger });
     opgeslagen = { apparaat: r.id, sleutels: { ecdh: nieuw.ecdh, teken: nieuw.teken } };
-    await idbPut("sleutels", sleutelNaam, opgeslagen);
     wie = await rpc("chat_ik", { p_apparaat: r.id });
   }
+  await idbPut("sleutels", idSleutel(basis.gebruiker), opgeslagen);
   ik = { apparaat: opgeslagen.apparaat, gebruiker: wie!.gebruiker, sleutels: opgeslagen.sleutels };
   return ik.gebruiker;
 }
@@ -189,9 +199,8 @@ export async function starten() {
 /** Of dit apparaat al eens voor de chat is aangemeld. Zo niet, dan maken we hier nog geen sleutels. */
 export async function startenAlsBekend() {
   if (ik) return ik.gebruiker;
-  const s = huidigeSessie();
-  const opgeslagen = await idbGet("sleutels", `apparaat:${s?.naam || "eigenaar"}`).catch(() => undefined);
-  return opgeslagen ? starten() : null;
+  const basis = await rpc<{ gebruiker: number }>("chat_ik", { p_apparaat: 0 });
+  return (await bekendeSleutels(basis.gebruiker)) ? starten() : null;
 }
 
 export const mijnApparaat = () => ik?.apparaat ?? 0;

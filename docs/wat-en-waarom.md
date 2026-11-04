@@ -1,3 +1,15 @@
+## 2026-11-04 · Feedbackronde: sneller openen, mooier inloggen, Community
+Wat:
+- De app opent sneller: de kaart wordt pas geladen als je hem opent. De app zelf is daardoor bijna de helft kleiner (van 4,0 naar 2,4 MB).
+- Inlogscherm opnieuw: Vonk staat in het midden met een zachte gloed, een korte zin over wat de app doet, en de vertrouwenspunten als kleine labels.
+- De chatmelding "Je hebt al 10 apparaten" komt niet meer terug: de app herkent je toestel nu op je account in plaats van op je inlognaam. Met een kleine databasestap worden oude toestellen daarna vanzelf opgeruimd.
+- "Netwerk" in Chat heet nu Community, met een korte uitleg wat je ermee kunt.
+- Een evenement kun je nu ook zelf organiseren zonder groep: je vult alleen een organisatornaam in.
+- Op het beginscherm staat Werkruimte niet meer dubbel, en de uitklapblokken op Vandaag zijn rustige kaarten met een draaiend pijltje in plaats van driehoekjes.
+- In Werkruimte staat Documenten bovenaan, daarna Notities, Budget en Boodschappen. Privé en Zakelijk hebben nu dezelfde opmaak.
+- In Instellingen › Startpagina en navigatie kies je zelf je interesses.
+Waarom: je vond het openen traag, het inlogscherm lelijk en zonder mascotte, miste de community, zag dubbele knoppen en verschillende opmaak, en wilde evenementen zonder groep en de belangrijkste app bovenaan.
+
 ## 2026-11-04 · Zelf kiezen wat je als eerste ziet
 Wat: in de welkomstkaart op Vandaag staat nu "Kies wat je gebruikt". Je kiest uit Mijn dag, Geld, Verkopen, Community of club, Werk en projecten, en Leren. Je keuzes staan daarna bovenaan in Werkruimte onder "Voor jou", met één tik naar het juiste onderdeel. Aanpassen kan daar altijd. Niets gaat uit.
 Waarom: je koos ervoor de app voor iedereen te maken, met alles aan. Zo ziet een ondernemer, een student of een clubbeheerder toch meteen wat bij hem past.

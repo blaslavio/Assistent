@@ -1,4 +1,4 @@
-// De onderdelen van Chat: gesprekken, netwerk, handel en bellen.
+// De onderdelen van Chat: gesprekken, community, handel en bellen.
 import { Ballon, Mensen, Projectmap, Tas, Telefoon } from "../iconen";
 
 export type Deel = "chats" | "communitys" | "projecten" | "winkel" | "oproepen";
@@ -6,7 +6,7 @@ export type Deel = "chats" | "communitys" | "projecten" | "winkel" | "oproepen";
 /** Labels en iconen in vaste volgorde: netwerken en handelen zitten naast chats. */
 export const DELEN: [Deel, string, typeof Ballon][] = [
   ["chats", "Chats", Ballon],
-  ["communitys", "Netwerk", Mensen],
+  ["communitys", "Community", Mensen],
   ["winkel", "Handel", Tas],
   ["projecten", "Projecten", Projectmap],
   ["oproepen", "Bellen", Telefoon],

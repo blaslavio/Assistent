@@ -210,3 +210,21 @@
 /* Kaartbediening gebruikt dezelfde letterfamilie als de rest van de app. */
 .maplibregl-map.maplibregl-map, .maplibregl-map .maplibregl-ctrl { font-family: inherit; }
 .groep-uitleg[open] > summary > svg { transform: rotate(-90deg); }
+
+/* Uitklapblokken: geen driehoekje meer, maar een rustig pijltje rechts dat meedraait. */
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+details:not(.groep-uitleg) > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+details:not(.groep-uitleg) > summary::after {
+  content: ""; flex-shrink: 0; width: 8px; height: 8px; margin-right: 4px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px); opacity: 0.4; transition: transform 0.2s ease;
+}
+details:not(.groep-uitleg)[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
+/* Blokken op Vandaag: zachte kaarten zonder rand. */
+.vandaag-kaart { border-radius: 24px; background: var(--color-vlak); padding: 6px 20px; }
+.vandaag-kaart[open] { padding-bottom: 18px; }
+.vandaag-kaart > summary { min-height: 52px; font-weight: 600; font-size: 16px; }
+
+/* Inlogscherm: een zachte gloed in de kleuren van Vonk achter de mascotte. */
+.inlog-achtergrond { background: radial-gradient(120% 60% at 50% 0%, rgb(251 191 36 / 0.10), rgb(251 113 133 / 0.07) 40%, transparent 70%), var(--color-achtergrond, transparent); }

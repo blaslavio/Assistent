@@ -200,7 +200,7 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
       </header>
 
       <main className="flex flex-1 flex-col gap-3 px-6 py-4">
-        {fout && <div role="alert" className="rounded-2xl border border-lijn p-4">
+        {fout && <div role="alert" className="vandaag-kaart">
           <p>{fout}</p>
           {vernieuw && <button disabled={bezig} onClick={async () => {
             try { await vernieuw(); setFout(""); } catch { setFout("Vernieuwen lukte niet. Je invoer blijft behouden."); }
@@ -253,7 +253,7 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
         )}
 
         {toon("afspraken") && rest.length > 0 && (
-          <details name="vandaag-rust" className="rounded-2xl border border-lijn p-4">
+          <details name="vandaag-rust" className="vandaag-kaart">
             <summary className="min-h-11 cursor-pointer py-2 font-medium">Verder vandaag · {rest.length}</summary>
             <ul>
               {rest.map((a) => (
@@ -269,13 +269,13 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
         {toon("afspraken") && !straks && rest.length === 0 && <p className="text-rustig">Niets meer in je agenda vandaag.</p>}
 
         {zonderResultaat(data, nu).slice(0, 1).map((a) => (
-          <details key={a.id} name="vandaag-rust" className="rounded-2xl border border-lijn p-4"><summary className="min-h-11 cursor-pointer py-2 font-medium">Training afronden</summary><Suspense fallback={null}><HoeGingHet a={a} bewaar={async (r) => {
+          <details key={a.id} name="vandaag-rust" className="vandaag-kaart"><summary className="min-h-11 cursor-pointer py-2 font-medium">Training afronden</summary><Suspense fallback={null}><HoeGingHet a={a} bewaar={async (r) => {
             setStaat({ ...staat, data: await bijwerken((g) => { vastleggen(g, a.id, r); }) });
             mascotteZeg(r.gevoel >= 4 ? "Lekker bezig! Staat erin." : "Goed dat je ging. Staat erin.");
           }} /></Suspense></details>
         ))}
 
-        {(toon("week") || (toon("afspraken") && (komend.length > 0 || feest))) && <details name="vandaag-rust" className="rounded-2xl border border-lijn p-4">
+        {(toon("week") || (toon("afspraken") && (komend.length > 0 || feest))) && <details name="vandaag-rust" className="vandaag-kaart">
           <summary className="min-h-11 cursor-pointer py-2 font-medium">Vooruitkijken</summary>
           <div className="flex flex-col gap-5 pt-2">
         {toon("afspraken") && (komend.length > 0 || feest) && (
@@ -313,7 +313,7 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
         </details>}
 
         {meldingen.length > 0 && (
-          <details name="vandaag-rust" className="rounded-2xl border border-lijn p-4">
+          <details name="vandaag-rust" className="vandaag-kaart">
             <summary className="min-h-11 cursor-pointer py-2 font-medium">Voor jou · {meldingen.length}</summary>
             <ul className="flex flex-col divide-y divide-lijn rounded-2xl bg-vlak">
               {meldingen.map((m) => (
@@ -328,7 +328,7 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
           </details>
         )}
 
-        {toon("taken") && <details ref={takenBlok} name="vandaag-rust" className="rounded-2xl border border-lijn p-4">
+        {toon("taken") && <details ref={takenBlok} open={taken.length > 0} className="vandaag-kaart">
           <summary className="min-h-11 cursor-pointer py-2 font-medium">Taken · {taken.length} open</summary>
           {taken.length === 0 ? (
             <p className="text-rustig">Geen open taken.</p>
@@ -361,7 +361,7 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
         </label>
       </form>
         </details>}
-        <details name="vandaag-rust" className="rounded-2xl border border-lijn p-4">
+        <details name="vandaag-rust" className="vandaag-kaart">
           <summary className="min-h-11 cursor-pointer py-2 font-medium">Tips en persoonlijke inrichting</summary>
           <div className="flex flex-col gap-4 pt-3">
         {toon("mascotte") && <MascotteMetTip />}
