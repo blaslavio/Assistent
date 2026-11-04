@@ -65,6 +65,7 @@ type Inst = {
   geheugen_uit?: boolean;
   thuisadres?: string;
   anthropic_sleutel?: string;
+  ai_model?: string;
   boekpagina?: boolean;
   mail?: { adres?: string };
 };
@@ -189,6 +190,18 @@ export default function Instellingen({
             }
           />
         ))}
+        {!inst.anthropic_sleutel && (
+          <Keuze
+            label="AI"
+            opties={["Automatisch", "Claude", "Azure", "ChatGPT"]}
+            waarde={inst.ai_model ?? "Automatisch"}
+            kies={(v) =>
+              bewaar((i) => {
+                i.ai_model = v;
+              })
+            }
+          />
+        )}
         <Sleutel
           ingesteld={Boolean(inst.anthropic_sleutel)}
           bewaar={(v) =>

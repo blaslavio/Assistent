@@ -2,6 +2,11 @@
 
 Afspraak: elke update begint met **Wat wordt makkelijker**: in één of twee zinnen wat de gebruiker hierdoor sneller, rustiger of zekerer kan doen. Lukt dat niet, dan bouwen we het niet. Daarna volgen Wat en Waarom.
 
+## 2026-11-04 · Kies zelf: Claude, Azure of ChatGPT
+Wat wordt makkelijker: je kiest zelf welke AI je assistent gebruikt, en valt er een weg, dan neemt de volgende het vanzelf over.
+Wat: in Instellingen › Assistent staat nu "AI" met Automatisch, Claude, Azure en ChatGPT. Automatisch probeert eerst Claude, dan Azure, dan ChatGPT. De keuze geldt voor de chat, projecthulp en mail. Heb je een eigen Claude-sleutel ingevuld, dan is het altijd Claude en verdwijnt de keuze.
+Waarom: je wilde alle drie beschikbaar hebben.
+
 ## 2026-11-04 · Een proefrondje als gebruiker bij elke wijziging
 Wat wordt makkelijker: je hoeft niet meer zelf te controleren of de app na een update nog samenhangt. Bij elke wijziging loopt een robot als gebruiker door de app, en breekt er iets, dan gaat de update niet live.
 Wat:
