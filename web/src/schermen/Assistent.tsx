@@ -402,7 +402,7 @@ export default function Assistent({ staat, vernieuw, teKopen, gekocht, vooraf, v
         <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-10">
           <button type="button" onClick={() => { setHup((h) => h + 1); setVoorstelNr((n) => n + 1); }}
             aria-label="Andere suggesties">
-            <Mascotte className="h-20 w-16" hup={hup} stemming={stemming} />
+            <Mascotte className="size-20" hup={hup} stemming={stemming} />
           </button>
           <p className="text-center text-[15px] text-rustig">Waarmee kan ik helpen?</p>
           <div className="flex max-w-md flex-wrap justify-center gap-2">

@@ -68,7 +68,7 @@ export default function EersteStappen({ naarAssistent }: Props) {
           aria-label="Volgende tip van de mascotte"
           className="shrink-0 rounded-xl active:scale-95"
         >
-          <Mascotte hup={hup} stemming={stemming} className="h-12 w-10" />
+          <Mascotte hup={hup} stemming={stemming} className="size-12" />
         </button>
         <div className="min-w-0 flex-1 pt-0.5">
           <h2 className="text-base font-semibold tracking-tight">Welkom</h2>

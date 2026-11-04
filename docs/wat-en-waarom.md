@@ -1,3 +1,7 @@
+## 2026-11-04 · Nieuwe mascotte: Vonk
+Wat: de ronde mascotte is vervangen door Vonk, een ster met een kleurverloop van geel naar roze naar paars. Drie vonkjes fonkelen om hem heen. Hij volgt je met zijn ogen en knippert. Bij een tip schiet een vonkje naar de tekst, bij iets wat af is draait hij een rondje en springen de vonkjes, en na een minuut niets doet hij een dutje.
+Waarom: je vond het ronde figuurtje saai en ouderwets en koos uit drie ontwerpen voor Vonk.
+
 ## 2026-11-03 · Evenementen met betaalde tickets
 Wat:
 - In Agenda › Evenementen staan nu drie delen: Ontdekken, Mijn tickets en Organiseren.
