@@ -1,6 +1,6 @@
 // De lijst met gesprekken in Chat. Community's staan in ChatCommunity.tsx.
 import { useState, type ReactNode } from "react";
-import { Bewerk, Slot, Zoek } from "../iconen";
+import { Slot, Zoek } from "../iconen";
 import { gesprekNaam, type Gesprek } from "../lib/chat";
 import { Rondje } from "../rondje";
 import { StoryRij } from "./Stories";
@@ -39,21 +39,18 @@ export function Chats({
   );
   return (
     <>
-      <label className="mx-5 mb-2 flex h-12 items-center gap-2 rounded-2xl bg-vlak px-3">
-        <Zoek className="size-5 shrink-0 text-rustig" />
-        <input
-          type="search"
-          aria-label="Zoek een gesprek"
-          placeholder="Zoek naam of groep"
-          value={zoek}
-          onChange={(e) => setZoek(e.target.value)}
-          className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-zacht"
-        />
-      </label>
       <div className="mx-5 mb-3 flex gap-2">
-        <button type="button" onClick={nieuw} className="flex h-10 flex-1 items-center justify-center gap-2 rounded-full bg-accent text-[13px] font-semibold text-white">
-          <Bewerk className="size-4" /> Nieuw gesprek
-        </button>
+        <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full bg-vlak px-3">
+          <Zoek className="size-4 shrink-0 text-rustig" />
+          <input
+            type="search"
+            aria-label="Zoek een gesprek"
+            placeholder="Zoek naam of groep"
+            value={zoek}
+            onChange={(e) => setZoek(e.target.value)}
+            className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-zacht"
+          />
+        </label>
         <details className="relative" onToggle={(e) => setUpdates(e.currentTarget.open)}>
           <summary className="flex h-10 cursor-pointer list-none items-center rounded-full bg-vlak px-4 text-[13px] font-medium marker:content-none">Updates</summary>
           {updates && (
@@ -63,9 +60,6 @@ export function Chats({
           )}
         </details>
       </div>
-      <p className="mx-5 mb-2 text-[12px] text-zacht">
-        Privéchats zijn versleuteld. Delen buiten de app doe je zelf — wij sturen niets door.
-      </p>
       {zoek.trim() && lijst.length > 0 && !zichtbaar.length && (
         <p role="status" className="px-5 text-sm text-rustig">Geen gesprek gevonden.</p>
       )}

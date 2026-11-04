@@ -10,9 +10,9 @@ type Props = { staat: Staat; setStaat: (s: Staat) => void; deel: "vandaag" | "ag
   vernieuw: () => Promise<void>; vraag: (t: string) => void; naarProject: (id: number) => void };
 export default function MijnDag({staat,setStaat,deel,ga,vernieuw,vraag,naarProject}:Props) {
   return <section className="flex h-full flex-col" aria-label="Mijn dag">
-    <nav aria-label="Mijn dag bekijken" className="grid shrink-0 grid-cols-2 gap-2 px-6 pt-2 pb-1">
+    <nav aria-label="Mijn dag bekijken" className="mx-6 mt-1 mb-1 grid shrink-0 grid-cols-2 gap-1 rounded-full bg-vlak p-1">
       {([["vandaag","Vandaag",Zon],["agenda","Agenda",Kalender]] as const).map(([id,naam,Icoon])=><button key={id} aria-current={deel===id?"page":undefined} onClick={()=>ga(id)}
-        className={`flex min-h-11 items-center justify-center gap-2 rounded-full text-[13px] font-medium ${deel===id?"bg-inkt text-white dark:text-black":"bg-vlak text-rustig"}`}><Icoon className="size-4"/>{naam}</button>)}
+        className={`flex h-9 items-center justify-center gap-1.5 rounded-full text-[13px] font-medium transition ${deel===id?"bg-white text-inkt shadow-sm dark:bg-white/15 dark:text-white":"text-rustig"}`}><Icoon className="size-4"/>{naam}</button>)}
     </nav>
     <div className="min-h-0 flex-1 overflow-y-auto">
       <BewaarScherm actief={deel==="vandaag"} naam="Vandaag">

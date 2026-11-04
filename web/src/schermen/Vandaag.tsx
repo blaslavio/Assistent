@@ -189,17 +189,17 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
   }
   return (
     <div className="flex min-h-full flex-col">
-      <header className={`flex flex-wrap items-end justify-between gap-2 px-6 pb-2 ${ingebed?"pt-4":"pt-14"}`}>
+      <header className={`flex flex-wrap items-end justify-between gap-2 px-6 pb-1 ${ingebed?"pt-3":"pt-14"}`}>
         <div className="min-w-0 flex flex-col gap-1">
           <p className="text-sm text-rustig">
             {dagTitel(nu)}{weer ? ` · ${weer.graden}° ${weer.tekst.toLowerCase()}` : ""}
           </p>
-          <h1 className={`${ingebed?"text-2xl":"text-[32px]"} font-bold tracking-tight`}>{groet(nu)}</h1>
+          <h1 className={`${ingebed?"text-[22px]":"text-[32px]"} font-bold tracking-tight`}>{groet(nu)}</h1>
         </div>
         {(data.instellingen?.thema === "donker" || data.instellingen?.thema === "auto") && <button type="button" aria-label="Lichte blauw-witte weergave" disabled={bezig} onClick={zachtLicht} className="min-h-11 shrink-0 rounded-full border border-lijn px-3 text-sm text-accent">Zacht licht</button>}
       </header>
 
-      <main className="flex flex-1 flex-col gap-3 px-6 py-4">
+      <main className="flex flex-1 flex-col gap-2.5 px-6 py-3">
         {fout && <div role="alert" className="vandaag-kaart">
           <p>{fout}</p>
           {vernieuw && <button disabled={bezig} onClick={async () => {
@@ -239,31 +239,31 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
           <h2 className="font-semibold">Opgeslagen</h2><p className="mt-1 break-words">{resultaat}</p>
           {naarAssistent && <button onClick={naarAssistent} className="mt-3 min-h-11 font-medium text-accent">Bespreek je volgende stap met de assistent</button>}
         </section>}
-        {toon("afspraken") && straks && (
-          <section>
-            <h2 className={kop}>Straks</h2>
-            <button type="button" onClick={() => ga?.("agenda")} aria-label={`Open agenda: ${straks.titel}`} className="flex w-full flex-col gap-1.5 rounded-3xl bg-accent p-5 text-left text-white">
-              <p className="text-[13px] opacity-85">{hoeLang(moment(straks.start), eind(straks), nu) || uur(straks.start)}</p>
-              <p className="text-xl font-semibold">{straks.titel}</p>
-              <p className="text-sm opacity-85">
-                {uur(straks.start)}{straks.einde ? ` – ${uur(straks.einde)}` : ""}{straks.locatie ? ` · ${straks.locatie}` : ""}
-              </p>
-            </button>
+        {toon("afspraken") && (straks || rest.length > 0) && (
+          <section aria-label="Agenda vandaag" className="overflow-hidden rounded-2xl bg-vlak">
+            {straks && (
+              <button type="button" onClick={() => ga?.("agenda")} aria-label={`Open agenda: ${straks.titel}`}
+                className="flex w-full items-center gap-3 border-l-[3px] border-accent px-4 py-3 text-left">
+                <span className="w-12 shrink-0 text-[13px] font-semibold text-accent">{uur(straks.start)}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{straks.titel}</span>
+                  <span className="block truncate text-[13px] text-rustig">
+                    {hoeLang(moment(straks.start), eind(straks), nu) || "Straks"}{straks.einde ? ` · tot ${uur(straks.einde)}` : ""}{straks.locatie ? ` · ${straks.locatie}` : ""}
+                  </span>
+                </span>
+              </button>
+            )}
+            {rest.length > 0 && (
+              <ul className="divide-y divide-lijn border-t border-lijn">
+                {rest.map((a) => (
+                  <li key={a.id} className="flex items-baseline gap-3 px-4 py-2.5 pl-[19px]">
+                    <span className="w-12 shrink-0 text-[13px] text-rustig">{heleDag(a.start) ? "Hele dag" : uur(a.start)}</span>
+                    <span className="min-w-0 flex-1 truncate">{a.titel}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
-        )}
-
-        {toon("afspraken") && rest.length > 0 && (
-          <details name="vandaag-rust" className="vandaag-kaart">
-            <summary className="min-h-11 cursor-pointer py-2 font-medium">Verder vandaag · {rest.length}</summary>
-            <ul>
-              {rest.map((a) => (
-                <li key={a.id} className="flex items-baseline gap-4 py-2.5">
-                  <span className="w-12 shrink-0 text-sm text-rustig">{heleDag(a.start) ? "Hele dag" : uur(a.start)}</span>
-                  <span>{a.titel}</span>
-                </li>
-              ))}
-            </ul>
-          </details>
         )}
 
         {toon("afspraken") && !straks && rest.length === 0 && <p className="text-rustig">Niets meer in je agenda vandaag.</p>}

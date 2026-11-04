@@ -2,7 +2,6 @@ import BerichtTaak from "./BerichtTaak";
 import { useSchermActief } from "./BewaarScherm";
 import { KaartVouw } from "../iconen";
 import { kaartOpenen, kaartGevraagd, gevraagdGesprek, gevraagdBericht, winkelAppGevraagd } from "../lib/naar";
-import InstellingenKnop from "./InstellingenKnop";
 import { Fragment, Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Bewerk, Mensen, Projectmap, Telefoon, Tandwiel } from "../iconen";
 import { GastGesprekScherm, GastenLijst } from "./Gasten";
@@ -344,10 +343,11 @@ export default function Chat({
           : 0),
     0,
   );
+  const rijBevat = (d: string) => chatDelenVan(staat.data.instellingen?.chatdelen).includes(d as never);
   const acties =
     deel === "chats" && !nieuw
       ? [
-          { label: "Bellen", icoon: <Telefoon className="size-5" />, doe: () => setDeel("oproepen") },
+          ...(rijBevat("oproepen") ? [] : [{ label: "Bellen", icoon: <Telefoon className="size-5" />, doe: () => setDeel("oproepen") }]),
           { label: "Nieuw gesprek", icoon: <Bewerk className="size-5" />, doe: () => setNieuw(true) },
         ]
       : deel === "oproepen"
@@ -364,15 +364,12 @@ export default function Chat({
         terugNaam="Chats"
         rechts={
           <span className="flex shrink-0 gap-2">
-            {deel !== "oproepen" && (
-              <InstellingenKnop pagina="privacy" label="Privacy en beveiliging instellen" />
-            )}
             {acties.map((a) => (
               <button
                 key={a.label}
                 onClick={a.doe}
                 aria-label={a.label}
-                className="flex size-11 items-center justify-center rounded-full bg-vlak"
+                className="flex size-10 items-center justify-center rounded-full bg-vlak"
               >
                 {a.icoon}
               </button>

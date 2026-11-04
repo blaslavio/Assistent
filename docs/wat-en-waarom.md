@@ -1,3 +1,13 @@
+## 2026-11-04 · Hele app strakker en compacter
+Wat:
+- Bovenbalk: "Assistent", "Zoek" en je profiel zijn samengevoegd tot één zoekbalk ("Zoek of vraag iets") met een knop voor de assistent en je profiel ernaast. In het zoekvenster kun je je vraag meteen aan de assistent stellen.
+- Mijn dag: Vandaag en Agenda staan in een kleine schakelaar. "Straks" en "Verder vandaag" zijn één blok met je afspraken onder elkaar. De blokken zijn kleiner.
+- Chat: de grote knop "Nieuw gesprek" (stond er dubbel met het potlood), het tandwiel en de dubbele belknop zijn weg. Zoeken en Updates staan op één regel.
+- Werkruimte: "Voor jou", de lijst Privé, "Meer privé-apps" en de losse knoppen zijn samengevoegd tot één raster met app-icoontjes, zoals op je telefoon, met Documenten voorop. Recent verschijnt alleen als er iets is.
+- Instellingen: rustige icoontjes in één kleur, kleinere kop en zoekbalk.
+- Handel: geen regenboog meer. Alles in één accentkleur, een tabbalk in plaats van gekleurde knoppen, kleinere kaarten. De vier blokken op Ontdek zijn weg, want de tabbalk erboven doet hetzelfde.
+Waarom: je wilde de hele app vele malen strakker en compacter, zonder regenboog, en alles wat samen kan samengevoegd.
+
 ## 2026-11-04 · Handel opnieuw vormgegeven
 Wat:
 - Elke soort heeft nu een grote kop met een eigen titel ("Tweede leven", "Iemand die het kan", "Waar heb je trek in?") en zachte, zwevende kleurvlekken erachter. De zoekbalk is van glas.

@@ -11,7 +11,7 @@ vi.mock("./Projecten",()=>({default:({open}:{open:(id:number)=>void})=><button o
 afterEach(()=>{cleanup();vi.clearAllMocks();window.dispatchEvent(new Event("assistent-sessie"));});
 const props={staat:{gebruiker:{id:1,naam:"test"},data:{taken:[],afspraken:[],volgend_id:1}},vernieuw:vi.fn(),vraag:vi.fn(),openProject:vi.fn(),naarChat:vi.fn()};
 it("zet persoonlijke apps voorop en laat projecten via hun bestaande gesprek openen",async()=>{
- render(<Werkruimte {...props}/>);expect(screen.getByText("Meer privé-apps").closest("details")?.open).toBe(false);
+ render(<Werkruimte {...props}/>);const prive=within(screen.getByRole("region",{name:"Privé"})).getAllByRole("button");expect(prive[0].getAttribute("aria-label")).toMatch(/^Documenten/);expect(prive.length).toBeGreaterThan(8);
  fireEvent.click(screen.getByRole("button",{name:/Samenwerken/}));fireEvent.click(await screen.findByRole("button",{name:"Testproject openen"}));expect(props.openProject).toHaveBeenCalledWith(42);
 });
 it("vindt ingeklapte apps en bewaart de zoekopdracht na teruggaan",async()=>{

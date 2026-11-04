@@ -8,10 +8,9 @@ import { useSchermActief } from "./BewaarScherm";
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { Staat } from "../App";
 import { ONDERDELEN, type OnderdeelNaam } from "../lib/onderdeel-lijst";
-import { studioOpenen, kaartOpenen, winkelAppOpenen, instellingenOpenen, naar } from "../lib/naar";
-import { Boek, Euro, Kalender, KaartVouw, Mensen, Projectmap, Slot, Tas, Terug, Winkelpand, Zoek } from "../iconen";
-import { INTERESSES, leesInteresses, type Interesse } from "../lib/interesses";
-import { InteresseKeuze } from "./InteresseKeuze";
+import { studioOpenen, kaartOpenen, winkelAppOpenen, instellingenOpenen } from "../lib/naar";
+import { KaartVouw, Projectmap, Tas, Terug, Winkelpand, Zoek } from "../iconen";
+import { leesInteresses, type Interesse } from "../lib/interesses";
 import BewaarScherm from "./BewaarScherm";
 
 const Onderdeel = lazy(() => import("./Onderdelen").then((m) => ({ default: m.Onderdeel })));
@@ -43,7 +42,9 @@ const UIT: Record<string, string> = {
   studio: "Winkel, evenementen en tickets",
 };
 
-const ICOON: Record<Interesse, typeof Kalender> = { dag: Kalender, geld: Euro, verkopen: Tas, community: Mensen, werk: Projectmap, leren: Boek };
+// Wat je bij de start koos, schuift die apps naar voren.
+const BIJ_INTERESSE: Record<Interesse, string[]> = { dag: ["boodschappen", "huishouden"], geld: ["budget", "beleggen"],
+  verkopen: ["kooplijst"], community: [], werk: ["documenten", "notities"], leren: ["leren"] };
 
 const PRIVE: OnderdeelNaam[] = [
   "notities", "documenten", "huishouden", "boodschappen", "kooplijst",
@@ -56,7 +57,6 @@ export default function Werkruimte({
 }: Props) {
   const [deel, setDeel] = useState<Deel>(start?.naam ?? null);
   const [zoek, setZoek] = useState("");
-  const [kiezen, setKiezen] = useState(false);
   useEffect(() => {
     if (start) {
       setDeel(start.naam);
@@ -160,11 +160,23 @@ export default function Werkruimte({
     </button>
   );
 
+  // Eén app als icoontje met naam eronder, zoals op een telefoon. De uitleg staat in het label voor voorlezen.
+  const tegel = (id: string, naam: string, Icoon: (p: { className?: string }) => React.ReactNode, doe: () => void, uitleg = UIT[id]) => (
+    <button key={id} type="button" onClick={doe} aria-label={uitleg ? `${naam}, ${uitleg}` : naam}
+      className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl py-1 active:scale-95">
+      <span className="flex size-14 items-center justify-center rounded-[18px] bg-vlak text-accent">
+        <Icoon className="size-6" />
+      </span>
+      <span className="line-clamp-2 w-full hyphens-auto text-center text-[11px] font-medium leading-tight">{naam.split(" · ")[0]}</span>
+    </button>
+  );
+
   const priveApps = ONDERDELEN.filter(([id]) => PRIVE.includes(id));
   // Belangrijkste eerst: werk en geld gaan voor lijstjes.
   const VOLGORDE = ["documenten", "notities", "budget", "boodschappen"];
-  const hoofd = priveApps.filter(([id]) => VOLGORDE.includes(id))
-    .sort((a, b) => VOLGORDE.indexOf(a[0]) - VOLGORDE.indexOf(b[0]));
+  const voorkeur = leesInteresses(staat.data.instellingen).flatMap((i) => BIJ_INTERESSE[i]);
+  const gewicht = (id: string) => (VOLGORDE.includes(id) ? VOLGORDE.indexOf(id) : voorkeur.includes(id) ? 10 : 20);
+  const hoofd = priveApps.filter(([id]) => VOLGORDE.includes(id));
   const extra = priveApps.filter(
     ([id]) => !["notities", "documenten", "boodschappen", "budget"].includes(id),
   );
@@ -177,80 +189,29 @@ export default function Werkruimte({
   const zakelijkMatch =
     match("zakelijk", "Zakelijk klanten rooster") || studioMatch || "zakelijk studio bedrijf".includes(term);
 
-  const interesses = leesInteresses(staat.data.instellingen);
-  function openInteresse(id: Interesse) {
-    if (id === "dag") naar({ tab: "agenda" });
-    else if (id === "geld") kiesApp("budget");
-    else if (id === "verkopen") winkelAppOpenen();
-    else if (id === "community") naar({ tab: "chat" });
-    else if (id === "werk") setDeel("projecten");
-    else kiesApp("leren");
-  }
 
   return (
     <section className="h-full" aria-label="Werkruimte">
       <BewaarScherm actief={deel === null} naam="Werkruimte overzicht">
         <div className="flex flex-col gap-5 px-5 pt-4 pb-8">
-          <header className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-[28px] font-bold tracking-tight">Werkruimte</h1>
-              <p className="mt-1 text-[13px] text-rustig">
-                Privé en zakelijk gescheiden. Jij bepaalt wat openstaat.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => instellingenOpenen("privacy")}
-              aria-label="Privacy en beveiliging"
-              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-vlak text-rustig"
-            >
-              <Slot className="size-5" />
-            </button>
+          <header className="flex flex-col gap-3">
+            <h1 className="text-[22px] font-bold tracking-tight">Werkruimte</h1>
+            <label className="flex h-10 items-center gap-2 rounded-full bg-vlak px-3.5">
+              <Zoek className="size-4 shrink-0 text-rustig" />
+              <input
+                type="search"
+                value={zoek}
+                maxLength={100}
+                onChange={(e) => setZoek(e.target.value)}
+                placeholder="Zoek een app of project"
+                aria-label="Zoek in werkruimte"
+                className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-zacht"
+              />
+            </label>
           </header>
 
-          <label className="flex h-12 items-center gap-2 rounded-2xl bg-vlak px-3">
-            <Zoek className="size-5 shrink-0 text-rustig" />
-            <input
-              type="search"
-              value={zoek}
-              maxLength={100}
-              onChange={(e) => setZoek(e.target.value)}
-              placeholder="Zoek een app of project"
-              aria-label="Zoek in werkruimte"
-              className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-zacht"
-            />
-          </label>
-
           {!term && (
-            <section aria-label="Voor jou" className="flex flex-col gap-2">
-              <div className="flex items-center justify-between px-0.5">
-                <h2 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">Voor jou</h2>
-                {!kiezen && <button type="button" onClick={() => setKiezen(true)} className="min-h-9 text-[13px] text-accent">{interesses.length ? "Aanpassen" : "Kiezen"}</button>}
-              </div>
-              {kiezen ? (
-                <InteresseKeuze begin={interesses} klaar={(g) => { setKiezen(false); if (g) void vernieuw(); }} />
-              ) : interesses.length ? (
-                <div className="grid grid-cols-2 gap-2">
-                  {interesses.map((id) => {
-                    const { naam, uitleg } = INTERESSES.find((i) => i.id === id)!;
-                    const Icoon = ICOON[id];
-                    return (
-                      <button key={id} type="button" onClick={() => openInteresse(id)}
-                        className="flex min-h-14 items-center gap-3 rounded-2xl bg-vlak px-3 text-left">
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent"><Icoon className="size-[18px]" /></span>
-                        <span className="min-w-0"><span className="block truncate text-[14px] font-medium">{naam}</span><span className="block truncate text-[12px] text-rustig">{uitleg}</span></span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-[13px] text-rustig">Kies waar je de app vooral voor gebruikt. Dan staat dat hier bovenaan.</p>
-              )}
-            </section>
-          )}
-
-          {!term && (
-            <section aria-label="Recent gebruikt">
+            <section aria-label="Recent gebruikt" className={vervolg.length || projectFout ? "" : "hidden"}>
               <h2 className="mb-2 px-0.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">
                 Recent
               </h2>
@@ -261,21 +222,17 @@ export default function Werkruimte({
                       key={id}
                       type="button"
                       onClick={doe}
-                      className="flex w-[7.25rem] shrink-0 flex-col items-start gap-2 rounded-2xl border border-lijn bg-white p-3 text-left transition active:scale-[0.98] dark:bg-[#121216]"
+                      className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-vlak pl-1.5 pr-3.5 text-left transition active:scale-[0.98]"
                     >
-                      <span className="flex size-9 items-center justify-center rounded-xl bg-accent/10 text-accent">
-                        <Icoon className="size-[18px]" />
+                      <span className="flex size-7 items-center justify-center rounded-full bg-white text-accent dark:bg-white/10">
+                        <Icoon className="size-4" />
                       </span>
-                      <span className="w-full truncate text-[13px] font-medium">{naam}</span>
-                      <span className="text-[11px] text-rustig">{uitleg}</span>
+                      <span className="max-w-[9rem] truncate text-[13px] font-medium">{naam}</span>
+                      <span className="sr-only">{uitleg}</span>
                     </button>
                   ))}
                 </div>
-              ) : (
-                <p className="text-[13px] text-rustig">
-                  Open een app; hier verschijnt wat je recent gebruikte.
-                </p>
-              )}
+              ) : null}
               {projectFout && (
                 <p role="status" className="mt-2 text-xs text-rustig">
                   Projecten nog niet gecontroleerd.{" "}
@@ -339,56 +296,25 @@ export default function Werkruimte({
             </section>
           ) : (
             <>
-              <section aria-label="Privé" className="flex flex-col gap-3">
-                <div className="flex items-center justify-between px-0.5">
-                  <h2 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">Privé</h2>
-                  <span className="text-[11px] text-zacht">Alleen jij</span>
+              <section aria-label="Privé" className="flex flex-col gap-2">
+                <h2 className="px-0.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">Privé</h2>
+                <div className="grid grid-cols-4 gap-x-2 gap-y-3">
+                  {[...hoofd, ...extra].sort((a, b) => gewicht(a[0]) - gewicht(b[0])).map(([id, naam, Icoon]) => tegel(id, naam, Icoon, () => kiesApp(id)))}
+                  {tegel("projecten", "Samenwerken", Projectmap, () => setDeel("projecten"), "Projecten uit je gesprekken")}
+                  {tegel("kaart", "Kaart", KaartVouw, kaartOpenen, "Routes en plekken")}
                 </div>
-                <div className="flex flex-col gap-2">{hoofd.map((a) => appKnop(a))}</div>
-                <details className="group rounded-2xl border border-lijn">
-                  <summary className="flex min-h-11 cursor-pointer list-none items-center px-4 py-2 text-[14px] font-medium marker:content-none">
-                    Meer privé-apps
-                    <span className="ml-auto text-[12px] text-rustig group-open:hidden">openen</span>
-                  </summary>
-                  <div className="flex flex-col gap-2 border-t border-lijn p-3">{extra.map((a) => appKnop(a))}</div>
-                </details>
-                <button
-                  type="button"
-                  onClick={() => setDeel("projecten")}
-                  className="flex min-h-14 items-center gap-3 rounded-2xl bg-vlak px-4 text-left"
-                >
-                  <Projectmap className="size-5 text-accent" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-medium">Samenwerken</span>
-                    <span className="block text-[13px] text-rustig">Projecten uit je gesprekken</span>
-                  </span>
-                  <Terug className="size-4 rotate-180 text-rustig" />
-                </button>
               </section>
 
-              <section aria-label="Zakelijk" className="flex flex-col gap-3">
-                <div className="flex items-center justify-between px-0.5">
-                  <h2 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">Zakelijk</h2>
-                  <span className="text-[11px] text-zacht">Winkel, events en klanten</span>
+              <section aria-label="Zakelijk" className="flex flex-col gap-2">
+                <h2 className="px-0.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-rustig">Zakelijk</h2>
+                <div className="grid grid-cols-4 gap-x-2 gap-y-3">
+                  {ONDERDELEN.filter(([id]) => ZAKELIJK.includes(id)).map(([id, naam, Icoon]) => tegel(id, naam, Icoon, () => kiesApp(id)))}
+                  {tegel("winkel", "Winkel", Tas, winkelAppOpenen, "Kopen en verkopen")}
                 </div>
-                <div className="flex flex-col gap-2">
-                  {ONDERDELEN.filter(([id]) => ZAKELIJK.includes(id)).map((a) => appKnop(a))}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={winkelAppOpenen} className="flex h-10 items-center gap-2 rounded-full bg-vlak px-3 text-[13px] font-medium">
-                    <Tas className="size-4 text-accent" /> Winkel
-                  </button>
-                  <button type="button" onClick={kaartOpenen} className="flex h-10 items-center gap-2 rounded-full bg-vlak px-3 text-[13px] font-medium">
-                    <KaartVouw className="size-4 text-accent" /> Kaart
-                  </button>
-                </div>
-                <p className="text-[12px] leading-snug text-rustig">
-                  Zakelijke tools delen geen privé-notities. Betalingen en posts gaan pas na jouw akkoord.
-                </p>
               </section>
 
               <p className="text-center text-[12px] text-zacht">
-                Gegevens blijven van jou.{" "}
+                Privé en zakelijk blijven gescheiden.{" "}
                 <button type="button" className="text-accent" onClick={() => instellingenOpenen("privacy")}>
                   Privacy
                 </button>
