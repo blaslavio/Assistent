@@ -67,7 +67,7 @@ export function WinkelApp({ start, melding, adres, thuisadres, bestel, terug, st
               <span className="text-[13px] text-rustig">Een product of een dienst, met foto en prijs</span>
             </span>
           </button>
-          <MijnWinkel key={bijgewerkt} bekijk={(a) => { setOpenWinkel(a); setDeel("ontdekken"); }} />
+          <MijnWinkel key={bijgewerkt} nieuwProduct={() => setVerkopen(true)} bekijk={(a) => { setOpenWinkel(a); setDeel("ontdekken"); }} />
           <JouwAanbod key={bijgewerkt} />
         </div>
       )}
