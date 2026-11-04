@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 const ALTIJD = [
   "Ik doe nooit iets met geld of mail zonder dat jij eerst ja zegt.",
   "Bij betalen zie je eerst bedrag en ontvanger. Jij bevestigt.",
-  "Veeg de balk in de chat omlaag voor het hele scherm.",
+  "In de assistent kun je ook praten: tik op de microfoon.",
   "Je gesprekken zijn versleuteld op je eigen toestel.",
   "Tik op mij voor de volgende tip.",
 ];
@@ -82,7 +82,7 @@ export function Mascotte({
       <svg
         viewBox="0 0 80 120"
         aria-hidden
-        className="mascotte-lijf pointer-events-none size-full select-none overflow-visible text-[#0f766e] dark:text-[#5eead4]"
+        className="mascotte-lijf pointer-events-none size-full select-none overflow-visible text-accent"
       >
         <path
           fill="none"
@@ -217,64 +217,6 @@ export function MascotteMetTip({ tips: eigen }: { tips?: string[] }) {
       >
         {tekst ?? tips[i]}
       </p>
-    </div>
-  );
-}
-
-export function MascotteCompanion() {
-  const [open, setOpen] = useState(false);
-  const [tips] = useState(() => tipsVoorNu());
-  const [i, setI] = useState(0);
-  const [hup, setHup] = useState(0);
-  const [stemming, setStemming] = useState<Stemming>("wacht");
-  const [eventTekst, setEventTekst] = useState<string | null>(null);
-  const terug = useRef(0);
-
-  useEffect(() => {
-    const zeg = (e: Event) => {
-      clearTimeout(terug.current);
-      setEventTekst((e as CustomEvent<string>).detail);
-      setStemming("feest");
-      setOpen(true);
-      terug.current = window.setTimeout(() => {
-        setStemming("wacht");
-        setEventTekst(null);
-      }, 2200);
-    };
-    window.addEventListener("mascotte-los", zeg);
-    return () => {
-      clearTimeout(terug.current);
-      window.removeEventListener("mascotte-los", zeg);
-    };
-  }, []);
-
-  return (
-    <div className="pointer-events-none fixed bottom-24 right-4 z-40 flex flex-col items-end gap-2">
-      {open && (
-        <div
-          role="status"
-          className="pointer-events-auto opkomen max-w-[240px] rounded-2xl border border-lijn bg-white/95 px-3 py-2.5 text-[13px] leading-snug shadow-lg backdrop-blur dark:bg-[#16161a]/95"
-        >
-          {eventTekst ?? tips[i % tips.length]}
-        </div>
-      )}
-      <button
-        type="button"
-        className="pointer-events-auto flex size-14 items-center justify-center rounded-2xl border border-lijn bg-white/95 shadow-lg backdrop-blur transition active:scale-95 dark:bg-[#16161a]/95"
-        aria-label="Paperclip"
-        aria-expanded={open}
-        onClick={() => {
-          setHup((h) => h + 1);
-          setEventTekst(null);
-          setOpen(true);
-          setI((x) => (open ? x + 1 : x));
-          setStemming("wijst");
-          clearTimeout(terug.current);
-          terug.current = window.setTimeout(() => setStemming("wacht"), 1600);
-        }}
-      >
-        <Mascotte hup={hup} stemming={stemming} className="h-11 w-9" />
-      </button>
     </div>
   );
 }

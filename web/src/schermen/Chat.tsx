@@ -19,7 +19,8 @@ import { DELEN, chatDelenVan, type Deel } from "./chatdelen";
 import type { Staat } from "../App";
 import { peilen } from "../lib/peilen";
 import type { Product } from "../lib/winkelen";
-import { Chats, Communitys, CommunityScherm } from "./ChatPanelen";
+import { Chats } from "./ChatPanelen";
+import { Communitys, CommunityScherm } from "./ChatCommunity";
 import { WinkelApp } from "./ChatWinkel";
 import { NieuwVeld, Gesprekscherm } from "./ChatGesprek";
 
@@ -320,11 +321,12 @@ export default function Chat({
             setBronBericht(null);
             setOpen(id);
           }}
+          vernieuw={laden}
+          bijgewerkt={(data) => setStaat?.((s) => (s ? { ...s, data } : s))}
           terug={() => {
             setOpenCommunity(null);
             laden().catch(() => {});
           }}
-          staat={staat}
         />
       );
   }
