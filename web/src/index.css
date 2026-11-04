@@ -228,3 +228,15 @@ details:not(.groep-uitleg)[open] > summary::after { transform: rotate(-135deg) t
 
 /* Inlogscherm: een zachte gloed in de kleuren van Vonk achter de mascotte. */
 .inlog-achtergrond { background: radial-gradient(120% 60% at 50% 0%, rgb(251 191 36 / 0.10), rgb(251 113 133 / 0.07) 40%, transparent 70%), var(--color-achtergrond, transparent); }
+
+/* Handel: zwevende kleurvlekken achter de kop, kaarten die rustig binnenkomen en een glazen laag. */
+@keyframes handel-drijf { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(18px, -12px) scale(1.08); } 66% { transform: translate(-14px, 10px) scale(0.95); } }
+@keyframes handel-in { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
+.handel-vlek { position: absolute; border-radius: 9999px; filter: blur(42px); opacity: 0.55; animation: handel-drijf 14s ease-in-out infinite; pointer-events: none; }
+.handel-in { animation: handel-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.handel-glas { background: rgb(255 255 255 / 0.72); backdrop-filter: blur(18px) saturate(1.6); -webkit-backdrop-filter: blur(18px) saturate(1.6); }
+:root[data-thema=donker] .handel-glas { background: rgb(22 22 26 / 0.66); }
+@media (prefers-color-scheme: dark) { :root:not([data-thema=licht]) .handel-glas { background: rgb(22 22 26 / 0.66); } }
+.handel-patroon::before { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgb(255 255 255 / 0.16) 1px, transparent 1.3px); background-size: 16px 16px; }
+@media (prefers-reduced-motion: reduce) { .handel-vlek, .handel-in { animation: none; } }
+.minder-beweging .handel-vlek, .minder-beweging .handel-in { animation: none; }
