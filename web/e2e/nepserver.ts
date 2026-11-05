@@ -28,6 +28,9 @@ export async function nepserver(page: Page, begin: Partial<Record<string, unknow
     aanroepen: [], onbekend: new Set(),
   };
   const gebruiker = { id: 1, naam: "test", weergavenaam: "Test" };
+  // Altijd 9 uur 's ochtends, zodat de lunch van vandaag nog moet komen, hoe laat de test ook draait.
+  const ochtend = new Date(); ochtend.setHours(9, 0, 0, 0);
+  await page.clock.setFixedTime(ochtend);
   await page.addInitScript(() => {
     localStorage.setItem("assistent.apparaat", "apparaat." + "a".repeat(48));
     localStorage.setItem("assistent.eerste_minuut.v1", "1");
@@ -54,7 +57,13 @@ export async function nepserver(page: Page, begin: Partial<Record<string, unknow
           : [aanbod(11, "Wollen winterjas", 35, "product", ["verzenden"]), aanbod(12, "Gazelle stadsfiets", 180)] };
         break;
       case "winkels_zoeken":
-        antwoord = [{ adres: "roma", naam: "Pizzeria Roma", omschrijving: "Pizza uit de houtoven", producten: 4 }];
+        antwoord = [{ adres: "roma", naam: "Pizzeria Roma", omschrijving: "Pizza uit de houtoven", producten: 4,
+          verkoper: "Roma", winkeladres: "Markt 1, 6211 CK Maastricht", lat: 50.851, lon: 5.691 }];
+        break;
+      case "mijn_bestellingen":
+        antwoord = { bestellingen: [{ id: 42, titel: "Margherita", bedrag: 21.5, betaalwijze: "app", levering: "afhalen", status: "betaald",
+          rol: "koper", ander: "Roma", ander_id: 7, kosten: 0.5, aantal: 2, verzendkosten: 0, webshop: true, bijgewerkt: "2026-11-05T12:00:00Z",
+          aangemaakt: "2026-11-05T11:58:00Z", regels: [{ titel: "Margherita", aantal: 1, prijs: 11 }, { titel: "Pizza funghi", aantal: 1, prijs: 10.5 }] }] };
         break;
       case "winkelen_producten":
         antwoord = { producten: [] };

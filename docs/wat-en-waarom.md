@@ -2,6 +2,14 @@
 
 Afspraak: elke update begint met **Wat wordt makkelijker**: in één of twee zinnen wat de gebruiker hierdoor sneller, rustiger of zekerer kan doen. Lukt dat niet, dan bouwen we het niet. Daarna volgen Wat en Waarom.
 
+## 2026-11-05 · Mijn dag in de nieuwe stijl, een echte bestelbevestiging en een frissere kaart
+Wat wordt makkelijker: je ziet in één oogopslag wat er straks is en vraagt de assistent meteen iets vanaf Mijn dag. Na het betalen zie je direct een overzichtelijke bevestiging met waar je het ophaalt.
+Wat:
+- Mijn dag (voorbeeld A): grote begroeting met een korte zin over je dag, daaronder het vraagvenster uit voorbeeld D (typen, inspreken, drie snelle vragen) en je eerstvolgende afspraak als één opvallende kaart met een Route-knop.
+- Bestelbevestiging: terug van betalen opent meteen de bon van die bestelling. Bovenin een kaart met het afhaaladres, daaronder de status met een voortgangsringetje, het bestelnummer, de winkel met een routeknop, de producten, subtotaal, servicekosten en totaal. Ook te openen met "Bekijk bon" bij elke bestelling.
+- Kaart: rustiger en moderner, met lichtgrijze ondergrond, helder water, zacht groen, warme gebouwen, witte straten en een speld in de accentkleur.
+Waarom: je koos voorbeeld A met het venster van D, en wilde de betaalbevestiging en kaart moderner, zoals in je voorbeeld.
+
 ## 2026-11-04 · Kies zelf: Claude, Azure of ChatGPT
 Wat wordt makkelijker: je kiest zelf welke AI je assistent gebruikt, en valt er een weg, dan neemt de volgende het vanzelf over.
 Wat: in Instellingen › Assistent staat nu "AI" met Automatisch, Claude, Azure en ChatGPT. Automatisch probeert eerst Claude, dan Azure, dan ChatGPT. De keuze geldt voor de chat, projecthulp en mail. Heb je een eigen Claude-sleutel ingevuld, dan is het altijd Claude en verdwijnt de keuze.

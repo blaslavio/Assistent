@@ -30,5 +30,5 @@ it("volgt de echte app-themakeuze, inclusief automatische systeemstand",()=>{
  delete document.documentElement.dataset.thema;expect(kaartDonker(document.documentElement,true)).toBe(true);
 });
 it("past alleen passende vectorlagen aan en laat tekst en bronvermelding intact",()=>{
- expect(eigenKaartkleur("water","fill",false)?.kleur).toBe("#b9ddf1");expect(eigenKaartkleur("street-label","symbol",false)).toBeNull();expect(eigenKaartkleur("building","fill",true)?.eigenschap).toBe("fill-color");
+ expect(eigenKaartkleur("water","fill",false)?.kleur).toBe("#a9d8f0");expect(eigenKaartkleur("highway_major_inner","line",false)?.kleur).toBe("#c3cddb");expect(eigenKaartkleur("highway_major_casing","line",false)).toBeNull();expect(eigenKaartkleur("street-label","symbol",false)).toBeNull();expect(eigenKaartkleur("building","fill",true)?.eigenschap).toBe("fill-color");
 });
