@@ -26,7 +26,7 @@ const kop = "mb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rus
 type Props = { ingebed?: boolean; staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () => void; ga?: (t: Tab) => void;
   vraag?: (tekst: string) => void; naarAssistent?: () => void; vernieuw?: () => Promise<void>; naarProject?: (gesprek: number) => void };
 
-const SNELVRAGEN = ["Plan mijn dag", "Wat staat er in mijn mail?", "Boodschappenlijst"];
+const SNELVRAGEN = ["Plan mijn dag", "Nieuw in mijn mail?", "Boodschappen"];
 
 export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, naarAssistent, vernieuw, ga, naarProject, vraag }: Props) {
   const [vraagTekst, setVraagTekst] = useState("");
@@ -217,9 +217,9 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
             <button type="submit" aria-label="Vraag versturen" disabled={!vraagTekst.trim()}
               className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-white disabled:opacity-40"><Pijl className="size-[18px]" /></button>
           </div>
-          {!vraagTekst && <div className="flex flex-wrap gap-2">
+          {!vraagTekst && <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
             {SNELVRAGEN.map((v) => (
-              <button key={v} type="button" onClick={() => vraag(v)} className="h-9 rounded-full border border-lijn bg-white/60 px-3.5 text-sm dark:bg-transparent">{v}</button>
+              <button key={v} type="button" onClick={() => vraag(v)} className="h-9 shrink-0 rounded-full border border-lijn bg-white/60 px-3.5 text-sm dark:bg-transparent">{v}</button>
             ))}
           </div>}
         </form>}
