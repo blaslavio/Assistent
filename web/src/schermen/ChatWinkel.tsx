@@ -18,7 +18,7 @@ const WinkelKaart = lazy(() => import("./WinkelKaart").then((m) => ({ default: m
 export type WinkelDeelNaam = "ontdekken" | "verkopen" | "bestellingen" | "kaart";
 
 /** De winkel als eigen app: ontdekken, zelf verkopen en je bestellingen, met een eigen menu onderin. */
-export function WinkelApp({ start, melding, adres, thuisadres, bestel, terug, staat, setData,terugNaam,losseKaart }: { terugNaam?:string;losseKaart?:boolean; staat:Staat;setData:(g:Gegevens)=>void; start: WinkelDeelNaam; melding?: string;
+export function WinkelApp({ start, melding, bon, adres, thuisadres, bestel, terug, staat, setData,terugNaam,losseKaart }: { terugNaam?:string;losseKaart?:boolean; staat:Staat;setData:(g:Gegevens)=>void; start: WinkelDeelNaam; melding?: string; bon?: number;
   adres?: string; thuisadres?: string; bestel: (p: Product) => void; terug: () => void }) {
   const [deel, setDeel] = useState<WinkelDeelNaam>(start);
   const [openWinkel, setOpenWinkel] = useState(adres);
@@ -67,7 +67,7 @@ export function WinkelApp({ start, melding, adres, thuisadres, bestel, terug, st
           <JouwAanbod key={bijgewerkt} />
         </div>
       )}
-      {deel === "bestellingen" && <Bestellingen melding={deel === start ? melding : undefined} />}
+      {deel === "bestellingen" && <Bestellingen melding={deel === start ? melding : undefined} bon={deel === start ? bon : undefined} />}
       {verkopen && <Verkopen sluit={() => setVerkopen(false)}
         geplaatst={() => { setVerkopen(false); setBijgewerkt((n) => n + 1); }} />}
     </div>

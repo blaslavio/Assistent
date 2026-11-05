@@ -7,7 +7,8 @@ export type Bestelling = {
   rol: "koper" | "verkoper"; ander: string; kosten?: number | null; aantal?: number; verzendkosten?: number | null;
   commissie?: number | null; webshop?: boolean; vervoerder?: string | null; track_code?: string | null;
   bijgewerkt: string; uitbetaald?: boolean;
-  ander_id?: number;
+  ander_id?: number; aangemaakt?: string; bezorg_adres?: string | null;
+  regels?: { titel: string; aantal: number; prijs: number | null }[];
 };
 
 export type Stap = { actie: string; naam: string; hoofd?: boolean; toelichting?: boolean };
@@ -88,9 +89,10 @@ export async function uitvoeren(b: Bestelling, actie: string, toelichting = ""):
 }
 
 // Naar Bestellingen vanaf een andere plek (de assistent, of terug van betalen).
-let vraag: { melding?: string } | null = null;
-export function openVragen(melding?: string) {
-  vraag = { melding };
+let vraag: { melding?: string; bon?: number } | null = null;
+/** `bon`: open meteen de bevestiging van die bestelling (bijvoorbeeld terug van betalen). */
+export function openVragen(melding?: string, bon?: number) {
+  vraag = { melding, bon };
   window.dispatchEvent(new Event("bestellingen-openen"));
 }
 export const isGevraagd = () => vraag !== null;

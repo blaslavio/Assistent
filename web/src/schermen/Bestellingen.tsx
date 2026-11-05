@@ -11,13 +11,15 @@ import {
 } from "./BetaalBevestiging";
 import { Vergelijken, ZoekBalk } from "./ZoekVergelijk";
 import { StatusBanner, ProductLijn, BestelTotalen } from "./BestelStatus";
+import { BestelBon } from "./BestelBon";
 
-export default function Bestellingen({ terug, melding: begin }: { terug?: () => void; melding?: string }) {
+export default function Bestellingen({ terug, melding: begin, bon }: { terug?: () => void; melding?: string; bon?: number }) {
   const [alle, setAlle] = useState<Bestelling[] | null>(null);
   const [fout, setFout] = useState("");
   const [melding, setMelding] = useState(begin ?? "");
   const [zoek, setZoek] = useState("");
   const [vergelijk, setVergelijk] = useState<Bestelling | null>(null);
+  const [open, setOpen] = useState<number | null>(bon ?? null);
 
   const laden = useCallback(() => {
     lijst()
@@ -40,6 +42,7 @@ export default function Bestellingen({ terug, melding: begin }: { terug?: () => 
       ]
     : [];
   const term = vergelijk?.titel ?? zoek;
+  const openBon = open != null ? alle?.find((b) => b.id === open) : undefined;
 
   return (
     <div className="opkomen flex flex-col gap-5 px-6 pb-8">
@@ -88,6 +91,7 @@ export default function Bestellingen({ terug, melding: begin }: { terug?: () => 
                       laden();
                       window.scrollTo?.(0, 0);
                     }}
+                    bekijk={() => setOpen(b.id)}
                     vergelijk={() => {
                       setVergelijk(b);
                       setZoek(b.titel);
@@ -100,6 +104,7 @@ export default function Bestellingen({ terug, melding: begin }: { terug?: () => 
           ),
       )}
       {term && vergelijk && <Vergelijken term={term} />}
+      {openBon && <BestelBon b={openBon} sluit={() => setOpen(null)} />}
       <p className="text-[13px] text-zacht">
         Bij betalen via de app staat je geld veilig bij Stripe en gaat het pas naar de verkoper als
         jij bevestigt dat alles goed is.
@@ -112,10 +117,12 @@ function Regel({
   b,
   klaar: gedaan,
   vergelijk,
+  bekijk,
 }: {
   b: Bestelling;
   klaar: (melding: string) => void;
   vergelijk: () => void;
+  bekijk: () => void;
 }) {
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState("");
@@ -179,9 +186,10 @@ function Regel({
           {stand(b)}
           {b.track_code ? ` · ${b.vervoerder ?? ""} ${b.track_code}` : ""}
         </p>
-        <button onClick={vergelijk} className="shrink-0 text-sm font-medium text-accent">
-          Vergelijk
-        </button>
+        <span className="flex shrink-0 gap-4">
+          <button onClick={bekijk} className="text-sm font-medium text-accent">Bekijk bon</button>
+          <button onClick={vergelijk} className="text-sm font-medium text-accent">Vergelijk</button>
+        </span>
       </div>
 
       {betaalBevestig && betaalStap && (

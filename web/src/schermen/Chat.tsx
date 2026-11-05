@@ -84,11 +84,12 @@ export default function Chat({
   const [winkel, setWinkel] = useState<{
     deel: "ontdekken" | "verkopen" | "bestellingen" | "kaart";
     melding?: string;
+    bon?: number;
     adres?: string;
     ronde?: number;
   } | null>(() => {
     const v = openGevraagd();
-    if (v) return { deel: "bestellingen", melding: v.melding };
+    if (v) return { deel: "bestellingen", melding: v.melding, bon: v.bon };
     const adres = winkelGevraagd();
     return adres ? { deel: "ontdekken", adres } : null;
   });
@@ -174,7 +175,7 @@ export default function Chat({
       if (v) {
         setVanBuiten(true);
         verlaatGesprek();
-        setWinkel((oud) => ({ deel: "bestellingen", melding: v.melding, ronde: (oud?.ronde ?? 0) + 1 }));
+        setWinkel((oud) => ({ deel: "bestellingen", melding: v.melding, bon: v.bon, ronde: (oud?.ronde ?? 0) + 1 }));
       }
     };
     const adres = () => {
@@ -298,6 +299,7 @@ export default function Chat({
         key={winkel.ronde}
         start={winkel.deel}
         melding={winkel.melding}
+        bon={winkel.bon}
         adres={winkel.adres}
         thuisadres={staat?.data.instellingen?.thuisadres}
         bestel={bestel}

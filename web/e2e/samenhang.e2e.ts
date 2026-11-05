@@ -121,3 +121,18 @@ test("een afspraak uit de agenda staat meteen op Mijn dag en blijft bewaard", as
   await page.reload();
   await expect(page.getByRole("region", { name: "Agenda vandaag" }).getByText("Tandarts")).toBeVisible();
 });
+
+test("terug van betalen opent meteen de bevestiging met winkel, producten en totaal", async ({ page }) => {
+  await nepserver(page);
+  await page.goto("/?betaald=42");
+  const bon = page.getByRole("dialog", { name: /^Bestelling 000-042/ });
+  await expect(bon).toBeVisible();
+  await expect(bon.getByText("Bedankt voor je bestelling!")).toBeVisible();
+  await expect(bon.getByText("Afhaaladres")).toBeVisible();
+  await expect(bon.getByRole("list", { name: "Producten" })).toContainText("Pizza funghi");
+  await expect(bon).toContainText("€ 22,00");
+  await bon.getByRole("button", { name: "Sluiten" }).click();
+  await expect(bon).toBeHidden();
+  await page.getByRole("button", { name: "Bekijk bon" }).click();
+  await expect(page.getByRole("dialog", { name: /^Bestelling/ })).toBeVisible();
+});

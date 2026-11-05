@@ -3,7 +3,8 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } 
 import { bijwerken, instellingenBijwerken, huidigeSessie, type Afspraak } from "../api";
 import type { Staat, Tab } from "../App";
 import { dagenVan } from "../lib/club";
-import { Camera, Envelop, Huis, Kalender, Kruis, Plus, Terug, Vinkje } from "../iconen";
+import { Camera, Envelop, Huis, Kalender, Kruis, Microfoon, Pijl, Plus, Terug, Vinkje } from "../iconen";
+import { routeLink } from "../lib/kaart";
 import { gekoppeld } from "../lib/mail";
 import { KeuzeKaart } from "../keuzekaart";
 import { MascotteMetTip, afgevinktTekst, mascotteZeg } from "../mascotte";
@@ -25,7 +26,10 @@ const kop = "mb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-rus
 type Props = { ingebed?: boolean; staat: Staat; setStaat: (s: Staat) => void; naarInstellingen: () => void; ga?: (t: Tab) => void;
   vraag?: (tekst: string) => void; naarAssistent?: () => void; vernieuw?: () => Promise<void>; naarProject?: (gesprek: number) => void };
 
-export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, naarAssistent, vernieuw, ga, naarProject }: Props) {
+const SNELVRAGEN = ["Plan mijn dag", "Wat staat er in mijn mail?", "Boodschappenlijst"];
+
+export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, naarAssistent, vernieuw, ga, naarProject, vraag }: Props) {
+  const [vraagTekst, setVraagTekst] = useState("");
   const [nu, setNu] = useState(() => new Date());
   const [weer, setWeer] = useState<Weer | null>(null);
   const [alleTaken, setAlleTaken] = useState(false);
@@ -79,6 +83,9 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
   const rest = afspraken.filter((a) => a !== straks && !(eind(a) && eind(a)! < nu));
   const taken = useMemo(() => data.taken.filter(t => !t.klaar)
     .sort((a, b) => (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999")), [data.taken]);
+  const nogTeGaan = (straks ? 1 : 0) + rest.length;
+  const samenvatting = [weer ? `${weer.graden}° en ${weer.tekst.toLowerCase()}.` : "",
+    `Je hebt ${nogTeGaan === 0 ? "geen afspraken" : nogTeGaan === 1 ? "1 afspraak" : `${nogTeGaan} afspraken`} en ${taken.length === 1 ? "1 taak" : `${taken.length} taken`}.`].filter(Boolean).join(" ");
 
   // De komende dagen: wat er na vandaag aankomt, zodat je vooruit kunt kijken zonder de agenda te openen.
   const komend = useMemo(() => {
@@ -189,17 +196,33 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
   }
   return (
     <div className="flex min-h-full flex-col">
-      <header className={`flex flex-wrap items-end justify-between gap-2 px-6 pb-1 ${ingebed?"pt-3":"pt-14"}`}>
-        <div className="min-w-0 flex flex-col gap-1">
-          <p className="text-sm text-rustig">
-            {dagTitel(nu)}{weer ? ` · ${weer.graden}° ${weer.tekst.toLowerCase()}` : ""}
-          </p>
-          <h1 className={`${ingebed?"text-[22px]":"text-[32px]"} font-bold tracking-tight`}>{groet(nu)}</h1>
+      <header className={`flex flex-wrap items-end justify-between gap-2 px-6 pb-1 ${ingebed?"pt-4":"pt-14"}`}>
+        <div className="min-w-0 flex flex-col gap-0.5">
+          <p className="text-[13px] font-medium uppercase tracking-[0.04em] text-rustig">{dagTitel(nu)}</p>
+          <h1 className="text-[30px] leading-tight font-bold tracking-tight">{groet(nu)}</h1>
+          <p className="mt-1 text-[15px] text-rustig">{samenvatting}</p>
         </div>
         {(data.instellingen?.thema === "donker" || data.instellingen?.thema === "auto") && <button type="button" aria-label="Lichte blauw-witte weergave" disabled={bezig} onClick={zachtLicht} className="min-h-11 shrink-0 rounded-full border border-lijn px-3 text-sm text-accent">Zacht licht</button>}
       </header>
 
-      <main className="flex flex-1 flex-col gap-2.5 px-6 py-3">
+      <main className="flex flex-1 flex-col gap-3 px-6 py-3">
+        {vraag && <form aria-label="Vraag de assistent" onSubmit={(e) => { e.preventDefault(); const t = vraagTekst.trim(); if (t) { vraag(t); setVraagTekst(""); } }}
+          className="flex flex-col gap-3 rounded-3xl bg-vlak p-4">
+          <div className="flex items-center gap-2">
+            <label className="sr-only" htmlFor="vandaag-vraag">Vraag of typ iets</label>
+            <input id="vandaag-vraag" value={vraagTekst} onChange={(e) => setVraagTekst(e.target.value)} placeholder="Vraag of typ iets" maxLength={500}
+              className="min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-zacht" />
+            {naarAssistent && <button type="button" aria-label="Inspreken bij de assistent" onClick={naarAssistent}
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-inkt dark:bg-white/10"><Microfoon className="size-[18px]" /></button>}
+            <button type="submit" aria-label="Vraag versturen" disabled={!vraagTekst.trim()}
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-white disabled:opacity-40"><Pijl className="size-[18px]" /></button>
+          </div>
+          {!vraagTekst && <div className="flex flex-wrap gap-2">
+            {SNELVRAGEN.map((v) => (
+              <button key={v} type="button" onClick={() => vraag(v)} className="h-9 rounded-full border border-lijn bg-white/60 px-3.5 text-sm dark:bg-transparent">{v}</button>
+            ))}
+          </div>}
+        </form>}
         {fout && <div role="alert" className="vandaag-kaart">
           <p>{fout}</p>
           {vernieuw && <button disabled={bezig} onClick={async () => {
@@ -240,23 +263,26 @@ export default function Vandaag({ ingebed, staat, setStaat, naarInstellingen, na
           {naarAssistent && <button onClick={naarAssistent} className="mt-3 min-h-11 font-medium text-accent">Bespreek je volgende stap met de assistent</button>}
         </section>}
         {toon("afspraken") && (straks || rest.length > 0) && (
-          <section aria-label="Agenda vandaag" className="overflow-hidden rounded-2xl bg-vlak">
+          <section aria-label="Agenda vandaag" className="flex flex-col gap-2">
             {straks && (
-              <button type="button" onClick={() => ga?.("agenda")} aria-label={`Open agenda: ${straks.titel}`}
-                className="flex w-full items-center gap-3 border-l-[3px] border-accent px-4 py-3 text-left">
-                <span className="w-12 shrink-0 text-[13px] font-semibold text-accent">{uur(straks.start)}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{straks.titel}</span>
-                  <span className="block truncate text-[13px] text-rustig">
-                    {hoeLang(moment(straks.start), eind(straks), nu) || "Straks"}{straks.einde ? ` · tot ${uur(straks.einde)}` : ""}{straks.locatie ? ` · ${straks.locatie}` : ""}
-                  </span>
-                </span>
-              </button>
+              <div className="flex flex-col gap-3 rounded-[20px] bg-accent px-5 py-4 text-white">
+                <button type="button" onClick={() => ga?.("agenda")} aria-label={`Open agenda: ${straks.titel}`} className="flex flex-col gap-1 text-left">
+                  <span className="text-[13px] font-medium text-white/85">Straks · {hoeLang(moment(straks.start), eind(straks), nu) || uur(straks.start)}</span>
+                  <span className="text-xl font-semibold">{straks.titel}</span>
+                  <span className="text-sm text-white/85">{uur(straks.start)}{straks.einde ? ` tot ${uur(straks.einde)}` : ""}{straks.locatie ? ` · ${straks.locatie}` : ""}</span>
+                </button>
+                {straks.kaartpunt || straks.locatie ? (
+                  <div className="flex gap-2">
+                    <a href={straks.kaartpunt ? routeLink({ ...straks.kaartpunt, naam: straks.locatie || straks.titel }) : `https://maps.apple.com/?daddr=${encodeURIComponent(straks.locatie ?? "")}`}
+                      target="_blank" rel="noreferrer" className="flex h-9 items-center rounded-full bg-white/20 px-3.5 text-sm font-medium text-white">Route</a>
+                  </div>
+                ) : null}
+              </div>
             )}
             {rest.length > 0 && (
-              <ul className="divide-y divide-lijn border-t border-lijn">
+              <ul className="divide-y divide-lijn">
                 {rest.map((a) => (
-                  <li key={a.id} className="flex items-baseline gap-3 px-4 py-2.5 pl-[19px]">
+                  <li key={a.id} className="flex items-baseline gap-3 py-2.5">
                     <span className="w-12 shrink-0 text-[13px] text-rustig">{heleDag(a.start) ? "Hele dag" : uur(a.start)}</span>
                     <span className="min-w-0 flex-1 truncate">{a.titel}</span>
                   </li>

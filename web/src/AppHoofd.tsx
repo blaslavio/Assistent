@@ -50,7 +50,8 @@ const CURSUSLINK = cursusLinkVragen(adresWaarde("cursus"));
 const POST = postVragen(adresWaarde("post"));
 const CURSUS = terugVanCursus(adresWaarde("cursus_betaald"), adresWaarde("pakket_betaald"), adresWaarde("community_abonnement"));
 adresOpruimen("betaald", "zeg", "ochtend", "winkel", "code", "state", "cursus_betaald", "pakket_betaald", "community_abonnement", "cursus", "post");
-if (BETAALD !== null) openVragen(BETAALD === "0" ? "Betalen is afgebroken. Je kunt het opnieuw proberen." : "Je bent terug van de betaalpagina. Controleer de actuele betaalstatus bij je bestelling.");
+if (BETAALD !== null) openVragen(BETAALD === "0" ? "Betalen is afgebroken. Je kunt het opnieuw proberen." : "Je bent terug van de betaalpagina. Controleer de actuele betaalstatus bij je bestelling.",
+  /^\d+$/.test(BETAALD) && BETAALD !== "0" ? Number(BETAALD) : undefined);
 
 const laden = {
   chat: () => import("./schermen/Chat"),
