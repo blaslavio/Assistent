@@ -2,6 +2,11 @@
 
 Afspraak: elke update begint met **Wat wordt makkelijker**: in één of twee zinnen wat de gebruiker hierdoor sneller, rustiger of zekerer kan doen. Lukt dat niet, dan bouwen we het niet. Daarna volgen Wat en Waarom.
 
+## 2026-11-06 · Mijn dag zonder dubbele schakelaar
+Wat wordt makkelijker: Mijn dag is één scherm. Je hoeft niet meer te kiezen tussen "Mijn dag" en "Vandaag", die hetzelfde betekenden.
+Wat: de schakelaar Vandaag/Agenda bovenin is weg. Rechtsboven op Mijn dag staat nu een knop Agenda; in de agenda brengt "Mijn dag" je terug.
+Waarom: je vond Mijn dag en Vandaag dubbel op.
+
 ## 2026-11-05 · Mijn dag in de nieuwe stijl, een echte bestelbevestiging en een frissere kaart
 Wat wordt makkelijker: je ziet in één oogopslag wat er straks is en vraagt de assistent meteen iets vanaf Mijn dag. Na het betalen zie je direct een overzichtelijke bevestiging met waar je het ophaalt.
 Wat:

@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import type { Staat, Tab } from "../App";
-import { Kalender, Zon } from "../iconen";
+import { Kalender, Terug } from "../iconen";
 import BewaarScherm from "./BewaarScherm";
 import EersteStappen from "./EersteStappen";
 import { Laden } from "./Status";
@@ -9,11 +9,13 @@ const Agenda = lazy(() => import("./Agenda"));
 type Props = { staat: Staat; setStaat: (s: Staat) => void; deel: "vandaag" | "agenda"; ga: (t: Tab) => void;
   vernieuw: () => Promise<void>; vraag: (t: string) => void; naarProject: (id: number) => void };
 export default function MijnDag({staat,setStaat,deel,ga,vernieuw,vraag,naarProject}:Props) {
-  return <section className="flex h-full flex-col" aria-label="Mijn dag">
-    <nav aria-label="Mijn dag bekijken" className="mx-6 mt-1 mb-1 grid shrink-0 grid-cols-2 gap-1 rounded-full bg-vlak p-1">
-      {([["vandaag","Vandaag",Zon],["agenda","Agenda",Kalender]] as const).map(([id,naam,Icoon])=><button key={id} aria-current={deel===id?"page":undefined} onClick={()=>ga(id)}
-        className={`flex h-9 items-center justify-center gap-1.5 rounded-full text-[13px] font-medium transition ${deel===id?"bg-white text-inkt shadow-sm dark:bg-white/15 dark:text-white":"text-rustig"}`}><Icoon className="size-4"/>{naam}</button>)}
-    </nav>
+  return <section className="relative flex h-full flex-col" aria-label="Mijn dag">
+    {/* Eén plek, geen dubbele schakelaar: de agenda is een knop op Mijn dag, met een weg terug. */}
+    {deel==="agenda"
+      ? <div className="shrink-0 px-4 pt-1"><button type="button" onClick={()=>ga("vandaag")} aria-label="Terug naar Mijn dag"
+          className="flex h-10 items-center gap-1 rounded-full pr-3 pl-2 text-[15px] font-medium text-accent"><Terug className="size-5"/>Mijn dag</button></div>
+      : <button type="button" onClick={()=>ga("agenda")} aria-label="Agenda"
+          className="absolute top-3 right-6 z-10 flex h-9 items-center gap-1.5 rounded-full bg-vlak px-3.5 text-[13px] font-medium text-inkt"><Kalender className="size-4"/>Agenda</button>}
     <div className="min-h-0 flex-1 overflow-y-auto">
       <BewaarScherm actief={deel==="vandaag"} naam="Vandaag">
         <div className="px-6 pt-2">
