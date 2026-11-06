@@ -35,7 +35,7 @@ test("de agenda van vandaag staat op Mijn dag en in de agenda", async ({ page })
   await nepserver(page);
   await page.goto("/");
   await expect(page.getByRole("region", { name: "Agenda vandaag" }).getByText("Lunch met Mo")).toBeVisible();
-  await page.getByRole("navigation", { name: "Mijn dag bekijken" }).getByRole("button", { name: "Agenda" }).click();
+  await page.getByRole("region", { name: "Mijn dag" }).getByRole("button", { name: "Agenda", exact: true }).click();
   await expect(page.getByRole("button", { name: /^Lunch met Mo 12:00/ })).toBeVisible();
 });
 
@@ -110,13 +110,13 @@ test("er komen geen schermfouten voor bij een rondje door de app", async ({ page
 test("een afspraak uit de agenda staat meteen op Mijn dag en blijft bewaard", async ({ page }) => {
   const nep = await nepserver(page);
   await page.goto("/");
-  await page.getByRole("navigation", { name: "Mijn dag bekijken" }).getByRole("button", { name: "Agenda" }).click();
+  await page.getByRole("region", { name: "Mijn dag" }).getByRole("button", { name: "Agenda", exact: true }).click();
   await page.getByRole("button", { name: "Nieuwe afspraak" }).click();
   await page.getByLabel("Titel").fill("Tandarts");
   await page.getByRole("button", { name: "Hele dag" }).click();
   await page.getByRole("button", { name: "Opslaan" }).click();
   await expect.poll(() => (nep.data.afspraken as { titel: string }[]).map((a) => a.titel)).toContain("Tandarts");
-  await page.getByRole("navigation", { name: "Mijn dag bekijken" }).getByRole("button", { name: "Vandaag" }).click();
+  await page.getByRole("button", { name: "Terug naar Mijn dag" }).click();
   await expect(page.getByRole("region", { name: "Agenda vandaag" }).getByText("Tandarts")).toBeVisible();
   await page.reload();
   await expect(page.getByRole("region", { name: "Agenda vandaag" }).getByText("Tandarts")).toBeVisible();
