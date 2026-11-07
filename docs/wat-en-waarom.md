@@ -136,3 +136,7 @@ Waarom: je koos voor een eigen figuur. Een nagemaakte Clippy is een bekend figuu
 - **Wat wordt makkelijker:** Werkruimte is een rustige lijst in plaats van een muur van tegels. Je ziet eerst zes apps met één regel uitleg, de rest staat achter "Alle apps tonen". De dubbele snelknoppen bovenaan en het tweede zoekveld zijn weg; het zoekveld bovenin vindt nu ook alle apps.
 - **Waarom:** Blaslavio vond Werkruimte "lelijk en druk". Twee zoekvelden en recente apps die ook als tegel stonden, waren dubbel.
 - **Chat:** de melding "Je hebt al 10 apparaten voor de chat" verscheen omdat de oplossing van 4 november nog niet in de database stond. Op zijn verzoek nu toegepast: het oudste toestel vervalt vanzelf (zacht, via `weg`), niets wordt verwijderd.
+
+## 2026-11-07 · Kortere zin op het inlogscherm
+- **Wat wordt makkelijker:** het inlogscherm zegt nu in één regel waar de app voor is: "Alles voor je dag, op één plek."
+- **Waarom:** Blaslavio vroeg de oude twee regels ("Je dag, je geld, je winkel en je club. Op één plek.") korter en beter te maken.
