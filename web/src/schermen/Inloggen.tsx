@@ -44,7 +44,7 @@ export default function Inloggen({ opIngelogd }: { opIngelogd: () => Promise<voi
           <span aria-hidden className="absolute inset-3 rounded-full bg-gradient-to-br from-amber-300/50 via-rose-300/50 to-violet-400/50 blur-2xl" />
           <Mascotte className="relative size-24" />
         </div>
-        <p className="text-[15px] leading-snug text-rustig">Je dag, je geld, je winkel en je club.<br />Op één plek.</p>
+        <p className="text-[15px] leading-snug text-rustig">Alles voor je dag, op één plek.</p>
       </div>
       {externFout && <p role="alert" className="text-sm text-red-600">{externFout}</p>}
       {externBezig ? <p role="status">Je aanmelding wordt gecontroleerd…</p> : stand === "inloggen" && <Inlog opIngelogd={opIngelogd} naar={setStand} mail={!!mail} />}
