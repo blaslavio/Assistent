@@ -1,11 +1,20 @@
 // Lichte globale zoek — vindt kernpaden zonder de app te overladen.
 import { useMemo, useState } from "react";
 import { globaalZoeken } from "../lib/platform-kern";
-import { naar, studioOpenen } from "../lib/naar";
+import { kaartOpenen, naar, studioOpenen, winkelAppOpenen } from "../lib/naar";
+import { onderdelenZoeken } from "../lib/onderdeel-lijst";
 
 export default function GlobaalZoek({ sluit, vraag }: { sluit: () => void; vraag?: (tekst: string) => void }) {
   const [q, setQ] = useState("");
   const hits = useMemo(() => globaalZoeken(q), [q]);
+  // Apps uit Werkruimte, plus kaart en winkel: zo is er één zoekveld voor alles.
+  const apps = useMemo(() => {
+    const term = q.trim().toLocaleLowerCase("nl");
+    const lijst = onderdelenZoeken(q).map(([id, naam]) => ({ naam: naam.split(" · ")[0], doe: () => naar({ tab: "projecten", onderdeel: id }) }));
+    if (term && "kaart routes plekken".includes(term)) lijst.push({ naam: "Kaart", doe: kaartOpenen });
+    if (term && "winkel kopen verkopen aanbod".includes(term)) lijst.push({ naam: "Winkel", doe: winkelAppOpenen });
+    return lijst;
+  }, [q]);
 
   function open(doel: ReturnType<typeof globaalZoeken>[0]["doel"]) {
     if (doel.soort === "tab") naar({ tab: doel.tab });
@@ -47,6 +56,14 @@ export default function GlobaalZoek({ sluit, vraag }: { sluit: () => void; vraag
               </button>
             </li>
           )}
+          {apps.map((a) => (
+            <li key={a.naam}>
+              <button type="button" onClick={() => { a.doe(); sluit(); }}
+                className="flex min-h-11 w-full items-center rounded-xl px-3 py-2 text-left font-medium hover:bg-vlak">
+                {a.naam}
+              </button>
+            </li>
+          ))}
           {hits.map((h) => (
             <li key={h.label}>
               <button
@@ -61,7 +78,7 @@ export default function GlobaalZoek({ sluit, vraag }: { sluit: () => void; vraag
               </button>
             </li>
           ))}
-          {q.trim() && !hits.length && (
+          {q.trim() && !hits.length && !apps.length && (
             <li className="px-3 py-2 text-sm text-rustig">Niets gevonden</li>
           )}
         </ul>

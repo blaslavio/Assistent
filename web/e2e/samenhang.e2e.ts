@@ -46,13 +46,13 @@ test("wat je typt blijft staan als je even naar een ander scherm gaat", async ({
   await dock(page, "Chat");
   await page.getByRole("searchbox", { name: "Zoek een gesprek" }).fill("Mo");
   await dock(page, "Werkruimte");
-  await page.getByRole("searchbox", { name: "Zoek in werkruimte" }).fill("bud");
+  await page.getByRole("button", { name: /Alle apps tonen/ }).click();
   await dock(page, "Mijn dag");
   await expect(page.getByPlaceholder("Nieuwe taak")).toHaveValue("Half getypt");
   await dock(page, "Chat");
   await expect(page.getByRole("searchbox", { name: "Zoek een gesprek" })).toHaveValue("Mo");
   await dock(page, "Werkruimte");
-  await expect(page.getByRole("searchbox", { name: "Zoek in werkruimte" })).toHaveValue("bud");
+  await expect(page.getByRole("button", { name: "Minder tonen" })).toBeVisible();
 });
 
 test("iets kopen in Handel gaat naar de assistent met het juiste product, en terug kan gewoon", async ({ page }) => {
