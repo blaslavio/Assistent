@@ -131,3 +131,8 @@ Waarom: je vroeg om alles na te lopen zodat alles op elkaar aansluit.
 ## 2026-11-04 · Eigen mascotte
 Wat: de paperclip is vervangen door een eigen rond figuurtje met een vonkje, in de kleur van de app (licht en donker). Ogen volgen je nog steeds, hij knippert, wijst, juicht, slaapt en geeft tips. De bewegingen van ogen en armen zijn nu afgestemd op het figuur zelf (die waren nog ingesteld op een veel grotere tekening, waardoor ogen en armen te ver verschoven).
 Waarom: je koos voor een eigen figuur. Een nagemaakte Clippy is een bekend figuur van Microsoft en dat is riskant voor een openbare app.
+
+## 2026-11-07 · Rustige Werkruimte en chat niet meer vast op 10 toestellen
+- **Wat wordt makkelijker:** Werkruimte is een rustige lijst in plaats van een muur van tegels. Je ziet eerst zes apps met één regel uitleg, de rest staat achter "Alle apps tonen". De dubbele snelknoppen bovenaan en het tweede zoekveld zijn weg; het zoekveld bovenin vindt nu ook alle apps.
+- **Waarom:** Blaslavio vond Werkruimte "lelijk en druk". Twee zoekvelden en recente apps die ook als tegel stonden, waren dubbel.
+- **Chat:** de melding "Je hebt al 10 apparaten voor de chat" verscheen omdat de oplossing van 4 november nog niet in de database stond. Op zijn verzoek nu toegepast: het oudste toestel vervalt vanzelf (zacht, via `weg`), niets wordt verwijderd.
