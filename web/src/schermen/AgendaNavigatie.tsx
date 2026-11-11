@@ -9,13 +9,13 @@ export const AGENDA_ONDERDELEN: {id:AgendaPaneel;naam:string;groep:string;icoon:
   {id:"mail",naam:"Mail",groep:"Berichten en herinneringen",icoon:Envelop,zoek:"email inbox post koppelen"},
   {id:"herinneringen",naam:"Herinneringen",groep:"Berichten en herinneringen",icoon:Bel,zoek:"melding alarm onthouden"},
 ];
-export default function AgendaNavigatie({actief,kies,tellingen={}}:{actief:AgendaPaneel|null;kies:(p:AgendaPaneel|null)=>void;tellingen?:Partial<Record<AgendaPaneel,number>>}) {
+export default function AgendaNavigatie({actief,kies,tellingen={},onMeerChange}:{actief:AgendaPaneel|null;kies:(p:AgendaPaneel|null)=>void;tellingen?:Partial<Record<AgendaPaneel,number>>;onMeerChange?:(open:boolean)=>void}) {
   const [meer,setMeer]=useState(false),[zoek,setZoek]=useState("");
   const knop=useRef<HTMLButtonElement>(null),id=useId();
   const extra=AGENDA_ONDERDELEN.filter(x=>x.id!=="taken");
   const resultaten=extra.filter(x=>`${x.naam} ${x.groep} ${x.zoek}`.toLocaleLowerCase("nl").includes(zoek.trim().toLocaleLowerCase("nl")));
   const aantal=extra.reduce((n,x)=>n+(tellingen[x.id]??0),0);
-  const sluit=()=>{setMeer(false);setZoek("");};
+  const sluit=()=>{setMeer(false);onMeerChange?.(false);setZoek("");};
   const kiezen=(p:AgendaPaneel|null)=>{kies(p);sluit();};
   const badge=(n:number)=>n>0?<span className="ml-1 rounded-full bg-accent px-1.5 text-xs text-white">{n>99?"99+":n}</span>:null;
   const stijl=(aan:boolean)=>`flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-full px-2 text-sm font-medium ${aan?"bg-inkt text-white dark:text-black":"bg-vlak text-rustig"}`;
@@ -23,7 +23,7 @@ export default function AgendaNavigatie({actief,kies,tellingen={}}:{actief:Agend
     <div className="grid grid-cols-3 gap-2">
       <button type="button" className={stijl(actief===null)} aria-current={actief===null?"page":undefined} onClick={()=>kiezen(null)}>Agenda</button>
       <button type="button" className={stijl(actief==="taken")} aria-current={actief==="taken"?"page":undefined} onClick={()=>kiezen("taken")}>Taken{badge(tellingen.taken??0)}</button>
-      <button type="button" ref={knop} aria-label="Meer agenda-opties" aria-expanded={meer} aria-controls={id} className={stijl(actief!==null&&actief!=="taken")} onClick={()=>{setMeer(!meer);if(meer)setZoek("");}}>Meer{badge(aantal)}</button>
+      <button type="button" ref={knop} aria-label="Meer agenda-opties" aria-expanded={meer} aria-controls={id} className={stijl(meer||actief!==null&&actief!=="taken")} onClick={()=>{const next=!meer;setMeer(next);onMeerChange?.(next);if(meer)setZoek("");}}>Meer{badge(aantal)}</button>
     </div>
     {meer&&<section id={id} aria-label="Meer agenda-opties" className="mt-3 rounded-2xl border border-lijn p-4">
       <label className="text-sm">Zoek in je agenda<input type="search" value={zoek} onChange={e=>setZoek(e.target.value)} placeholder="Bijvoorbeeld vakantie of mail" className="mt-2 min-h-11 w-full rounded-xl bg-vlak px-3"/></label>
