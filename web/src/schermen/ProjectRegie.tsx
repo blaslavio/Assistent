@@ -1,5 +1,6 @@
 import ProjectNavigatie from "./ProjectNavigatie";
 import ProjectBord from "./ProjectBord";
+import ProjectChecklist from "./ProjectChecklist";
 import ProjectWerkdruk from "./ProjectWerkdruk";
 import { stapStatusVoorstel } from "../lib/projectwerk";
 import ProjectKompas from "./ProjectKompas";
@@ -158,6 +159,7 @@ export default function ProjectRegie({ gesprek, ik, leden, regels, bestanden, sc
       <button disabled={bezig || !schrijven} className="min-h-11 text-accent" onClick={bevestig}>{bezig ? "Delen…" : onzeker ? "Dezelfde projectopdracht opnieuw proberen" : "Bevestig en deel met project"}</button>
       <button disabled={bezig} className="min-h-11 px-3" onClick={() => { setPending(null); setOnzeker(false); }}>Sluiten</button>
     </div>}
+    {deel === "Checklist" && <ProjectChecklist feiten={feiten} ik={ik} leden={actieveLeden} namen={namen} schrijven={schrijven && !pending} voorstel={voorbereiden} naarAanpak={doel=>{setDoelFocus(doel);setDeel("Hoe");}} />}
     {deel === "Bord" && <ProjectBord feiten={feiten} ik={ik} namen={namen} doelVoorstel={doelFocus} schrijven={schrijven && !pending} voorstel={voorbereiden} />}
     {deel === "Werkdruk" && <ProjectWerkdruk feiten={feiten} namen={namen} />}
     {deel === "Hoe" && <ProjectHoe staat={staat} setData={setData} doelVoorstel={doelFocus} feiten={feiten} ik={ik} personen={namen} schrijven={schrijven && !pending} voorstel={voorbereiden} />}
