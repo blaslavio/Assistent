@@ -140,3 +140,7 @@ Waarom: je koos voor een eigen figuur. Een nagemaakte Clippy is een bekend figuu
 ## 2026-11-07 · Kortere zin op het inlogscherm
 - **Wat wordt makkelijker:** het inlogscherm zegt nu in één regel waar de app voor is: "Alles voor je dag, op één plek."
 - **Waarom:** Blaslavio vroeg de oude twee regels ("Je dag, je geld, je winkel en je club. Op één plek.") korter en beter te maken.
+
+## 2026-11-12 · Eigen indeling voor de iPad
+- **Wat wordt makkelijker:** op een iPad staat het menu nu als rustige kolom links (staand: icoon met naam eronder, liggend: icoon met naam ernaast), en de inhoud staat breder in het midden. Op de telefoon blijft alles zoals het was.
+- **Waarom:** Blaslavio wilde dat de iPad er anders uitziet dan de telefoon, "zoals Instagram", strak en overzichtelijk.
