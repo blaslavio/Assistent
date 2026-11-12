@@ -144,3 +144,7 @@ Waarom: je koos voor een eigen figuur. Een nagemaakte Clippy is een bekend figuu
 ## 2026-11-12 · Eigen indeling voor de iPad
 - **Wat wordt makkelijker:** op een iPad staat het menu nu als rustige kolom links (staand: icoon met naam eronder, liggend: icoon met naam ernaast), en de inhoud staat breder in het midden. Op de telefoon blijft alles zoals het was.
 - **Waarom:** Blaslavio wilde dat de iPad er anders uitziet dan de telefoon, "zoals Instagram", strak en overzichtelijk.
+
+## 2026-11-12 · iPad-menu in het midden
+- **Wat wordt makkelijker:** de drie knoppen links staan nu in het midden van de hoogte, staand en liggend, zodat je duim er makkelijk bij kan.
+- **Waarom:** Blaslavio vroeg ze niet helemaal bovenaan maar in het midden te zetten.
