@@ -214,7 +214,7 @@ export default function App() {
   const hoofd = tab === "agenda" ? "vandaag" : tab;
 
   return (
-    <div key={staat.gebruiker.id} data-hoofdplek={hoofd} className="mx-auto flex h-full max-w-xl flex-col">
+    <div key={staat.gebruiker.id} data-hoofdplek={hoofd} className="mx-auto flex h-full max-w-xl flex-col md:max-w-none md:pl-24 lg:pl-60">
       {!online ? (
         <p role="status" className="bg-vlak px-6 py-3 text-sm text-rustig">Geen internet. Je ziet de laatste stand en wat je typt blijft staan.</p>
       ) : fout && (
@@ -224,7 +224,7 @@ export default function App() {
         </div>
       )}
       {tab !== "assistent" && (
-        <header className="flex shrink-0 items-center gap-2 px-5 pt-[max(env(safe-area-inset-top),8px)] pb-2">
+        <header className="flex shrink-0 items-center gap-2 px-5 pt-[max(env(safe-area-inset-top),8px)] pb-2 md:mx-auto md:w-full md:max-w-3xl md:px-8 md:pt-6">
           <div className="flex h-10 min-w-0 flex-1 items-center rounded-full bg-vlak">
             <button type="button" onClick={() => setToonZoek(true)} aria-label="Zoeken in de app" className="flex h-full min-w-0 flex-1 items-center gap-2 pl-3.5 text-left text-[14px] text-zacht">
               <Zoek className="size-4 shrink-0 text-rustig" /><span className="truncate">Zoek of vraag iets</span>
@@ -236,7 +236,7 @@ export default function App() {
           </button>
         </header>
       )}
-      <main className="min-h-0 flex-1 overflow-hidden">
+      <main className="min-h-0 flex-1 overflow-hidden md:mx-auto md:w-full md:max-w-3xl md:px-3">
         {(Object.keys(scherm) as (keyof typeof scherm)[]).map((id) => (
           <BewaarScherm key={id} actief={hoofd === id} naam={TABS.find((t) => t.id === id)!.naam}>
             <Vangnet naam={id}><Suspense fallback={<p role="status" className="px-6 py-8 text-rustig">Scherm laden…</p>}>{scherm[id]}</Suspense></Vangnet>
